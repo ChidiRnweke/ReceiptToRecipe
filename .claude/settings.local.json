@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npx sv create:*)",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn-svelte@next init:*)",
+      "Bash(npx shadcn-svelte@next add:*)",
+      "Bash(npx sv add:*)",
+      "Bash(npx shadcn-svelte@latest init:*)",
+      "Bash(npx shadcn-svelte@latest add button card input label badge checkbox textarea separator avatar dropdown-menu --overwrite)",
+      "Bash(yes:*)"
+    ]
+  }
+}

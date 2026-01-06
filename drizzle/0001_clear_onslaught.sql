@@ -1,0 +1,1 @@
+ALTER TABLE "cookbook_embeddings" DROP COLUMN "embedding";
