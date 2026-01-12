@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Input } from '$lib/components/ui/input';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import {
 		ArrowLeft,
@@ -12,7 +14,8 @@
 		CheckCircle,
 		XCircle,
 		Loader2,
-		Clock
+		Clock,
+		X
 	} from 'lucide-svelte';
 
 	let { data } = $props();
@@ -48,7 +51,7 @@
 	function getStatusInfo(status: string) {
 		switch (status) {
 			case 'DONE':
-				return { variant: 'success' as const, icon: CheckCircle, label: 'Processed' };
+				return { variant: 'secondary' as const, icon: CheckCircle, label: 'Processed' };
 			case 'PROCESSING':
 				return { variant: 'secondary' as const, icon: Loader2, label: 'Processing...' };
 			case 'QUEUED':
@@ -109,35 +112,68 @@
 		<div class="grid gap-6 lg:grid-cols-3">
 			<div class="lg:col-span-2 space-y-6">
 				<!-- Items List -->
-				<Card.Root>
-					<Card.Header>
-						<Card.Title>Items ({data.receipt.items?.length || 0})</Card.Title>
-					</Card.Header>
-					<Card.Content>
-						{#if data.receipt.items && data.receipt.items.length > 0}
-							<div class="divide-y divide-sand">
-								{#each data.receipt.items as item}
-									<div class="flex items-center justify-between py-3">
-										<div>
-											<p class="font-medium text-ink">{item.normalizedName}</p>
-											<p class="text-sm text-ink-light">
-												{item.quantity} {item.unit}
-												{#if item.category && item.category !== 'other'}
-													<span class="text-ink-muted">· {item.category}</span>
-												{/if}
-											</p>
-										</div>
-										{#if item.price}
-											<p class="font-medium text-ink">${parseFloat(item.price).toFixed(2)}</p>
-										{/if}
+						<Card.Root>
+							<Card.Header class="flex items-center justify-between">
+								<div>
+									<Card.Title>Items ({data.receipt.items?.length || 0})</Card.Title>
+									<p class="text-sm text-ink-light">Tap to edit or add missing lines</p>
+								</div>
+								<form method="POST" action="?/addItem" use:enhance={() => {}} class="flex gap-2">
+									<input type="hidden" name="name" value="New item" />
+									<input type="hidden" name="quantity" value="1" />
+									<Button type="submit" variant="outline" size="sm">Quick add</Button>
+								</form>
+							</Card.Header>
+							<Card.Content>
+								{#if data.receipt.items && data.receipt.items.length > 0}
+									<div class="divide-y divide-sand">
+										{#each data.receipt.items as item}
+											<div class="space-y-2 py-3">
+												<form
+													method="POST"
+													action="?/updateItem"
+													use:enhance={() => {}}
+													class="grid gap-3 md:grid-cols-5 md:items-center"
+												>
+													<input type="hidden" name="itemId" value={item.id} />
+													<div class="md:col-span-2 space-y-1">
+														<label for={`name-${item.id}`} class="text-xs uppercase tracking-wide text-ink-muted">Name</label>
+														<Input id={`name-${item.id}`} name="name" value={item.rawName} />
+													</div>
+													<div class="space-y-1">
+														<label for={`qty-${item.id}`} class="text-xs uppercase tracking-wide text-ink-muted">Qty</label>
+														<Input id={`qty-${item.id}`} name="quantity" value={item.quantity} />
+													</div>
+													<div class="space-y-1">
+														<label for={`unit-${item.id}`} class="text-xs uppercase tracking-wide text-ink-muted">Unit</label>
+														<Input id={`unit-${item.id}`} name="unit" value={item.unit} />
+													</div>
+													<div class="space-y-1">
+														<label for={`price-${item.id}`} class="text-xs uppercase tracking-wide text-ink-muted">Price</label>
+														<Input id={`price-${item.id}`} name="price" value={item.price ?? ''} />
+													</div>
+													<div class="space-y-1 md:col-span-4">
+														<label for={`category-${item.id}`} class="text-xs uppercase tracking-wide text-ink-muted">Category</label>
+														<Input id={`category-${item.id}`} name="category" value={item.category ?? ''} />
+													</div>
+													<div class="flex items-center gap-2 md:col-span-1">
+														<Button type="submit" size="sm" variant="outline">Save</Button>
+													</div>
+												</form>
+												<form method="POST" action="?/deleteItem" use:enhance={() => {}} class="flex justify-end">
+													<input type="hidden" name="itemId" value={item.id} />
+													<Button type="submit" size="icon" variant="ghost" class="text-ink-muted hover:text-sienna-600">
+														<X class="h-4 w-4" />
+													</Button>
+												</form>
+											</div>
+										{/each}
 									</div>
-								{/each}
-							</div>
-						{:else}
-							<p class="text-ink-light">No items found</p>
-						{/if}
-					</Card.Content>
-				</Card.Root>
+								{:else}
+									<p class="text-ink-light">No items found</p>
+								{/if}
+							</Card.Content>
+						</Card.Root>
 
 				<!-- Actions -->
 				<div class="flex gap-3">
@@ -145,10 +181,14 @@
 						<ChefHat class="mr-2 h-4 w-4" />
 						Generate Recipe
 					</Button>
-					<Button variant="outline" class="flex-1">
-						<ShoppingCart class="mr-2 h-4 w-4" />
-						Add to Shopping List
-					</Button>
+					{#if data.receipt.status === 'DONE'}
+						<form method="POST" action="?/addToShopping" use:enhance={() => {}} class="flex-1">
+							<Button type="submit" variant="outline" class="w-full">
+								<ShoppingCart class="mr-2 h-4 w-4" />
+								Add to Shopping List
+							</Button>
+						</form>
+					{/if}
 				</div>
 			</div>
 

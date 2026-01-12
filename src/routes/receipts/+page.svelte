@@ -17,7 +17,7 @@
 	function getStatusBadge(status: string) {
 		switch (status) {
 			case 'DONE':
-				return { variant: 'success' as const, icon: CheckCircle, label: 'Processed' };
+				return { variant: 'secondary' as const, icon: CheckCircle, label: 'Processed' };
 			case 'PROCESSING':
 				return { variant: 'secondary' as const, icon: Loader2, label: 'Processing' };
 			case 'QUEUED':

@@ -9,7 +9,8 @@
       "Bash(npx sv add:*)",
       "Bash(npx shadcn-svelte@latest init:*)",
       "Bash(npx shadcn-svelte@latest add button card input label badge checkbox textarea separator avatar dropdown-menu --overwrite)",
-      "Bash(yes:*)"
+      "Bash(yes:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

@@ -1,10 +1,11 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { RecipeController, PreferencesController, ReceiptController } from '$lib/controllers';
+import { RecipeController, PreferencesController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
 import { db } from '$lib/db/client';
-import { receipts, receiptItems } from '$lib/db/schema';
+import { receipts } from '$lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { parseNumber, parseStringList, requireString } from '$lib/validation';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -46,16 +47,21 @@ export const actions: Actions = {
 		}
 
 		const data = await request.formData();
-		const ingredientIdsStr = data.get('ingredientIds')?.toString() || '';
-		const customIngredientsStr = data.get('customIngredients')?.toString() || '';
-		const servings = parseInt(data.get('servings')?.toString() || '2');
-		const cuisineHint = data.get('cuisineHint')?.toString() || undefined;
-		const useRag = data.get('useRag') === 'on';
-
-		const ingredientIds = ingredientIdsStr ? ingredientIdsStr.split(',').filter(Boolean) : [];
-		const customIngredients = customIngredientsStr
-			? customIngredientsStr.split(',').filter(Boolean)
-			: [];
+		const ingredientIds = parseStringList(data.get('ingredientIds')?.toString(), {
+			maxItems: 30,
+			maxLength: 64
+		});
+		const customIngredients = parseStringList(data.get('customIngredients')?.toString(), {
+			maxItems: 30,
+			maxLength: 64
+		});
+		const servings = parseNumber(data.get('servings')?.toString(), {
+			min: 1,
+			max: 20,
+			fallback: 2
+		}) ?? 2;
+		const cuisineHintRaw = data.get('cuisineHint')?.toString();
+		const cuisineHint = cuisineHintRaw ? cuisineHintRaw.slice(0, 64) : undefined;
 
 		if (ingredientIds.length === 0 && customIngredients.length === 0) {
 			return fail(400, { error: 'Please select or add at least one ingredient' });
@@ -65,7 +71,8 @@ export const actions: Actions = {
 			const recipeController = new RecipeController(
 				AppFactory.getLlmService(),
 				AppFactory.getImageGenService(),
-				AppFactory.getVectorService()
+				AppFactory.getVectorService(),
+				AppFactory.getJobQueue()
 			);
 
 			const recipe = await recipeController.generateRecipe({
@@ -73,8 +80,7 @@ export const actions: Actions = {
 				ingredientIds: ingredientIds.length > 0 ? ingredientIds : undefined,
 				customIngredients: customIngredients.length > 0 ? customIngredients : undefined,
 				servings,
-				cuisineHint,
-				useRag
+				cuisineHint
 			});
 
 			throw redirect(302, `/recipes/${recipe.id}`);

@@ -11,7 +11,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const receiptController = new ReceiptController(
 		AppFactory.getStorageService(),
 		AppFactory.getOcrService(),
-		AppFactory.getNormalizationService()
+		AppFactory.getNormalizationService(),
+		AppFactory.getJobQueue()
 	);
 
 	const receipts = await receiptController.getUserReceipts(locals.user.id);

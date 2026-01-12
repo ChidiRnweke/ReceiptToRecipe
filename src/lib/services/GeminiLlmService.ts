@@ -1,5 +1,10 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import type { ILlmService, GeneratedRecipe, RecipeContext, ChatMessage } from './interfaces';
+import { GoogleGenAI } from "@google/genai";
+import type {
+  ILlmService,
+  GeneratedRecipe,
+  RecipeContext,
+  ChatMessage,
+} from "./interfaces";
 
 const RECIPE_SYSTEM_PROMPT = `You are a helpful culinary assistant that creates recipes based on available ingredients.
 When generating recipes:
@@ -21,56 +26,53 @@ Normalize units:
 Always respond with valid JSON.`;
 
 export class GeminiLlmService implements ILlmService {
-	private client: GoogleGenerativeAI;
-	private model: string;
-	private embeddingModel: string;
+  private client: GoogleGenAI;
+  private model: string;
+  private embeddingModel: string;
 
-	constructor(apiKey: string, model: string = 'gemini-1.5-flash', embeddingModel: string = 'text-embedding-004') {
-		this.client = new GoogleGenerativeAI(apiKey);
-		this.model = model;
-		this.embeddingModel = embeddingModel;
-	}
+  constructor(
+    apiKey: string,
+    model: string = "gemini-2.5-flash",
+    embeddingModel: string = "text-embedding-004"
+  ) {
+    this.client = new GoogleGenAI({ apiKey });
+    this.model = model;
+    this.embeddingModel = embeddingModel;
+  }
 
-	async generateRecipe(context: RecipeContext): Promise<GeneratedRecipe> {
-		const model = this.client.getGenerativeModel({
-			model: this.model,
-			generationConfig: {
-				responseMimeType: 'application/json'
-			}
-		});
+  async generateRecipe(context: RecipeContext): Promise<GeneratedRecipe> {
+    const prompt = this.buildRecipePrompt(context);
 
-		const prompt = this.buildRecipePrompt(context);
+    const result = await this.client.models.generateContent({
+      model: this.model,
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: prompt }],
+        },
+      ],
+      config: {
+        systemInstruction: RECIPE_SYSTEM_PROMPT,
+        responseMimeType: "application/json",
+      },
+    });
 
-		const result = await model.generateContent({
-			contents: [
-				{
-					role: 'user',
-					parts: [{ text: prompt }]
-				}
-			],
-			systemInstruction: RECIPE_SYSTEM_PROMPT
-		});
+    const response = result.text;
+    if (!response) {
+      throw new Error("Empty response from Gemini");
+    }
+    const recipe = JSON.parse(response) as GeneratedRecipe;
 
-		const response = result.response.text();
-		const recipe = JSON.parse(response) as GeneratedRecipe;
+    return this.validateRecipe(recipe, context);
+  }
 
-		return this.validateRecipe(recipe, context);
-	}
-
-	async normalizeIngredient(rawIngredient: string): Promise<{
-		name: string;
-		quantity: number;
-		unit: string;
-		unitType: 'WEIGHT' | 'VOLUME' | 'COUNT';
-	}> {
-		const model = this.client.getGenerativeModel({
-			model: this.model,
-			generationConfig: {
-				responseMimeType: 'application/json'
-			}
-		});
-
-		const prompt = `Parse this ingredient string and extract the normalized quantity, unit, and name:
+  async normalizeIngredient(rawIngredient: string): Promise<{
+    name: string;
+    quantity: number;
+    unit: string;
+    unitType: "WEIGHT" | "VOLUME" | "COUNT";
+  }> {
+    const prompt = `Parse this ingredient string and extract the normalized quantity, unit, and name:
 "${rawIngredient}"
 
 Respond with JSON:
@@ -81,79 +83,115 @@ Respond with JSON:
   "unitType": "WEIGHT" | "VOLUME" | "COUNT"
 }`;
 
-		const result = await model.generateContent({
-			contents: [
-				{
-					role: 'user',
-					parts: [{ text: prompt }]
-				}
-			],
-			systemInstruction: NORMALIZE_SYSTEM_PROMPT
-		});
+    const result = await this.client.models.generateContent({
+      model: this.model,
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: prompt }],
+        },
+      ],
+      config: {
+        systemInstruction: NORMALIZE_SYSTEM_PROMPT,
+        responseMimeType: "application/json",
+      },
+    });
 
-		return JSON.parse(result.response.text());
-	}
+    const response = result.text;
+    if (!response) {
+      throw new Error("Empty response from Gemini");
+    }
 
-	async chat(messages: ChatMessage[], systemPrompt?: string): Promise<string> {
-		const model = this.client.getGenerativeModel({ model: this.model });
+    return JSON.parse(response);
+  }
 
-		const contents = messages.map((msg) => ({
-			role: msg.role === 'assistant' ? 'model' : 'user',
-			parts: [{ text: msg.content }]
-		}));
+  async chat(messages: ChatMessage[], systemPrompt?: string): Promise<string> {
+    const contents = messages.map((msg) => ({
+      role: msg.role === "assistant" ? "model" : "user",
+      parts: [{ text: msg.content }],
+    }));
 
-		const result = await model.generateContent({
-			contents,
-			systemInstruction: systemPrompt
-		});
+    const result = await this.client.models.generateContent({
+      model: this.model,
+      contents,
+      config: systemPrompt
+        ? {
+            systemInstruction: systemPrompt,
+          }
+        : undefined,
+    });
 
-		return result.response.text();
-	}
+    return result.text || "";
+  }
 
-	async embed(text: string): Promise<number[]> {
-		const model = this.client.getGenerativeModel({ model: this.embeddingModel });
-		const result = await model.embedContent(text);
-		return result.embedding.values;
-	}
+  async embed(text: string): Promise<number[]> {
+    const response = await this.client.models.embedContent({
+      model: this.embeddingModel,
+      contents: [text],
+    });
 
-	private buildRecipePrompt(context: RecipeContext): string {
-		const parts: string[] = [];
+    const embedding = response.embeddings?.[0]?.values;
+    if (!embedding) {
+      throw new Error("Failed to get embedding from Gemini");
+    }
+    return embedding;
+  }
 
-		parts.push('Generate a recipe using the following available ingredients:');
-		parts.push(context.availableIngredients.join(', '));
+  private buildRecipePrompt(context: RecipeContext): string {
+    const parts: string[] = [];
 
-		if (context.preferences.allergies?.length) {
-			parts.push(`\nALLERGIES (MUST AVOID): ${context.preferences.allergies.join(', ')}`);
-		}
+    parts.push("Generate a recipe using the following available ingredients:");
+    parts.push(context.availableIngredients.join(", "));
 
-		if (context.preferences.dietaryRestrictions?.length) {
-			parts.push(`\nDietary restrictions: ${context.preferences.dietaryRestrictions.join(', ')}`);
-		}
+    if (context.preferences.allergies?.length) {
+      parts.push(
+        `\nALLERGIES (MUST AVOID): ${context.preferences.allergies.join(", ")}`
+      );
+    }
 
-		if (context.preferences.excludedIngredients?.length) {
-			parts.push(`\nDo not use these ingredients: ${context.preferences.excludedIngredients.join(', ')}`);
-		}
+    if (context.preferences.dietaryRestrictions?.length) {
+      parts.push(
+        `\nDietary restrictions: ${context.preferences.dietaryRestrictions.join(
+          ", "
+        )}`
+      );
+    }
 
-		if (context.preferences.cuisinePreferences?.length) {
-			parts.push(`\nPreferred cuisines: ${context.preferences.cuisinePreferences.join(', ')}`);
-		}
+    if (context.preferences.excludedIngredients?.length) {
+      parts.push(
+        `\nDo not use these ingredients: ${context.preferences.excludedIngredients.join(
+          ", "
+        )}`
+      );
+    }
 
-		if (context.cuisineHint) {
-			parts.push(`\nMake this a ${context.cuisineHint} style dish.`);
-		}
+    if (context.preferences.cuisinePreferences?.length) {
+      parts.push(
+        `\nPreferred cuisines: ${context.preferences.cuisinePreferences.join(
+          ", "
+        )}`
+      );
+    }
 
-		const servings = context.servings || context.preferences.defaultServings || 2;
-		parts.push(`\nServings: ${servings}`);
+    if (context.cuisineHint) {
+      parts.push(`\nMake this a ${context.cuisineHint} style dish.`);
+    }
 
-		if (context.preferences.caloricGoal) {
-			parts.push(`\nTarget approximately ${context.preferences.caloricGoal} calories per serving.`);
-		}
+    const servings =
+      context.servings || context.preferences.defaultServings || 2;
+    parts.push(`\nServings: ${servings}`);
 
-		if (context.cookbookContext) {
-			parts.push(`\nReference cookbook context:\n${context.cookbookContext}`);
-		}
+    if (context.preferences.caloricGoal) {
+      parts.push(
+        `\nTarget approximately ${context.preferences.caloricGoal} calories per serving.`
+      );
+    }
 
-		parts.push(`\nRespond with JSON in this exact format:
+    if (context.cookbookContext) {
+      parts.push(`\nReference cookbook context:\n${context.cookbookContext}`);
+    }
+
+    parts.push(`\nRespond with JSON in this exact format:
 {
   "title": "Recipe Name",
   "description": "Brief description of the dish",
@@ -174,25 +212,28 @@ Respond with JSON:
   ]
 }`);
 
-		return parts.join('\n');
-	}
+    return parts.join("\n");
+  }
 
-	private validateRecipe(recipe: GeneratedRecipe, context: RecipeContext): GeneratedRecipe {
-		// Ensure required fields
-		if (!recipe.title) recipe.title = 'Untitled Recipe';
-		if (!recipe.instructions) recipe.instructions = '';
-		if (!recipe.servings) recipe.servings = context.servings || 2;
-		if (!recipe.ingredients) recipe.ingredients = [];
+  private validateRecipe(
+    recipe: GeneratedRecipe,
+    context: RecipeContext
+  ): GeneratedRecipe {
+    // Ensure required fields
+    if (!recipe.title) recipe.title = "Untitled Recipe";
+    if (!recipe.instructions) recipe.instructions = "";
+    if (!recipe.servings) recipe.servings = context.servings || 2;
+    if (!recipe.ingredients) recipe.ingredients = [];
 
-		// Ensure ingredient structure
-		recipe.ingredients = recipe.ingredients.map((ing) => ({
-			name: ing.name || 'Unknown',
-			quantity: ing.quantity || 1,
-			unit: ing.unit || 'count',
-			optional: ing.optional || false,
-			notes: ing.notes
-		}));
+    // Ensure ingredient structure
+    recipe.ingredients = recipe.ingredients.map((ing) => ({
+      name: ing.name || "Unknown",
+      quantity: ing.quantity || 1,
+      unit: ing.unit || "count",
+      optional: ing.optional || false,
+      notes: ing.notes,
+    }));
 
-		return recipe;
-	}
+    return recipe;
+  }
 }

@@ -188,7 +188,7 @@ export const cookbookEmbeddings = pgTable("cookbook_embeddings", {
   id: uuid("id").primaryKey().defaultRandom(),
   recipeTitle: text("recipe_title").notNull(),
   contentChunk: text("content_chunk").notNull(),
-  // embedding: vector('embedding', { dimensions: 768 }), // Gemini text-embedding-004 dimensions
+  embedding: vector("embedding", { dimensions: 768 }), // Gemini text-embedding-004 dimensions
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

@@ -15,6 +15,13 @@
       "when": 1767729332678,
       "tag": "0001_clear_onslaught",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767732847384,
+      "tag": "0002_restore_embedding",
+      "breakpoints": true
     }
   ]
 }

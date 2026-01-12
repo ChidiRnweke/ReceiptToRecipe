@@ -5,15 +5,13 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import { ChefHat, Plus, X, Sparkles } from 'lucide-svelte';
+	import { ChefHat, Plus, X } from 'lucide-svelte';
 
 	let { data, form } = $props();
 	let loading = $state(false);
 	let customIngredients = $state<string[]>([]);
 	let newIngredient = $state('');
 	let selectedReceiptItems = $state<Set<string>>(new Set());
-	let useRag = $state(false);
 	let servings = $state(data.preferences?.defaultServings || 2);
 	let cuisineHint = $state('');
 
@@ -169,14 +167,6 @@
 							bind:value={cuisineHint}
 						/>
 					</div>
-				</div>
-
-				<div class="flex items-center gap-2">
-					<Checkbox id="useRag" name="useRag" bind:checked={useRag} />
-					<Label for="useRag" class="font-normal">
-						<Sparkles class="mr-1 inline h-4 w-4 text-sage-600" />
-						Use cookbook knowledge for inspiration
-					</Label>
 				</div>
 			</Card.Content>
 		</Card.Root>

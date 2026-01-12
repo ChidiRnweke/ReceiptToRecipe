@@ -70,6 +70,20 @@
 	<div class="grid gap-6 lg:grid-cols-3">
 		<!-- Main Content -->
 		<div class="lg:col-span-2 space-y-4">
+			<!-- Restock CTA -->
+			<Card.Root>
+				<Card.Content class="flex flex-col gap-3 p-6 md:flex-row md:items-center md:justify-between">
+					<div>
+						<p class="text-xs uppercase tracking-wide text-ink-muted">Restock</p>
+						<h3 class="font-serif text-xl text-ink">Build a new list from what you usually buy</h3>
+						<p class="text-ink-light">We look at your purchase history and suggest what’s likely running low.</p>
+					</div>
+					<form method="POST" action="?/generateRestock" use:enhance={() => {}}>
+						<Button type="submit" variant="outline">Generate restock list</Button>
+					</form>
+				</Card.Content>
+			</Card.Root>
+
 			<!-- Create New List -->
 			<Card.Root>
 				<Card.Content class="pt-6">
@@ -176,47 +190,50 @@
 						</Card.Header>
 
 						{#if isExpanded}
-							<Card.Content class="space-y-4">
-								<!-- Add Item Form -->
-								<form
-									method="POST"
-									action="?/addItem"
-									use:enhance={() => {
-										return async ({ result }) => {
-											if (result.type === 'success') {
-												newItemInputs[list.id] = { name: '', quantity: '1', unit: '' };
-												await invalidateAll();
-											}
-										};
-									}}
-									class="flex gap-2"
-								>
-									<input type="hidden" name="listId" value={list.id} />
-									<Input
-										type="text"
-										name="name"
-										placeholder="Add item..."
-										bind:value={getNewItemInput(list.id).name}
-										class="flex-1"
-									/>
-									<Input
-										type="text"
-										name="quantity"
-										placeholder="Qty"
-										bind:value={getNewItemInput(list.id).quantity}
-										class="w-16"
-									/>
-									<Input
-										type="text"
-										name="unit"
-										placeholder="Unit"
-										bind:value={getNewItemInput(list.id).unit}
-										class="w-20"
-									/>
-									<Button type="submit" variant="outline" size="icon">
-										<Plus class="h-4 w-4" />
-									</Button>
-								</form>
+				<Card.Content class="space-y-4">
+					<!-- Add Item Form -->
+					{#key list.id}
+						{@const input = getNewItemInput(list.id)}
+						<form
+							method="POST"
+							action="?/addItem"
+							use:enhance={() => {
+								return async ({ result }) => {
+									if (result.type === 'success') {
+										newItemInputs[list.id] = { name: '', quantity: '1', unit: '' };
+										await invalidateAll();
+									}
+								};
+							}}
+						class="flex gap-2"
+					>
+						<input type="hidden" name="listId" value={list.id} />
+						<Input
+							type="text"
+							name="name"
+							placeholder="Add item..."
+							bind:value={input.name}
+							class="flex-1"
+						/>
+						<Input
+							type="text"
+							name="quantity"
+							placeholder="Qty"
+							bind:value={input.quantity}
+							class="w-16"
+						/>
+						<Input
+							type="text"
+							name="unit"
+							placeholder="Unit"
+							bind:value={input.unit}
+							class="w-20"
+						/>
+						<Button type="submit" variant="outline" size="icon">
+							<Plus class="h-4 w-4" />
+						</Button>
+					</form>
+					{/key}
 
 								<!-- Items List -->
 								{#if list.items && list.items.length > 0}
@@ -235,7 +252,7 @@
 													<input type="hidden" name="itemId" value={item.id} />
 													<input type="hidden" name="checked" value={!item.checked} />
 													<button type="submit">
-														<Checkbox checked={item.checked} />
+														<Checkbox checked={!!item.checked} />
 													</button>
 												</form>
 												<span
@@ -293,30 +310,38 @@
 					</Card.Title>
 					<Card.Description>Based on your purchase history</Card.Description>
 				</Card.Header>
-				<Card.Content>
-					{#if data.suggestions && data.suggestions.length > 0}
-						<ul class="space-y-3">
-							{#each data.suggestions as suggestion}
-								<li class="flex items-center justify-between">
-									<div>
-										<p class="font-medium text-ink">{suggestion.name}</p>
-										<p class="text-xs text-ink-muted">
-											Usually buy every {suggestion.avgFrequencyDays} days
-										</p>
-									</div>
-									<Badge variant="outline">
-										{suggestion.avgQuantity} {suggestion.unit || 'count'}
-									</Badge>
-								</li>
-							{/each}
-						</ul>
-					{:else}
-						<p class="py-4 text-center text-sm text-ink-muted">
-							Upload receipts to get personalized suggestions
-						</p>
-					{/if}
-				</Card.Content>
-			</Card.Root>
+			<Card.Content>
+				{#if data.suggestions && data.suggestions.length > 0}
+					<ul class="space-y-3">
+						{#each data.suggestions as suggestion}
+							<li class="flex items-center justify-between gap-3">
+								<div>
+									<p class="font-medium text-ink">{suggestion.itemName}</p>
+									<p class="text-xs text-ink-muted">
+										Usually buy every {suggestion.avgFrequencyDays ?? '—'} days
+									</p>
+								</div>
+								<form method="POST" action="?/addSuggestion" use:enhance={() => {}} class="flex items-center gap-2">
+									<input type="hidden" name="listId" value={data.activeList?.id} />
+									<input type="hidden" name="itemName" value={suggestion.itemName} />
+									<input type="hidden" name="suggestedQuantity" value={suggestion.suggestedQuantity || ''} />
+									<input type="hidden" name="avgFrequencyDays" value={suggestion.avgFrequencyDays || ''} />
+									<input type="hidden" name="lastPurchased" value={suggestion.lastPurchased} />
+									<input type="hidden" name="daysSinceLastPurchase" value={suggestion.daysSinceLastPurchase} />
+									<Button type="submit" size="sm" variant="outline">
+										Add
+									</Button>
+								</form>
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="py-4 text-center text-sm text-ink-muted">
+						Upload receipts to get personalized suggestions
+					</p>
+				{/if}
+			</Card.Content>
+		</Card.Root>
 
 			<!-- Quick Actions -->
 			<Card.Root>

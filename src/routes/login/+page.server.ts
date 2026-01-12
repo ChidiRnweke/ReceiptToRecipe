@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { AuthService, setSessionCookie } from '$lib/services/AuthService';
+import { requireString } from '$lib/validation';
 
 const authService = new AuthService();
 
@@ -13,12 +14,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	default: async ({ request, cookies }) => {
 		const data = await request.formData();
-		const email = data.get('email')?.toString();
-		const password = data.get('password')?.toString();
-
-		if (!email || !password) {
-			return fail(400, { error: 'Email and password are required', email });
-		}
+		const email = requireString(data.get('email')?.toString(), 'Email is required');
+		const password = requireString(data.get('password')?.toString(), 'Password is required');
 
 		try {
 			const result = await authService.login(email, password);

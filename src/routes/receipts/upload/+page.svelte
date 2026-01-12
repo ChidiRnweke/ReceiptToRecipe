@@ -9,7 +9,7 @@
 	let loading = $state(false);
 	let dragover = $state(false);
 	let preview = $state<string | null>(null);
-	let fileInput: HTMLInputElement;
+	let fileInput = $state<HTMLInputElement | null>(null);
 
 	function handleFile(file: File | null) {
 		if (!file) {
@@ -86,6 +86,8 @@
 				{/if}
 
 				<div
+					role="button"
+					tabindex="0"
 					class="relative rounded-xl border-2 border-dashed transition-colors {dragover
 						? 'border-sage-500 bg-sage-50'
 						: 'border-sand hover:border-sage-400'}"

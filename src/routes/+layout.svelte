@@ -1,13 +1,10 @@
 <script lang="ts">
 	import '../app.css';
-	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import WorkflowNav from '$lib/components/WorkflowNav.svelte';
 	import {
-		Receipt,
-		ChefHat,
-		ShoppingCart,
 		Settings,
 		LogOut,
 		Menu,
@@ -17,16 +14,6 @@
 	let { data, children } = $props();
 
 	let mobileMenuOpen = $state(false);
-
-	const navItems = [
-		{ href: '/receipts', label: 'Receipts', icon: Receipt },
-		{ href: '/recipes', label: 'Recipes', icon: ChefHat },
-		{ href: '/shopping', label: 'Shopping List', icon: ShoppingCart }
-	];
-
-	function isActive(href: string) {
-		return $page.url.pathname.startsWith(href);
-	}
 </script>
 
 <svelte:head>
@@ -49,21 +36,7 @@
 
 			<!-- Desktop Navigation -->
 			{#if data.user}
-				<nav class="hidden items-center gap-1 md:flex">
-					{#each navItems as item}
-						<a
-							href={item.href}
-							class="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors {isActive(
-								item.href
-							)
-								? 'bg-paper-dark text-ink'
-								: 'text-ink-light hover:bg-paper-dark hover:text-ink'}"
-						>
-							<item.icon class="h-4 w-4" />
-							{item.label}
-						</a>
-					{/each}
-				</nav>
+				<WorkflowNav counts={data.workflowCounts} />
 			{/if}
 
 			<!-- User Menu -->
@@ -86,14 +59,18 @@
 								</div>
 							</DropdownMenu.Label>
 							<DropdownMenu.Separator />
-							<DropdownMenu.Item href="/preferences">
-								<Settings class="mr-2 h-4 w-4" />
-								Preferences
+							<DropdownMenu.Item>
+								<a href="/preferences" class="flex w-full items-center">
+									<Settings class="mr-2 h-4 w-4" />
+									Preferences
+								</a>
 							</DropdownMenu.Item>
 							<DropdownMenu.Separator />
-							<DropdownMenu.Item href="/logout">
-								<LogOut class="mr-2 h-4 w-4" />
-								Log out
+							<DropdownMenu.Item>
+								<a href="/logout" class="flex w-full items-center">
+									<LogOut class="mr-2 h-4 w-4" />
+									Log out
+								</a>
 							</DropdownMenu.Item>
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
@@ -120,22 +97,9 @@
 
 		<!-- Mobile Navigation -->
 		{#if mobileMenuOpen && data.user}
-			<nav class="border-t border-sand bg-paper px-4 py-3 md:hidden">
-				{#each navItems as item}
-					<a
-						href={item.href}
-						class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors {isActive(
-							item.href
-						)
-							? 'bg-paper-dark text-ink'
-							: 'text-ink-light hover:bg-paper-dark hover:text-ink'}"
-						onclick={() => (mobileMenuOpen = false)}
-					>
-						<item.icon class="h-5 w-5" />
-						{item.label}
-					</a>
-				{/each}
-			</nav>
+			<div class="border-t border-sand bg-paper px-4 py-3 md:hidden" onclick={() => (mobileMenuOpen = false)}>
+				<WorkflowNav counts={data.workflowCounts} />
+			</div>
 		{/if}
 	</header>
 

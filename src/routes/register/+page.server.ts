@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { AuthService, setSessionCookie } from '$lib/services/AuthService';
+import { requireString } from '$lib/validation';
 
 const authService = new AuthService();
 
@@ -13,13 +14,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	default: async ({ request, cookies }) => {
 		const data = await request.formData();
-		const name = data.get('name')?.toString();
-		const email = data.get('email')?.toString();
-		const password = data.get('password')?.toString();
-
-		if (!name || !email || !password) {
-			return fail(400, { error: 'All fields are required', name, email });
-		}
+		const name = requireString(data.get('name')?.toString(), 'Name is required');
+		const email = requireString(data.get('email')?.toString(), 'Email is required');
+		const password = requireString(data.get('password')?.toString(), 'Password is required');
 
 		if (password.length < 8) {
 			return fail(400, { error: 'Password must be at least 8 characters', name, email });

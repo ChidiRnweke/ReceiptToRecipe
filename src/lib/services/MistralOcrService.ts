@@ -46,52 +46,35 @@ const RECEIPT_SCHEMA = {
 
 export class MistralOcrService implements IOcrService {
 	private client: Mistral;
+	private model: string;
 
 	constructor(apiKey: string) {
 		this.client = new Mistral({ apiKey });
+		this.model = process.env.MISTRAL_OCR_MODEL || 'mistral-ocr-latest';
 	}
 
 	async extractReceipt(imageUrl: string): Promise<RawReceiptData> {
-		const response = await this.client.chat.complete({
-			model: 'pixtral-12b-2409',
-			messages: [
-				{
-					role: 'user',
-					content: [
-						{
-							type: 'text',
-							text: `Analyze this receipt image and extract the following information in JSON format:
-- Store name and address
-- Purchase date
-- List of items with their names, quantities (include unit if visible), prices, and category
-- Subtotal, tax, and total
-- Payment method
-
-Focus on food/grocery items. For each item, try to identify if it has a quantity and unit (like "2 lbs" or "500g").
-If a quantity is not visible, assume 1 count.`
-						},
-						{
-							type: 'image_url',
-							imageUrl: imageUrl
-						}
-					]
-				}
-			],
-			responseFormat: {
+		const response = await this.client.ocr.process({
+			model: this.model,
+			document: {
+				imageUrl
+			},
+			documentAnnotationFormat: {
 				type: 'json_schema',
 				jsonSchema: {
 					name: 'receipt_data',
 					schemaDefinition: RECEIPT_SCHEMA
 				}
-			}
+			},
+			extractHeader: true,
+			extractFooter: true
 		});
 
-		const content = response.choices?.[0]?.message?.content;
-		if (!content || typeof content !== 'string') {
-			throw new Error('Failed to extract receipt data');
+		if (!response.documentAnnotation) {
+			throw new Error('No document annotation returned from OCR');
 		}
 
-		const data = JSON.parse(content) as RawReceiptData;
+		const data = JSON.parse(response.documentAnnotation) as RawReceiptData;
 		return this.validateAndClean(data);
 	}
 
@@ -99,46 +82,27 @@ If a quantity is not visible, assume 1 count.`
 		const base64 = imageBuffer.toString('base64');
 		const dataUrl = `data:${mimeType};base64,${base64}`;
 
-		const response = await this.client.chat.complete({
-			model: 'pixtral-12b-2409',
-			messages: [
-				{
-					role: 'user',
-					content: [
-						{
-							type: 'text',
-							text: `Analyze this receipt image and extract the following information in JSON format:
-- Store name and address
-- Purchase date
-- List of items with their names, quantities (include unit if visible), prices, and category
-- Subtotal, tax, and total
-- Payment method
-
-Focus on food/grocery items. For each item, try to identify if it has a quantity and unit (like "2 lbs" or "500g").
-If a quantity is not visible, assume 1 count.`
-						},
-						{
-							type: 'image_url',
-							imageUrl: dataUrl
-						}
-					]
-				}
-			],
-			responseFormat: {
+		const response = await this.client.ocr.process({
+			model: this.model,
+			document: {
+				imageUrl: dataUrl
+			},
+			documentAnnotationFormat: {
 				type: 'json_schema',
 				jsonSchema: {
 					name: 'receipt_data',
 					schemaDefinition: RECEIPT_SCHEMA
 				}
-			}
+			},
+			extractHeader: true,
+			extractFooter: true
 		});
 
-		const content = response.choices?.[0]?.message?.content;
-		if (!content || typeof content !== 'string') {
-			throw new Error('Failed to extract receipt data');
+		if (!response.documentAnnotation) {
+			throw new Error('No document annotation returned from OCR');
 		}
 
-		const data = JSON.parse(content) as RawReceiptData;
+		const data = JSON.parse(response.documentAnnotation) as RawReceiptData;
 		return this.validateAndClean(data);
 	}
 

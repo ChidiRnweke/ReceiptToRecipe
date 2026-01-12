@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { PreferencesController } from '$lib/controllers';
+import { parseNumber, parseStringList } from '$lib/validation';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -23,19 +24,30 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 
-		const allergiesStr = data.get('allergies')?.toString() || '';
-		const dietaryRestrictionsStr = data.get('dietaryRestrictions')?.toString() || '';
-		const cuisinePreferencesStr = data.get('cuisinePreferences')?.toString() || '';
-		const excludedIngredientsStr = data.get('excludedIngredients')?.toString() || '';
-		const caloricGoalStr = data.get('caloricGoal')?.toString();
-		const defaultServingsStr = data.get('defaultServings')?.toString();
-
-		const allergies = allergiesStr ? allergiesStr.split(',').map((s) => s.trim()).filter(Boolean) : [];
-		const dietaryRestrictions = dietaryRestrictionsStr ? dietaryRestrictionsStr.split(',').map((s) => s.trim()).filter(Boolean) : [];
-		const cuisinePreferences = cuisinePreferencesStr ? cuisinePreferencesStr.split(',').map((s) => s.trim()).filter(Boolean) : [];
-		const excludedIngredients = excludedIngredientsStr ? excludedIngredientsStr.split(',').map((s) => s.trim()).filter(Boolean) : [];
-		const caloricGoal = caloricGoalStr ? parseInt(caloricGoalStr) : null;
-		const defaultServings = defaultServingsStr ? parseInt(defaultServingsStr) : 2;
+		const allergies = parseStringList(data.get('allergies')?.toString(), { maxItems: 20, maxLength: 48 });
+		const dietaryRestrictions = parseStringList(data.get('dietaryRestrictions')?.toString(), {
+			maxItems: 20,
+			maxLength: 48
+		});
+		const cuisinePreferences = parseStringList(data.get('cuisinePreferences')?.toString(), {
+			maxItems: 20,
+			maxLength: 48
+		});
+		const excludedIngredients = parseStringList(data.get('excludedIngredients')?.toString(), {
+			maxItems: 20,
+			maxLength: 48
+		});
+		const caloricGoalValue = parseNumber(data.get('caloricGoal')?.toString(), {
+			min: 500,
+			max: 10000,
+			fallback: null
+		});
+		const caloricGoal = caloricGoalValue === null ? null : caloricGoalValue;
+		const defaultServings = parseNumber(data.get('defaultServings')?.toString(), {
+			min: 1,
+			max: 20,
+			fallback: 2
+		}) ?? 2;
 
 		try {
 			const preferencesController = new PreferencesController();

@@ -3,15 +3,16 @@ import {
 	shoppingLists,
 	shoppingListItems,
 	purchaseHistory,
-	recipeIngredients
+	recipeIngredients,
+	receiptItems
 } from '$db/schema';
 import type {
 	ShoppingList,
 	ShoppingListItem,
-	NewShoppingList,
 	NewShoppingListItem
 } from '$db/schema';
-import { eq, desc, and, lt, sql } from 'drizzle-orm';
+import { eq, desc, and, sql } from 'drizzle-orm';
+import type { ILlmService } from '$lib/services';
 
 export interface ShoppingListWithItems extends ShoppingList {
 	items: ShoppingListItem[];
@@ -66,10 +67,15 @@ export class ShoppingListController {
 	/**
 	 * Get all shopping lists for a user
 	 */
-	async getUserLists(userId: string): Promise<ShoppingList[]> {
+	async getUserLists(userId: string): Promise<ShoppingListWithItems[]> {
 		return db.query.shoppingLists.findMany({
 			where: eq(shoppingLists.userId, userId),
-			orderBy: [desc(shoppingLists.createdAt)]
+			orderBy: [desc(shoppingLists.createdAt)],
+			with: {
+				items: {
+					orderBy: [shoppingListItems.orderIndex]
+				}
+			}
 		});
 	}
 
@@ -147,9 +153,29 @@ export class ShoppingListController {
 	}
 
 	/**
+	 * Add all receipt items to a shopping list
+	 */
+	async addReceiptItems(listId: string, receiptId: string): Promise<ShoppingListItem[]> {
+		const items = await db.query.receiptItems.findMany({
+			where: eq(receiptItems.receiptId, receiptId)
+		});
+
+		const results: ShoppingListItem[] = [];
+		for (const item of items) {
+			const created = await this.addItem(listId, {
+				name: item.normalizedName,
+				quantity: item.quantity,
+				unit: item.unit
+			});
+			results.push(created);
+		}
+		return results;
+	}
+
+	/**
 	 * Toggle item checked status
 	 */
-	async toggleItemChecked(itemId: string): Promise<ShoppingListItem> {
+	async toggleItem(itemId: string, checked?: boolean): Promise<ShoppingListItem> {
 		const item = await db.query.shoppingListItems.findFirst({
 			where: eq(shoppingListItems.id, itemId)
 		});
@@ -158,9 +184,11 @@ export class ShoppingListController {
 			throw new Error('Item not found');
 		}
 
+		const nextValue = typeof checked === 'boolean' ? checked : !item.checked;
+
 		const [updated] = await db
 			.update(shoppingListItems)
-			.set({ checked: !item.checked })
+			.set({ checked: nextValue })
 			.where(eq(shoppingListItems.id, itemId))
 			.returning();
 
@@ -245,6 +273,84 @@ export class ShoppingListController {
 	}
 
 	/**
+	 * Build a restock shopping list using history and LLM reasoning
+	 */
+	async createRestockList(userId: string, llmService: ILlmService): Promise<ShoppingListWithItems> {
+		const history = await db.query.purchaseHistory.findMany({
+			where: eq(purchaseHistory.userId, userId),
+			orderBy: [desc(purchaseHistory.lastPurchased)]
+		});
+
+		if (history.length === 0) {
+			throw new Error('No purchase history yet');
+		}
+
+		const name = `Restock · ${new Date().toLocaleDateString()}`;
+		const list = await this.createList(userId, name);
+
+		const prompt = `You are planning a grocery restock.
+Given purchase history entries with last purchase date, average frequency days, and average quantity, decide which items likely need replenishing today.
+Output ONLY JSON array: [{ "itemName": string, "restock": boolean, "quantity": string, "note": string }]
+Restock only items that are probably running low. Today is ${new Date().toISOString()}.
+
+History:
+${history
+	.map(
+		(h) =>
+			`- ${h.itemName}: lastPurchased=${h.lastPurchased.toISOString()}, avgFrequencyDays=${h.avgFrequencyDays ?? 'unknown'}, avgQuantity=${h.avgQuantity ?? 'unknown'}`
+	)
+	.join('\n')}`;
+
+		let decisions: Array<{ itemName: string; restock: boolean; quantity?: string; note?: string }> = [];
+
+		try {
+			const response = await llmService.chat(
+				[
+					{ role: 'system', content: 'Return only valid JSON. No explanations.' },
+					{ role: 'user', content: prompt }
+				],
+				'You are a precise planner. Respond with compact JSON only.'
+			);
+			const parsed = JSON.parse(response);
+			if (Array.isArray(parsed)) {
+				decisions = parsed;
+			}
+		} catch (err) {
+			console.warn('LLM restock planning failed, falling back to heuristics', err);
+		}
+
+		if (!decisions.length) {
+			const suggestions = await this.getSmartSuggestions(userId, 15);
+			decisions = suggestions.map((s) => ({
+				itemName: s.itemName,
+				restock: true,
+				quantity: s.suggestedQuantity ?? '1',
+				note: 'Based on your usual refill pattern'
+			}));
+		}
+
+		let orderIndex = 0;
+		for (const decision of decisions) {
+			if (!decision.restock) continue;
+			await db.insert(shoppingListItems).values({
+				shoppingListId: list.id,
+				name: decision.itemName,
+				quantity: decision.quantity ?? undefined,
+				unit: undefined,
+				notes: decision.note,
+				orderIndex: orderIndex++
+			});
+		}
+
+		const items = await db.query.shoppingListItems.findMany({
+			where: eq(shoppingListItems.shoppingListId, list.id),
+			orderBy: [shoppingListItems.orderIndex]
+		});
+
+		return { ...list, items };
+	}
+
+	/**
 	 * Reorder items in a list
 	 */
 	async reorderItems(listId: string, itemIds: string[]): Promise<void> {
@@ -274,5 +380,23 @@ export class ShoppingListController {
 		}
 
 		await db.delete(shoppingLists).where(eq(shoppingLists.id, listId));
+	}
+
+	/**
+	 * Create a shopping list from one or more recipes
+	 */
+	async generateFromRecipes(userId: string, recipeIds: string[], name: string): Promise<ShoppingListWithItems> {
+		const list = await this.createList(userId, name);
+
+		for (const recipeId of recipeIds) {
+			await this.addRecipeIngredients(list.id, recipeId);
+		}
+
+		const items = await db.query.shoppingListItems.findMany({
+			where: eq(shoppingListItems.shoppingListId, list.id),
+			orderBy: [shoppingListItems.orderIndex]
+		});
+
+		return { ...list, items };
 	}
 }

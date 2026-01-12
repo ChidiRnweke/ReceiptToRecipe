@@ -1,11 +1,13 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Plus, ChefHat, Clock, Users, Loader2 } from 'lucide-svelte';
+	import { Plus, ChefHat, Clock, Users, Trash2 } from 'lucide-svelte';
 
 	let { data } = $props();
+	let deletingId = $state<string | null>(null);
 
 	function formatTime(minutes: number | null) {
 		if (!minutes) return null;
@@ -47,8 +49,8 @@
 	{:else}
 		<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 			{#each data.recipes as recipe}
-				<a href="/recipes/{recipe.id}" class="group">
-					<Card.Root class="overflow-hidden transition-shadow hover:shadow-md">
+				<Card.Root class="overflow-hidden transition-shadow hover:shadow-md">
+					<a href="/recipes/{recipe.id}" class="group block">
 						{#if recipe.imageStatus === 'DONE' && recipe.imageUrl}
 							<div class="aspect-video overflow-hidden">
 								<img
@@ -89,8 +91,23 @@
 								<Badge variant="outline">{recipe.cuisineType}</Badge>
 							{/if}
 						</Card.Content>
-					</Card.Root>
-				</a>
+					</a>
+					<Card.Footer class="pt-0">
+						<form method="POST" action="?/delete" use:enhance={({ cancel }) => {
+							const confirmed = confirm('Are you sure you want to delete this recipe?');
+							if (!confirmed) {
+								cancel();
+								return;
+							}
+							deletingId = recipe.id;
+						}} class="ml-auto">
+							<input type="hidden" name="recipeId" value={recipe.id} />
+							<Button variant="ghost" size="sm" disabled={deletingId === recipe.id}>
+								<Trash2 class="h-4 w-4 text-destructive" />
+							</Button>
+						</form>
+					</Card.Footer>
+				</Card.Root>
 			{/each}
 		</div>
 	{/if}

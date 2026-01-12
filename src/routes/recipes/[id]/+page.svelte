@@ -1,28 +1,38 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { invalidateAll } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Input } from '$lib/components/ui/input';
+import { onMount } from 'svelte';
+import { invalidateAll } from '$app/navigation';
+import { enhance } from '$app/forms';
+import { Button } from '$lib/components/ui/button';
+import * as Card from '$lib/components/ui/card';
+import { Badge } from '$lib/components/ui/badge';
+import { Skeleton } from '$lib/components/ui/skeleton';
+import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import {
 		ArrowLeft,
 		Clock,
 		Users,
 		Flame,
-		ShoppingCart,
-		Share2,
-		Heart,
-		Minus,
-		Plus
-	} from 'lucide-svelte';
+	ShoppingCart,
+	Share2,
+	Heart,
+	Minus,
+	Plus,
+	Link2,
+	Lock,
+	Unlock,
+	Trash2
+} from 'lucide-svelte';
 
 	let { data } = $props();
 
 	let servings = $state(data.recipe.servings);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
+	let shareMessage = $state('');
+	let saving = $state(false);
+	let togglingPublic = $state(false);
+	let addingToList = $state(false);
+	let deleting = $state(false);
 
 	const scaleFactor = $derived(servings / data.recipe.servings);
 
@@ -53,6 +63,17 @@
 		const num = parseFloat(qty) * scale;
 		if (num === Math.floor(num)) return num.toString();
 		return num.toFixed(1);
+	}
+
+	async function copyShareLink() {
+		try {
+			await navigator.clipboard.writeText(window.location.href);
+			shareMessage = 'Link copied';
+			setTimeout(() => (shareMessage = ''), 2000);
+		} catch (err) {
+			shareMessage = 'Unable to copy';
+			setTimeout(() => (shareMessage = ''), 2000);
+		}
 	}
 </script>
 
@@ -99,6 +120,11 @@
 				{/if}
 				{#if data.recipe.cuisineType}
 					<Badge variant="outline">{data.recipe.cuisineType}</Badge>
+				{/if}
+				{#if data.isOwner && data.recipe.isPublic}
+					<Badge variant="secondary" class="bg-sage-100 text-sage-600">Public</Badge>
+				{:else if data.recipe.isPublic}
+					<Badge variant="secondary" class="bg-sage-100 text-sage-600">Public recipe</Badge>
 				{/if}
 			</div>
 		</div>
@@ -192,19 +218,66 @@
 			</Card.Root>
 
 			<!-- Actions -->
-			<div class="space-y-2">
-				<Button class="w-full" variant="outline">
-					<ShoppingCart class="mr-2 h-4 w-4" />
-					Add to Shopping List
-				</Button>
-				<Button class="w-full" variant="outline">
-					<Heart class="mr-2 h-4 w-4" />
-					Save Recipe
-				</Button>
-				<Button class="w-full" variant="outline">
-					<Share2 class="mr-2 h-4 w-4" />
-					Share
-				</Button>
+			<div class="space-y-3">
+				<form method="POST" action="?/addToShopping" use:enhance={() => {}} class="w-full">
+					<Button class="w-full" variant="outline" onclick={() => (addingToList = true)} disabled={addingToList}>
+						<ShoppingCart class="mr-2 h-4 w-4" />
+						Add to Shopping List
+					</Button>
+				</form>
+
+				{#if data.isSaved}
+					<form method="POST" action="?/unsave" use:enhance={() => {}} class="w-full">
+						<Button class="w-full" variant="secondary" onclick={() => (saving = true)} disabled={saving}>
+							<Heart class="mr-2 h-4 w-4 fill-current" />
+							Saved
+						</Button>
+					</form>
+				{:else}
+					<form method="POST" action="?/save" use:enhance={() => {}} class="w-full">
+						<Button class="w-full" variant="outline" onclick={() => (saving = true)} disabled={saving}>
+							<Heart class="mr-2 h-4 w-4" />
+							Save Recipe
+						</Button>
+					</form>
+				{/if}
+
+				<div class="space-y-2">
+					<Button class="w-full" variant="outline" onclick={copyShareLink}>
+						<Share2 class="mr-2 h-4 w-4" />
+						Share link
+					</Button>
+					{#if shareMessage}
+						<p class="text-center text-xs text-ink-muted">{shareMessage}</p>
+					{/if}
+				</div>
+
+				{#if data.isOwner}
+					<form method="POST" action="?/togglePublic" use:enhance={() => {}} class="w-full">
+						<Button class="w-full" variant="ghost" onclick={() => (togglingPublic = true)} disabled={togglingPublic}>
+							{#if data.recipe.isPublic}
+								<Lock class="mr-2 h-4 w-4" />
+								Make Private
+							{:else}
+								<Unlock class="mr-2 h-4 w-4" />
+								Make Public
+							{/if}
+						</Button>
+					</form>
+					<form method="POST" action="?/delete" use:enhance={({ cancel }) => {
+						const confirmed = confirm('Are you sure you want to delete this recipe? This cannot be undone.');
+						if (!confirmed) {
+							cancel();
+							return;
+						}
+						deleting = true;
+					}} class="w-full">
+						<Button class="w-full" variant="ghost" disabled={deleting}>
+							<Trash2 class="mr-2 h-4 w-4 text-destructive" />
+							<span class="text-destructive">Delete Recipe</span>
+						</Button>
+					</form>
+				{/if}
 			</div>
 		</div>
 	</div>

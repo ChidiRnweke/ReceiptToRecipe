@@ -21,7 +21,8 @@ export class RecipeController {
 	constructor(
 		private llmService: ILlmService,
 		private imageGenService: IImageGenService,
-		private vectorService: IVectorService
+		private vectorService: IVectorService,
+		private jobQueue?: { add: (job: { name?: string; run: () => Promise<void> }) => Promise<void> }
 	) {}
 
 	/**
@@ -69,12 +70,22 @@ export class RecipeController {
 		});
 
 		// Save recipe to database
-		const recipe = await this.saveRecipe(userId, generatedRecipe, useRag ? 'RAG' : 'GENERATED');
+		const recipe = await this.persistRecipe(userId, generatedRecipe, useRag ? 'RAG' : 'GENERATED');
 
-		// Fire-and-forget image generation
-		this.generateRecipeImage(recipe.id, generatedRecipe).catch((error) => {
-			console.error(`Image generation failed for recipe ${recipe.id}:`, error);
-		});
+
+		const task = () =>
+			this.generateRecipeImage(recipe.id, generatedRecipe).catch((error) => {
+				console.error(`Image generation failed for recipe ${recipe.id}:`, error);
+			});
+
+		if (this.jobQueue) {
+			this.jobQueue.add({ name: `recipe-image:${recipe.id}`, run: task }).catch((error) => {
+				console.error('Failed to enqueue image job', error);
+				task();
+			});
+		} else {
+			task();
+		}
 
 		return recipe;
 	}
@@ -82,7 +93,7 @@ export class RecipeController {
 	/**
 	 * Save a generated recipe to the database
 	 */
-	private async saveRecipe(
+	private async persistRecipe(
 		userId: string,
 		generated: GeneratedRecipe,
 		source: 'GENERATED' | 'RAG' | 'USER'
@@ -258,6 +269,16 @@ export class RecipeController {
 		});
 
 		return saved.map((s) => s.recipe);
+	}
+
+	/**
+	 * Check if a recipe is saved by a user
+	 */
+	async isSaved(userId: string, recipeId: string): Promise<boolean> {
+		const saved = await db.query.savedRecipes.findFirst({
+			where: and(eq(savedRecipes.userId, userId), eq(savedRecipes.recipeId, recipeId))
+		});
+		return Boolean(saved);
 	}
 
 	/**

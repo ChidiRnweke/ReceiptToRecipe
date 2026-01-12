@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { ShoppingListController } from '$lib/controllers';
+import { AppFactory } from '$lib/factories';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -9,12 +10,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const shoppingListController = new ShoppingListController();
 
-	const [lists, suggestions] = await Promise.all([
+	const [activeList, lists, suggestions] = await Promise.all([
+		shoppingListController.getActiveList(locals.user.id),
 		shoppingListController.getUserLists(locals.user.id),
 		shoppingListController.getSmartSuggestions(locals.user.id)
 	]);
 
 	return {
+		activeList,
 		lists,
 		suggestions
 	};
@@ -40,6 +43,22 @@ export const actions: Actions = {
 		}
 	},
 
+	generateRestock: async ({ locals }) => {
+		if (!locals.user) {
+			throw redirect(302, '/login');
+		}
+
+		try {
+			const shoppingListController = new ShoppingListController();
+			const list = await shoppingListController.createRestockList(locals.user.id, AppFactory.getLlmService());
+			return { success: true, listId: list.id };
+		} catch (error) {
+			return fail(500, {
+				error: error instanceof Error ? error.message : 'Failed to generate restock list'
+			});
+		}
+	},
+
 	addItem: async ({ request, locals }) => {
 		if (!locals.user) {
 			throw redirect(302, '/login');
@@ -47,9 +66,9 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const listId = data.get('listId')?.toString();
-		const name = data.get('name')?.toString();
-		const quantity = data.get('quantity')?.toString();
-		const unit = data.get('unit')?.toString();
+		const name = data.get('name')?.toString().trim();
+		const quantity = data.get('quantity')?.toString().trim();
+		const unit = data.get('unit')?.toString().trim();
 
 		if (!listId || !name) {
 			return fail(400, { error: 'List ID and item name are required' });
@@ -108,7 +127,7 @@ export const actions: Actions = {
 
 		try {
 			const shoppingListController = new ShoppingListController();
-			await shoppingListController.deleteItem(itemId);
+			await shoppingListController.removeItem(itemId);
 			return { success: true };
 		} catch (error) {
 			return fail(500, {
@@ -131,7 +150,7 @@ export const actions: Actions = {
 
 		try {
 			const shoppingListController = new ShoppingListController();
-			await shoppingListController.deleteList(listId);
+			await shoppingListController.deleteList(listId, locals.user.id);
 			return { success: true };
 		} catch (error) {
 			return fail(500, {
@@ -157,15 +176,49 @@ export const actions: Actions = {
 
 		try {
 			const shoppingListController = new ShoppingListController();
-			const list = await shoppingListController.generateFromRecipes(
-				locals.user.id,
-				recipeIds,
-				listName
-			);
+			const list = await shoppingListController.generateFromRecipes(locals.user.id, recipeIds, listName);
 			return { success: true, listId: list.id };
 		} catch (error) {
 			return fail(500, {
 				error: error instanceof Error ? error.message : 'Failed to generate shopping list'
+			});
+		}
+	},
+
+	addSuggestion: async ({ request, locals }) => {
+		if (!locals.user) {
+			throw redirect(302, '/login');
+		}
+
+		const data = await request.formData();
+		const listId = data.get('listId')?.toString();
+		const itemName = data.get('itemName')?.toString();
+		const suggestedQuantity = data.get('suggestedQuantity')?.toString() || null;
+		const avgFrequencyDays = data.get('avgFrequencyDays')
+			? parseInt(data.get('avgFrequencyDays')!.toString())
+			: null;
+		const lastPurchased = data.get('lastPurchased')?.toString();
+		const daysSinceLastPurchase = data.get('daysSinceLastPurchase')
+			? parseInt(data.get('daysSinceLastPurchase')!.toString())
+			: 0;
+
+		if (!listId || !itemName || !lastPurchased) {
+			return fail(400, { error: 'Missing suggestion data' });
+		}
+
+		try {
+			const shoppingListController = new ShoppingListController();
+			await shoppingListController.addSuggestion(listId, {
+				itemName,
+				suggestedQuantity,
+				avgFrequencyDays,
+				lastPurchased: new Date(lastPurchased),
+				daysSinceLastPurchase
+			});
+			return { success: true };
+		} catch (error) {
+			return fail(500, {
+				error: error instanceof Error ? error.message : 'Failed to add suggestion'
 			});
 		}
 	}

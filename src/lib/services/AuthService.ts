@@ -3,6 +3,7 @@ import { db } from '$db/client';
 import { sessions, users, userPreferences } from '$db/schema';
 import { eq } from 'drizzle-orm';
 import type { User, Session, NewUser } from '$db/schema';
+import type { Cookies } from '@sveltejs/kit';
 
 export interface AuthResult {
 	user: User;
@@ -145,9 +146,7 @@ export function getSessionCookie(cookies: { get: (name: string) => string | unde
 }
 
 export function setSessionCookie(
-	cookies: {
-		set: (name: string, value: string, options: Record<string, unknown>) => void;
-	},
+	cookies: Cookies,
 	sessionId: string
 ): void {
 	cookies.set('session', sessionId, {
@@ -159,6 +158,6 @@ export function setSessionCookie(
 	});
 }
 
-export function deleteSessionCookie(cookies: { delete: (name: string, options: Record<string, unknown>) => void }): void {
+export function deleteSessionCookie(cookies: Cookies): void {
 	cookies.delete('session', { path: '/' });
 }

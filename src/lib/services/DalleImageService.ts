@@ -21,8 +21,8 @@ export class DalleImageService implements IImageGenService {
 			style: 'natural'
 		});
 
-		const image = response.data[0];
-		if (!image.url) {
+		const image = response.data?.[0];
+		if (!image?.url) {
 			throw new Error('Failed to generate image');
 		}
 

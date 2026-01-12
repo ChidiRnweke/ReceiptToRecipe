@@ -17,7 +17,8 @@ export class ReceiptController {
 	constructor(
 		private storageService: IStorageService,
 		private ocrService: IOcrService,
-		private normalizationService: INormalizationService
+		private normalizationService: INormalizationService,
+		private jobQueue?: { add: (job: { name?: string; run: () => Promise<void> }) => Promise<void> }
 	) {}
 
 	/**
@@ -45,10 +46,21 @@ export class ReceiptController {
 			})
 			.returning();
 
-		// Fire-and-forget OCR processing
-		this.processReceiptOcr(receipt.id, uploadResult.url).catch((error) => {
-			console.error(`OCR processing failed for receipt ${receipt.id}:`, error);
-		});
+
+		// Background OCR processing
+		const task = () =>
+			this.processReceiptOcr(receipt.id, uploadResult.url).catch((error) => {
+				console.error(`OCR processing failed for receipt ${receipt.id}:`, error);
+			});
+
+		if (this.jobQueue) {
+			this.jobQueue.add({ name: `receipt:${receipt.id}`, run: task }).catch((error) => {
+				console.error('Failed to enqueue OCR job', error);
+				task();
+			});
+		} else {
+			task();
+		}
 
 		return receipt;
 	}
@@ -245,5 +257,94 @@ export class ReceiptController {
 
 		// Delete from database (cascade will handle items)
 		await db.delete(receipts).where(eq(receipts.id, receiptId));
+	}
+
+	/**
+	 * Update a single receipt item
+	 */
+	async updateReceiptItem(receiptId: string, userId: string, itemId: string, data: {
+		name: string;
+		quantity: string;
+		unit?: string;
+		price?: string | null;
+		category?: string | null;
+	}): Promise<ReceiptItem> {
+		const receipt = await db.query.receipts.findFirst({
+			where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId))
+		});
+
+		if (!receipt) {
+			throw new Error('Receipt not found');
+		}
+
+		const normalized = this.normalizationService.normalizeQuantity(data.quantity || '1');
+		const normalizedName = this.normalizationService.normalizeName(data.name);
+
+		const [updated] = await db
+			.update(receiptItems)
+			.set({
+				rawName: data.name,
+				normalizedName,
+				quantity: normalized.value.toString(),
+				unit: data.unit || normalized.unit,
+				unitType: normalized.unitType,
+				price: data.price?.replace(/[^0-9.]/g, '') || null,
+				category: data.category || 'other'
+			})
+			.where(and(eq(receiptItems.id, itemId), eq(receiptItems.receiptId, receiptId)))
+			.returning();
+
+		if (!updated) {
+			throw new Error('Item not found');
+		}
+
+		return updated;
+	}
+
+	async addManualItem(receiptId: string, userId: string, data: {
+		name: string;
+		quantity: string;
+		unit?: string;
+		price?: string | null;
+		category?: string | null;
+	}): Promise<ReceiptItem> {
+		const receipt = await db.query.receipts.findFirst({
+			where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId))
+		});
+
+		if (!receipt) {
+			throw new Error('Receipt not found');
+		}
+
+		const normalized = this.normalizationService.normalizeQuantity(data.quantity || '1');
+		const normalizedName = this.normalizationService.normalizeName(data.name);
+
+		const [created] = await db
+			.insert(receiptItems)
+			.values({
+				receiptId,
+				rawName: data.name,
+				normalizedName,
+				quantity: normalized.value.toString(),
+				unit: data.unit || normalized.unit,
+				unitType: normalized.unitType,
+				price: data.price?.replace(/[^0-9.]/g, '') || null,
+				category: data.category || 'other'
+			})
+			.returning();
+
+		return created;
+	}
+
+	async deleteReceiptItem(receiptId: string, userId: string, itemId: string): Promise<void> {
+		const receipt = await db.query.receipts.findFirst({
+			where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId))
+		});
+
+		if (!receipt) {
+			throw new Error('Receipt not found');
+		}
+
+		await db.delete(receiptItems).where(and(eq(receiptItems.id, itemId), eq(receiptItems.receiptId, receiptId)));
 	}
 }

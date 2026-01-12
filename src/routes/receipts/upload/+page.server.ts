@@ -34,7 +34,8 @@ export const actions: Actions = {
 			const receiptController = new ReceiptController(
 				AppFactory.getStorageService(),
 				AppFactory.getOcrService(),
-				AppFactory.getNormalizationService()
+				AppFactory.getNormalizationService(),
+				AppFactory.getJobQueue()
 			);
 
 			const receipt = await receiptController.uploadReceipt({
