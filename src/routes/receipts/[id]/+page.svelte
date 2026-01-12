@@ -15,7 +15,13 @@
 		XCircle,
 		Loader2,
 		Clock,
-		X
+		X,
+		Sparkles,
+		Receipt,
+		ImageIcon,
+		Store,
+		Package,
+		AlertCircle
 	} from 'lucide-svelte';
 
 	let { data } = $props();
@@ -76,12 +82,19 @@
 			<ArrowLeft class="h-5 w-5" />
 		</Button>
 		<div class="flex-1">
-			<h1 class="font-serif text-3xl font-medium text-ink">
-				{data.receipt.storeName || 'Receipt Details'}
-			</h1>
-			<p class="text-ink-light">{formatDate(data.receipt.purchaseDate)}</p>
+			<div class="flex items-center gap-3">
+				<div class="flex h-12 w-12 items-center justify-center rounded-xl bg-sage-100">
+					<Store class="h-6 w-6 text-sage-600" />
+				</div>
+				<div>
+					<h1 class="font-serif text-2xl font-medium text-ink md:text-3xl">
+						{data.receipt.storeName || 'Receipt Details'}
+					</h1>
+					<p class="text-sm text-ink-light">{formatDate(data.receipt.purchaseDate)}</p>
+				</div>
+			</div>
 		</div>
-		<Badge variant={status.variant}>
+		<Badge variant={status.variant} class="hidden sm:flex">
 			{#if status.icon === Loader2}
 				<status.icon class="mr-1 h-3 w-3 animate-spin" />
 			{:else}
@@ -92,20 +105,73 @@
 	</div>
 
 	{#if data.receipt.status === 'PROCESSING' || data.receipt.status === 'QUEUED'}
-		<Card.Root>
-			<Card.Content class="py-12 text-center">
-				<Loader2 class="mx-auto h-12 w-12 animate-spin text-sage-600" />
-				<h3 class="mt-4 font-serif text-xl font-medium text-ink">Scanning your receipt...</h3>
-				<p class="mt-2 text-ink-light">This usually takes about 10-30 seconds</p>
+		<Card.Root class="overflow-hidden">
+			<div class="h-1 w-full bg-sage-100">
+				<div class="h-full w-1/2 animate-pulse bg-gradient-to-r from-sage-400 to-sage-500"></div>
+			</div>
+			<Card.Content class="py-16 text-center">
+				<div class="relative mx-auto w-fit">
+					<div class="flex h-20 w-20 items-center justify-center rounded-2xl bg-sage-100">
+						<Receipt class="h-10 w-10 text-sage-600" />
+					</div>
+					<div class="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-paper shadow-md">
+						<Loader2 class="h-4 w-4 animate-spin text-sage-600" />
+					</div>
+				</div>
+				<h3 class="mt-6 font-serif text-2xl font-medium text-ink">
+					{data.receipt.status === 'QUEUED' ? 'In the queue...' : 'Reading your receipt...'}
+				</h3>
+				<p class="mt-2 text-ink-light">
+					{data.receipt.status === 'QUEUED'
+						? 'Your receipt will be processed shortly'
+						: 'Extracting items and prices. This takes 10-30 seconds.'}
+				</p>
+				<div class="mx-auto mt-6 flex max-w-xs justify-center gap-8 text-center">
+					<div>
+						<div class="flex h-8 w-8 items-center justify-center rounded-full bg-sage-500 text-paper mx-auto">
+							<CheckCircle class="h-4 w-4" />
+						</div>
+						<p class="mt-2 text-xs text-ink-muted">Uploaded</p>
+					</div>
+					<div class="h-8 w-px bg-sand self-start mt-4"></div>
+					<div>
+						<div class="flex h-8 w-8 items-center justify-center rounded-full bg-sage-100 mx-auto">
+							<Sparkles class="h-4 w-4 animate-pulse text-sage-600" />
+						</div>
+						<p class="mt-2 text-xs text-sage-600 font-medium">Scanning</p>
+					</div>
+					<div class="h-8 w-px bg-sand self-start mt-4"></div>
+					<div>
+						<div class="flex h-8 w-8 items-center justify-center rounded-full bg-paper-dark mx-auto">
+							<ChefHat class="h-4 w-4 text-ink-muted" />
+						</div>
+						<p class="mt-2 text-xs text-ink-muted">Ready</p>
+					</div>
+				</div>
 			</Card.Content>
 		</Card.Root>
 	{:else if data.receipt.status === 'FAILED'}
-		<Card.Root class="border-sienna-200 bg-sienna-50">
-			<Card.Content class="py-8 text-center">
-				<XCircle class="mx-auto h-12 w-12 text-sienna-600" />
-				<h3 class="mt-4 font-serif text-xl font-medium text-ink">Failed to process receipt</h3>
-				<p class="mt-2 text-ink-light">{data.receipt.errorMessage || 'Unknown error occurred'}</p>
-				<Button href="/receipts/upload" class="mt-4">Try Again</Button>
+		<Card.Root class="border-sienna-200 bg-gradient-to-br from-sienna-50 to-paper">
+			<Card.Content class="py-12 text-center">
+				<div class="relative mx-auto w-fit">
+					<div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-sienna-100">
+						<Receipt class="h-8 w-8 text-sienna-600" />
+					</div>
+					<div class="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-sienna-500 text-paper">
+						<AlertCircle class="h-3 w-3" />
+					</div>
+				</div>
+				<h3 class="mt-6 font-serif text-2xl font-medium text-ink">Oops, something went wrong</h3>
+				<p class="mx-auto mt-2 max-w-md text-ink-light">
+					{data.receipt.errorMessage || "We couldn't read this receipt. The image might be blurry or the format unsupported."}
+				</p>
+				<div class="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+					<Button href="/receipts/upload">
+						<Receipt class="mr-2 h-4 w-4" />
+						Try another receipt
+					</Button>
+					<Button variant="outline" href="/receipts">Back to receipts</Button>
+				</div>
 			</Card.Content>
 		</Card.Root>
 	{:else}
@@ -170,7 +236,11 @@
 										{/each}
 									</div>
 								{:else}
-									<p class="text-ink-light">No items found</p>
+									<div class="py-8 text-center">
+										<Package class="mx-auto h-10 w-10 text-ink-muted" />
+										<p class="mt-3 font-serif text-lg text-ink">No items extracted yet</p>
+										<p class="mt-1 text-sm text-ink-light">Use "Quick add" above to manually add items</p>
+									</div>
 								{/if}
 							</Card.Content>
 						</Card.Root>
@@ -193,32 +263,43 @@
 			</div>
 
 			<!-- Receipt Image -->
-			<div>
-				<Card.Root>
-					<Card.Header>
-						<Card.Title>Receipt Image</Card.Title>
-					</Card.Header>
-					<Card.Content>
-						<img
-							src={data.receipt.imageUrl}
-							alt="Receipt"
-							class="w-full rounded-lg"
-						/>
-					</Card.Content>
-				</Card.Root>
-
+			<div class="space-y-4">
 				{#if data.receipt.totalAmount}
-					<Card.Root class="mt-4">
+					<Card.Root class="bg-gradient-to-br from-sage-50 to-paper">
 						<Card.Content class="pt-6">
 							<div class="text-center">
-								<p class="text-sm text-ink-light">Total</p>
-								<p class="font-serif text-3xl font-medium text-ink">
+								<p class="text-xs uppercase tracking-wide text-ink-muted">Receipt Total</p>
+								<p class="mt-1 font-serif text-4xl font-semibold text-ink">
 									${parseFloat(data.receipt.totalAmount).toFixed(2)}
 								</p>
+								{#if data.receipt.items?.length}
+									<p class="mt-2 text-sm text-ink-light">
+										{data.receipt.items.length} item{data.receipt.items.length === 1 ? '' : 's'} found
+									</p>
+								{/if}
 							</div>
 						</Card.Content>
 					</Card.Root>
 				{/if}
+
+				<Card.Root class="overflow-hidden">
+					<Card.Header class="pb-2">
+						<Card.Title class="flex items-center gap-2 text-sm">
+							<ImageIcon class="h-4 w-4 text-ink-muted" />
+							Original Receipt
+						</Card.Title>
+					</Card.Header>
+					<Card.Content class="p-0">
+						<div class="relative">
+							<div class="absolute inset-0 bg-gradient-to-t from-ink/5 to-transparent pointer-events-none"></div>
+							<img
+								src={data.receipt.imageUrl}
+								alt="Receipt from {data.receipt.storeName || 'store'}"
+								class="w-full"
+							/>
+						</div>
+					</Card.Content>
+				</Card.Root>
 			</div>
 		</div>
 	{/if}

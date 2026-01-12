@@ -3,7 +3,18 @@
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
-	import { Upload, Image, X } from 'lucide-svelte';
+	import {
+		Upload,
+		Image,
+		X,
+		Sun,
+		Camera,
+		ScanLine,
+		Layers,
+		Sparkles,
+		ArrowLeft,
+		ChefHat
+	} from 'lucide-svelte';
 
 	let { form } = $props();
 	let loading = $state(false);
@@ -59,11 +70,22 @@
 
 <div class="mx-auto max-w-2xl space-y-6">
 	<div>
-		<h1 class="font-serif text-3xl font-medium text-ink">Upload Receipt</h1>
-		<p class="mt-1 text-ink-light">Upload a photo of your grocery receipt</p>
+		<Button href="/receipts" variant="ghost" size="sm" class="-ml-2 mb-2">
+			<ArrowLeft class="mr-1 h-4 w-4" />
+			Back to receipts
+		</Button>
+		<div class="relative">
+			<div
+				class="absolute -left-4 -top-2 h-20 w-20 rounded-full bg-sage-100/50 blur-2xl"
+			></div>
+			<h1 class="font-serif text-3xl font-medium text-ink">Upload Receipt</h1>
+			<p class="mt-1 text-ink-light">
+				Snap it, drop it, and let us do the rest
+			</p>
+		</div>
 	</div>
 
-	<Card.Root>
+	<Card.Root class="overflow-hidden">
 		<Card.Content class="pt-6">
 			<form
 				method="POST"
@@ -100,23 +122,44 @@
 				>
 					{#if preview}
 						<div class="relative p-4">
-							<img src={preview} alt="Receipt preview" class="mx-auto max-h-96 rounded-lg" />
+							<div class="absolute inset-0 bg-gradient-to-b from-sage-100/30 to-transparent"></div>
+							<img
+								src={preview}
+								alt="Receipt preview"
+								class="relative mx-auto max-h-96 rounded-lg shadow-lg"
+							/>
 							<button
 								type="button"
 								onclick={clearPreview}
-								class="absolute right-6 top-6 rounded-full bg-ink/80 p-1 text-paper hover:bg-ink"
+								class="absolute right-6 top-6 rounded-full bg-ink/80 p-2 text-paper transition-transform hover:scale-110 hover:bg-ink"
 							>
 								<X class="h-4 w-4" />
 							</button>
+							<div class="absolute bottom-6 left-1/2 -translate-x-1/2">
+								<div class="flex items-center gap-2 rounded-full bg-sage-600 px-4 py-2 text-sm font-medium text-paper shadow-lg">
+									<Sparkles class="h-4 w-4" />
+									Looking good!
+								</div>
+							</div>
 						</div>
 					{:else}
-						<label class="flex cursor-pointer flex-col items-center gap-4 p-12">
-							<div class="rounded-full bg-sage-100 p-4">
-								<Upload class="h-8 w-8 text-sage-600" />
+						<label class="flex cursor-pointer flex-col items-center gap-4 p-12 transition-all {dragover ? 'scale-[1.02]' : ''}">
+							<div class="relative">
+								<div class="rounded-2xl bg-sage-100 p-5">
+									<Upload class="h-10 w-10 text-sage-600" />
+								</div>
+								{#if dragover}
+									<div class="absolute -right-1 -top-1">
+										<Sparkles class="h-5 w-5 animate-pulse text-sage-500" />
+									</div>
+								{/if}
 							</div>
 							<div class="text-center">
-								<p class="font-medium text-ink">Drop your receipt here or click to upload</p>
-								<p class="mt-1 text-sm text-ink-light">PNG, JPG, or HEIC up to 10MB</p>
+								<p class="font-serif text-xl font-medium text-ink">
+									{dragover ? 'Drop it like it\'s hot!' : 'Drop your receipt here'}
+								</p>
+								<p class="mt-1 text-sm text-ink-light">or click to browse your files</p>
+								<p class="mt-3 text-xs text-ink-muted">PNG, JPG, or HEIC up to 10MB</p>
 							</div>
 							<input
 								bind:this={fileInput}
@@ -146,15 +189,69 @@
 		</Card.Content>
 	</Card.Root>
 
-	<Card.Root class="border-sage-200 bg-sage-50">
+	<Card.Root class="border-sage-200 bg-gradient-to-br from-sage-50 to-paper">
 		<Card.Content class="pt-6">
-			<h3 class="font-medium text-ink">Tips for best results</h3>
-			<ul class="mt-2 space-y-1 text-sm text-ink-light">
-				<li>Make sure the receipt is well-lit and in focus</li>
-				<li>Include the entire receipt in the photo</li>
-				<li>Avoid shadows and reflections</li>
-				<li>Place the receipt on a flat, contrasting surface</li>
-			</ul>
+			<div class="flex items-center gap-2">
+				<Camera class="h-5 w-5 text-sage-600" />
+				<h3 class="font-serif text-lg font-medium text-ink">Quick tips for a perfect scan</h3>
+			</div>
+			<div class="mt-4 grid gap-3 sm:grid-cols-2">
+				<div class="flex items-start gap-3">
+					<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sage-100">
+						<Sun class="h-4 w-4 text-sage-600" />
+					</div>
+					<div>
+						<p class="text-sm font-medium text-ink">Good lighting</p>
+						<p class="text-xs text-ink-muted">Natural light works best</p>
+					</div>
+				</div>
+				<div class="flex items-start gap-3">
+					<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sage-100">
+						<ScanLine class="h-4 w-4 text-sage-600" />
+					</div>
+					<div>
+						<p class="text-sm font-medium text-ink">Full receipt</p>
+						<p class="text-xs text-ink-muted">Capture all the edges</p>
+					</div>
+				</div>
+				<div class="flex items-start gap-3">
+					<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sage-100">
+						<Camera class="h-4 w-4 text-sage-600" />
+					</div>
+					<div>
+						<p class="text-sm font-medium text-ink">Sharp focus</p>
+						<p class="text-xs text-ink-muted">Steady hands, clear text</p>
+					</div>
+				</div>
+				<div class="flex items-start gap-3">
+					<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sage-100">
+						<Layers class="h-4 w-4 text-sage-600" />
+					</div>
+					<div>
+						<p class="text-sm font-medium text-ink">Flat surface</p>
+						<p class="text-xs text-ink-muted">No wrinkles or folds</p>
+					</div>
+				</div>
+			</div>
 		</Card.Content>
 	</Card.Root>
+
+	<!-- What happens next -->
+	<div class="flex items-center justify-center gap-6 text-center text-sm text-ink-muted">
+		<div class="flex items-center gap-2">
+			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-sage-100 text-xs font-medium text-sage-700">1</div>
+			<span>Upload</span>
+		</div>
+		<div class="h-px w-8 bg-sand"></div>
+		<div class="flex items-center gap-2">
+			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-paper-dark text-xs font-medium text-ink-muted">2</div>
+			<span>We scan it</span>
+		</div>
+		<div class="h-px w-8 bg-sand"></div>
+		<div class="flex items-center gap-2">
+			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-paper-dark text-xs font-medium text-ink-muted">3</div>
+			<span>Recipes unlocked</span>
+			<ChefHat class="h-4 w-4" />
+		</div>
+	</div>
 </div>

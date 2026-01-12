@@ -55,9 +55,19 @@
 
 <div class="mx-auto max-w-4xl space-y-6">
 	<div class="flex items-center justify-between">
-		<div>
+		<div class="relative">
+			<div
+				class="absolute -left-4 -top-2 h-20 w-20 rounded-full bg-sage-100/50 blur-2xl"
+			></div>
+			<p class="text-sm uppercase tracking-wide text-ink-muted">Step 3</p>
 			<h1 class="font-serif text-3xl font-medium text-ink">Shopping Lists</h1>
-			<p class="mt-1 text-ink-light">Manage your grocery shopping</p>
+			<p class="mt-1 text-ink-light">
+				{#if data.lists.length === 0}
+					Ready to plan your next grocery run?
+				{:else}
+					{data.lists.length} list{data.lists.length === 1 ? '' : 's'} to keep you organized
+				{/if}
+			</p>
 		</div>
 	</div>
 
@@ -71,15 +81,24 @@
 		<!-- Main Content -->
 		<div class="lg:col-span-2 space-y-4">
 			<!-- Restock CTA -->
-			<Card.Root>
-				<Card.Content class="flex flex-col gap-3 p-6 md:flex-row md:items-center md:justify-between">
-					<div>
-						<p class="text-xs uppercase tracking-wide text-ink-muted">Restock</p>
-						<h3 class="font-serif text-xl text-ink">Build a new list from what you usually buy</h3>
-						<p class="text-ink-light">We look at your purchase history and suggest what’s likely running low.</p>
+			<Card.Root class="overflow-hidden bg-gradient-to-br from-sage-50 to-paper">
+				<Card.Content class="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
+					<div class="flex items-start gap-4">
+						<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sage-100">
+							<Sparkles class="h-6 w-6 text-sage-600" />
+						</div>
+						<div>
+							<h3 class="font-serif text-xl text-ink">Smart Restock</h3>
+							<p class="text-sm text-ink-light">
+								We'll suggest items based on your purchase patterns. Never forget the essentials!
+							</p>
+						</div>
 					</div>
 					<form method="POST" action="?/generateRestock" use:enhance={() => {}}>
-						<Button type="submit" variant="outline">Generate restock list</Button>
+						<Button type="submit">
+							<Sparkles class="mr-2 h-4 w-4" />
+							Generate list
+						</Button>
 					</form>
 				</Card.Content>
 			</Card.Root>
@@ -118,12 +137,17 @@
 
 			<!-- Shopping Lists -->
 			{#if data.lists.length === 0}
-				<Card.Root>
+				<Card.Root class="border-dashed">
 					<Card.Content class="py-12 text-center">
-						<ShoppingCart class="mx-auto h-12 w-12 text-ink-muted" />
-						<h3 class="mt-4 font-medium text-ink">No shopping lists yet</h3>
-						<p class="mt-1 text-sm text-ink-light">
-							Create a new list to start tracking your groceries
+						<div class="relative mx-auto w-fit">
+							<div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-sage-50">
+								<ShoppingCart class="h-8 w-8 text-sage-600" />
+							</div>
+							<Sparkles class="absolute -right-2 -top-2 h-5 w-5 text-sage-500" />
+						</div>
+						<h3 class="mt-6 font-serif text-xl font-medium text-ink">Your cart is empty</h3>
+						<p class="mx-auto mt-2 max-w-sm text-sm text-ink-light">
+							Create a shopping list above, or let us build one for you based on your recipes and purchase history.
 						</p>
 					</Card.Content>
 				</Card.Root>

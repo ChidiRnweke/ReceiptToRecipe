@@ -74,9 +74,19 @@
 </svelte:head>
 
 <div class="mx-auto max-w-3xl space-y-6">
-	<div>
-		<h1 class="font-serif text-3xl font-medium text-ink">Preferences</h1>
-		<p class="mt-1 text-ink-light">Customize your recipe recommendations</p>
+	<div class="relative">
+		<div
+			class="absolute -left-4 -top-2 h-20 w-20 rounded-full bg-sage-100/50 blur-2xl"
+		></div>
+		<div class="flex items-center gap-3">
+			<div class="flex h-12 w-12 items-center justify-center rounded-xl bg-sage-100">
+				<Settings class="h-6 w-6 text-sage-600" />
+			</div>
+			<div>
+				<h1 class="font-serif text-3xl font-medium text-ink">Your Preferences</h1>
+				<p class="text-ink-light">Tell us how you like to eat, and we'll tailor every recipe</p>
+			</div>
+		</div>
 	</div>
 
 	<form
@@ -354,16 +364,27 @@
 		</Card.Root>
 
 		<!-- Submit -->
-		<div class="flex gap-3">
-			<Button type="button" variant="outline" href="/" class="flex-1">Cancel</Button>
-			<Button type="submit" disabled={loading} class="flex-1">
-				{#if loading}
-					Saving...
-				{:else}
-					<Settings class="mr-2 h-4 w-4" />
-					Save Preferences
-				{/if}
-			</Button>
-		</div>
+		<Card.Root class="sticky bottom-4 bg-gradient-to-r from-sage-50 to-paper shadow-lg">
+			<Card.Content class="py-4">
+				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+					<div>
+						<p class="font-serif text-lg font-medium text-ink">Ready to update?</p>
+						<p class="text-sm text-ink-light">
+							Your preferences shape every recipe we create for you
+						</p>
+					</div>
+					<div class="flex gap-3">
+						<Button type="button" variant="outline" href="/">Cancel</Button>
+						<Button type="submit" disabled={loading} size="lg">
+							{#if loading}
+								Saving...
+							{:else}
+								Save Preferences
+							{/if}
+						</Button>
+					</div>
+				</div>
+			</Card.Content>
+		</Card.Root>
 	</form>
 </div>

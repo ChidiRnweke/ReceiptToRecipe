@@ -10,9 +10,36 @@
     Plus,
     Clock,
     TrendingUp,
+    Sparkles,
+    Lightbulb,
   } from "lucide-svelte";
 
   let { data } = $props();
+
+  // Time-based greeting
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  // Friendly prompts based on time of day
+  const mealSuggestion =
+    hour < 11
+      ? "Planning breakfast or prepping for dinner?"
+      : hour < 15
+        ? "Time to think about lunch or tonight's dinner!"
+        : hour < 19
+          ? "What's cooking for dinner tonight?"
+          : "Late night snack ideas, anyone?";
+
+  // Random cooking tips
+  const tips = [
+    "Salt your pasta water until it tastes like the sea.",
+    "Let meat rest after cooking for juicier results.",
+    "Fresh herbs go in at the end, dried herbs at the start.",
+    "A squeeze of lemon brightens almost any dish.",
+    "Room temperature eggs blend better in baking.",
+  ];
+  const randomTip = tips[Math.floor(Math.random() * tips.length)];
 
   const workflowSteps = [
     {
@@ -80,33 +107,58 @@
   <!-- Authenticated Dashboard View -->
   <div class="space-y-8">
     <!-- Welcome Header -->
-    <div>
-      <p class="text-sm uppercase tracking-wide text-ink-muted">Welcome back</p>
+    <div class="relative">
+      <div
+        class="absolute -left-4 -top-2 h-24 w-24 rounded-full bg-sage-100/50 blur-2xl"
+      ></div>
+      <p class="text-sm uppercase tracking-wide text-ink-muted">
+        {greeting}, {data.user.name?.split(" ")[0] || "chef"}
+      </p>
       <h1
         class="font-serif text-3xl font-medium tracking-tight text-ink md:text-4xl"
       >
-        What would you like to do?
+        {mealSuggestion}
       </h1>
+    </div>
+
+    <!-- Daily Tip -->
+    <div
+      class="flex items-start gap-3 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 p-4"
+    >
+      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100">
+        <Lightbulb class="h-4 w-4 text-violet-600" />
+      </div>
+      <div>
+        <p class="text-xs font-medium uppercase tracking-wide text-violet-600">
+          Chef's tip
+        </p>
+        <p class="text-sm text-ink">{randomTip}</p>
+      </div>
     </div>
 
     <!-- Workflow Steps -->
     <div class="grid gap-4 md:grid-cols-3">
       {#each workflowSteps as step, i}
+        {@const colors = [
+          { bg: "bg-amber-50", iconBg: "bg-amber-100", icon: "text-amber-700", border: "border-amber-200" },
+          { bg: "bg-emerald-50", iconBg: "bg-emerald-100", icon: "text-emerald-700", border: "border-emerald-200" },
+          { bg: "bg-sky-50", iconBg: "bg-sky-100", icon: "text-sky-700", border: "border-sky-200" },
+        ][i]}
         <Card.Root
-          class="group relative overflow-hidden border-sand bg-paper transition-shadow hover:shadow-md"
+          class="group relative overflow-hidden border {colors.border} {colors.bg} transition-all hover:shadow-md hover:-translate-y-0.5"
         >
           <!-- Step number indicator -->
           <div
-            class="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-paper-dark text-xs font-semibold text-ink-muted"
+            class="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-white/80 text-xs font-semibold text-ink-muted"
           >
             {i + 1}
           </div>
 
           <Card.Header class="pb-2">
             <div
-              class="flex h-12 w-12 items-center justify-center rounded-xl bg-sage-100"
+              class="flex h-12 w-12 items-center justify-center rounded-xl {colors.iconBg}"
             >
-              <step.icon class="h-6 w-6 text-sage-700" />
+              <step.icon class="h-6 w-6 {colors.icon}" />
             </div>
             <Card.Title class="font-serif text-xl">{step.label}</Card.Title>
             <Card.Description>{step.description}</Card.Description>
@@ -128,7 +180,7 @@
                 {step.actionLabel}
               </Button>
               {#if step.count > 0}
-                <Button href={step.href} size="sm" variant="outline">
+                <Button href={step.href} size="sm" variant="outline" class="bg-white">
                   View
                 </Button>
               {/if}
@@ -141,7 +193,7 @@
               class="absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 md:block"
             >
               <div
-                class="flex h-6 w-6 items-center justify-center rounded-full bg-paper-dark"
+                class="flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-sm"
               >
                 <ArrowRight class="h-3 w-3 text-ink-muted" />
               </div>
@@ -154,52 +206,80 @@
     <!-- Recent Activity Section -->
     <div class="grid gap-6 lg:grid-cols-2">
       <!-- Recent Receipts -->
-      <Card.Root class="border-sand bg-paper">
-        <Card.Header class="flex flex-row items-center justify-between">
+      <Card.Root class="border-amber-200 bg-white shadow-sm">
+        <Card.Header class="flex flex-row items-center justify-between border-b border-amber-100 bg-amber-50/50">
           <div>
             <Card.Title class="flex items-center gap-2">
-              <Receipt class="h-4 w-4 text-ink-muted" />
+              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100">
+                <Receipt class="h-4 w-4 text-amber-700" />
+              </div>
               Recent Receipts
             </Card.Title>
           </div>
           {#if data.recentReceipts?.length}
-            <Button href="/receipts" variant="ghost" size="sm">
+            <Button href="/receipts" variant="ghost" size="sm" class="text-amber-700 hover:text-amber-800 hover:bg-amber-100">
               View all <ArrowRight class="ml-1 h-3 w-3" />
             </Button>
           {/if}
         </Card.Header>
-        <Card.Content>
+        <Card.Content class="p-0">
           {#if data.recentReceipts?.length}
-            <div class="space-y-3">
+            <div class="divide-y divide-gray-100">
               {#each data.recentReceipts as receipt}
                 <a
                   href="/receipts/{receipt.id}"
-                  class="flex items-center justify-between rounded-lg border border-sand p-3 transition-colors hover:bg-paper-dark"
+                  class="flex items-center gap-3 p-4 transition-colors hover:bg-gray-50"
                 >
-                  <div>
-                    <p class="font-medium text-ink">
+                  <!-- Thumbnail -->
+                  <div class="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                    {#if receipt.imageUrl}
+                      <img
+                        src={receipt.imageUrl}
+                        alt="Receipt"
+                        class="h-full w-full object-cover"
+                      />
+                    {:else}
+                      <div class="flex h-full w-full items-center justify-center">
+                        <Receipt class="h-6 w-6 text-gray-400" />
+                      </div>
+                    {/if}
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="font-medium text-ink truncate">
                       {receipt.storeName || "Receipt"}
                     </p>
-                    <p class="text-xs text-ink-light">
+                    <p class="text-xs text-ink-muted">
                       {new Date(receipt.createdAt).toLocaleDateString()}
+                      {#if receipt.totalAmount}
+                        · ${parseFloat(receipt.totalAmount).toFixed(2)}
+                      {/if}
                     </p>
                   </div>
                   <div class="flex items-center gap-2">
-                    <Badge variant="outline" class="text-xs"
-                      >{receipt.status}</Badge
-                    >
-                    <ArrowRight class="h-4 w-4 text-ink-muted" />
+                    {#if receipt.status === "DONE"}
+                      <Badge variant="secondary" class="bg-emerald-100 text-emerald-700 text-xs">Done</Badge>
+                    {:else if receipt.status === "PROCESSING"}
+                      <Badge variant="secondary" class="bg-amber-100 text-amber-700 text-xs">Processing</Badge>
+                    {:else}
+                      <Badge variant="outline" class="text-xs">{receipt.status}</Badge>
+                    {/if}
+                    <ArrowRight class="h-4 w-4 text-gray-400" />
                   </div>
                 </a>
               {/each}
             </div>
           {:else}
             <div
-              class="flex flex-col items-center justify-center py-8 text-center"
+              class="flex flex-col items-center justify-center py-10 text-center"
             >
-              <Receipt class="h-10 w-10 text-ink-muted" />
-              <p class="mt-3 text-sm text-ink-light">No receipts yet</p>
-              <Button href="/receipts/upload" size="sm" class="mt-3">
+              <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100">
+                <Receipt class="h-8 w-8 text-amber-600" />
+              </div>
+              <p class="mt-4 font-serif text-lg text-ink">Your kitchen awaits!</p>
+              <p class="mt-1 text-sm text-ink-light">
+                Got a grocery receipt? Let's turn it into dinner plans.
+              </p>
+              <Button href="/receipts/upload" size="sm" class="mt-4">
                 Upload your first receipt
               </Button>
             </div>
@@ -208,50 +288,71 @@
       </Card.Root>
 
       <!-- Recent Recipes -->
-      <Card.Root class="border-sand bg-paper">
-        <Card.Header class="flex flex-row items-center justify-between">
+      <Card.Root class="border-emerald-200 bg-white shadow-sm">
+        <Card.Header class="flex flex-row items-center justify-between border-b border-emerald-100 bg-emerald-50/50">
           <div>
             <Card.Title class="flex items-center gap-2">
-              <ChefHat class="h-4 w-4 text-ink-muted" />
+              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100">
+                <ChefHat class="h-4 w-4 text-emerald-700" />
+              </div>
               Recent Recipes
             </Card.Title>
           </div>
           {#if data.recentRecipes?.length}
-            <Button href="/recipes" variant="ghost" size="sm">
+            <Button href="/recipes" variant="ghost" size="sm" class="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-100">
               View all <ArrowRight class="ml-1 h-3 w-3" />
             </Button>
           {/if}
         </Card.Header>
-        <Card.Content>
+        <Card.Content class="p-0">
           {#if data.recentRecipes?.length}
-            <div class="space-y-3">
+            <div class="divide-y divide-gray-100">
               {#each data.recentRecipes as recipe}
                 <a
                   href="/recipes/{recipe.id}"
-                  class="flex items-center justify-between rounded-lg border border-sand p-3 transition-colors hover:bg-paper-dark"
+                  class="flex items-center gap-3 p-4 transition-colors hover:bg-gray-50"
                 >
-                  <div>
-                    <p class="font-serif font-medium text-ink">
+                  <!-- Thumbnail -->
+                  <div class="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                    {#if recipe.imageUrl}
+                      <img
+                        src={recipe.imageUrl}
+                        alt={recipe.title}
+                        class="h-full w-full object-cover"
+                      />
+                    {:else}
+                      <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-50 to-gray-100">
+                        <ChefHat class="h-6 w-6 text-emerald-400" />
+                      </div>
+                    {/if}
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="font-serif font-medium text-ink truncate">
                       {recipe.title}
                     </p>
-                    <p class="text-xs text-ink-light">
+                    <p class="text-xs text-ink-muted">
                       {#if recipe.cuisineType}
-                        {recipe.cuisineType} ·
+                        <span class="text-emerald-600">{recipe.cuisineType}</span> ·
                       {/if}
                       {recipe.servings} servings
                     </p>
                   </div>
-                  <ArrowRight class="h-4 w-4 text-ink-muted" />
+                  <ArrowRight class="h-4 w-4 text-gray-400" />
                 </a>
               {/each}
             </div>
           {:else}
             <div
-              class="flex flex-col items-center justify-center py-8 text-center"
+              class="flex flex-col items-center justify-center py-10 text-center"
             >
-              <ChefHat class="h-10 w-10 text-ink-muted" />
-              <p class="mt-3 text-sm text-ink-light">No recipes yet</p>
-              <Button href="/recipes/generate" size="sm" class="mt-3">
+              <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100">
+                <ChefHat class="h-8 w-8 text-emerald-600" />
+              </div>
+              <p class="mt-4 font-serif text-lg text-ink">Time to get cooking!</p>
+              <p class="mt-1 text-sm text-ink-light">
+                Generate recipes tailored to your ingredients and taste.
+              </p>
+              <Button href="/recipes/generate" size="sm" class="mt-4">
                 Generate your first recipe
               </Button>
             </div>
@@ -262,10 +363,12 @@
 
     <!-- Smart Suggestions -->
     {#if data.suggestions?.length}
-      <Card.Root class="border-sand bg-paper">
-        <Card.Header>
+      <Card.Root class="border-sky-200 bg-white shadow-sm">
+        <Card.Header class="border-b border-sky-100 bg-sky-50/50">
           <Card.Title class="flex items-center gap-2">
-            <TrendingUp class="h-4 w-4 text-ink-muted" />
+            <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-100">
+              <TrendingUp class="h-4 w-4 text-sky-700" />
+            </div>
             Restock Suggestions
           </Card.Title>
           <Card.Description>Based on your purchase history</Card.Description>
@@ -274,18 +377,18 @@
           <div class="flex flex-wrap gap-2">
             {#each data.suggestions as suggestion}
               <div
-                class="flex items-center gap-2 rounded-full border border-sand bg-paper-dark px-3 py-1.5"
+                class="flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5"
               >
                 <span class="text-sm font-medium text-ink"
                   >{suggestion.itemName}</span
                 >
-                <span class="text-xs text-ink-muted">
+                <span class="text-xs text-sky-600">
                   every {suggestion.avgFrequencyDays ?? "—"}d
                 </span>
               </div>
             {/each}
           </div>
-          <Button href="/shopping" variant="outline" size="sm" class="mt-4">
+          <Button href="/shopping" variant="outline" size="sm" class="mt-4 border-sky-200 text-sky-700 hover:bg-sky-50">
             <ShoppingCart class="mr-2 h-4 w-4" />
             Add to shopping list
           </Button>

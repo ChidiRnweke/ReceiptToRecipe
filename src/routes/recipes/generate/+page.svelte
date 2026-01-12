@@ -5,7 +5,17 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { ChefHat, Plus, X } from 'lucide-svelte';
+	import {
+		ChefHat,
+		Plus,
+		X,
+		Sparkles,
+		ArrowLeft,
+		Receipt,
+		UtensilsCrossed,
+		Users,
+		Globe
+	} from 'lucide-svelte';
 
 	let { data, form } = $props();
 	let loading = $state(false);
@@ -42,9 +52,35 @@
 
 <div class="mx-auto max-w-3xl space-y-6">
 	<div>
-		<h1 class="font-serif text-3xl font-medium text-ink">Generate Recipe</h1>
-		<p class="mt-1 text-ink-light">Create a recipe based on your available ingredients</p>
+		<Button href="/recipes" variant="ghost" size="sm" class="-ml-2 mb-2">
+			<ArrowLeft class="mr-1 h-4 w-4" />
+			Back to recipes
+		</Button>
+		<div class="relative">
+			<div
+				class="absolute -left-4 -top-2 h-20 w-20 rounded-full bg-sage-100/50 blur-2xl"
+			></div>
+			<div class="flex items-center gap-3">
+				<div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-sage-100">
+					<Sparkles class="h-7 w-7 text-sage-600" />
+				</div>
+				<div>
+					<h1 class="font-serif text-3xl font-medium text-ink">Generate Recipe</h1>
+					<p class="text-ink-light">Tell us what you have, we'll tell you what to make</p>
+				</div>
+			</div>
+		</div>
 	</div>
+
+	<!-- Selection Summary -->
+	{#if selectedReceiptItems.size > 0 || customIngredients.length > 0}
+		<div class="flex items-center gap-3 rounded-xl border border-sage-200 bg-sage-50 p-4">
+			<ChefHat class="h-5 w-5 text-sage-600" />
+			<p class="text-sm text-ink">
+				<span class="font-medium">{selectedReceiptItems.size + customIngredients.length} ingredients</span> selected for your recipe
+			</p>
+		</div>
+	{/if}
 
 	<form
 		method="POST"
@@ -69,26 +105,38 @@
 		{#if data.recentReceipts && data.recentReceipts.length > 0}
 			<Card.Root>
 				<Card.Header>
-					<Card.Title>From Recent Receipts</Card.Title>
-					<Card.Description>Select ingredients from your uploaded receipts</Card.Description>
+					<div class="flex items-center gap-2">
+						<Receipt class="h-5 w-5 text-ink-muted" />
+						<Card.Title>From Your Receipts</Card.Title>
+					</div>
+					<Card.Description>Tap ingredients you want to use</Card.Description>
 				</Card.Header>
 				<Card.Content>
-					<div class="space-y-4">
+					<div class="space-y-6">
 						{#each data.recentReceipts as receipt}
 							{#if receipt.items && receipt.items.length > 0}
 								<div>
-									<p class="mb-2 font-medium text-ink">{receipt.storeName || 'Unknown Store'}</p>
+									<div class="mb-3 flex items-center gap-2">
+										<div class="h-px flex-1 bg-sand"></div>
+										<p class="text-xs font-medium uppercase tracking-wide text-ink-muted">
+											{receipt.storeName || 'Unknown Store'}
+										</p>
+										<div class="h-px flex-1 bg-sand"></div>
+									</div>
 									<div class="flex flex-wrap gap-2">
 										{#each receipt.items as item}
 											<button
 												type="button"
 												onclick={() => toggleReceiptItem(item.id)}
-												class="rounded-full border px-3 py-1 text-sm transition-colors {selectedReceiptItems.has(
+												class="rounded-full border px-3 py-1.5 text-sm transition-all {selectedReceiptItems.has(
 													item.id
 												)
-													? 'border-sage-500 bg-sage-100 text-sage-700'
-													: 'border-sand bg-paper hover:border-sage-400'}"
+													? 'border-sage-500 bg-sage-100 text-sage-700 shadow-sm'
+													: 'border-sand bg-paper hover:border-sage-400 hover:bg-sage-50'}"
 											>
+												{#if selectedReceiptItems.has(item.id)}
+													<span class="mr-1">+</span>
+												{/if}
 												{item.normalizedName}
 											</button>
 										{/each}
@@ -100,24 +148,40 @@
 					<input type="hidden" name="ingredientIds" value={Array.from(selectedReceiptItems).join(',')} />
 				</Card.Content>
 			</Card.Root>
+		{:else}
+			<Card.Root class="border-dashed">
+				<Card.Content class="py-8 text-center">
+					<Receipt class="mx-auto h-10 w-10 text-ink-muted" />
+					<p class="mt-3 font-serif text-lg text-ink">No receipts found</p>
+					<p class="mt-1 text-sm text-ink-light">Upload a receipt first, or add custom ingredients below</p>
+					<Button href="/receipts/upload" variant="outline" size="sm" class="mt-4">
+						Upload a receipt
+					</Button>
+				</Card.Content>
+			</Card.Root>
 		{/if}
 
 		<!-- Custom Ingredients -->
 		<Card.Root>
 			<Card.Header>
-				<Card.Title>Add Custom Ingredients</Card.Title>
-				<Card.Description>Add any ingredients not from your receipts</Card.Description>
+				<div class="flex items-center gap-2">
+					<UtensilsCrossed class="h-5 w-5 text-ink-muted" />
+					<Card.Title>Add Custom Ingredients</Card.Title>
+				</div>
+				<Card.Description>Got more in the pantry? Add them here</Card.Description>
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				<div class="flex gap-2">
 					<Input
 						type="text"
-						placeholder="e.g., garlic, olive oil, onion"
+						placeholder="e.g., garlic, olive oil, onion..."
 						bind:value={newIngredient}
 						onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), addIngredient())}
+						class="flex-1"
 					/>
-					<Button type="button" variant="outline" onclick={addIngredient}>
-						<Plus class="h-4 w-4" />
+					<Button type="button" variant="outline" onclick={addIngredient} disabled={!newIngredient.trim()}>
+						<Plus class="mr-1 h-4 w-4" />
+						Add
 					</Button>
 				</div>
 
@@ -125,15 +189,23 @@
 					<div class="flex flex-wrap gap-2">
 						{#each customIngredients as ingredient, i}
 							<span
-								class="flex items-center gap-1 rounded-full border border-sage-500 bg-sage-100 px-3 py-1 text-sm text-sage-700"
+								class="group flex items-center gap-1.5 rounded-full border border-sage-500 bg-sage-100 px-3 py-1.5 text-sm text-sage-700"
 							>
 								{ingredient}
-								<button type="button" onclick={() => removeIngredient(i)} class="hover:text-sage-900">
+								<button
+									type="button"
+									onclick={() => removeIngredient(i)}
+									class="rounded-full p-0.5 hover:bg-sage-200"
+								>
 									<X class="h-3 w-3" />
 								</button>
 							</span>
 						{/each}
 					</div>
+				{:else}
+					<p class="text-center text-sm text-ink-muted">
+						Press Enter or click Add to include an ingredient
+					</p>
 				{/if}
 				<input type="hidden" name="customIngredients" value={customIngredients.join(',')} />
 			</Card.Content>
@@ -142,12 +214,16 @@
 		<!-- Options -->
 		<Card.Root>
 			<Card.Header>
-				<Card.Title>Options</Card.Title>
+				<Card.Title>Recipe Options</Card.Title>
+				<Card.Description>Customize your recipe preferences</Card.Description>
 			</Card.Header>
 			<Card.Content class="space-y-4">
-				<div class="grid gap-4 sm:grid-cols-2">
+				<div class="grid gap-6 sm:grid-cols-2">
 					<div class="space-y-2">
-						<Label for="servings">Servings</Label>
+						<Label for="servings" class="flex items-center gap-2">
+							<Users class="h-4 w-4 text-ink-muted" />
+							Servings
+						</Label>
 						<Input
 							id="servings"
 							name="servings"
@@ -156,36 +232,58 @@
 							max="20"
 							bind:value={servings}
 						/>
+						<p class="text-xs text-ink-muted">How many people are eating?</p>
 					</div>
 					<div class="space-y-2">
-						<Label for="cuisineHint">Cuisine Style (optional)</Label>
+						<Label for="cuisineHint" class="flex items-center gap-2">
+							<Globe class="h-4 w-4 text-ink-muted" />
+							Cuisine Style
+						</Label>
 						<Input
 							id="cuisineHint"
 							name="cuisineHint"
 							type="text"
-							placeholder="e.g., Italian, Mexican, Asian"
+							placeholder="e.g., Italian, Mexican, Asian..."
 							bind:value={cuisineHint}
 						/>
+						<p class="text-xs text-ink-muted">Optional: guide the flavor profile</p>
 					</div>
 				</div>
 			</Card.Content>
 		</Card.Root>
 
 		<!-- Submit -->
-		<div class="flex gap-3">
-			<Button type="button" variant="outline" href="/recipes" class="flex-1">Cancel</Button>
-			<Button
-				type="submit"
-				disabled={loading || (selectedReceiptItems.size === 0 && customIngredients.length === 0)}
-				class="flex-1"
-			>
-				{#if loading}
-					Generating...
-				{:else}
-					<ChefHat class="mr-2 h-4 w-4" />
-					Generate Recipe
-				{/if}
-			</Button>
-		</div>
+		<Card.Root class="bg-gradient-to-r from-sage-50 to-paper">
+			<Card.Content class="py-6">
+				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+					<div>
+						<p class="font-serif text-lg font-medium text-ink">Ready to cook?</p>
+						<p class="text-sm text-ink-light">
+							{#if selectedReceiptItems.size === 0 && customIngredients.length === 0}
+								Select at least one ingredient to get started
+							{:else}
+								We'll create a custom recipe just for you
+							{/if}
+						</p>
+					</div>
+					<div class="flex gap-3">
+						<Button type="button" variant="outline" href="/recipes">Cancel</Button>
+						<Button
+							type="submit"
+							disabled={loading || (selectedReceiptItems.size === 0 && customIngredients.length === 0)}
+							size="lg"
+						>
+							{#if loading}
+								<Sparkles class="mr-2 h-4 w-4 animate-pulse" />
+								Creating magic...
+							{:else}
+								<Sparkles class="mr-2 h-4 w-4" />
+								Generate Recipe
+							{/if}
+						</Button>
+					</div>
+				</div>
+			</Card.Content>
+		</Card.Root>
 	</form>
 </div>
