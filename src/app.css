@@ -1,23 +1,24 @@
 @import "tailwindcss";
 
 @import "tw-animate-css";
+@import url("https://fonts.googleapis.com/css2?family=Patrick+Hand:wght@400;700&family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap");
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
   --radius: 0.625rem;
-  --paper: #f8f3e6;
-  --paper-dark: #efe7d7;
-  --ink: #201a16;
-  --ink-light: #3d352c;
-  --ink-muted: #6b6155;
-  --sage-50: #f2f6f1;
-  --sage-100: #e4eee1;
-  --sage-500: #5e8060;
-  --sage-600: #4c6a4e;
-  --sand: #d1c3a8;
-  --sienna-50: #fff1e6;
-  --sienna-600: #c25a2c;
+  --paper: #fdfbf7;
+  --paper-dark: #f2ede2;
+  --ink: #2d3748;
+  --ink-light: #4a5568;
+  --ink-muted: #6b7280;
+  --sage-50: #f1f5f9;
+  --sage-100: #e2e8f0;
+  --sage-500: #8aa399;
+  --sage-600: #718096;
+  --sand: #e5dcc4;
+  --sienna-50: #fff3e8;
+  --sienna-600: #ed8936;
   --background: var(--paper);
   --foreground: var(--ink);
   --card: var(--paper);
@@ -141,9 +142,20 @@
   }
   body {
     @apply bg-background text-foreground;
-    background-image:
-      radial-gradient(circle at 15% 20%, rgba(94, 128, 96, 0.08), transparent 35%),
-      radial-gradient(circle at 80% 10%, rgba(255, 196, 148, 0.12), transparent 30%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(245, 240, 229, 0.85));
+    background-image: radial-gradient(
+        circle at 15% 20%,
+        rgba(94, 128, 96, 0.08),
+        transparent 35%
+      ),
+      radial-gradient(
+        circle at 80% 10%,
+        rgba(255, 196, 148, 0.12),
+        transparent 30%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.55),
+        rgba(245, 240, 229, 0.85)
+      );
   }
 }
