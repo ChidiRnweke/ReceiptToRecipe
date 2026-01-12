@@ -136,6 +136,85 @@
   --color-sienna-600: var(--sienna-600);
 }
 
+.font-hand {
+  font-family: "Patrick Hand", "Segoe Print", "Comic Sans MS", cursive;
+  letter-spacing: 0.01em;
+}
+
+.font-display {
+  font-family: "Playfair Display", "Georgia", serif;
+  letter-spacing: -0.01em;
+}
+
+.font-sans-clean {
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+.marker-highlight {
+  position: relative;
+  display: inline-block;
+  padding: 0 3px;
+  background-image: linear-gradient(100deg, rgba(255, 231, 150, 0.7), rgba(255, 231, 150, 0.8));
+  background-repeat: no-repeat;
+  background-size: 100% 55%;
+  background-position: 0 70%;
+  border-radius: 8px;
+}
+
+.receipt-edge {
+  position: relative;
+  overflow: visible;
+}
+
+.receipt-edge::after {
+  content: "";
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  bottom: -18px;
+  height: 32px;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, transparent 55%, var(--paper) 55%) 0 0/24px 24px repeat-x,
+    linear-gradient(225deg, transparent 55%, var(--paper) 55%) 12px 0/24px 24px repeat-x;
+}
+
+.flash-green {
+  animation: flash-green 0.6s ease;
+}
+
+@keyframes flash-green {
+  0% {
+    background-color: rgba(16, 185, 129, 0.15);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.scroll-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scroll-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.receipt-tear {
+  position: relative;
+  mask-image: linear-gradient(#000 0 0),
+    repeating-linear-gradient(135deg, #000 0 8px, transparent 8px 16px);
+  mask-size: auto, 16px 16px;
+  mask-position: 0 0, 0 100%;
+  mask-repeat: no-repeat, repeat-x;
+  -webkit-mask-image: linear-gradient(#000 0 0),
+    repeating-linear-gradient(135deg, #000 0 8px, transparent 8px 16px);
+  -webkit-mask-size: auto, 16px 16px;
+  -webkit-mask-position: 0 0, 0 100%;
+  -webkit-mask-repeat: no-repeat, repeat-x;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -108,16 +108,16 @@
 
 {#if data.user}
   <div
-    class="relative flex h-screen overflow-hidden rounded-4xl border border-sand bg-[#FDFBF7] shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)]"
+    class="relative flex min-h-screen gap-8 rounded-4xl border border-sand bg-[#FDFBF7] p-6 shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)]"
   >
     <div
-      class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
+      class="pointer-events-none absolute inset-0 rounded-4xl bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
     ></div>
     <!-- Left: Kitchen Counter -->
     <aside
-      class="relative z-10 flex w-[34%] min-w-[320px] flex-col border-r border-sand bg-stone-50/80 px-8 py-8 backdrop-blur-sm"
+      class="sticky top-0 z-10 w-[34%] min-w-[320px] h-screen overflow-auto border-r border-sand bg-stone-50/80 px-8 py-8 backdrop-blur-sm scroll-hide"
     >
-      <div class="flex-1 space-y-6 overflow-y-auto pr-1">
+      <div class="space-y-6">
         <p class="text-xs uppercase tracking-[0.18em] text-ink-muted">
           {greeting}, {data.user.name?.split(" ")[0] || "chef"}
         </p>
@@ -154,7 +154,7 @@
 
         <!-- Drop zone -->
         <div
-          class="rounded-3xl border-2 border-dashed border-sage-100 bg-white/80 p-6 shadow-[0_22px_48px_-40px_rgba(45,55,72,0.6)] transition hover:-translate-y-0.5 hover:border-sage-500 hover:shadow-lg"
+          class="rounded-3xl border-2 border-dashed border-stone-300 bg-white/90 p-6 shadow-[0_22px_48px_-40px_rgba(45,55,72,0.6)] transition hover:-translate-y-0.5 hover:border-sage-500 hover:shadow-lg"
         >
           <div class="flex items-center justify-between gap-4">
             <div>
@@ -193,30 +193,35 @@
         </div>
 
         <!-- Quick stats -->
-        <div class="grid grid-cols-3 gap-3">
-          <div class="rounded-2xl bg-white/80 p-3 shadow-sm">
-            <p class="text-xs uppercase tracking-[0.16em] text-ink-muted">
-              Receipts
-            </p>
-            <p class="font-display text-3xl text-ink">
-              {data.metrics?.receipts ?? 0}
-            </p>
-          </div>
-          <div class="rounded-2xl bg-white/80 p-3 shadow-sm">
-            <p class="text-xs uppercase tracking-[0.16em] text-ink-muted">
-              Recipes
-            </p>
-            <p class="font-display text-3xl text-ink">
-              {data.metrics?.recipes ?? 0}
-            </p>
-          </div>
-          <div class="rounded-2xl bg-white/80 p-3 shadow-sm">
-            <p class="text-xs uppercase tracking-[0.16em] text-ink-muted">
-              List items
-            </p>
-            <p class="font-display text-3xl text-ink">
-              {data.metrics?.activeListItems ?? 0}
-            </p>
+        <div class="rounded-lg bg-stone-100/50 p-4">
+          <p class="text-xs uppercase tracking-[0.16em] text-ink-muted">
+            Kitchen stats
+          </p>
+          <div class="mt-3 grid grid-cols-3 gap-3">
+            <div class="rounded-xl bg-white/80 p-3 shadow-sm">
+              <p class="text-[11px] uppercase tracking-[0.12em] text-ink-muted">
+                Receipts
+              </p>
+              <p class="font-display text-3xl text-ink">
+                {data.metrics?.receipts ?? 0}
+              </p>
+            </div>
+            <div class="rounded-xl bg-white/80 p-3 shadow-sm">
+              <p class="text-[11px] uppercase tracking-[0.12em] text-ink-muted">
+                Recipes
+              </p>
+              <p class="font-display text-3xl text-ink">
+                {data.metrics?.recipes ?? 0}
+              </p>
+            </div>
+            <div class="rounded-xl bg-white/80 p-3 shadow-sm">
+              <p class="text-[11px] uppercase tracking-[0.12em] text-ink-muted">
+                List items
+              </p>
+              <p class="font-display text-3xl text-ink">
+                {data.metrics?.activeListItems ?? 0}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -266,10 +271,8 @@
     </aside>
 
     <!-- Right: Recipe Feed -->
-    <main class="relative z-10 flex flex-1 flex-col overflow-hidden bg-white">
-      <div
-        class="flex-1 space-y-10 overflow-y-auto px-6 py-8 sm:px-10 sm:py-12"
-      >
+    <main class="relative z-10 flex flex-1 flex-col bg-white">
+      <div class="flex-1 space-y-10 px-6 py-8 sm:px-10 sm:py-12">
         <div class="flex flex-wrap items-baseline justify-between gap-3">
           <div>
             <p class="text-xs uppercase tracking-[0.16em] text-ink-muted">
@@ -309,33 +312,35 @@
                 </div>
               {/if}
               <div
-                class="absolute inset-0 bg-linear-to-t from-[#1f2937]/80 via-[#1f2937]/30 to-transparent"
+                class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"
               ></div>
               <div class="absolute bottom-0 left-0 right-0 p-6">
-                <div
-                  class="backdrop-blur-md rounded-2xl bg-white/15 p-4 shadow-lg ring-1 ring-white/20"
-                >
-                  <p class="text-xs uppercase tracking-[0.18em] text-white/80">
-                    Featured
-                  </p>
-                  <h3 class="font-display text-2xl text-white">
-                    {featuredRecipe?.title || "Seasonal Supper"}
-                  </h3>
-                  <p class="text-sm text-white/80">
-                    {featuredRecipe?.description ||
-                      "Pull a receipt and we'll turn it into a warm, camera-ready dinner."}
-                  </p>
-                </div>
+                <p class="text-xs uppercase tracking-[0.18em] text-white/80">
+                  Featured
+                </p>
+                <h3 class="font-display text-2xl text-white">
+                  {featuredRecipe?.title || "Seasonal Supper"}
+                </h3>
+                <p class="text-sm text-white/80">
+                  {featuredRecipe?.description ||
+                    "Pull a receipt and we'll turn it into a warm, camera-ready dinner."}
+                </p>
               </div>
             </div>
           </a>
 
           <Card.Root
-            class="border-sand bg-[#FDFBF7] shadow-[0_24px_55px_-46px_rgba(45,55,72,0.55)]"
+            class="receipt-edge receipt-tear relative mx-auto w-80 max-w-xs overflow-hidden border border-stone-200 bg-white shadow-[0_24px_55px_-46px_rgba(45,55,72,0.55)]"
           >
+            <div class="flex items-center justify-between border-b border-dashed border-stone-300 bg-stone-50/70 px-4 py-3 font-mono text-xs uppercase tracking-[0.18em] text-ink">
+              <span class="flex items-center gap-2">
+                <ChefHat class="h-4 w-4 text-sage-600" /> Receipt2Recipe
+              </span>
+              <span class="text-ink-muted">mise</span>
+            </div>
             <Card.Header class="flex flex-col gap-2">
               <p class="text-xs uppercase tracking-[0.16em] text-ink-muted">
-                Interactive mise
+                Interactive receipt
               </p>
               <Card.Title class="font-display text-2xl text-ink"
                 >Add ingredients to your run</Card.Title
@@ -345,21 +350,21 @@
                 the highlight; click to confirm.
               </Card.Description>
             </Card.Header>
-            <Card.Content class="space-y-2">
+            <Card.Content class="space-y-2 pb-8">
               {#each ingredientList as ingredient}
                 {@const isAdded = addedIngredients.has(ingredient.name)}
                 <button
-                  class={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition ${isAdded ? "border-emerald-200 bg-emerald-50/70" : "border-transparent bg-white/70 hover:border-sand hover:bg-stone-50"} ${flashIngredient === ingredient.name ? "flash-green" : ""}`}
+                  class={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition ${isAdded ? "border-emerald-200 bg-emerald-50/70" : "border-stone-200 bg-white/70 hover:border-sand hover:bg-stone-50"} ${flashIngredient === ingredient.name ? "flash-green" : ""}`}
                   onclick={() => toggleIngredient(ingredient.name)}
                 >
-                  <div>
+                  <div class="font-mono text-sm">
                     <p class="font-medium text-ink">{ingredient.name}</p>
                     {#if ingredient.note}
-                      <p class="text-xs text-ink-muted">{ingredient.note}</p>
+                      <p class="text-[11px] text-ink-muted">{ingredient.note}</p>
                     {/if}
                   </div>
                   <span
-                    class={`flex h-9 w-9 items-center justify-center rounded-full border transition ${isAdded ? "border-emerald-300 bg-emerald-100 text-emerald-700" : "border-sand bg-white text-ink"}`}
+                    class={`flex h-9 w-9 items-center justify-center rounded-full border transition ${isAdded ? "border-emerald-300 bg-emerald-100 text-emerald-700" : "border-sand bg-white text-ink hover:bg-green-100 hover:text-green-800"}`}
                   >
                     {#if isAdded}
                       <Check class="h-4 w-4" />
@@ -407,34 +412,28 @@
                       </div>
                     {/if}
                     <div
-                      class="absolute inset-0 bg-linear-to-t from-[#1f2937]/80 via-[#1f2937]/25 to-transparent"
+                      class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent"
                     ></div>
                     <div class="absolute bottom-0 left-0 right-0 p-5">
+                      <h3 class="font-display text-xl text-white line-clamp-2">
+                        {recipe.title}
+                      </h3>
+                      {#if recipe.description}
+                        <p class="mt-1 text-sm text-white/80 line-clamp-2">
+                          {recipe.description}
+                        </p>
+                      {/if}
                       <div
-                        class="rounded-2xl border border-white/15 bg-white/15 p-4 backdrop-blur-md"
+                        class="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/70"
                       >
-                        <h3
-                          class="font-display text-xl text-white line-clamp-2"
-                        >
-                          {recipe.title}
-                        </h3>
-                        {#if recipe.description}
-                          <p class="mt-1 text-sm text-white/80 line-clamp-2">
-                            {recipe.description}
-                          </p>
-                        {/if}
-                        <div
-                          class="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/70"
-                        >
+                        <span class="rounded-full bg-white/20 px-2 py-1">
+                          {recipe.servings} servings
+                        </span>
+                        {#if recipe.cuisineType}
                           <span class="rounded-full bg-white/20 px-2 py-1">
-                            {recipe.servings} servings
+                            {recipe.cuisineType}
                           </span>
-                          {#if recipe.cuisineType}
-                            <span class="rounded-full bg-white/20 px-2 py-1">
-                              {recipe.cuisineType}
-                            </span>
-                          {/if}
-                        </div>
+                        {/if}
                       </div>
                     </div>
                   </div>
