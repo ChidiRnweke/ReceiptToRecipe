@@ -9,7 +9,11 @@
     Upload,
     Sparkles,
     Lightbulb,
+    Clock,
+    History,
   } from "lucide-svelte";
+  import PushPin from "$lib/components/PushPin.svelte";
+  import WashiTape from "$lib/components/WashiTape.svelte";
 
   let { data } = $props();
   type Ingredient = { name: string; note?: string };
@@ -19,7 +23,7 @@
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  // Friendly prompts based on time of day
+  // Friendly prompts
   const mealSuggestion =
     hour < 11
       ? "Planning breakfast or prepping for dinner?"
@@ -29,7 +33,6 @@
           ? "What's cooking for dinner tonight?"
           : "Late night snack ideas, anyone?";
 
-  // Random cooking tips
   const tips = [
     "Salt your pasta water until it tastes like the sea.",
     "Let meat rest after cooking for juicier results.",
@@ -41,6 +44,8 @@
 
   const featuredRecipe = $derived(data.recentRecipes?.[0]);
   const recipeFeed = $derived(data.recentRecipes ?? []);
+
+  // Ingredients Logic
   const ingredientList = $derived.by<Ingredient[]>(() => {
     if (
       featuredRecipe &&
@@ -62,6 +67,7 @@
   let addedIngredients = $state<Set<string>>(new Set());
   let flashIngredient = $state<string | null>(null);
   let cartOpen = $state(false);
+  let showAllIngredients = $state(false);
 
   const shoppingPreview = $derived(data.suggestions ?? []);
   const cartItems = $derived.by(() => {
@@ -82,6 +88,9 @@
     return collected;
   });
   const cartCount = $derived(cartItems.length);
+  const visibleIngredients = $derived.by(() =>
+    showAllIngredients ? ingredientList : ingredientList.slice(0, 6)
+  );
 
   function toggleIngredient(name: string) {
     const next = new Set(addedIngredients);
@@ -108,332 +117,475 @@
 
 {#if data.user}
   <div
-    class="relative flex min-h-screen gap-8 rounded-4xl border border-sand bg-[#FDFBF7] p-6 shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)]"
+    class="paper-card relative flex min-h-screen gap-0 rounded-4xl border border-sand bg-[#FDFBF7] shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)] overflow-hidden"
   >
     <div
-      class="pointer-events-none absolute inset-0 rounded-4xl bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
+      class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
     ></div>
-    <!-- Left: Kitchen Counter -->
+
     <aside
-      class="sticky top-0 z-10 w-[34%] min-w-[320px] h-screen overflow-auto border-r border-sand bg-stone-50/80 px-8 py-8 backdrop-blur-sm scroll-hide"
+      class="sticky top-0 z-20 hidden w-[320px] shrink-0 h-screen overflow-y-auto border-r border-sand bg-stone-50/80 px-6 py-6 backdrop-blur-sm lg:block [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"
     >
-      <div class="space-y-6">
-        <p class="text-xs uppercase tracking-[0.18em] text-ink-muted">
-          {greeting}, {data.user.name?.split(" ")[0] || "chef"}
-        </p>
-        <h2 class="font-display text-3xl leading-tight text-ink">
-          What are we <span class="marker-highlight">cooking</span> today?
-        </h2>
-        <p class="font-hand text-lg text-ink-light">
-          {mealSuggestion}
-        </p>
-
-        <!-- Chef's Tip sticky note -->
-        <div class="relative max-w-sm">
+      <div class="flex h-full flex-col justify-between gap-6">
+        <div class="space-y-6">
           <div
-            class="absolute -left-3 -top-3 h-10 w-10 rotate-6 bg-amber-200/40 blur-xl"
-          ></div>
-          <div
-            class="-rotate-1 rounded-2xl border border-amber-200 bg-linear-to-br from-amber-50 to-[#FFF4D6] p-4 shadow-md shadow-amber-200/50"
+            class="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-ink-muted"
           >
-            <div class="flex items-start gap-3 font-hand">
-              <div
-                class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-200"
-              >
-                <Lightbulb class="h-4 w-4 text-amber-700" />
-              </div>
-              <div>
-                <p class="text-xs uppercase tracking-wide text-amber-700">
-                  Chef's tip
-                </p>
-                <p class="text-base text-ink">{randomTip}</p>
-              </div>
-            </div>
+            <span>{greeting}, {data.user.name?.split(" ")[0] || "chef"}</span>
           </div>
-        </div>
 
-        <!-- Drop zone -->
-        <div
-          class="rounded-3xl border-2 border-dashed border-stone-300 bg-white/90 p-6 shadow-[0_22px_48px_-40px_rgba(45,55,72,0.6)] transition hover:-translate-y-0.5 hover:border-sage-500 hover:shadow-lg"
-        >
-          <div class="flex items-center justify-between gap-4">
-            <div>
-              <p class="text-sm uppercase tracking-[0.16em] text-ink-muted">
-                Drop receipt
-              </p>
-              <h3 class="font-display text-2xl text-ink">Scan & Sort</h3>
-              <p class="text-sm text-ink-light">
-                Drag a photo or forward your email receipt. We'll handle the
-                rest.
-              </p>
+          <div
+            class="relative mx-auto mt-4 max-w-[260px] rotate-1 transition hover:rotate-0"
+          >
+            <div
+              class="absolute left-1/2 -top-3 -translate-x-1/2 z-20 filter drop-shadow-sm"
+            >
+              <PushPin color="red" />
             </div>
             <div
-              class="flex h-14 w-14 items-center justify-center rounded-2xl bg-sage-100 text-sage-600"
+              class="rounded-xl border border-amber-200/60 bg-gradient-to-br from-amber-50 to-[#FFF4D6] p-4 shadow-sm"
             >
-              <Upload class="h-6 w-6" />
-            </div>
-          </div>
-          <div class="mt-4 flex flex-wrap gap-3">
-            <Button
-              href="/receipts/upload"
-              size="sm"
-              class="bg-sage-600 text-white hover:bg-sage-500"
-            >
-              <Upload class="mr-2 h-4 w-4" /> Drop receipt here
-            </Button>
-            <Button
-              href="/receipts"
-              variant="outline"
-              size="sm"
-              class="border-sand text-ink"
-            >
-              View inbox
-            </Button>
-          </div>
-        </div>
-
-        <!-- Quick stats -->
-        <div class="rounded-lg bg-stone-100/50 p-4">
-          <p class="text-xs uppercase tracking-[0.16em] text-ink-muted">
-            Kitchen stats
-          </p>
-          <div class="mt-3 grid grid-cols-3 gap-3">
-            <div class="rounded-xl bg-white/80 p-3 shadow-sm">
-              <p class="text-[11px] uppercase tracking-[0.12em] text-ink-muted">
-                Receipts
-              </p>
-              <p class="font-display text-3xl text-ink">
-                {data.metrics?.receipts ?? 0}
-              </p>
-            </div>
-            <div class="rounded-xl bg-white/80 p-3 shadow-sm">
-              <p class="text-[11px] uppercase tracking-[0.12em] text-ink-muted">
-                Recipes
-              </p>
-              <p class="font-display text-3xl text-ink">
-                {data.metrics?.recipes ?? 0}
-              </p>
-            </div>
-            <div class="rounded-xl bg-white/80 p-3 shadow-sm">
-              <p class="text-[11px] uppercase tracking-[0.12em] text-ink-muted">
-                List items
-              </p>
-              <p class="font-display text-3xl text-ink">
-                {data.metrics?.activeListItems ?? 0}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Live Shopping Cart -->
-      <div
-        class="mt-6 rounded-3xl border border-sand bg-white/90 p-4 shadow-md"
-      >
-        <button
-          class="flex w-full items-center justify-between text-left"
-          onclick={() => (cartOpen = !cartOpen)}
-          aria-expanded={cartOpen}
-        >
-          <div>
-            <p class="text-xs uppercase tracking-[0.16em] text-ink-muted">
-              Shopping list
-            </p>
-            <p class="font-display text-2xl text-ink">
-              {cartCount} item{cartCount === 1 ? "" : "s"} to buy
-            </p>
-          </div>
-          <span
-            class="flex h-10 w-10 items-center justify-center rounded-full bg-sage-100 text-sage-700"
-          >
-            <ShoppingCart class="h-5 w-5" />
-          </span>
-        </button>
-        {#if cartOpen}
-          <div class="mt-4 max-h-44 space-y-2 overflow-y-auto pr-1">
-            {#if cartItems.length === 0}
-              <p class="font-hand text-sm text-ink-muted">
-                Add ingredients from the recipe to build your run.
-              </p>
-            {:else}
-              {#each cartItems as item}
-                <div
-                  class="flex items-center justify-between rounded-xl border border-sand/70 bg-sage-50/60 px-3 py-2 text-sm text-ink"
-                >
-                  <span class="truncate">{item}</span>
-                  <Check class="h-4 w-4 text-sage-600" />
+              <div class="flex items-start gap-3">
+                <div class="mt-0.5 text-amber-600">
+                  <Lightbulb class="h-4 w-4" />
                 </div>
-              {/each}
-            {/if}
+                <div>
+                  <p class="font-hand text-sm leading-snug text-ink/80">
+                    {randomTip}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
-        {/if}
+
+          <div class="relative rounded-2xl bg-stone-200/40 p-1 shadow-inner">
+            <div class="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+              <WashiTape width="w-24" rotate="-rotate-1" />
+            </div>
+
+            <div class="rounded-xl border border-stone-100 bg-white shadow-sm">
+              <div class="border-b border-dashed border-stone-200 p-5">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3">
+                    <h3 class="font-display text-lg text-ink">Scan & Sort</h3>
+
+                    <div
+                      class="flex flex-col gap-[1px] opacity-40 select-none mix-blend-multiply mt-1"
+                      aria-hidden="true"
+                    >
+                      <div
+                        class="h-3 w-8"
+                        style="background: linear-gradient(to right, #000 1px, transparent 1px, transparent 3px, #000 3px, #000 4px, transparent 4px, transparent 6px, #000 6px, #000 9px, transparent 9px, transparent 10px, #000 10px, #000 12px, transparent 12px, transparent 14px, #000 14px, #000 15px, transparent 15px, transparent 18px, #000 18px);"
+                      ></div>
+                      <div
+                        class="text-[5px] font-mono leading-none tracking-widest text-black/60 text-center"
+                      >
+                        8401
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-sage-50 text-sage-600"
+                  >
+                    <Upload class="h-4 w-4" />
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-2">
+                  <Button
+                    href="/receipts/upload"
+                    size="sm"
+                    class="w-full bg-sage-600 text-white hover:bg-sage-500 shadow-sm"
+                  >
+                    Drop receipt
+                  </Button>
+                </div>
+              </div>
+
+              <div class="p-2">
+                <button
+                  class="flex w-full items-center justify-between rounded-lg p-3 text-left hover:bg-stone-50 transition-colors"
+                  onclick={() => (cartOpen = !cartOpen)}
+                >
+                  <div>
+                    <p
+                      class="text-[10px] uppercase tracking-wider text-ink-muted"
+                    >
+                      To Buy
+                    </p>
+                    <p class="font-display text-xl text-ink">
+                      {cartCount} items
+                    </p>
+                  </div>
+                  <ShoppingCart class="h-5 w-5 text-sage-600" />
+                </button>
+
+                {#if cartOpen}
+                  <div
+                    class="mt-2 max-h-40 overflow-y-auto px-3 pb-3 space-y-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"
+                  >
+                    {#if cartItems.length === 0}
+                      <p class="text-xs text-ink-muted italic">
+                        Cart is empty.
+                      </p>
+                    {:else}
+                      {#each cartItems as item}
+                        <div class="flex items-center gap-2 text-xs text-ink">
+                          <Check class="h-3 w-3 text-sage-500" />
+                          <span class="truncate">{item}</span>
+                        </div>
+                      {/each}
+                    {/if}
+                  </div>
+                {/if}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="mb-4 rounded-xl border border-sand/60 bg-[#fffdf5] p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] rotate-[-1deg]"
+        >
+          <div
+            class="flex items-center gap-2 text-xs text-ink-muted uppercase tracking-wider mb-2 border-b border-sand/40 pb-2"
+          >
+            <History class="h-3 w-3" /> Recent Pulls
+          </div>
+          <ul class="space-y-2 font-hand text-sm text-ink/70">
+            <li
+              class="cursor-pointer hover:text-ink hover:underline decoration-wavy decoration-sage-300"
+            >
+              Lentil Stir-fry
+            </li>
+            <li
+              class="cursor-pointer hover:text-ink hover:underline decoration-wavy decoration-sage-300"
+            >
+              Sourdough Starter
+            </li>
+            <li
+              class="cursor-pointer hover:text-ink hover:underline decoration-wavy decoration-sage-300"
+            >
+              Sunday Roast
+            </li>
+          </ul>
+        </div>
       </div>
     </aside>
 
-    <!-- Right: Recipe Feed -->
-    <main class="relative z-10 flex flex-1 flex-col bg-white">
-      <div class="flex-1 space-y-10 px-6 py-8 sm:px-10 sm:py-12">
-        <div class="flex flex-wrap items-baseline justify-between gap-3">
+    <main
+      class="relative z-10 flex flex-1 flex-col bg-white h-screen overflow-y-auto scroll-smooth"
+    >
+      <div class="mx-auto w-full max-w-5xl px-6 py-6 sm:px-10">
+        <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p class="text-xs uppercase tracking-[0.16em] text-ink-muted">
-              Fresh pulls
+            <p class="font-hand text-lg text-ink-light mb-1">
+              {mealSuggestion}
             </p>
-            <h1 class="font-display text-4xl leading-tight text-ink">
-              Editorial <span class="marker-highlight">recipe</span> feed
+            <h1
+              class="font-display text-4xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
+            >
+              What are we <span class="marker-highlight">cooking</span> today?
             </h1>
           </div>
           <Button
             href="/recipes/generate"
-            variant="outline"
-            class="border-sand text-ink"
+            class="group relative overflow-hidden rounded-full border border-amber-300/40 bg-gradient-to-br from-amber-50 to-amber-100/50 px-6 py-2.5 transition-all hover:border-amber-400/50 active:scale-[0.98]"
           >
-            <Sparkles class="mr-2 h-4 w-4 text-amber-500" /> Generate new recipe
+            <Sparkles
+              class="mr-2 h-4 w-4 text-amber-600/80 transition-transform group-hover:rotate-12"
+            />
+            <span class="font-display text-sm text-ink"
+              >Generate New Recipe</span
+            >
           </Button>
         </div>
 
-        <!-- Feature + Ingredients -->
-        <div class="grid gap-6 lg:grid-cols-2">
-          <a
-            href={featuredRecipe ? `/recipes/${featuredRecipe.id}` : "/recipes"}
-            class="group relative block overflow-hidden rounded-[28px] border border-sand bg-white shadow-[0_28px_60px_-46px_rgba(45,55,72,0.55)]"
-          >
-            <div class="relative h-80 overflow-hidden">
-              {#if featuredRecipe?.imageUrl}
-                <img
-                  src={featuredRecipe.imageUrl}
-                  alt={featuredRecipe.title}
-                  class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                />
-              {:else}
-                <div
-                  class="flex h-full w-full items-center justify-center bg-linear-to-br from-sage-50 to-sand"
-                >
-                  <ChefHat class="h-10 w-10 text-sage-500" />
-                </div>
-              {/if}
+        <div class="grid items-stretch gap-8 lg:grid-cols-12">
+          <div class="lg:col-span-7">
+            <a
+              href={featuredRecipe
+                ? `/recipes/${featuredRecipe.id}`
+                : "/recipes"}
+              class="group relative flex h-full flex-row overflow-hidden rounded-r-2xl rounded-l-md border border-stone-200 bg-[#fffefb] shadow-[2px_3px_10px_rgba(0,0,0,0.03)] transition-all hover:-translate-y-0.5 hover:shadow-md"
+            >
               <div
-                class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"
+                class="pointer-events-none absolute bottom-0 left-0 top-0 z-10 w-12 bg-gradient-to-r from-stone-200/40 to-transparent"
               ></div>
-              <div class="absolute bottom-0 left-0 right-0 p-6">
-                <p class="text-xs uppercase tracking-[0.18em] text-white/80">
-                  Featured
-                </p>
-                <h3 class="font-display text-2xl text-white">
+
+              <div
+                class="absolute -top-1 right-6 z-20 h-16 w-8 drop-shadow-sm transition-transform duration-300 group-hover:-translate-y-2"
+              >
+                <div
+                  class="h-full w-full bg-red-700"
+                  style="clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);"
+                ></div>
+                <div
+                  class="absolute inset-x-1 top-0 bottom-4 border-l border-r border-dashed border-white/20"
+                ></div>
+              </div>
+
+              <div class="relative w-5/12 p-5 pr-2">
+                <div
+                  class="relative h-full w-full rotate-[-1deg] transform transition-transform duration-500 group-hover:rotate-0"
+                >
+                  <div
+                    class="absolute -top-2 left-1/2 z-20 h-6 w-16 -translate-x-1/2 rotate-[-2deg] bg-amber-100/40 backdrop-blur-[1px]"
+                    style="mask-image: url('data:image/svg+xml;utf8,<svg width=\'100%\' height=\'100%\' xmlns=\'http://www.w3.org/2000/svg\'><rect x=\'0\' y=\'0\' width=\'100%\' height=\'100%\' fill=\'black\'/></svg>'); box-shadow: 0 1px 2px rgba(0,0,0,0.1);"
+                  ></div>
+                  <div
+                    class="absolute -top-2 left-1/2 z-20 h-6 w-16 -translate-x-1/2 rotate-[-2deg] opacity-20 mix-blend-multiply shadow-sm bg-stone-300"
+                  ></div>
+
+                  <div
+                    class="h-full w-full overflow-hidden rounded-[2px] border border-stone-100 bg-white p-1.5 shadow-sm"
+                  >
+                    {#if featuredRecipe?.imageUrl}
+                      <img
+                        src={featuredRecipe.imageUrl}
+                        alt={featuredRecipe.title}
+                        class="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                      />
+                    {:else}
+                      <div
+                        class="flex h-full w-full items-center justify-center bg-stone-100"
+                      >
+                        <ChefHat class="h-8 w-8 text-stone-300" />
+                      </div>
+                    {/if}
+                    <div
+                      class="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-50"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="relative flex w-7/12 flex-col justify-center p-8 pl-6"
+              >
+                <div
+                  class="mb-3 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-stone-400"
+                >
+                  <span>Chapter 3: Fresh Pulls</span>
+                </div>
+
+                <h3
+                  class="font-display text-3xl leading-tight text-ink decoration-stone-300 decoration-2 underline-offset-4 group-hover:underline"
+                >
                   {featuredRecipe?.title || "Seasonal Supper"}
                 </h3>
-                <p class="text-sm text-white/80">
-                  {featuredRecipe?.description ||
-                    "Pull a receipt and we'll turn it into a warm, camera-ready dinner."}
-                </p>
-              </div>
-            </div>
-          </a>
 
-          <Card.Root
-            class="receipt-edge receipt-tear relative mx-auto w-80 max-w-xs overflow-hidden border border-stone-200 bg-white shadow-[0_24px_55px_-46px_rgba(45,55,72,0.55)]"
-          >
-            <div class="flex items-center justify-between border-b border-dashed border-stone-300 bg-stone-50/70 px-4 py-3 font-mono text-xs uppercase tracking-[0.18em] text-ink">
-              <span class="flex items-center gap-2">
-                <ChefHat class="h-4 w-4 text-sage-600" /> Receipt2Recipe
-              </span>
-              <span class="text-ink-muted">mise</span>
-            </div>
-            <Card.Header class="flex flex-col gap-2">
-              <p class="text-xs uppercase tracking-[0.16em] text-ink-muted">
-                Interactive receipt
-              </p>
-              <Card.Title class="font-display text-2xl text-ink"
-                >Add ingredients to your run</Card.Title
-              >
-              <Card.Description class="text-ink-light">
-                Tap to send items into the live cart on the left. Hover to see
-                the highlight; click to confirm.
-              </Card.Description>
-            </Card.Header>
-            <Card.Content class="space-y-2 pb-8">
-              {#each ingredientList as ingredient}
-                {@const isAdded = addedIngredients.has(ingredient.name)}
-                <button
-                  class={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition ${isAdded ? "border-emerald-200 bg-emerald-50/70" : "border-stone-200 bg-white/70 hover:border-sand hover:bg-stone-50"} ${flashIngredient === ingredient.name ? "flash-green" : ""}`}
-                  onclick={() => toggleIngredient(ingredient.name)}
+                <div
+                  class="mt-4 flex items-center gap-4 text-xs font-medium text-stone-500"
                 >
-                  <div class="font-mono text-sm">
-                    <p class="font-medium text-ink">{ingredient.name}</p>
-                    {#if ingredient.note}
-                      <p class="text-[11px] text-ink-muted">{ingredient.note}</p>
-                    {/if}
-                  </div>
-                  <span
-                    class={`flex h-9 w-9 items-center justify-center rounded-full border transition ${isAdded ? "border-emerald-300 bg-emerald-100 text-emerald-700" : "border-sand bg-white text-ink hover:bg-green-100 hover:text-green-800"}`}
+                  <span class="flex items-center gap-1.5"
+                    ><Clock class="h-3.5 w-3.5 text-stone-400" /> 25 min</span
                   >
-                    {#if isAdded}
-                      <Check class="h-4 w-4" />
-                    {:else}
-                      <Plus class="h-4 w-4" />
-                    {/if}
-                  </span>
-                </button>
-              {/each}
-            </Card.Content>
-          </Card.Root>
+                  <span class="h-1 w-1 rounded-full bg-stone-300"></span>
+                  <span>{featuredRecipe?.servings || 2} servings</span>
+                </div>
+
+                <p
+                  class="mt-4 line-clamp-2 font-serif text-sm italic leading-relaxed text-stone-600"
+                >
+                  "{featuredRecipe?.description ||
+                    "Pull a receipt and we'll turn it into a warm, camera-ready dinner."}"
+                </p>
+
+                <div
+                  class="absolute bottom-4 right-6 font-mono text-[10px] text-stone-300"
+                >
+                  p. 14
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <div class="lg:col-span-5">
+            <Card.Root
+              class="relative mx-auto flex h-full w-full flex-col overflow-hidden rounded-[4px] border border-stone-200 bg-[#fffdf5] shadow-[2px_3px_5px_rgba(0,0,0,0.05)]"
+              style="border-radius: 4px 16px 16px 4px;"
+            >
+              <div
+                class="flex shrink-0 items-center justify-between border-b border-stone-200 bg-[#f7f5eb] px-6 py-4"
+              >
+                <span
+                  class="font-mono text-[10px] uppercase tracking-[0.2em] text-stone-500"
+                  >Mise en place</span
+                >
+                <div class="flex gap-1">
+                  <div class="h-1.5 w-1.5 rounded-full bg-stone-300"></div>
+                  <div class="h-1.5 w-1.5 rounded-full bg-stone-300"></div>
+                  <div class="h-1.5 w-1.5 rounded-full bg-stone-300"></div>
+                </div>
+              </div>
+
+              <Card.Content class="relative flex-1 p-0">
+                <div
+                  class="absolute bottom-0 left-8 top-0 z-0 h-full w-[1px] border-r border-red-200/60"
+                ></div>
+
+                <div
+                  class={`relative z-10 h-full max-h-[320px] overflow-y-auto space-y-0 pt-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']`}
+                >
+                  {#each visibleIngredients as ingredient}
+                    {@const isAdded = addedIngredients.has(ingredient.name)}
+                    <button
+                      class={`group relative flex w-full items-start gap-4 px-4 py-3 text-left transition-colors duration-200 ${isAdded ? "bg-emerald-50/30" : "hover:bg-blue-50/30"}`}
+                      onclick={() => toggleIngredient(ingredient.name)}
+                    >
+                      <div
+                        class="absolute bottom-0 left-0 right-0 border-b border-blue-200/30"
+                      ></div>
+                      <div
+                        class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-stone-300 bg-white transition-colors group-hover:border-stone-400"
+                      >
+                        {#if isAdded}
+                          <div
+                            class="flex h-5 w-5 scale-110 items-center justify-center rounded-full bg-emerald-500 text-white transition-transform"
+                          >
+                            <Check class="h-3 w-3" />
+                          </div>
+                        {/if}
+                      </div>
+                      <div class="flex-1 pl-2 font-mono text-sm leading-snug">
+                        <p
+                          class={`transition-all ${isAdded ? "text-stone-400 line-through decoration-stone-300" : "text-stone-700"}`}
+                        >
+                          {ingredient.name}
+                        </p>
+                        {#if ingredient.note}
+                          <p class="mt-0.5 text-[10px] italic text-stone-400">
+                            {ingredient.note}
+                          </p>
+                        {/if}
+                      </div>
+                    </button>
+                  {/each}
+
+                  {#if visibleIngredients.length < 6}
+                    {#each Array(6 - visibleIngredients.length) as _}
+                      <div class="relative h-12 w-full">
+                        <div
+                          class="absolute bottom-0 left-0 right-0 border-b border-blue-200/30"
+                        ></div>
+                      </div>
+                    {/each}
+                  {/if}
+                  <div class="h-12"></div>
+                </div>
+
+                <div
+                  class="pointer-events-none absolute bottom-0 inset-x-0 z-20 h-16 bg-gradient-to-t from-[#fffdf5] to-transparent"
+                ></div>
+
+                {#if ingredientList.length > 6}
+                  <div
+                    class="absolute bottom-4 left-0 right-0 z-30 flex justify-center"
+                  >
+                    <button
+                      onclick={() => (showAllIngredients = !showAllIngredients)}
+                      class="rounded-full border border-stone-200 bg-white px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-500 shadow-sm hover:bg-stone-50 hover:text-stone-700"
+                    >
+                      {showAllIngredients ? "Fold Page" : "View Full List"}
+                    </button>
+                  </div>
+                {/if}
+              </Card.Content>
+            </Card.Root>
+          </div>
         </div>
 
-        <!-- Recipe Feed Masonry -->
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <p class="text-xs uppercase tracking-[0.16em] text-ink-muted">
-              The feed
-            </p>
-            <Button href="/recipes" variant="ghost" class="text-ink"
-              >View all</Button
+        <div class="mt-16">
+          <div
+            class="mb-6 flex items-baseline justify-between border-b border-stone-300 pb-2"
+          >
+            <h2 class="font-display text-2xl text-ink">Recent Collections</h2>
+            <a
+              href="/recipes"
+              class="text-xs font-medium uppercase tracking-wider text-sage-600 hover:text-sage-800 hover:underline"
+              >To your cookbook</a
             >
           </div>
+
           <div
-            class="columns-1 gap-6 md:columns-2 xl:columns-3 [column-fill:balance]"
+            class="columns-1 gap-6 md:columns-2 lg:columns-3 [column-fill:balance]"
           >
             {#if recipeFeed.length}
               {#each recipeFeed as recipe (recipe.id)}
                 <a
                   href={`/recipes/${recipe.id}`}
-                  class="mb-6 block break-inside-avoid overflow-hidden rounded-[28px] border border-sand bg-white shadow-[0_22px_60px_-48px_rgba(45,55,72,0.5)] transition hover:-translate-y-0.5 hover:shadow-xl"
+                  class="break-inside-avoid mb-8 block group relative"
                 >
-                  <div class="relative aspect-4/5 overflow-hidden">
-                    {#if recipe.imageUrl}
-                      <img
-                        src={recipe.imageUrl}
-                        alt={recipe.title}
-                        class="h-full w-full object-cover transition duration-500 hover:scale-105"
-                      />
-                    {:else}
-                      <div
-                        class="flex h-full w-full items-center justify-center bg-linear-to-br from-sage-50 to-sand"
-                      >
-                        <ChefHat class="h-8 w-8 text-sage-500" />
-                      </div>
-                    {/if}
+                  <div
+                    class="
+                    relative overflow-hidden rounded-xl border border-stone-200
+                    bg-[#fffefb] p-3
+                    /* The Physical 'Hard' Shadow */
+                    shadow-[2px_2px_0_rgba(0,0,0,0.05)]
+                    transition-all duration-200 ease-out
+                    group-hover:-translate-y-1 group-hover:shadow-[4px_4px_0_rgba(0,0,0,0.05)] group-hover:border-stone-300
+                  "
+                  >
                     <div
-                      class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent"
-                    ></div>
-                    <div class="absolute bottom-0 left-0 right-0 p-5">
-                      <h3 class="font-display text-xl text-white line-clamp-2">
+                      class="relative aspect-video overflow-hidden rounded-lg bg-stone-100 border border-black/5"
+                    >
+                      {#if recipe.imageUrl}
+                        <img
+                          src={recipe.imageUrl}
+                          alt={recipe.title}
+                          class="h-full w-full object-cover transition duration-500 group-hover:scale-105 group-hover:brightness-110"
+                        />
+                      {:else}
+                        <div
+                          class="flex h-full w-full items-center justify-center bg-stone-100"
+                        >
+                          <ChefHat class="h-6 w-6 text-stone-300" />
+                        </div>
+                      {/if}
+
+                      <div
+                        class="absolute inset-0 bg-gradient-to-tr from-black/20 to-transparent opacity-60 group-hover:opacity-40 transition-opacity"
+                      ></div>
+
+                      <div
+                        class="absolute top-2 right-2 rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-mono tracking-widest text-stone-500 shadow-sm backdrop-blur-sm"
+                      >
+                        {new Date()
+                          .toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })
+                          .toUpperCase()}
+                      </div>
+                    </div>
+
+                    <div class="pt-4 px-1 pb-2">
+                      <h3
+                        class="font-display text-xl leading-tight text-ink decoration-stone-300 underline-offset-4 group-hover:underline"
+                      >
                         {recipe.title}
                       </h3>
-                      {#if recipe.description}
-                        <p class="mt-1 text-sm text-white/80 line-clamp-2">
-                          {recipe.description}
-                        </p>
-                      {/if}
-                      <div
-                        class="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/70"
-                      >
-                        <span class="rounded-full bg-white/20 px-2 py-1">
-                          {recipe.servings} servings
-                        </span>
+
+                      <div class="mt-3 flex flex-wrap gap-2">
                         {#if recipe.cuisineType}
-                          <span class="rounded-full bg-white/20 px-2 py-1">
+                          <span
+                            class="
+                                    inline-flex items-center rounded border border-stone-200 bg-stone-50 px-1.5 py-0.5
+                                    font-mono text-[10px] text-stone-500 uppercase tracking-wide
+                                "
+                          >
                             {recipe.cuisineType}
                           </span>
                         {/if}
+                        <span
+                          class="
+                                inline-flex items-center rounded border border-stone-200 bg-stone-50 px-1.5 py-0.5
+                                font-mono text-[10px] text-stone-500 uppercase tracking-wide
+                             "
+                        >
+                          {recipe.servings} SERV
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -441,11 +593,10 @@
               {/each}
             {:else}
               <div
-                class="mb-6 rounded-2xl border border-dashed border-sand bg-sage-50/60 p-6 text-center"
+                class="col-span-full rounded-xl border border-dashed border-stone-300 bg-stone-50/50 py-12 text-center"
               >
-                <p class="font-display text-xl text-ink">No recipes yet</p>
-                <p class="font-hand text-sm text-ink-muted">
-                  Upload a receipt to start your first spread.
+                <p class="font-hand text-lg text-ink-muted">
+                  Your cookbook is waiting for its first entry.
                 </p>
               </div>
             {/if}
