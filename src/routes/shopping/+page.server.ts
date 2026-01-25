@@ -1,10 +1,11 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { ShoppingListController } from '$lib/controllers';
+import { ShoppingListController, PantryController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
 import { db } from '$lib/db/client';
 import { shoppingLists, shoppingListItems, recipes } from '$lib/db/schema';
 import { eq, desc, inArray, sql } from 'drizzle-orm';
+import type { PantryItem } from '$lib/services/PantryService';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -12,11 +13,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	const shoppingListController = new ShoppingListController();
+	const pantryController = new PantryController(AppFactory.getPantryService());
 
-	const [activeList, lists, suggestions] = await Promise.all([
+	const [activeList, lists, suggestions, pantry] = await Promise.all([
 		shoppingListController.getActiveList(locals.user.id),
 		shoppingListController.getUserLists(locals.user.id),
-		shoppingListController.getSmartSuggestions(locals.user.id)
+		shoppingListController.getSmartSuggestions(locals.user.id),
+		pantryController.getUserPantry(locals.user.id)
 	]);
 
 	// Collect all recipe IDs from shopping list items
@@ -45,12 +48,26 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.from(recipes)
 		.where(eq(recipes.userId, locals.user.id));
 
+	// Build pantry lookup map for quick duplicate checks (items with >70% confidence)
+	const pantryLookup: Record<string, { confidence: number; lastPurchased: Date; daysSincePurchase: number }> = {};
+	for (const item of pantry) {
+		if (item.stockConfidence >= 0.7) {
+			pantryLookup[item.itemName.toLowerCase()] = {
+				confidence: item.stockConfidence,
+				lastPurchased: item.lastPurchased,
+				daysSincePurchase: item.daysSincePurchase
+			};
+		}
+	}
+
 	return {
 		activeList,
 		lists,
 		suggestions,
 		recipeMap,
-		recipeCount: recipeCount[0]?.count || 0
+		recipeCount: recipeCount[0]?.count || 0,
+		pantry,
+		pantryLookup
 	};
 };
 
@@ -123,12 +140,39 @@ export const actions: Actions = {
 		const name = data.get('name')?.toString().trim();
 		const quantity = data.get('quantity')?.toString().trim();
 		const unit = data.get('unit')?.toString().trim();
+		const skipPantryCheck = data.get('skipPantryCheck') === 'true';
 
 		if (!listId || !name) {
 			return fail(400, { error: 'List ID and item name are required' });
 		}
 
 		try {
+			// Check pantry for duplicates unless user explicitly wants to add anyway
+			if (!skipPantryCheck) {
+				const pantryController = new PantryController(AppFactory.getPantryService());
+				const pantry = await pantryController.getUserPantry(locals.user.id);
+
+				const nameLC = name.toLowerCase();
+				const pantryMatch = pantry.find(p =>
+					p.stockConfidence >= 0.7 &&
+					(p.itemName.toLowerCase() === nameLC ||
+					 p.itemName.toLowerCase().includes(nameLC) ||
+					 nameLC.includes(p.itemName.toLowerCase()))
+				);
+
+				if (pantryMatch) {
+					const daysAgo = pantryMatch.daysSincePurchase;
+					const dateStr = pantryMatch.lastPurchased.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+					return {
+						pantryWarning: true,
+						warningMessage: `You might already have "${pantryMatch.itemName}" (bought ${dateStr}, ${daysAgo} day${daysAgo === 1 ? '' : 's'} ago)`,
+						matchedItem: pantryMatch.itemName,
+						confidence: Math.round(pantryMatch.stockConfidence * 100),
+						pendingItem: { name, quantity: quantity || '1', unit: unit || 'count', listId }
+					};
+				}
+			}
+
 			const shoppingListController = new ShoppingListController();
 			await shoppingListController.addItem(listId, {
 				name,

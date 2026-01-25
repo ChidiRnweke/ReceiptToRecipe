@@ -23,6 +23,7 @@
   import PinnedNote from "$lib/components/PinnedNote.svelte";
   import Notepad from "$lib/components/Notepad.svelte";
   import StockBadge from "$lib/components/StockBadge.svelte";
+  import OnboardingModal from "$lib/components/OnboardingModal.svelte";
   import { getContext } from "svelte";
   import type { WorkflowState } from "$lib/state/workflow.svelte";
 
@@ -163,6 +164,12 @@
 </svelte:head>
 
 {#if data.user}
+  <!-- Onboarding Modal for new users -->
+  <OnboardingModal
+    receiptCount={data.metrics?.receipts ?? 0}
+    recipeCount={data.metrics?.recipes ?? 0}
+  />
+
   <div
     class="paper-card relative flex min-h-screen gap-0 rounded-4xl border border-sand bg-[#FDFBF7] shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)] overflow-hidden"
   >

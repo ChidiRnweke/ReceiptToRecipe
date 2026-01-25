@@ -6,6 +6,7 @@
   import { Input } from "$lib/components/ui/input";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import { Badge } from "$lib/components/ui/badge";
+  import * as AlertDialog from "$lib/components/ui/alert-dialog";
   import {
     ShoppingCart,
     Plus,
@@ -16,9 +17,19 @@
     ChevronUp,
     Check,
     ChefHat,
+    AlertTriangle,
   } from "lucide-svelte";
   import { getContext } from "svelte";
   import type { WorkflowState } from "$lib/state/workflow.svelte";
+
+  // Pantry warning state
+  let pantryWarning = $state<{
+    show: boolean;
+    message: string;
+    matchedItem: string;
+    confidence: number;
+    pendingItem: { name: string; quantity: string; unit: string; listId: string } | null;
+  }>({ show: false, message: '', matchedItem: '', confidence: 0, pendingItem: null });
 
   function getRecipeInfo(recipeId: string | null) {
     if (!recipeId || !data.recipeMap) return null;
@@ -73,6 +84,59 @@
     if (items.length === 0) return 0;
     const checked = items.filter((i) => i.checked).length;
     return Math.round((checked / items.length) * 100);
+  }
+
+  // Check if an item has a pantry match (for display purposes)
+  function getPantryMatch(itemName: string) {
+    if (!data.pantryLookup) return null;
+    const nameLC = itemName.toLowerCase();
+    return data.pantryLookup[nameLC] || null;
+  }
+
+  // Force add item bypassing pantry check
+  async function forceAddItem() {
+    if (!pantryWarning.pendingItem) return;
+
+    const listId = pantryWarning.pendingItem.listId;
+    const formData = new FormData();
+    formData.append('listId', listId);
+    formData.append('name', pantryWarning.pendingItem.name);
+    formData.append('quantity', pantryWarning.pendingItem.quantity);
+    formData.append('unit', pantryWarning.pendingItem.unit);
+    formData.append('skipPantryCheck', 'true');
+
+    pantryWarning = { show: false, message: '', matchedItem: '', confidence: 0, pendingItem: null };
+
+    // Clear the input for this list
+    newItemInputs = {
+      ...newItemInputs,
+      [listId]: { name: "", quantity: "1", unit: "" },
+    };
+
+    workflowState.incrementShopping();
+
+    const response = await fetch('?/addItem', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (response.ok) {
+      await invalidateAll();
+    } else {
+      workflowState.decrementShopping();
+    }
+  }
+
+  function dismissPantryWarning() {
+    if (pantryWarning.pendingItem) {
+      const listId = pantryWarning.pendingItem.listId;
+      // Clear the input for this list
+      newItemInputs = {
+        ...newItemInputs,
+        [listId]: { name: "", quantity: "1", unit: "" },
+      };
+    }
+    pantryWarning = { show: false, message: '', matchedItem: '', confidence: 0, pendingItem: null };
   }
 
   function groupItemsBySource(items: any[]) {
@@ -315,9 +379,22 @@
                     use:enhance={() => {
                       // Optimistic increment
                       workflowState.incrementShopping();
-                      
-                      return async ({ result }) => {
+
+                      return async ({ result, update }) => {
                         if (result.type === "success") {
+                          const data = result.data as any;
+                          // Check for pantry warning
+                          if (data?.pantryWarning) {
+                            workflowState.decrementShopping(); // Revert optimistic update
+                            pantryWarning = {
+                              show: true,
+                              message: data.warningMessage,
+                              matchedItem: data.matchedItem,
+                              confidence: data.confidence,
+                              pendingItem: data.pendingItem
+                            };
+                            return;
+                          }
                           newItemInputs = {
                             ...newItemInputs,
                             [list.id]: { name: "", quantity: "1", unit: "" },
@@ -597,3 +674,25 @@
     </div>
   </div>
 </div>
+
+<!-- Pantry Warning Dialog -->
+<AlertDialog.Root bind:open={pantryWarning.show}>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title class="flex items-center gap-2">
+        <AlertTriangle class="h-5 w-5 text-amber-500" />
+        You might already have this
+      </AlertDialog.Title>
+      <AlertDialog.Description>
+        <p class="mb-3">{pantryWarning.message}</p>
+        <p class="text-sm text-ink-muted">
+          Stock confidence: <Badge variant="secondary" class="ml-1">{pantryWarning.confidence}%</Badge>
+        </p>
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel onclick={dismissPantryWarning}>Skip</AlertDialog.Cancel>
+      <AlertDialog.Action onclick={forceAddItem}>Add Anyway</AlertDialog.Action>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>
