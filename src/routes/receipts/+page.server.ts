@@ -15,9 +15,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		AppFactory.getStorageService(),
 		AppFactory.getOcrService(),
 		AppFactory.getNormalizationService(),
+		AppFactory.getPantryService(),
 		AppFactory.getJobQueue()
 	);
-
 	const receipts = await receiptController.getUserReceipts(locals.user.id);
 
 	// Get recipe counts for each receipt

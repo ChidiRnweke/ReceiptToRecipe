@@ -20,8 +20,13 @@
   } from "lucide-svelte";
   import PushPin from "$lib/components/PushPin.svelte";
   import WashiTape from "$lib/components/WashiTape.svelte";
+  import StockBadge from "$lib/components/StockBadge.svelte";
+  import { getContext } from "svelte";
+  import type { WorkflowState } from "$lib/state/workflow.svelte";
 
   let { data, form } = $props();
+  const workflowState = getContext<WorkflowState>('workflowState');
+  
   type Ingredient = { name: string; quantity?: string; unit?: string; note?: string };
 
   // Time-based greeting
@@ -51,48 +56,62 @@
   const featuredRecipe = $derived(data.recentRecipes?.[0]);
   const recipeFeed = $derived(data.recentRecipes ?? []);
   const recentReceipts = $derived(data.recentReceipts ?? []);
+  
+  // Use $derived for state but allow overrides
+  let pantryItems = $derived(data.pantry ?? []);
+  let shoppingListNames = $derived(new Set(data.activeList?.items?.map((i: any) => i.name) ?? []));
 
   // Ingredients Logic - use actual recipe ingredients when available
-  const ingredientList = $derived.by<Ingredient[]>(() => {
+  const ingredientList = $derived.by<any[]>(() => {
     if (
       featuredRecipe &&
       "ingredients" in featuredRecipe &&
       Array.isArray(featuredRecipe.ingredients) &&
       featuredRecipe.ingredients.length > 0
     ) {
-      return featuredRecipe.ingredients.map((ing: any) => ({
-        name: ing.name,
-        quantity: ing.quantity,
-        unit: ing.unit,
-        note: ing.notes || (ing.optional ? "optional" : undefined)
-      }));
+      return featuredRecipe.ingredients.map((ing: any) => {
+        // Simple fuzzy match for pantry status
+        const pantryMatch = pantryItems.find(
+            p => p.itemName.toLowerCase().includes(ing.name.toLowerCase()) || 
+                 ing.name.toLowerCase().includes(p.itemName.toLowerCase())
+        );
+        return {
+            name: ing.name,
+            quantity: ing.quantity,
+            unit: ing.unit,
+            note: ing.notes || (ing.optional ? "optional" : undefined),
+            pantryMatch
+        };
+      });
     }
     // Only show placeholder when there are no recipes
     return [
-      { name: "Upload a receipt to get started", note: "Your ingredients will appear here" }
+      { name: "Generate a recipe to see ingredients", note: "Ingredients will appear here" }
     ];
   });
 
-  let addedIngredients = $state<Set<string>>(new Set());
+  const pantryList = $derived(pantryItems);
+
   let flashIngredient = $state<string | null>(null);
   let cartOpen = $state(false);
   let showAllIngredients = $state(false);
   let addingIngredient = $state<string | null>(null);
 
   const shoppingPreview = $derived(data.suggestions ?? []);
-  const cartCount = $derived(data.activeList?.stats?.totalItems ?? shoppingPreview.length);
+  const cartCount = $derived(workflowState.shoppingItems);
   const visibleIngredients = $derived.by(() =>
     showAllIngredients ? ingredientList : ingredientList.slice(0, 6),
   );
 
-  function formatIngredientDisplay(ing: Ingredient): string {
+  function formatIngredientDisplay(ing: any): string {
+    const name = ing.name || ing.itemName;
     if (ing.quantity && ing.unit) {
-      return `${ing.quantity} ${ing.unit} ${ing.name}`;
+      return `${ing.quantity} ${ing.unit} ${name}`;
     }
     if (ing.quantity) {
-      return `${ing.quantity} ${ing.name}`;
+      return `${ing.quantity} ${name}`;
     }
-    return ing.name;
+    return name;
   }
 
   function getStatusIcon(status: string) {
@@ -257,6 +276,28 @@
           </div>
         </div>
 
+        {#if pantryList.length > 0}
+        <div
+          class="mb-4 rounded-xl border border-sand/60 bg-[#fffdf5] p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] rotate-1"
+        >
+          <div
+            class="flex items-center gap-2 text-xs text-ink-muted uppercase tracking-wider mb-2 border-b border-sand/40 pb-2"
+          >
+            <Store class="h-3 w-3" /> Your Pantry
+          </div>
+          <ul class="space-y-2 max-h-40 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+            {#each pantryList as item}
+              <li class="flex items-center justify-between text-sm text-ink/80">
+                <span class="truncate">{item.itemName}</span>
+                {#if item.stockConfidence}
+                    <StockBadge confidence={item.stockConfidence} className="scale-75 origin-right" />
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        </div>
+        {/if}
+
         <div
           class="mb-4 rounded-xl border border-sand/60 bg-[#fffdf5] p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] -rotate-1"
         >
@@ -330,11 +371,28 @@
             <p class="font-hand text-lg text-ink-light mb-1">
               {mealSuggestion}
             </p>
+            {#if pantryItems.length === 0}
+            <h1
+              class="font-display text-4xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
+            >
+              Start by <span class="marker-highlight">dropping a receipt</span>.
+            </h1>
+            {:else}
             <h1
               class="font-display text-4xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
             >
               What are we <span class="marker-highlight">cooking</span> today?
             </h1>
+            {/if}
+            <div class="mt-4 flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-stone-400">
+                <span class={pantryItems.length === 0 ? "text-sage-600 font-bold border-b-2 border-sage-200" : ""}>1. Scan</span>
+                <span class="text-stone-300">→</span>
+                <span class={pantryItems.length > 0 ? "text-sage-600 font-bold border-b-2 border-sage-200" : ""}>2. Stock</span>
+                <span class="text-stone-300">→</span>
+                <span>3. Cook</span>
+                <span class="text-stone-300">→</span>
+                <span>4. Shop</span>
+            </div>
           </div>
           <Button
             href="/recipes/generate"
@@ -477,52 +535,82 @@
                   class={`relative z-10 h-full max-h-80 overflow-y-auto space-y-0 pt-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']`}
                 >
                   {#each visibleIngredients as ingredient}
-                    {@const isAdded = addedIngredients.has(ingredient.name)}
+                    {@const itemName = ingredient.name}
+                    {@const isAdded = shoppingListNames.has(itemName)}
                     {@const ingredientDisplay = formatIngredientDisplay(ingredient)}
-                    {@const isAdding = addingIngredient === ingredient.name}
+                    {@const isAdding = addingIngredient === itemName}
+                    {@const inPantry = !!ingredient.pantryMatch}
+                    
                     <form
                       method="POST"
                       action="?/addToList"
                       use:enhance={() => {
-                        addingIngredient = ingredient.name;
+                        addingIngredient = itemName;
+                        // Optimistic update
+                        const newSet = new Set(shoppingListNames);
+                        newSet.add(itemName);
+                        shoppingListNames = newSet;
+                        workflowState.incrementShopping();
+                        
                         return async ({ result }) => {
                           addingIngredient = null;
-                          if (result.type === "success") {
-                            addedIngredients = new Set([...addedIngredients, ingredient.name]);
+                          if (result.type !== "success") {
+                            // Rollback on error
+                            const revertSet = new Set(shoppingListNames);
+                            revertSet.delete(itemName);
+                            shoppingListNames = revertSet;
+                            workflowState.decrementShopping();
                           }
                         };
                       }}
-                      class={`group relative flex w-full items-start gap-4 px-4 py-3 text-left transition-colors duration-200 ${isAdded ? "bg-emerald-50/30" : "hover:bg-blue-50/30"}`}
+                      class={`group relative flex w-full items-start gap-4 px-4 py-3 text-left transition-colors duration-200 ${isAdded ? "bg-emerald-50/30" : inPantry ? "bg-stone-50/50" : "hover:bg-blue-50/30"}`}
                     >
                       <input type="hidden" name="ingredientName" value={ingredientDisplay} />
                       <div
                         class="absolute bottom-0 left-0 right-0 border-b border-blue-200/30"
                       ></div>
-                      <button
-                        type="submit"
-                        disabled={isAdded || isAdding || !featuredRecipe}
-                        class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-stone-300 bg-white transition-colors group-hover:border-stone-400 disabled:cursor-not-allowed"
-                      >
-                        {#if isAdded}
-                          <div
-                            class="flex h-5 w-5 scale-110 items-center justify-center rounded-full bg-emerald-500 text-white transition-transform"
-                          >
+                      
+                      {#if inPantry}
+                        <div class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-200 text-stone-500 cursor-help" title="In your pantry">
                             <Check class="h-3 w-3" />
-                          </div>
-                        {:else if isAdding}
-                          <Loader2 class="h-3 w-3 animate-spin text-sage-500" />
-                        {/if}
-                      </button>
-                      <div class="flex-1 pl-2 font-mono text-sm leading-snug">
-                        <p
-                          class={`transition-all ${isAdded ? "text-stone-400 line-through decoration-stone-300" : "text-stone-700"}`}
+                        </div>
+                      {:else}
+                        <button
+                            type="submit"
+                            disabled={isAdded || isAdding}
+                            class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-stone-300 bg-white transition-colors group-hover:border-stone-400 disabled:cursor-not-allowed"
                         >
-                          {ingredientDisplay}
-                        </p>
+                            {#if isAdded}
+                            <div
+                                class="flex h-5 w-5 scale-110 items-center justify-center rounded-full bg-emerald-500 text-white transition-transform"
+                            >
+                                <Check class="h-3 w-3" />
+                            </div>
+                            {:else if isAdding}
+                            <Loader2 class="h-3 w-3 animate-spin text-sage-500" />
+                            {/if}
+                        </button>
+                      {/if}
+
+                      <div class="flex-1 pl-2 font-mono text-sm leading-snug">
+                        <div class="flex items-center justify-between">
+                            <p
+                            class={`transition-all ${isAdded ? "text-stone-400 line-through decoration-stone-300" : inPantry ? "text-stone-400 line-through decoration-stone-300 decoration-double" : "text-stone-700"}`}
+                            >
+                            {ingredientDisplay}
+                            </p>
+                            {#if inPantry && ingredient.pantryMatch?.stockConfidence}
+                                <StockBadge confidence={ingredient.pantryMatch.stockConfidence} />
+                            {/if}
+                        </div>
                         {#if ingredient.note}
                           <p class="mt-0.5 text-[10px] italic text-stone-400">
-                            {ingredient.note}
+                             {ingredient.note}
                           </p>
+                        {:else if inPantry && ingredient.pantryMatch?.lastPurchased}
+                           <p class="mt-0.5 text-[10px] italic text-stone-400">
+                             In pantry (bought {new Date(ingredient.pantryMatch.lastPurchased).toLocaleDateString()})
+                           </p>
                         {/if}
                       </div>
                     </form>

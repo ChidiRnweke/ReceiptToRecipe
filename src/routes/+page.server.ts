@@ -2,7 +2,8 @@ import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/db/client';
 import { receipts, recipes, savedRecipes, shoppingLists, recipeIngredients } from '$lib/db/schema';
 import { desc, eq, sql, and } from 'drizzle-orm';
-import { ShoppingListController } from '$lib/controllers';
+import { ShoppingListController, PantryController } from '$lib/controllers';
+import { AppFactory } from '$lib/factories';
 import { fail, redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -41,6 +42,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const listController = new ShoppingListController();
 	const suggestions = await listController.getSmartSuggestions(userId, 5);
 
+	const pantryController = new PantryController(AppFactory.getPantryService());
+	const pantry = await pantryController.getUserPantry(userId);
+
 	// Calculate shopping list stats
 	const activeListStats = activeList?.items ? {
 		totalItems: activeList.items.length,
@@ -61,6 +65,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		recentReceipts,
 		recentRecipes,
 		suggestions,
+		pantry,
 		activeList: activeList ? {
 			id: activeList.id,
 			name: activeList.name,

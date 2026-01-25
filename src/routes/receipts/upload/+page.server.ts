@@ -35,9 +35,9 @@ export const actions: Actions = {
 				AppFactory.getStorageService(),
 				AppFactory.getOcrService(),
 				AppFactory.getNormalizationService(),
+				AppFactory.getPantryService(),
 				AppFactory.getJobQueue()
 			);
-
 			const receipt = await receiptController.uploadReceipt({
 				userId: locals.user.id,
 				file

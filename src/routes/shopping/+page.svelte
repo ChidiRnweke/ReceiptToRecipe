@@ -17,6 +17,8 @@
     Check,
     ChefHat,
   } from "lucide-svelte";
+  import { getContext } from "svelte";
+  import type { WorkflowState } from "$lib/state/workflow.svelte";
 
   function getRecipeInfo(recipeId: string | null) {
     if (!recipeId || !data.recipeMap) return null;
@@ -24,10 +26,15 @@
   }
 
   let { data, form } = $props();
+  const workflowState = getContext<WorkflowState>('workflowState');
+  
+  // Use $derived for state but allow overrides for optimistic UI
+  let lists = $derived(data.lists ?? []);
+
   let loading = $state(false);
   let newListName = $state("");
   let expandedLists = $derived<Set<string>>(
-    new Set(data.lists.slice(0, 1).map((l: any) => l.id))
+    new Set(lists.slice(0, 1).map((l: any) => l.id))
   );
 
   // New item inputs per list
@@ -39,7 +46,7 @@
     const next: Record<string, NewItemInput> = {};
     let changed = false;
 
-    for (const list of data.lists) {
+    for (const list of lists) {
       const existing = newItemInputs[list.id];
       next[list.id] = existing ?? { name: "", quantity: "1", unit: "" };
       if (!existing) changed = true;
@@ -66,6 +73,29 @@
     if (items.length === 0) return 0;
     const checked = items.filter((i) => i.checked).length;
     return Math.round((checked / items.length) * 100);
+  }
+
+  function groupItemsBySource(items: any[]) {
+    const groups: Record<string, any[]> = {
+        'Other': []
+    };
+    
+    for (const item of items) {
+        if (item.fromRecipeId) {
+            const recipe = getRecipeInfo(item.fromRecipeId);
+            const groupName = recipe ? `For: ${recipe.title}` : 'Recipe Items';
+            if (!groups[groupName]) groups[groupName] = [];
+            groups[groupName].push(item);
+        } else {
+            groups['Other'].push(item);
+        }
+    }
+    
+    // Move Other to end
+    const other = groups['Other'];
+    delete groups['Other'];
+    
+    return { ...groups, ...(other.length > 0 ? { 'Manual & Suggestions': other } : {}) };
   }
 </script>
 
@@ -206,7 +236,7 @@
           </Card.Content>
         </Card.Root>
       {:else}
-        {#each data.lists as list}
+        {#each lists as list}
           {@const completion = getCompletionPercentage(list.items || [])}
           {@const isExpanded = expandedLists.has(list.id)}
           <Card.Root>
@@ -283,6 +313,9 @@
                     method="POST"
                     action="?/addItem"
                     use:enhance={() => {
+                      // Optimistic increment
+                      workflowState.incrementShopping();
+                      
                       return async ({ result }) => {
                         if (result.type === "success") {
                           newItemInputs = {
@@ -290,6 +323,8 @@
                             [list.id]: { name: "", quantity: "1", unit: "" },
                           };
                           await invalidateAll();
+                        } else {
+                            workflowState.decrementShopping();
                         }
                       };
                     }}
@@ -325,75 +360,134 @@
 
                 <!-- Items List -->
                 {#if list.items && list.items.length > 0}
-                  <ul class="space-y-2">
-                    {#each list.items as item}
-                      {@const recipe = getRecipeInfo(item.fromRecipeId)}
-                      <li
-                        class="flex items-center gap-3 rounded-lg border border-sand p-3"
-                      >
-                        <form
-                          method="POST"
-                          action="?/toggleItem"
-                          use:enhance={() => {
-                            return async () => {
-                              await invalidateAll();
-                            };
-                          }}
-                        >
-                          <input type="hidden" name="itemId" value={item.id} />
-                          <input
-                            type="hidden"
-                            name="checked"
-                            value={!item.checked}
-                          />
-                          <button type="submit">
-                            <Checkbox checked={!!item.checked} />
-                          </button>
-                        </form>
-                        <div class="flex-1 min-w-0">
-                          <span
-                            class="{item.checked
-                              ? 'text-ink-muted line-through'
-                              : 'text-ink'}"
-                          >
-                            <span class="font-medium">
-                              {item.quantity}
-                              {item.unit}
-                            </span>
-                            {item.name}
-                          </span>
-                          {#if recipe}
-                            <a
-                              href="/recipes/{recipe.id}"
-                              class="mt-1 flex items-center gap-1 text-xs text-sage-600 hover:text-sage-700 hover:underline"
+                  {@const groups = groupItemsBySource(list.items)}
+                  <div class="space-y-4">
+                  {#each Object.entries(groups) as [groupName, items]}
+                    <div class="space-y-2">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-ink-muted pl-1">{groupName}</h4>
+                        <ul class="space-y-2">
+                            {#each items as item}
+                            <li
+                                class="flex items-center gap-3 rounded-lg border border-sand p-3 transition-colors {item.checked ? 'bg-stone-50' : 'bg-white'}"
                             >
-                              <ChefHat class="h-3 w-3" />
-                              <span class="truncate">For: {recipe.title}</span>
-                            </a>
-                          {/if}
-                        </div>
-                        <form
-                          method="POST"
-                          action="?/deleteItem"
-                          use:enhance={() => {
-                            return async () => {
-                              await invalidateAll();
-                            };
-                          }}
+                                <form
+                                method="POST"
+                                action="?/toggleItem"
+                                use:enhance={({ formData }) => {
+                                    const checked = formData.get('checked') === 'true';
+                                    
+                                    // Optimistic update using state override
+                                    lists = lists.map(l => 
+                                      l.id === list.id 
+                                        ? { ...l, items: l.items.map((i: any) => i.id === item.id ? { ...i, checked } : i) }
+                                        : l
+                                    );
+                                    
+                                    return async ({ result }) => {
+                                        if (result.type !== 'success') {
+                                            // Revert on error
+                                            lists = lists.map(l => 
+                                              l.id === list.id 
+                                                ? { ...l, items: l.items.map((i: any) => i.id === item.id ? { ...i, checked: !checked } : i) }
+                                                : l
+                                            );
+                                        } else {
+                                            await invalidateAll();
+                                        }
+                                    };
+                                }}
+                                >
+                                <input type="hidden" name="itemId" value={item.id} />
+                                <input
+                                    type="hidden"
+                                    name="checked"
+                                    value={!item.checked}
+                                />
+                                <button type="submit">
+                                    <Checkbox checked={!!item.checked} />
+                                </button>
+                                </form>
+                                <div class="flex-1 min-w-0">
+                                <span
+                                    class="{item.checked
+                                    ? 'text-ink-muted line-through'
+                                    : 'text-ink'}"
+                                >
+                                    <span class="font-medium">
+                                    {item.quantity}
+                                    {item.unit}
+                                    </span>
+                                    {item.name}
+                                </span>
+                                {#if item.notes}
+                                    <p class="text-xs text-ink-muted italic">{item.notes}</p>
+                                {/if}
+                                </div>
+                                <form
+                                method="POST"
+                                action="?/deleteItem"
+                                use:enhance={() => {
+                                    // Optimistic update
+                                    lists = lists.map(l => 
+                                      l.id === list.id 
+                                        ? { ...l, items: l.items.filter((i: any) => i.id !== item.id) }
+                                        : l
+                                    );
+                                    workflowState.decrementShopping();
+                                    
+                                    return async ({ result }) => {
+                                        if (result.type === 'failure') {
+                                            // Revert (reload data essentially)
+                                            workflowState.incrementShopping();
+                                            await invalidateAll();
+                                        } else {
+                                            await invalidateAll();
+                                        }
+                                    };
+                                }}
+                                >
+                                <input type="hidden" name="itemId" value={item.id} />
+                                <Button
+                                    type="submit"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-8 w-8 text-ink-muted hover:text-sienna-600"
+                                >
+                                    <Trash2 class="h-4 w-4" />
+                                </Button>
+                                </form>
+                            </li>
+                            {/each}
+                        </ul>
+                    </div>
+                  {/each}
+                  </div>
+
+                  {#if completion > 0}
+                    <div class="mt-6 border-t border-sand pt-4 flex justify-end">
+                        <form 
+                            method="POST" 
+                            action="?/completeShopping"
+                            use:enhance={() => {
+                                loading = true;
+                                // We don't know exact count to decrement easily here without loop
+                                // Let's rely on server sync for completion as it's a big change
+                                return async ({ result }) => {
+                                    loading = false;
+                                    if (result.type === 'success') {
+                                        await invalidateAll();
+                                    }
+                                }
+                            }}
                         >
-                          <input type="hidden" name="itemId" value={item.id} />
-                          <Button
-                            type="submit"
-                            variant="ghost"
-                            size="icon"
-                            class="h-8 w-8 text-ink-muted hover:text-sienna-600"
-                          >
-                            <Trash2 class="h-4 w-4" />
-                          </Button>
+                            <input type="hidden" name="listId" value={list.id} />
+                            <Button type="submit" variant="default" class="bg-sage-600 hover:bg-sage-700 text-white">
+                                <Check class="mr-2 h-4 w-4" />
+                                Done Shopping
+                            </Button>
                         </form>
-                      </li>
-                    {/each}
-                  </ul>
+                    </div>
+                  {/if}
                 {:else}
                   <p class="py-4 text-center text-sm text-ink-muted">
                     No items in this list yet
@@ -431,7 +525,16 @@
                   <form
                     method="POST"
                     action="?/addSuggestion"
-                    use:enhance={() => {}}
+                    use:enhance={() => {
+                        workflowState.incrementShopping();
+                        return async ({ result }) => {
+                            if (result.type === 'failure') {
+                                workflowState.decrementShopping();
+                            } else {
+                                await invalidateAll();
+                            }
+                        };
+                    }}
                     class="flex items-center gap-2"
                   >
                     <input

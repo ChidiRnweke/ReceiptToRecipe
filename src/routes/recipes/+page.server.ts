@@ -1,6 +1,6 @@
 import { redirect, error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { RecipeController, ShoppingListController } from '$lib/controllers';
+import { RecipeController, ShoppingListController, PantryController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -15,7 +15,48 @@ export const load: PageServerLoad = async ({ locals }) => {
 		AppFactory.getJobQueue()
 	);
 
-	const recipes = await recipeController.getUserRecipes(locals.user.id);
+	const recipes = await recipeController.getUserRecipesWithIngredients(locals.user.id);
+
+	// Get pantry
+	const pantryController = new PantryController(AppFactory.getPantryService());
+	const pantry = await pantryController.getUserPantry(locals.user.id);
+	
+	// Create a map of pantry normalized names for fast lookup
+	const pantrySet = new Set(pantry.map(i => i.itemName.toLowerCase()));
+
+	// Augment recipes with suggestion data
+	const augmentedRecipes = recipes.map(recipe => {
+		let matchCount = 0;
+		const totalIngredients = recipe.ingredients.length;
+		
+		const missingIngredients = [];
+
+		for (const ing of recipe.ingredients) {
+			const ingName = ing.name.toLowerCase();
+			// Simple check if pantry contains ingredient name partially or fully
+			// This is naive; improved matching would use embedding or better normalization
+			const isMatch = Array.from(pantrySet).some(pItem => 
+				pItem.includes(ingName) || ingName.includes(pItem)
+			);
+			
+			if (isMatch) {
+				matchCount++;
+			} else {
+				missingIngredients.push(ing.name);
+			}
+		}
+
+		const matchPercentage = totalIngredients > 0 ? matchCount / totalIngredients : 0;
+
+		return {
+			...recipe,
+			matchCount,
+			totalIngredients,
+			matchPercentage,
+			missingIngredients,
+			isSuggested: matchPercentage >= 0.7
+		};
+	});
 
 	// Get receipt count for empty state guidance
 	const { db } = await import('$lib/db/client');
@@ -28,7 +69,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.where(eq(receipts.userId, locals.user.id));
 
 	return {
-		recipes,
+		recipes: augmentedRecipes,
 		receiptCount: receiptCountResult?.count || 0
 	};
 };

@@ -131,15 +131,23 @@ export class ShoppingListController {
 
 	/**
 	 * Add ingredients from a recipe to the shopping list
+	 * Optionally exclude items that are likely in stock
 	 */
-	async addRecipeIngredients(listId: string, recipeId: string): Promise<ShoppingListItem[]> {
+	async addRecipeIngredients(listId: string, recipeId: string, excludeInStock: boolean = false, pantryItems: string[] = []): Promise<ShoppingListItem[]> {
 		const ingredients = await db.query.recipeIngredients.findMany({
 			where: eq(recipeIngredients.recipeId, recipeId)
 		});
 
 		const items: ShoppingListItem[] = [];
+		const pantrySet = new Set(pantryItems.map(p => p.toLowerCase()));
 
 		for (const ing of ingredients) {
+			if (excludeInStock) {
+				const ingName = ing.name.toLowerCase();
+				const inStock = Array.from(pantrySet).some(p => p.includes(ingName) || ingName.includes(p));
+				if (inStock) continue;
+			}
+
 			const item = await this.addItem(listId, {
 				name: ing.name,
 				quantity: ing.quantity,
@@ -211,6 +219,72 @@ export class ShoppingListController {
 			.where(
 				and(eq(shoppingListItems.shoppingListId, listId), eq(shoppingListItems.checked, true))
 			);
+	}
+
+	/**
+	 * Complete shopping: move checked items to purchase history and clear them
+	 */
+	async completeShopping(listId: string): Promise<void> {
+		// Get checked items
+		const checkedItems = await db.query.shoppingListItems.findMany({
+			where: and(eq(shoppingListItems.shoppingListId, listId), eq(shoppingListItems.checked, true))
+		});
+
+		if (checkedItems.length === 0) return;
+
+		const now = new Date();
+
+		// Update purchase history
+		for (const item of checkedItems) {
+			const existing = await db.query.purchaseHistory.findFirst({
+				where: and(
+					eq(purchaseHistory.userId, await this.getUserIdFromList(listId)),
+					eq(purchaseHistory.itemName, item.name) // Simple name match
+				)
+			});
+
+			if (existing) {
+				const daysSinceLastPurchase = Math.floor(
+					(now.getTime() - existing.lastPurchased.getTime()) / (1000 * 60 * 60 * 24)
+				);
+				const newFrequency = existing.avgFrequencyDays
+					? Math.round((existing.avgFrequencyDays + daysSinceLastPurchase) / 2)
+					: daysSinceLastPurchase > 0 ? daysSinceLastPurchase : existing.avgFrequencyDays;
+
+				await db
+					.update(purchaseHistory)
+					.set({
+						lastPurchased: now,
+						purchaseCount: existing.purchaseCount + 1,
+						avgFrequencyDays: newFrequency,
+						updatedAt: now
+					})
+					.where(eq(purchaseHistory.id, existing.id));
+			} else {
+				// We need userId. Fetching it from list relationship.
+				const userId = await this.getUserIdFromList(listId);
+				await db.insert(purchaseHistory).values({
+					userId,
+					itemName: item.name,
+					lastPurchased: now,
+					purchaseCount: 1,
+					avgQuantity: item.quantity || undefined,
+					avgFrequencyDays: null
+				});
+			}
+		}
+
+		// Clear checked items
+		await this.clearCheckedItems(listId);
+	}
+
+	private async getUserIdFromList(listId: string): Promise<string> {
+		const list = await db.query.shoppingLists.findFirst({
+			where: eq(shoppingLists.id, listId),
+			columns: { userId: true }
+		});
+		if (!list) throw new Error('List not found');
+		return list.userId;
 	}
 
 	/**

@@ -15,6 +15,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		AppFactory.getStorageService(),
 		AppFactory.getOcrService(),
 		AppFactory.getNormalizationService(),
+		AppFactory.getPantryService(),
 		AppFactory.getJobQueue()
 	);
 
@@ -75,6 +76,7 @@ export const actions: Actions = {
 				AppFactory.getStorageService(),
 				AppFactory.getOcrService(),
 				AppFactory.getNormalizationService(),
+				AppFactory.getPantryService(),
 				AppFactory.getJobQueue()
 			);
 			await receiptController.updateReceiptItem(params.id, locals.user.id, itemId, {
@@ -111,6 +113,7 @@ export const actions: Actions = {
 				AppFactory.getStorageService(),
 				AppFactory.getOcrService(),
 				AppFactory.getNormalizationService(),
+				AppFactory.getPantryService(),
 				AppFactory.getJobQueue()
 			);
 			await receiptController.addManualItem(params.id, locals.user.id, {
@@ -140,6 +143,7 @@ export const actions: Actions = {
 				AppFactory.getStorageService(),
 				AppFactory.getOcrService(),
 				AppFactory.getNormalizationService(),
+				AppFactory.getPantryService(),
 				AppFactory.getJobQueue()
 			);
 			await receiptController.deleteReceiptItem(params.id, locals.user.id, itemId);

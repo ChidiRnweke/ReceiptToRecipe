@@ -17,10 +17,16 @@
     ShoppingCart,
     Loader2,
   } from "lucide-svelte";
+  import { getContext } from "svelte";
+  import type { WorkflowState } from "$lib/state/workflow.svelte";
 
   let { data } = $props();
+  const workflowState = getContext<WorkflowState>('workflowState');
   let deletingId = $state<string | null>(null);
   let addingToShoppingId = $state<string | null>(null);
+
+  const suggestedRecipes = $derived(data.recipes.filter((r: any) => r.isSuggested));
+  const otherRecipes = $derived(data.recipes.filter((r: any) => !r.isSuggested));
 
   function formatTime(minutes: number | null) {
     if (!minutes) return null;
@@ -63,6 +69,70 @@
       Generate Recipe
     </Button>
   </div>
+
+  {#if suggestedRecipes.length > 0}
+    <div class="space-y-4">
+        <div class="flex items-center gap-2">
+            <Sparkles class="h-5 w-5 text-amber-500" />
+            <h2 class="font-serif text-xl text-ink">You can make this now</h2>
+        </div>
+        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {#each suggestedRecipes as recipe}
+                <Card.Root class="group relative overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 border-amber-200 bg-amber-50/30">
+                     <!-- Card Content (Similar to regular card but with badge) -->
+                     <a href="/recipes/{recipe.id}" class="block">
+                        {#if recipe.imageStatus === "DONE" && recipe.imageUrl}
+                          <div class="aspect-video overflow-hidden relative">
+                            <img
+                              src={recipe.imageUrl}
+                              alt={recipe.title}
+                              class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                            <div class="absolute top-2 right-2">
+                                <Badge class="bg-emerald-500 hover:bg-emerald-600 border-none text-white shadow-sm">
+                                    {Math.round(recipe.matchPercentage * 100)}% Match
+                                </Badge>
+                            </div>
+                          </div>
+                        {:else}
+                          <div class="relative aspect-video bg-paper-dark">
+                             <ChefHat class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-12 text-sage-400" />
+                          </div>
+                        {/if}
+            
+                        <Card.Header class="pb-2">
+                          <Card.Title class="font-serif text-xl line-clamp-1 group-hover:text-sage-700 transition-colors">
+                            {recipe.title}
+                          </Card.Title>
+                        </Card.Header>
+            
+                        <Card.Content class="text-sm text-ink-light space-y-2">
+                            <div class="flex flex-wrap items-center gap-3">
+                                <span class="flex items-center gap-1">
+                                    <Clock class="h-4 w-4 text-ink-muted" />
+                                    {formatTime((recipe.prepTime || 0) + (recipe.cookTime || 0))}
+                                </span>
+                                <span class="flex items-center gap-1">
+                                    <Users class="h-4 w-4 text-ink-muted" />
+                                    {recipe.servings}
+                                </span>
+                            </div>
+                            <div class="text-xs text-ink-muted">
+                                You have {recipe.matchCount}/{recipe.totalIngredients} ingredients
+                            </div>
+                        </Card.Content>
+                      </a>
+                      <Card.Footer class="border-t border-amber-200/50 pt-3 flex justify-between">
+                         <Button href="/recipes/{recipe.id}" variant="default" size="sm" class="w-full bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-200">
+                            Cook Now
+                         </Button>
+                      </Card.Footer>
+                </Card.Root>
+            {/each}
+        </div>
+        <hr class="border-sand" />
+    </div>
+  {/if}
 
   {#if data.recipes.length === 0}
     <Card.Root class="relative overflow-hidden border-dashed py-16 text-center">
@@ -119,7 +189,7 @@
     </Card.Root>
   {:else}
     <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {#each data.recipes as recipe}
+      {#each otherRecipes as recipe}
         <Card.Root
           class="group relative overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1"
         >
@@ -130,12 +200,19 @@
 
           <a href="/recipes/{recipe.id}" class="block">
             {#if recipe.imageStatus === "DONE" && recipe.imageUrl}
-              <div class="aspect-video overflow-hidden">
+              <div class="aspect-video overflow-hidden relative">
                 <img
                   src={recipe.imageUrl}
                   alt={recipe.title}
                   class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
+                {#if recipe.matchPercentage > 0}
+                    <div class="absolute top-2 right-2">
+                        <Badge variant="secondary" class="bg-white/90 backdrop-blur-sm shadow-sm">
+                            {recipe.matchCount}/{recipe.totalIngredients}
+                        </Badge>
+                    </div>
+                {/if}
               </div>
             {:else if recipe.imageStatus === "PROCESSING" || recipe.imageStatus === "QUEUED"}
               <div class="relative aspect-video bg-paper-dark">
@@ -207,8 +284,18 @@
               action="?/addToShopping"
               use:enhance={() => {
                 addingToShoppingId = recipe.id;
-                return async () => {
+                // Optimistic increment
+                // We don't know the exact item count here easily, so we just bump by 1 for feedback
+                // Ideally the server response returns the count added.
+                workflowState.incrementShopping(); 
+                
+                return async ({ result }) => {
                   addingToShoppingId = null;
+                  if (result.type === 'failure') {
+                    workflowState.decrementShopping();
+                  } else {
+                    await invalidateAll();
+                  }
                 };
               }}
             >

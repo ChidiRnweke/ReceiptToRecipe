@@ -10,8 +10,21 @@
 		Menu,
 		X
 	} from 'lucide-svelte';
+	import { setContext } from 'svelte';
+	import { WorkflowState } from '$lib/state/workflow.svelte';
 
 	let { data, children } = $props();
+
+	// Initialize state
+	const workflowState = new WorkflowState(data.workflowCounts);
+
+	// Sync state when data changes (e.g. after navigation)
+	$effect(() => {
+		workflowState.sync(data.workflowCounts);
+	});
+
+	// Provide to children
+	setContext('workflowState', workflowState);
 
 	let mobileMenuOpen = $state(false);
 </script>
@@ -36,7 +49,7 @@
 
 			<!-- Desktop Navigation -->
 			{#if data.user}
-				<WorkflowNav counts={data.workflowCounts} />
+				<WorkflowNav state={workflowState} />
 			{/if}
 
 			<!-- User Menu -->
@@ -102,7 +115,7 @@
 				class="block w-full border-t border-sand bg-paper px-4 py-3 text-left md:hidden"
 				onclick={() => (mobileMenuOpen = false)}
 			>
-				<WorkflowNav counts={data.workflowCounts} />
+				<WorkflowNav state={workflowState} />
 			</button>
 		{/if}
 	</header>

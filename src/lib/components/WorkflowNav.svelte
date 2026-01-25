@@ -1,14 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { Receipt, ChefHat, ShoppingCart, ChevronRight } from 'lucide-svelte';
+	import type { WorkflowState } from '$lib/state/workflow.svelte';
 
-	interface WorkflowCounts {
-		receipts: number;
-		recipes: number;
-		shoppingItems: number;
-	}
-
-	let { counts = { receipts: 0, recipes: 0, shoppingItems: 0 } }: { counts?: WorkflowCounts } = $props();
+	let { state }: { state: WorkflowState } = $props();
 
 	const steps = [
 		{ href: '/receipts', label: 'Receipts', icon: Receipt, countKey: 'receipts' as const },
@@ -30,8 +25,8 @@
 <!-- Desktop Navigation -->
 <nav class="hidden items-center gap-1 md:flex">
 	{#each steps as step, i}
-		{@const count = counts[step.countKey]}
-		{@const state = getStepState(step.href, count)}
+		{@const count = state[step.countKey]}
+		{@const navState = getStepState(step.href, count)}
 
 		{#if i > 0}
 			<ChevronRight class="h-4 w-4 text-ink-muted" />
@@ -40,22 +35,22 @@
 		<a
 			href={step.href}
 			class="group relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors
-				{state === 'active'
+				{navState === 'active'
 					? 'bg-sage-100 text-sage-700'
-					: state === 'completed'
+					: navState === 'completed'
 						? 'text-ink hover:bg-paper-dark'
 						: 'text-ink-light hover:bg-paper-dark hover:text-ink'}"
 		>
 			<span class="relative">
 				<step.icon class="h-4 w-4" />
-				{#if count > 0 && state !== 'active'}
+				{#if count > 0 && navState !== 'active'}
 					<span class="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-sage-500 text-[8px] font-bold text-white">
 						{count > 9 ? '9+' : count}
 					</span>
 				{/if}
 			</span>
 			<span>{step.label}</span>
-			{#if state === 'active' && count > 0}
+			{#if navState === 'active' && count > 0}
 				<span class="ml-1 rounded-full bg-sage-200 px-1.5 py-0.5 text-xs text-sage-700">
 					{count}
 				</span>
@@ -67,18 +62,18 @@
 <!-- Mobile Navigation -->
 <nav class="flex flex-col gap-1 md:hidden">
 	{#each steps as step, i}
-		{@const count = counts[step.countKey]}
-		{@const state = getStepState(step.href, count)}
+		{@const count = state[step.countKey]}
+		{@const navState = getStepState(step.href, count)}
 
 		<a
 			href={step.href}
 			class="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
-				{state === 'active'
+				{navState === 'active'
 					? 'bg-sage-100 text-sage-700'
 					: 'text-ink-light hover:bg-paper-dark hover:text-ink'}"
 		>
 			<span class="flex items-center gap-3">
-				<span class="flex h-8 w-8 items-center justify-center rounded-full {state === 'active' ? 'bg-sage-200' : state === 'completed' ? 'bg-paper-dark' : 'bg-paper-dark'}">
+				<span class="flex h-8 w-8 items-center justify-center rounded-full {navState === 'active' ? 'bg-sage-200' : navState === 'completed' ? 'bg-paper-dark' : 'bg-paper-dark'}">
 					<step.icon class="h-4 w-4" />
 				</span>
 				<span>

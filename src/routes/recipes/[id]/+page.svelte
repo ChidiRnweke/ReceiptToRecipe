@@ -28,12 +28,15 @@
     Circle,
     Receipt,
     Store,
+    Check,
   } from "lucide-svelte";
+  import { getContext } from "svelte";
+  import type { WorkflowState } from "$lib/state/workflow.svelte";
 
   let { data } = $props();
+  const workflowState = getContext<WorkflowState>('workflowState');
 
-  // Initialize servings from recipe data - this intentionally captures the initial value
-  // as the user can modify it independently via the +/- buttons
+  // Initialize servings from recipe data
   let servings = $derived(data.recipe?.servings ?? 1);
   let pollingInterval: ReturnType<typeof setInterval> | null = null;
   let shareMessage = $state("");
@@ -42,6 +45,7 @@
   let addingToList = $state(false);
   let deleting = $state(false);
   let completedSteps = $state<Set<number>>(new Set());
+  let excludePantry = $state(true);
 
   const scaleFactor = $derived(servings / data.recipe.servings);
   const steps = $derived(
@@ -50,6 +54,10 @@
       .map((s) => s.trim())
       .filter((s) => s.length > 0),
   );
+  
+  // Calculate missing ingredients
+  const pantrySet = $derived(new Set(data.pantryMatches?.map(i => i.toLowerCase()) || []));
+  const missingCount = $derived(data.recipe.ingredients.filter(i => !pantrySet.has(i.name.toLowerCase())).length);
 
   function toggleStep(index: number) {
     const newSet = new Set(completedSteps);
@@ -341,26 +349,34 @@
         <Card.Content>
           <ul class="space-y-2">
             {#each data.recipe.ingredients as ingredient, i}
+              {@const inPantry = pantrySet.has(ingredient.name.toLowerCase())}
               <li
-                class="flex items-start gap-3 rounded-lg p-2 transition-colors hover:bg-paper-dark"
+                class="flex items-start gap-3 rounded-lg p-2 transition-colors {inPantry ? 'bg-emerald-50/50' : 'hover:bg-paper-dark'}"
               >
                 <div
-                  class="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-sage-100 text-xs font-medium text-sage-700"
+                  class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-xs font-medium {inPantry ? 'bg-emerald-100 text-emerald-700' : 'bg-sage-100 text-sage-700'}"
                 >
-                  {i + 1}
+                  {#if inPantry}
+                    <Check class="h-3 w-3" />
+                  {:else}
+                    {i + 1}
+                  {/if}
                 </div>
                 <div class="flex-1">
-                  <span class="font-medium text-ink">
+                  <span class="font-medium text-ink {inPantry ? 'text-emerald-900' : ''}">
                     {formatQuantity(ingredient.quantity, scaleFactor)}
                     {ingredient.unit}
                   </span>
-                  <span class="text-ink-light">
+                  <span class="{inPantry ? 'text-emerald-700' : 'text-ink-light'}">
                     {ingredient.name}
                   </span>
                   {#if ingredient.optional}
                     <Badge variant="outline" class="ml-2 text-xs"
                       >optional</Badge
                     >
+                  {/if}
+                  {#if inPantry}
+                    <span class="ml-2 text-[10px] text-emerald-600 font-medium uppercase tracking-wide">In Pantry</span>
                   {/if}
                 </div>
               </li>
@@ -371,22 +387,54 @@
 
       <!-- Actions -->
       <div class="space-y-3">
-        <form
-          method="POST"
-          action="?/addToShopping"
-          use:enhance={() => {}}
-          class="w-full"
-        >
-          <Button
+        <div class="rounded-xl border border-sage-200 bg-sage-50 p-4 space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-sage-900">Add to List</span>
+                <label class="flex items-center gap-2 text-xs text-sage-700 cursor-pointer">
+                    <input type="checkbox" bind:checked={excludePantry} class="rounded border-sage-300 text-sage-600 focus:ring-sage-500" />
+                    Exclude pantry items ({data.recipe.ingredients.length - missingCount} matches)
+                </label>
+            </div>
+            <form
+            method="POST"
+            action="?/addToShopping"
+            use:enhance={({ formData }) => {
+                addingToList = true;
+                formData.set('excludePantry', excludePantry.toString());
+                // Optimistic update
+                // Note: we don't know exactly how many items will be added without checking the server
+                // or doing complex client-side math. For now, we assume at least 1 or 
+                // just let invalidateAll handle the precise count, but increment by 1 for immediate feedback.
+                // Or better: calculate missing items client side.
+                const countToAdd = excludePantry ? missingCount : data.recipe.ingredients.length;
+                workflowState.shoppingItems += countToAdd;
+
+                return async ({ result }) => {
+                    addingToList = false;
+                    if (result.type === 'failure') {
+                        workflowState.shoppingItems -= countToAdd;
+                    } else {
+                        await invalidateAll();
+                    }
+                };
+            }}
             class="w-full"
-            variant="outline"
-            onclick={() => (addingToList = true)}
-            disabled={addingToList}
-          >
-            <ShoppingCart class="mr-2 h-4 w-4" />
-            Add to Shopping List
-          </Button>
-        </form>
+            >
+            <Button
+                class="w-full bg-sage-600 hover:bg-sage-700 text-white"
+                type="submit"
+                disabled={addingToList}
+            >
+                {#if addingToList}
+                    <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+                    Adding...
+                {:else}
+                    <ShoppingCart class="mr-2 h-4 w-4" />
+                    Add {excludePantry ? missingCount : 'All'} Ingredients
+                {/if}
+            </Button>
+            </form>
+        </div>
 
         {#if data.isSaved}
           <form

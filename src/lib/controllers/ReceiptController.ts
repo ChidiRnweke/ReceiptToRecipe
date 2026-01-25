@@ -2,7 +2,7 @@ import { db } from '$db/client';
 import { receipts, receiptItems, purchaseHistory } from '$db/schema';
 import type { Receipt, ReceiptItem, NewReceipt, NewReceiptItem } from '$db/schema';
 import { eq, desc, and } from 'drizzle-orm';
-import type { IStorageService, IOcrService, INormalizationService, RawReceiptData } from '$services';
+import type { IStorageService, IOcrService, INormalizationService, RawReceiptData, PantryService } from '$services';
 
 export interface UploadReceiptInput {
 	userId: string;
@@ -18,6 +18,7 @@ export class ReceiptController {
 		private storageService: IStorageService,
 		private ocrService: IOcrService,
 		private normalizationService: INormalizationService,
+		private pantryService: PantryService,
 		private jobQueue?: { add: (job: { name?: string; run: () => Promise<void> }) => Promise<void> }
 	) {}
 
@@ -136,7 +137,8 @@ export class ReceiptController {
 			await db.insert(receiptItems).values(normalizedItems);
 
 			// Update purchase history
-			await this.updatePurchaseHistory(receipt.userId, normalizedItems);
+			const purchaseDate = ocrData.purchaseDate ? new Date(ocrData.purchaseDate) : new Date();
+			await this.updatePurchaseHistory(receipt.userId, normalizedItems, purchaseDate);
 		}
 	}
 
@@ -145,10 +147,9 @@ export class ReceiptController {
 	 */
 	private async updatePurchaseHistory(
 		userId: string,
-		items: NewReceiptItem[]
+		items: NewReceiptItem[],
+		purchaseDate: Date
 	): Promise<void> {
-		const now = new Date();
-
 		for (const item of items) {
 			const existing = await db.query.purchaseHistory.findFirst({
 				where: and(
@@ -157,14 +158,26 @@ export class ReceiptController {
 				)
 			});
 
+			// Calculate depletion date using PantryService
+			const estimatedDepleteDate = this.pantryService.calculateDepletionDate(
+				purchaseDate,
+				existing?.avgFrequencyDays || null,
+				item.category || null
+			);
+
 			if (existing) {
 				// Calculate new average frequency
 				const daysSinceLastPurchase = Math.floor(
-					(now.getTime() - existing.lastPurchased.getTime()) / (1000 * 60 * 60 * 24)
+					(purchaseDate.getTime() - existing.lastPurchased.getTime()) / (1000 * 60 * 60 * 24)
 				);
-				const newFrequency = existing.avgFrequencyDays
-					? Math.round((existing.avgFrequencyDays + daysSinceLastPurchase) / 2)
-					: daysSinceLastPurchase;
+				
+				// Only update frequency if the purchase is newer than the last one
+				let newFrequency = existing.avgFrequencyDays;
+				if (daysSinceLastPurchase > 0) {
+					newFrequency = existing.avgFrequencyDays
+						? Math.round((existing.avgFrequencyDays + daysSinceLastPurchase) / 2)
+						: daysSinceLastPurchase;
+				}
 
 				// Calculate new average quantity
 				const currentQty = parseFloat(item.quantity);
@@ -172,23 +185,34 @@ export class ReceiptController {
 					? ((parseFloat(existing.avgQuantity) + currentQty) / 2).toString()
 					: item.quantity;
 
+				// Don't update lastPurchased if we are processing an old receipt
+				const newLastPurchased = purchaseDate > existing.lastPurchased ? purchaseDate : existing.lastPurchased;
+				
+				// If updating lastPurchased, we should also update estimatedDepleteDate based on the new date
+				const finalDepleteDate = purchaseDate > existing.lastPurchased 
+					? estimatedDepleteDate 
+					: existing.estimatedDepleteDate;
+
 				await db
 					.update(purchaseHistory)
 					.set({
-						lastPurchased: now,
+						lastPurchased: newLastPurchased,
 						purchaseCount: existing.purchaseCount + 1,
 						avgFrequencyDays: newFrequency,
 						avgQuantity: newAvgQty,
-						updatedAt: now
+						estimatedDepleteDate: finalDepleteDate,
+						updatedAt: new Date()
 					})
 					.where(eq(purchaseHistory.id, existing.id));
 			} else {
 				await db.insert(purchaseHistory).values({
 					userId,
 					itemName: item.normalizedName,
-					lastPurchased: now,
+					lastPurchased: purchaseDate,
 					purchaseCount: 1,
-					avgQuantity: item.quantity
+					avgQuantity: item.quantity,
+					estimatedDepleteDate,
+					avgFrequencyDays: null // Start with null until we have 2 purchases
 				});
 			}
 		}

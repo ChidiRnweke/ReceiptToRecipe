@@ -242,6 +242,20 @@ export class RecipeController {
 	}
 
 	/**
+	 * Get all recipes for a user with ingredients
+	 */
+	async getUserRecipesWithIngredients(userId: string, limit: number = 20): Promise<RecipeWithIngredients[]> {
+		return db.query.recipes.findMany({
+			where: eq(recipes.userId, userId),
+			orderBy: [desc(recipes.createdAt)],
+			limit,
+			with: {
+				ingredients: true
+			}
+		});
+	}
+
+	/**
 	 * Save/favorite a recipe
 	 */
 	async saveRecipe(userId: string, recipeId: string): Promise<void> {

@@ -7,3 +7,5 @@ export {
 	type SmartSuggestion,
 	type AddItemInput
 } from './ShoppingListController';
+export { PantryController } from './PantryController';
+

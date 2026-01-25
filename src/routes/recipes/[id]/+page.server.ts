@@ -1,6 +1,6 @@
 import { error, redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { RecipeController } from '$lib/controllers';
+import { RecipeController, PantryController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
 import { ShoppingListController } from '$lib/controllers/ShoppingListController';
 import { db } from '$lib/db/client';
@@ -25,6 +25,21 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const isSaved = viewerId ? await recipeController.isSaved(viewerId, recipe.id) : false;
 	const isOwner = viewerId === recipe.userId;
 
+	// Load pantry for matching
+	let pantryMatches = new Set<string>();
+	if (viewerId) {
+		const pantryController = new PantryController(AppFactory.getPantryService());
+		const pantry = await pantryController.getUserPantry(viewerId);
+		const pantrySet = new Set(pantry.map(i => i.itemName.toLowerCase()));
+		
+		recipe.ingredients.forEach(ing => {
+			const ingName = ing.name.toLowerCase();
+			if (Array.from(pantrySet).some(p => p.includes(ingName) || ingName.includes(p))) {
+				pantryMatches.add(ing.name);
+			}
+		});
+	}
+
 	// Load source receipt if available
 	let sourceReceipt = null;
 	if (recipe.sourceReceiptId) {
@@ -43,7 +58,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		recipe,
 		isSaved,
 		isOwner,
-		sourceReceipt
+		sourceReceipt,
+		pantryMatches: Array.from(pantryMatches)
 	};
 };
 
@@ -98,10 +114,13 @@ export const actions: Actions = {
 		const isPublic = await recipeController.togglePublic(params.id, locals.user.id);
 		return { success: true, isPublic };
 	},
-	addToShopping: async ({ locals, params }) => {
+	addToShopping: async ({ locals, params, request }) => {
 		if (!locals.user) {
 			throw redirect(302, '/login');
 		}
+
+		const formData = await request.formData();
+		const excludePantry = formData.get('excludePantry') === 'true';
 
 		const recipeController = new RecipeController(
 			AppFactory.getLlmService(),
@@ -118,7 +137,16 @@ export const actions: Actions = {
 		try {
 			const listController = new ShoppingListController();
 			const list = await listController.getActiveList(locals.user.id);
-			await listController.addRecipeIngredients(list.id, params.id);
+			
+			// Get pantry items if excluding
+			let pantryItems: string[] = [];
+			if (excludePantry) {
+				const pantryController = new PantryController(AppFactory.getPantryService());
+				const pantry = await pantryController.getUserPantry(locals.user.id);
+				pantryItems = pantry.map(i => i.itemName);
+			}
+
+			await listController.addRecipeIngredients(list.id, params.id, excludePantry, pantryItems);
 			return { success: true, listId: list.id };
 		} catch (err) {
 			return fail(500, { error: err instanceof Error ? err.message : 'Unable to add to shopping list' });

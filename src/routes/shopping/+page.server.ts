@@ -55,6 +55,29 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
+	completeShopping: async ({ request, locals }) => {
+		if (!locals.user) {
+			throw redirect(302, '/login');
+		}
+
+		const data = await request.formData();
+		const listId = data.get('listId')?.toString();
+
+		if (!listId) {
+			return fail(400, { error: 'List ID is required' });
+		}
+
+		try {
+			const shoppingListController = new ShoppingListController();
+			await shoppingListController.completeShopping(listId);
+			return { success: true };
+		} catch (error) {
+			return fail(500, {
+				error: error instanceof Error ? error.message : 'Failed to complete shopping'
+			});
+		}
+	},
+
 	createList: async ({ request, locals }) => {
 		if (!locals.user) {
 			throw redirect(302, '/login');

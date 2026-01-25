@@ -182,6 +182,16 @@ export const purchaseHistory = pgTable("purchase_history", {
   purchaseCount: integer("purchase_count").notNull().default(1),
   avgQuantity: decimal("avg_quantity", { precision: 10, scale: 3 }),
   avgFrequencyDays: integer("avg_frequency_days"),
+  estimatedDepleteDate: timestamp("estimated_deplete_date"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Category Shelf Life (for stock estimation)
+export const categoryShelfLife = pgTable("category_shelf_life", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  category: text("category").notNull().unique(),
+  shelfLifeDays: integer("shelf_life_days").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -346,6 +356,8 @@ export type ShoppingListItem = typeof shoppingListItems.$inferSelect;
 export type NewShoppingListItem = typeof shoppingListItems.$inferInsert;
 export type PurchaseHistory = typeof purchaseHistory.$inferSelect;
 export type NewPurchaseHistory = typeof purchaseHistory.$inferInsert;
+export type CategoryShelfLife = typeof categoryShelfLife.$inferSelect;
+export type NewCategoryShelfLife = typeof categoryShelfLife.$inferInsert;
 export type CookbookEmbedding = typeof cookbookEmbeddings.$inferSelect;
 export type NewCookbookEmbedding = typeof cookbookEmbeddings.$inferInsert;
 export type SavedRecipe = typeof savedRecipes.$inferSelect;

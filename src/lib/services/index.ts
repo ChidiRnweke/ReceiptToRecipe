@@ -7,5 +7,6 @@ export { MockOcrService } from './MockOcrService';
 export { GeminiLlmService } from './GeminiLlmService';
 export { DalleImageService } from './DalleImageService';
 export { GeminiImageService } from './GeminiImageService';
-export { PgVectorService } from './PgVectorService';
-export { JobQueue } from './JobQueue';
+export * from './PgVectorService';
+export * from './JobQueue';
+export * from './PantryService';

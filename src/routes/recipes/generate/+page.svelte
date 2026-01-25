@@ -16,49 +16,49 @@
     Users,
     Globe,
   } from "lucide-svelte";
+  import StockBadge from "$lib/components/StockBadge.svelte";
 
   let { data, form } = $props();
   let loading = $state(false);
   let customIngredients = $state<string[]>([]);
   let newIngredient = $state("");
-  let selectedReceiptItems = $state<Set<string>>(new Set());
-  // Track which receipt each item comes from to determine primary source
-  let itemToReceiptMap = $state<Map<string, string>>(new Map());
-  // Initialize servings from preferences - this intentionally captures the initial value
-  // as the user can modify it independently via the input field
+  let selectedIngredientIds = $state<Set<string>>(new Set());
+  let selectedCustomIngredients = $state<Set<string>>(new Set()); // If we treat custom inputs as selection
+
+  // Initialize servings from preferences
   let servings = $derived(data.preferences?.defaultServings ?? 2);
   let cuisineHint = $state("");
 
-  // Determine the primary source receipt (the one with most selected items)
-  const sourceReceiptId = $derived.by(() => {
-    if (selectedReceiptItems.size === 0) return null;
-    const receiptCounts = new Map<string, number>();
-    for (const itemId of selectedReceiptItems) {
-      const receiptId = itemToReceiptMap.get(itemId);
-      if (receiptId) {
-        receiptCounts.set(receiptId, (receiptCounts.get(receiptId) || 0) + 1);
+  // Group pantry items by category
+  const pantryByCategory = $derived.by(() => {
+    const groups: Record<string, any[]> = {};
+    for (const item of data.pantry || []) {
+      const category = item.category || 'Pantry Staples';
+      // Capitalize first letter
+      const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
+      
+      if (!groups[displayCategory]) {
+        groups[displayCategory] = [];
       }
+      groups[displayCategory].push(item);
     }
-    let maxReceiptId: string | null = null;
-    let maxCount = 0;
-    for (const [receiptId, count] of receiptCounts) {
-      if (count > maxCount) {
-        maxCount = count;
-        maxReceiptId = receiptId;
-      }
-    }
-    return maxReceiptId;
+    return groups;
   });
 
-  // Build the item-to-receipt map on mount
+  // Pre-select high confidence items
   $effect(() => {
-    const newMap = new Map<string, string>();
-    for (const receipt of data.recentReceipts || []) {
-      for (const item of receipt.items || []) {
-        newMap.set(item.id, receipt.id);
-      }
+    if (data.pantry) {
+        const highConfidence = data.pantry.filter((i: any) => i.stockConfidence > 0.6);
+        const newSet = new Set<string>();
+        highConfidence.forEach((i: any) => {
+            if (i.id) newSet.add(i.id);
+            else {
+                // If no ID, we might need to add to custom ingredients? 
+                // Or handle separately. For now assume ID exists or ignore.
+            }
+        });
+        selectedIngredientIds = newSet;
     }
-    itemToReceiptMap = newMap;
   });
 
   function addIngredient() {
@@ -72,13 +72,13 @@
     customIngredients = customIngredients.filter((_, i) => i !== index);
   }
 
-  function toggleReceiptItem(itemId: string) {
-    if (selectedReceiptItems.has(itemId)) {
-      selectedReceiptItems.delete(itemId);
+  function togglePantryItem(itemId: string) {
+    if (selectedIngredientIds.has(itemId)) {
+      selectedIngredientIds.delete(itemId);
     } else {
-      selectedReceiptItems.add(itemId);
+      selectedIngredientIds.add(itemId);
     }
-    selectedReceiptItems = new Set(selectedReceiptItems);
+    selectedIngredientIds = new Set(selectedIngredientIds);
   }
 </script>
 
@@ -115,14 +115,14 @@
   </div>
 
   <!-- Selection Summary -->
-  {#if selectedReceiptItems.size > 0 || customIngredients.length > 0}
+  {#if selectedIngredientIds.size > 0 || customIngredients.length > 0}
     <div
       class="flex items-center gap-3 rounded-xl border border-sage-200 bg-sage-50 p-4"
     >
       <ChefHat class="h-5 w-5 text-sage-600" />
       <p class="text-sm text-ink">
         <span class="font-medium"
-          >{selectedReceiptItems.size + customIngredients.length} ingredients</span
+          >{selectedIngredientIds.size + customIngredients.length} ingredients</span
         > selected for your recipe
       </p>
     </div>
@@ -147,73 +147,69 @@
       </div>
     {/if}
 
-    <!-- Receipt Items Selection -->
-    {#if data.recentReceipts && data.recentReceipts.length > 0}
+    <!-- Pantry Items Selection -->
+    {#if data.pantry && data.pantry.length > 0}
       <Card.Root>
         <Card.Header>
           <div class="flex items-center gap-2">
             <Receipt class="h-5 w-5 text-ink-muted" />
-            <Card.Title>From Your Receipts</Card.Title>
+            <Card.Title>From Your Pantry</Card.Title>
           </div>
           <Card.Description>Tap ingredients you want to use</Card.Description>
         </Card.Header>
         <Card.Content>
           <div class="space-y-6">
-            {#each data.recentReceipts as receipt}
-              {#if receipt.items && receipt.items.length > 0}
+            {#each Object.entries(pantryByCategory) as [category, items]}
                 <div>
                   <div class="mb-3 flex items-center gap-2">
                     <div class="h-px flex-1 bg-sand"></div>
                     <p
                       class="text-xs font-medium uppercase tracking-wide text-ink-muted"
                     >
-                      {receipt.storeName || "Unknown Store"}
+                      {category}
                     </p>
                     <div class="h-px flex-1 bg-sand"></div>
                   </div>
                   <div class="flex flex-wrap gap-2">
-                    {#each receipt.items as item}
+                    {#each items as item}
+                        {#if item.id}
                       <button
                         type="button"
-                        onclick={() => toggleReceiptItem(item.id)}
-                        class="rounded-full border px-3 py-1.5 text-sm transition-all {selectedReceiptItems.has(
+                        onclick={() => togglePantryItem(item.id)}
+                        class="relative rounded-full border px-3 py-1.5 text-sm transition-all flex items-center gap-2 {selectedIngredientIds.has(
                           item.id,
                         )
                           ? 'border-sage-500 bg-sage-100 text-sage-700 shadow-sm'
                           : 'border-sand bg-paper hover:border-sage-400 hover:bg-sage-50'}"
                       >
-                        {#if selectedReceiptItems.has(item.id)}
-                          <span class="mr-1">+</span>
+                        {#if selectedIngredientIds.has(item.id)}
+                          <span>+</span>
                         {/if}
-                        {item.normalizedName}
+                        {item.itemName}
+                        {#if item.stockConfidence}
+                            <StockBadge confidence={item.stockConfidence} className="scale-75" />
+                        {/if}
                       </button>
+                        {/if}
                     {/each}
                   </div>
                 </div>
-              {/if}
             {/each}
           </div>
           <input
             type="hidden"
             name="ingredientIds"
-            value={Array.from(selectedReceiptItems).join(",")}
+            value={Array.from(selectedIngredientIds).join(",")}
           />
-          {#if sourceReceiptId}
-            <input
-              type="hidden"
-              name="sourceReceiptId"
-              value={sourceReceiptId}
-            />
-          {/if}
         </Card.Content>
       </Card.Root>
     {:else}
       <Card.Root class="border-dashed">
         <Card.Content class="py-8 text-center">
           <Receipt class="mx-auto h-10 w-10 text-ink-muted" />
-          <p class="mt-3 font-serif text-lg text-ink">No receipts found</p>
+          <p class="mt-3 font-serif text-lg text-ink">Your pantry is empty</p>
           <p class="mt-1 text-sm text-ink-light">
-            Upload a receipt first, or add custom ingredients below
+            Upload a receipt to stock your pantry, or add custom ingredients below
           </p>
           <Button
             href="/receipts/upload"
@@ -357,7 +353,7 @@
             <Button
               type="submit"
               disabled={loading ||
-                (selectedReceiptItems.size === 0 &&
+                (selectedIngredientIds.size === 0 &&
                   customIngredients.length === 0)}
               size="lg"
             >

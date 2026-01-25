@@ -9,6 +9,7 @@ import {
   GeminiImageService,
   PgVectorService,
   JobQueue,
+  PantryService,
   type IStorageService,
   type INormalizationService,
   type IOcrService,
@@ -26,6 +27,7 @@ let llmService: ILlmService | null = null;
 let imageGenService: IImageGenService | null = null;
 let vectorService: IVectorService | null = null;
 let jobQueue: JobQueue | null = null;
+let pantryService: PantryService | null = null;
 
 /**
  * Factory for creating and managing service instances
@@ -106,6 +108,13 @@ export class AppFactory {
     return vectorService;
   }
 
+  static getPantryService(): PantryService {
+    if (!pantryService) {
+      pantryService = new PantryService();
+    }
+    return pantryService;
+  }
+
   static getJobQueue(): JobQueue {
     if (!jobQueue) {
       const concurrency = parseInt(env.JOB_CONCURRENCY || "2");
@@ -126,5 +135,6 @@ export class AppFactory {
     imageGenService = null;
     vectorService = null;
     jobQueue = null;
+    pantryService = null;
   }
 }

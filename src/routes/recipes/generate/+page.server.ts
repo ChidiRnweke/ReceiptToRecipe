@@ -1,11 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { RecipeController, PreferencesController } from '$lib/controllers';
+import { RecipeController, PreferencesController, PantryController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
-import { db } from '$lib/db/client';
-import { receipts } from '$lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
-import { parseNumber, parseStringList, requireString } from '$lib/validation';
+import { parseNumber, parseStringList } from '$lib/validation';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -15,28 +12,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const preferencesController = new PreferencesController();
 	const preferences = await preferencesController.getPreferences(locals.user.id);
 
-	// Get recent receipts with items
-	const recentReceipts = await db.query.receipts.findMany({
-		where: eq(receipts.userId, locals.user.id),
-		orderBy: [desc(receipts.createdAt)],
-		limit: 5,
-		with: {
-			items: true
-		}
-	});
-
-	// Filter to only show completed receipts with items
-	const receiptsWithItems = recentReceipts.filter(
-		(r) => r.status === 'DONE' && r.items && r.items.length > 0
-	);
-
-	// Pre-select receipt items if receiptId is in URL
-	const receiptId = url.searchParams.get('receipt');
+	// Get user pantry items
+	const pantryController = new PantryController(AppFactory.getPantryService());
+	const pantry = await pantryController.getUserPantry(locals.user.id);
 
 	return {
 		preferences,
-		recentReceipts: receiptsWithItems,
-		preSelectedReceiptId: receiptId
+		pantry,
 	};
 };
 
