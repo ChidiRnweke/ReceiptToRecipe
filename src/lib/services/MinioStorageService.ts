@@ -35,6 +35,31 @@ export class MinioStorageService implements IStorageService {
 		contentType: string,
 		folder?: string
 	): Promise<UploadResult> {
+		// Ensure bucket exists before upload (lazy check)
+		try {
+			const exists = await this.client.bucketExists(this.bucket);
+			if (!exists) {
+				await this.client.makeBucket(this.bucket);
+				// Set policy to public if needed, or assume private
+				// For this app, we might need public read access for images
+				const policy = {
+					Version: '2012-10-17',
+					Statement: [
+						{
+							Effect: 'Allow',
+							Principal: { AWS: ['*'] },
+							Action: ['s3:GetObject'],
+							Resource: [`arn:aws:s3:::${this.bucket}/*`]
+						}
+					]
+				};
+				await this.client.setBucketPolicy(this.bucket, JSON.stringify(policy));
+			}
+		} catch (err) {
+			console.warn('Failed to ensure bucket exists:', err);
+			// Fall through and try uploading anyway, maybe it exists but we lack permissions to check
+		}
+
 		const extension = filename.split('.').pop() || '';
 		const uniqueFilename = `${uuidv4()}.${extension}`;
 		const key = folder ? `${folder}/${uniqueFilename}` : uniqueFilename;

@@ -1,5 +1,11 @@
 <script lang="ts">
-  export let color: "red" | "yellow" = "red";
+  let { 
+    color = "red",
+    class: className = "" 
+  }: { 
+    color?: "red" | "yellow";
+    class?: string; 
+  } = $props();
 
   const palette = {
     red: {
@@ -14,10 +20,10 @@
     },
   } as const;
 
-  const c = palette[color] ?? palette.red;
+  const c = $derived(palette[color] ?? palette.red);
 </script>
 
-<div class="relative flex h-8 w-6 justify-center select-none">
+<div class={`relative flex h-8 w-6 justify-center select-none ${className}`}>
   <div
     class="absolute top-[10px] h-3 w-3 rounded-full bg-black/20 blur-[1.5px]"
     style="transform: translate(4px, 6px);"

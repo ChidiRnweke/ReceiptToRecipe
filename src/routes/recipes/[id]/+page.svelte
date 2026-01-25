@@ -32,6 +32,7 @@
   } from "lucide-svelte";
   import { getContext } from "svelte";
   import type { WorkflowState } from "$lib/state/workflow.svelte";
+  import StockBadge from "$lib/components/StockBadge.svelte";
 
   let { data } = $props();
   const workflowState = getContext<WorkflowState>('workflowState');
@@ -376,7 +377,11 @@
                     >
                   {/if}
                   {#if inPantry}
-                    <span class="ml-2 text-[10px] text-emerald-600 font-medium uppercase tracking-wide">In Pantry</span>
+                    {#if data.pantryMatches && data.pantryMatches[ingredient.name] !== undefined}
+                        <StockBadge confidence={data.pantryMatches[ingredient.name]} className="ml-2 scale-75 origin-left" />
+                    {:else}
+                        <span class="ml-2 text-[10px] text-emerald-600 font-medium uppercase tracking-wide">In Pantry</span>
+                    {/if}
                   {/if}
                 </div>
               </li>

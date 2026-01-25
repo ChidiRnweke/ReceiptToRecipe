@@ -26,16 +26,21 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const isOwner = viewerId === recipe.userId;
 
 	// Load pantry for matching
-	let pantryMatches = new Set<string>();
+	let pantryMatches: Record<string, number> = {};
 	if (viewerId) {
 		const pantryController = new PantryController(AppFactory.getPantryService());
 		const pantry = await pantryController.getUserPantry(viewerId);
-		const pantrySet = new Set(pantry.map(i => i.itemName.toLowerCase()));
 		
 		recipe.ingredients.forEach(ing => {
 			const ingName = ing.name.toLowerCase();
-			if (Array.from(pantrySet).some(p => p.includes(ingName) || ingName.includes(p))) {
-				pantryMatches.add(ing.name);
+			// Find the best match in pantry
+			const match = pantry.find(p => {
+				const pName = p.itemName.toLowerCase();
+				return pName.includes(ingName) || ingName.includes(pName);
+			});
+			
+			if (match) {
+				pantryMatches[ing.name] = match.stockConfidence;
 			}
 		});
 	}
@@ -59,7 +64,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		isSaved,
 		isOwner,
 		sourceReceipt,
-		pantryMatches: Array.from(pantryMatches)
+		pantryMatches
 	};
 };
 

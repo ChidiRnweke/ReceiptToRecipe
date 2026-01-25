@@ -107,6 +107,17 @@
           </div>
         {/if}
 
+        <input
+            bind:this={fileInput}
+            id="receipt-upload"
+            type="file"
+            name="receipt"
+            accept="image/*"
+            class="hidden"
+            onchange={handleFileChange}
+            required
+        />
+
         <div
           role="button"
           tabindex="0"
@@ -148,6 +159,7 @@
             </div>
           {:else}
             <label
+              for="receipt-upload"
               class="flex cursor-pointer flex-col items-center gap-4 p-12 transition-all {dragover
                 ? 'scale-[1.02]'
                 : ''}"
@@ -175,15 +187,6 @@
                   PNG, JPG, or HEIC up to 10MB
                 </p>
               </div>
-              <input
-                bind:this={fileInput}
-                type="file"
-                name="receipt"
-                accept="image/*"
-                class="hidden"
-                onchange={handleFileChange}
-                required
-              />
             </label>
           {/if}
         </div>

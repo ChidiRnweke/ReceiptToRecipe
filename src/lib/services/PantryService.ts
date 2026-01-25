@@ -19,10 +19,14 @@ export class PantryService {
 		produce: 7,
 		dairy: 10,
 		meat: 5,
+		seafood: 3,
 		pantry: 90,
 		frozen: 60,
 		canned: 365,
 		bakery: 4,
+		beverages: 180,
+		snacks: 60,
+		household: 730,
 		other: 14
 	};
 
@@ -83,8 +87,8 @@ export class PantryService {
 		const normalized = category.toLowerCase();
 		
 		// Check explicit map
-		if (this.DEFAULT_SHELF_LIVES[normalized]) {
-			return this.DEFAULT_SHELF_LIVES[normalized];
+		if (PantryService.DEFAULT_SHELF_LIVES[normalized]) {
+			return PantryService.DEFAULT_SHELF_LIVES[normalized];
 		}
 
 		// Fuzzy match

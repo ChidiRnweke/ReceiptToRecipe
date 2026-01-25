@@ -20,14 +20,21 @@
   } from "lucide-svelte";
   import PushPin from "$lib/components/PushPin.svelte";
   import WashiTape from "$lib/components/WashiTape.svelte";
+  import PinnedNote from "$lib/components/PinnedNote.svelte";
+  import Notepad from "$lib/components/Notepad.svelte";
   import StockBadge from "$lib/components/StockBadge.svelte";
   import { getContext } from "svelte";
   import type { WorkflowState } from "$lib/state/workflow.svelte";
 
   let { data, form } = $props();
-  const workflowState = getContext<WorkflowState>('workflowState');
-  
-  type Ingredient = { name: string; quantity?: string; unit?: string; note?: string };
+  const workflowState = getContext<WorkflowState>("workflowState");
+
+  type Ingredient = {
+    name: string;
+    quantity?: string;
+    unit?: string;
+    note?: string;
+  };
 
   // Time-based greeting
   const hour = new Date().getHours();
@@ -56,10 +63,12 @@
   const featuredRecipe = $derived(data.recentRecipes?.[0]);
   const recipeFeed = $derived(data.recentRecipes ?? []);
   const recentReceipts = $derived(data.recentReceipts ?? []);
-  
+
   // Use $derived for state but allow overrides
   let pantryItems = $derived(data.pantry ?? []);
-  let shoppingListNames = $derived(new Set(data.activeList?.items?.map((i: any) => i.name) ?? []));
+  let shoppingListNames = $derived(
+    new Set(data.activeList?.items?.map((i: any) => i.name) ?? []),
+  );
 
   // Ingredients Logic - use actual recipe ingredients when available
   const ingredientList = $derived.by<any[]>(() => {
@@ -72,21 +81,25 @@
       return featuredRecipe.ingredients.map((ing: any) => {
         // Simple fuzzy match for pantry status
         const pantryMatch = pantryItems.find(
-            p => p.itemName.toLowerCase().includes(ing.name.toLowerCase()) || 
-                 ing.name.toLowerCase().includes(p.itemName.toLowerCase())
+          (p) =>
+            p.itemName.toLowerCase().includes(ing.name.toLowerCase()) ||
+            ing.name.toLowerCase().includes(p.itemName.toLowerCase()),
         );
         return {
-            name: ing.name,
-            quantity: ing.quantity,
-            unit: ing.unit,
-            note: ing.notes || (ing.optional ? "optional" : undefined),
-            pantryMatch
+          name: ing.name,
+          quantity: ing.quantity,
+          unit: ing.unit,
+          note: ing.notes || (ing.optional ? "optional" : undefined),
+          pantryMatch,
         };
       });
     }
     // Only show placeholder when there are no recipes
     return [
-      { name: "Generate a recipe to see ingredients", note: "Ingredients will appear here" }
+      {
+        name: "Generate a recipe to see ingredients",
+        note: "Ingredients will appear here",
+      },
     ];
   });
 
@@ -116,21 +129,31 @@
 
   function getStatusIcon(status: string) {
     switch (status) {
-      case "DONE": return CheckCircle;
-      case "PROCESSING": return Loader2;
-      case "QUEUED": return Clock;
-      case "FAILED": return XCircle;
-      default: return Clock;
+      case "DONE":
+        return CheckCircle;
+      case "PROCESSING":
+        return Loader2;
+      case "QUEUED":
+        return Clock;
+      case "FAILED":
+        return XCircle;
+      default:
+        return Clock;
     }
   }
 
   function getStatusLabel(status: string) {
     switch (status) {
-      case "DONE": return "Ready";
-      case "PROCESSING": return "Processing";
-      case "QUEUED": return "Queued";
-      case "FAILED": return "Failed";
-      default: return status;
+      case "DONE":
+        return "Ready";
+      case "PROCESSING":
+        return "Processing";
+      case "QUEUED":
+        return "Queued";
+      case "FAILED":
+        return "Failed";
+      default:
+        return status;
     }
   }
 </script>
@@ -158,144 +181,139 @@
             <span>{greeting}, {data.user.name?.split(" ")[0] || "chef"}</span>
           </div>
 
-          <div
-            class="relative mx-auto mt-4 max-w-65 rotate-1 transition hover:rotate-0"
-          >
-            <div
-              class="absolute left-1/2 -top-3 -translate-x-1/2 z-20 filter drop-shadow-sm"
-            >
-              <PushPin color="red" />
-            </div>
-            <div
-              class="rounded-xl border border-amber-200/60 bg-linear-to-br from-amber-50 to-[#FFF4D6] p-4 shadow-sm"
-            >
-              <div class="flex items-start gap-3">
-                <div class="mt-0.5 text-amber-600">
-                  <Lightbulb class="h-4 w-4" />
-                </div>
-                <div>
-                  <p class="font-hand text-sm leading-snug text-ink/80">
-                    {randomTip}
-                  </p>
-                </div>
+          <PinnedNote>
+            <div class="flex items-start gap-3">
+              <div class="mt-0.5 text-amber-600">
+                <Lightbulb class="h-4 w-4" />
+              </div>
+              <div>
+                <p class="font-hand text-sm leading-snug text-ink/80">
+                  {randomTip}
+                </p>
               </div>
             </div>
-          </div>
+          </PinnedNote>
 
-          <div class="relative rounded-2xl bg-stone-200/40 p-1 shadow-inner">
-            <div class="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-              <WashiTape width="w-24" rotate="-rotate-1" />
-            </div>
+          <Notepad>
+            <div class="border-b border-dashed border-stone-200 p-5">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                  <h3 class="font-display text-lg text-ink">Scan & Sort</h3>
 
-            <div class="rounded-xl border border-stone-100 bg-white shadow-sm">
-              <div class="border-b border-dashed border-stone-200 p-5">
-                <div class="flex items-center justify-between mb-3">
-                  <div class="flex items-center gap-3">
-                    <h3 class="font-display text-lg text-ink">Scan & Sort</h3>
-
+                  <div
+                    class="flex flex-col gap-px opacity-40 select-none mix-blend-multiply mt-1"
+                    aria-hidden="true"
+                  >
                     <div
-                      class="flex flex-col gap-px opacity-40 select-none mix-blend-multiply mt-1"
-                      aria-hidden="true"
+                      class="h-3 w-8"
+                      style="background: linear-gradient(to right, #000 1px, transparent 1px, transparent 3px, #000 3px, #000 4px, transparent 4px, transparent 6px, #000 6px, #000 9px, transparent 9px, transparent 10px, #000 10px, #000 12px, transparent 12px, transparent 14px, #000 14px, #000 15px, transparent 15px, transparent 18px, #000 18px);"
+                    ></div>
+                    <div
+                      class="text-[5px] font-mono leading-none tracking-widest text-black/60 text-center"
                     >
-                      <div
-                        class="h-3 w-8"
-                        style="background: linear-gradient(to right, #000 1px, transparent 1px, transparent 3px, #000 3px, #000 4px, transparent 4px, transparent 6px, #000 6px, #000 9px, transparent 9px, transparent 10px, #000 10px, #000 12px, transparent 12px, transparent 14px, #000 14px, #000 15px, transparent 15px, transparent 18px, #000 18px);"
-                      ></div>
-                      <div
-                        class="text-[5px] font-mono leading-none tracking-widest text-black/60 text-center"
-                      >
-                        8401
-                      </div>
+                      8401
                     </div>
                   </div>
-
-                  <div
-                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-sage-50 text-sage-600"
-                  >
-                    <Upload class="h-4 w-4" />
-                  </div>
                 </div>
 
-                <div class="grid grid-cols-1 gap-2">
-                  <Button
-                    href="/receipts/upload"
-                    size="sm"
-                    class="w-full bg-sage-600 text-white hover:bg-sage-500 shadow-sm"
-                  >
-                    Drop receipt
-                  </Button>
+                <div
+                  class="flex h-8 w-8 items-center justify-center rounded-lg bg-sage-50 text-sage-600"
+                >
+                  <Upload class="h-4 w-4" />
                 </div>
               </div>
 
-              <div class="p-2">
-                <a
-                  href="/shopping"
-                  class="flex w-full items-center justify-between rounded-lg p-3 text-left hover:bg-stone-50 transition-colors"
+              <div class="grid grid-cols-1 gap-2">
+                <Button
+                  href="/receipts/upload"
+                  size="sm"
+                  class="w-full bg-sage-600 text-white hover:bg-sage-500 shadow-sm"
                 >
-                  <div>
-                    <p
-                      class="text-[10px] uppercase tracking-wider text-ink-muted"
-                    >
-                      Shopping List
-                    </p>
-                    <p class="font-display text-xl text-ink">
-                      {cartCount} items
-                    </p>
-                    {#if data.activeList?.stats}
-                      <div class="flex items-center gap-2 mt-1">
-                        <div class="h-1.5 w-16 rounded-full bg-stone-200">
-                          <div
-                            class="h-1.5 rounded-full bg-sage-500 transition-all"
-                            style="width: {data.activeList.stats.completionPercent}%"
-                          ></div>
-                        </div>
-                        <span class="text-[10px] text-ink-muted">
-                          {data.activeList.stats.completionPercent}%
-                        </span>
-                      </div>
-                    {/if}
-                  </div>
-                  <ShoppingCart class="h-5 w-5 text-sage-600" />
-                </a>
-
-                {#if shoppingPreview.length > 0}
-                  <div
-                    class="mt-2 max-h-32 overflow-y-auto px-3 pb-3 space-y-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"
-                  >
-                    <p class="text-[10px] uppercase tracking-wider text-ink-muted mb-1">Suggested</p>
-                    {#each shoppingPreview.slice(0, 4) as suggestion}
-                      <div class="flex items-center gap-2 text-xs text-ink">
-                        <Sparkles class="h-3 w-3 text-sage-400" />
-                        <span class="truncate">{suggestion.itemName}</span>
-                      </div>
-                    {/each}
-                  </div>
-                {/if}
+                  Drop receipt
+                </Button>
               </div>
             </div>
-          </div>
+
+            <div class="p-2">
+              <a
+                href="/shopping"
+                class="flex w-full items-center justify-between rounded-lg p-3 text-left hover:bg-stone-50 transition-colors"
+              >
+                <div>
+                  <p
+                    class="text-[10px] uppercase tracking-wider text-ink-muted"
+                  >
+                    Shopping List
+                  </p>
+                  <p class="font-display text-xl text-ink">
+                    {cartCount} items
+                  </p>
+                  {#if data.activeList?.stats}
+                    <div class="flex items-center gap-2 mt-1">
+                      <div class="h-1.5 w-16 rounded-full bg-stone-200">
+                        <div
+                          class="h-1.5 rounded-full bg-sage-500 transition-all"
+                          style="width: {data.activeList.stats
+                            .completionPercent}%"
+                        ></div>
+                      </div>
+                      <span class="text-[10px] text-ink-muted">
+                        {data.activeList.stats.completionPercent}%
+                      </span>
+                    </div>
+                  {/if}
+                </div>
+                <ShoppingCart class="h-5 w-5 text-sage-600" />
+              </a>
+
+              {#if shoppingPreview.length > 0}
+                <div
+                  class="mt-2 max-h-32 overflow-y-auto px-3 pb-3 space-y-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"
+                >
+                  <p
+                    class="text-[10px] uppercase tracking-wider text-ink-muted mb-1"
+                  >
+                    Suggested
+                  </p>
+                  {#each shoppingPreview.slice(0, 4) as suggestion}
+                    <div class="flex items-center gap-2 text-xs text-ink">
+                      <Sparkles class="h-3 w-3 text-sage-400" />
+                      <span class="truncate">{suggestion.itemName}</span>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          </Notepad>
         </div>
 
         {#if pantryList.length > 0}
-        <div
-          class="mb-4 rounded-xl border border-sand/60 bg-[#fffdf5] p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] rotate-1"
-        >
           <div
-            class="flex items-center gap-2 text-xs text-ink-muted uppercase tracking-wider mb-2 border-b border-sand/40 pb-2"
+            class="mb-4 rounded-xl border border-sand/60 bg-[#fffdf5] p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] rotate-1"
           >
-            <Store class="h-3 w-3" /> Your Pantry
+            <div
+              class="flex items-center gap-2 text-xs text-ink-muted uppercase tracking-wider mb-2 border-b border-sand/40 pb-2"
+            >
+              <Store class="h-3 w-3" /> Your Pantry
+            </div>
+            <ul
+              class="space-y-2 max-h-40 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"
+            >
+              {#each pantryList as item}
+                <li
+                  class="flex items-center justify-between text-sm text-ink/80"
+                >
+                  <span class="truncate">{item.itemName}</span>
+                  {#if item.stockConfidence}
+                    <StockBadge
+                      confidence={item.stockConfidence}
+                      className="scale-75 origin-right"
+                    />
+                  {/if}
+                </li>
+              {/each}
+            </ul>
           </div>
-          <ul class="space-y-2 max-h-40 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
-            {#each pantryList as item}
-              <li class="flex items-center justify-between text-sm text-ink/80">
-                <span class="truncate">{item.itemName}</span>
-                {#if item.stockConfidence}
-                    <StockBadge confidence={item.stockConfidence} className="scale-75 origin-right" />
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        </div>
         {/if}
 
         <div
@@ -343,9 +361,13 @@
                     class="flex items-center gap-2 text-sm text-ink/70 hover:text-ink transition-colors"
                   >
                     <Store class="h-3 w-3 text-ink-muted shrink-0" />
-                    <span class="truncate flex-1">{receipt.storeName || "Receipt"}</span>
+                    <span class="truncate flex-1"
+                      >{receipt.storeName || "Receipt"}</span
+                    >
                     {#if receipt.status === "PROCESSING"}
-                      <StatusIcon class="h-3 w-3 text-sage-500 animate-spin shrink-0" />
+                      <StatusIcon
+                        class="h-3 w-3 text-sage-500 animate-spin shrink-0"
+                      />
                     {:else if receipt.status === "DONE"}
                       <StatusIcon class="h-3 w-3 text-sage-500 shrink-0" />
                     {:else if receipt.status === "FAILED"}
@@ -372,26 +394,37 @@
               {mealSuggestion}
             </p>
             {#if pantryItems.length === 0}
-            <h1
-              class="font-display text-4xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
-            >
-              Start by <span class="marker-highlight">dropping a receipt</span>.
-            </h1>
+              <h1
+                class="font-display text-4xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
+              >
+                Start by <span class="marker-highlight">dropping a receipt</span
+                >.
+              </h1>
             {:else}
-            <h1
-              class="font-display text-4xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
-            >
-              What are we <span class="marker-highlight">cooking</span> today?
-            </h1>
+              <h1
+                class="font-display text-4xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
+              >
+                What are we <span class="marker-highlight">cooking</span> today?
+              </h1>
             {/if}
-            <div class="mt-4 flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-stone-400">
-                <span class={pantryItems.length === 0 ? "text-sage-600 font-bold border-b-2 border-sage-200" : ""}>1. Scan</span>
-                <span class="text-stone-300">→</span>
-                <span class={pantryItems.length > 0 ? "text-sage-600 font-bold border-b-2 border-sage-200" : ""}>2. Stock</span>
-                <span class="text-stone-300">→</span>
-                <span>3. Cook</span>
-                <span class="text-stone-300">→</span>
-                <span>4. Shop</span>
+            <div
+              class="mt-4 flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-stone-400"
+            >
+              <span
+                class={pantryItems.length === 0
+                  ? "text-sage-600 font-bold border-b-2 border-sage-200"
+                  : ""}>1. Scan</span
+              >
+              <span class="text-stone-300">→</span>
+              <span
+                class={pantryItems.length > 0
+                  ? "text-sage-600 font-bold border-b-2 border-sage-200"
+                  : ""}>2. Stock</span
+              >
+              <span class="text-stone-300">→</span>
+              <span>3. Cook</span>
+              <span class="text-stone-300">→</span>
+              <span>4. Shop</span>
             </div>
           </div>
           <Button
@@ -536,81 +569,112 @@
                 >
                   {#each visibleIngredients as ingredient}
                     {@const itemName = ingredient.name}
-                    {@const isAdded = shoppingListNames.has(itemName)}
-                    {@const ingredientDisplay = formatIngredientDisplay(ingredient)}
-                    {@const isAdding = addingIngredient === itemName}
-                    {@const inPantry = !!ingredient.pantryMatch}
-                    
+                    {@const ingredientDisplay =
+                      formatIngredientDisplay(ingredient)}
+                    {@const isAdded = shoppingListNames.has(ingredientDisplay)}
+                    {@const isAdding = addingIngredient === ingredientDisplay}
+                    {@const inPantry =
+                      !!ingredient.pantryMatch &&
+                      ingredient.pantryMatch.stockConfidence > 0.3}
+
                     <form
                       method="POST"
-                      action="?/addToList"
+                      action="?/toggleIngredient"
                       use:enhance={() => {
-                        addingIngredient = itemName;
+                        addingIngredient = ingredientDisplay;
                         // Optimistic update
                         const newSet = new Set(shoppingListNames);
-                        newSet.add(itemName);
+                        if (isAdded) {
+                          newSet.delete(ingredientDisplay);
+                          workflowState.decrementShopping();
+                        } else {
+                          newSet.add(ingredientDisplay);
+                          workflowState.incrementShopping();
+                        }
                         shoppingListNames = newSet;
-                        workflowState.incrementShopping();
-                        
+
                         return async ({ result }) => {
                           addingIngredient = null;
                           if (result.type !== "success") {
                             // Rollback on error
                             const revertSet = new Set(shoppingListNames);
-                            revertSet.delete(itemName);
+                            if (isAdded) {
+                              revertSet.add(ingredientDisplay);
+                              workflowState.incrementShopping();
+                            } else {
+                              revertSet.delete(ingredientDisplay);
+                              workflowState.decrementShopping();
+                            }
                             shoppingListNames = revertSet;
-                            workflowState.decrementShopping();
                           }
                         };
                       }}
-                      class={`group relative flex w-full items-start gap-4 px-4 py-3 text-left transition-colors duration-200 ${isAdded ? "bg-emerald-50/30" : inPantry ? "bg-stone-50/50" : "hover:bg-blue-50/30"}`}
+                      class={`group relative flex w-full items-start gap-4 px-4 py-3 text-left transition-colors duration-200 ${isAdded ? "bg-amber-50/40" : inPantry ? "bg-emerald-50/40" : "hover:bg-blue-50/30"}`}
                     >
-                      <input type="hidden" name="ingredientName" value={ingredientDisplay} />
+                      <input
+                        type="hidden"
+                        name="ingredientName"
+                        value={ingredientDisplay}
+                      />
                       <div
                         class="absolute bottom-0 left-0 right-0 border-b border-blue-200/30"
                       ></div>
-                      
+
                       {#if inPantry}
-                        <div class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-200 text-stone-500 cursor-help" title="In your pantry">
-                            <Check class="h-3 w-3" />
+                        <div
+                          class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 cursor-help"
+                          title="In your pantry"
+                        >
+                          <Check class="h-3 w-3" />
                         </div>
                       {:else}
                         <button
-                            type="submit"
-                            disabled={isAdded || isAdding}
-                            class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-stone-300 bg-white transition-colors group-hover:border-stone-400 disabled:cursor-not-allowed"
+                          type="submit"
+                          disabled={isAdding}
+                          class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors disabled:cursor-not-allowed
+                            {isAdded
+                            ? 'bg-amber-100 border-amber-200 text-amber-700 hover:bg-amber-200'
+                            : 'border-stone-300 bg-white hover:border-stone-400'}"
+                          title={isAdded
+                            ? "Remove from list"
+                            : "Add to shopping list"}
                         >
-                            {#if isAdded}
-                            <div
-                                class="flex h-5 w-5 scale-110 items-center justify-center rounded-full bg-emerald-500 text-white transition-transform"
-                            >
-                                <Check class="h-3 w-3" />
-                            </div>
-                            {:else if isAdding}
-                            <Loader2 class="h-3 w-3 animate-spin text-sage-500" />
-                            {/if}
+                          {#if isAdded}
+                            <Check class="h-3 w-3" />
+                          {:else if isAdding}
+                            <Loader2
+                              class="h-3 w-3 animate-spin text-sage-500"
+                            />
+                          {:else}
+                            <Plus class="h-3 w-3 text-stone-400" />
+                          {/if}
                         </button>
                       {/if}
 
                       <div class="flex-1 pl-2 font-mono text-sm leading-snug">
                         <div class="flex items-center justify-between">
-                            <p
-                            class={`transition-all ${isAdded ? "text-stone-400 line-through decoration-stone-300" : inPantry ? "text-stone-400 line-through decoration-stone-300 decoration-double" : "text-stone-700"}`}
-                            >
+                          <p
+                            class={`transition-all ${isAdded ? "text-amber-800/70 line-through decoration-amber-300" : inPantry ? "text-emerald-800/70 line-through decoration-emerald-300" : "text-stone-700"}`}
+                          >
                             {ingredientDisplay}
-                            </p>
-                            {#if inPantry && ingredient.pantryMatch?.stockConfidence}
-                                <StockBadge confidence={ingredient.pantryMatch.stockConfidence} />
-                            {/if}
+                          </p>
+                          {#if inPantry && ingredient.pantryMatch?.stockConfidence}
+                            <StockBadge
+                              confidence={ingredient.pantryMatch
+                                .stockConfidence}
+                            />
+                          {/if}
                         </div>
                         {#if ingredient.note}
                           <p class="mt-0.5 text-[10px] italic text-stone-400">
-                             {ingredient.note}
+                            {ingredient.note}
                           </p>
                         {:else if inPantry && ingredient.pantryMatch?.lastPurchased}
-                           <p class="mt-0.5 text-[10px] italic text-stone-400">
-                             In pantry (bought {new Date(ingredient.pantryMatch.lastPurchased).toLocaleDateString()})
-                           </p>
+                          <p class="mt-0.5 text-[10px] italic text-stone-400">
+                            In pantry (bought {new Date(
+                              ingredient.pantryMatch.lastPurchased,
+                            ).toLocaleDateString()})
+                          </p>
                         {/if}
                       </div>
                     </form>

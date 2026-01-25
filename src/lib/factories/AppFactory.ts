@@ -1,12 +1,14 @@
 import { env } from "$env/dynamic/private";
 import {
   MinioStorageService,
+  FileSystemStorageService,
   NormalizationService,
   AuthService,
   MistralOcrService,
   MockOcrService,
   GeminiLlmService,
   GeminiImageService,
+  GeminiProductNormalizationService,
   PgVectorService,
   JobQueue,
   PantryService,
@@ -16,11 +18,13 @@ import {
   type ILlmService,
   type IImageGenService,
   type IVectorService,
+  type IProductNormalizationService,
 } from "$services";
 
 // Singleton instances
 let storageService: IStorageService | null = null;
 let normalizationService: INormalizationService | null = null;
+let productNormalizationService: IProductNormalizationService | null = null;
 let authService: AuthService | null = null;
 let ocrService: IOcrService | null = null;
 let llmService: ILlmService | null = null;
@@ -36,6 +40,9 @@ let pantryService: PantryService | null = null;
 export class AppFactory {
   static getStorageService(): IStorageService {
     if (!storageService) {
+      // Use FileSystemStorageService for reliable local development
+      // To use Minio, uncomment the following block and comment out FileSystemStorageService
+      /*
       storageService = new MinioStorageService({
         endPoint: env.MINIO_ENDPOINT || "localhost",
         port: parseInt(env.MINIO_PORT || "9000"),
@@ -44,6 +51,8 @@ export class AppFactory {
         secretKey: env.MINIO_SECRET_KEY || "minioadmin",
         bucket: env.MINIO_BUCKET || "r2r-images",
       });
+      */
+      storageService = new FileSystemStorageService();
     }
     return storageService;
   }
@@ -53,6 +62,19 @@ export class AppFactory {
       normalizationService = new NormalizationService();
     }
     return normalizationService;
+  }
+
+  static getProductNormalizationService(): IProductNormalizationService {
+    if (!productNormalizationService) {
+      const apiKey = env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("GEMINI_API_KEY environment variable is required");
+      }
+      productNormalizationService = new GeminiProductNormalizationService(
+        apiKey,
+      );
+    }
+    return productNormalizationService;
   }
 
   static getAuthService(): AuthService {
@@ -81,7 +103,7 @@ export class AppFactory {
       llmService = new GeminiLlmService(
         apiKey,
         env.GEMINI_MODEL || "gemini-2.5-flash",
-        env.GEMINI_EMBEDDING_MODEL || "text-embedding-004"
+        env.GEMINI_EMBEDDING_MODEL || "text-embedding-004",
       );
     }
     return llmService;
@@ -95,7 +117,7 @@ export class AppFactory {
       }
       imageGenService = new GeminiImageService(
         apiKey,
-        env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image"
+        env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image",
       );
     }
     return imageGenService;

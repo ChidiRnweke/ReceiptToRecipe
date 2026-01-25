@@ -80,6 +80,7 @@ export const receipts = pgTable("receipts", {
   storeName: text("store_name"),
   purchaseDate: timestamp("purchase_date"),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
+  currency: text("currency").default("USD"),
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -98,6 +99,7 @@ export const receiptItems = pgTable("receipt_items", {
   unitType: unitTypeEnum("unit_type").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }),
   category: text("category"),
+  productGroup: text("product_group"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -246,7 +248,7 @@ export const userPreferencesRelations = relations(
       fields: [userPreferences.userId],
       references: [users.id],
     }),
-  })
+  }),
 );
 
 export const receiptsRelations = relations(receipts, ({ one, many }) => ({
@@ -286,7 +288,7 @@ export const recipeIngredientsRelations = relations(
       fields: [recipeIngredients.recipeId],
       references: [recipes.id],
     }),
-  })
+  }),
 );
 
 export const shoppingListsRelations = relations(
@@ -297,7 +299,7 @@ export const shoppingListsRelations = relations(
       references: [users.id],
     }),
     items: many(shoppingListItems),
-  })
+  }),
 );
 
 export const shoppingListItemsRelations = relations(
@@ -311,7 +313,7 @@ export const shoppingListItemsRelations = relations(
       fields: [shoppingListItems.fromRecipeId],
       references: [recipes.id],
     }),
-  })
+  }),
 );
 
 export const purchaseHistoryRelations = relations(
@@ -321,7 +323,7 @@ export const purchaseHistoryRelations = relations(
       fields: [purchaseHistory.userId],
       references: [users.id],
     }),
-  })
+  }),
 );
 
 export const savedRecipesRelations = relations(savedRecipes, ({ one }) => ({

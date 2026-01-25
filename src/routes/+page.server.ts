@@ -69,13 +69,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		activeList: activeList ? {
 			id: activeList.id,
 			name: activeList.name,
+			items: activeList.items,
 			stats: activeListStats
 		} : null
 	};
 };
 
 export const actions: Actions = {
-	addToList: async ({ locals, request }) => {
+	toggleIngredient: async ({ locals, request }) => {
 		if (!locals.user) {
 			throw redirect(302, '/login');
 		}
@@ -90,14 +91,23 @@ export const actions: Actions = {
 		try {
 			const listController = new ShoppingListController();
 			const list = await listController.getActiveList(locals.user.id);
-			await listController.addItem(list.id, {
-				name: ingredientName,
-				quantity: '1',
-				unit: ''
-			});
-			return { success: true, added: ingredientName };
+			
+			// Check if item exists
+			const existingItem = list.items.find(i => i.name === ingredientName);
+
+			if (existingItem) {
+				await listController.removeItem(existingItem.id);
+				return { success: true, removed: ingredientName };
+			} else {
+				await listController.addItem(list.id, {
+					name: ingredientName,
+					quantity: '1',
+					unit: ''
+				});
+				return { success: true, added: ingredientName };
+			}
 		} catch (error) {
-			return fail(500, { error: error instanceof Error ? error.message : 'Failed to add item' });
+			return fail(500, { error: error instanceof Error ? error.message : 'Failed to update list' });
 		}
 	}
 };

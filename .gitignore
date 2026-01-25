@@ -24,3 +24,4 @@ vite.config.ts.timestamp-*
 .claude
 llm_docs
 .gemini
+static

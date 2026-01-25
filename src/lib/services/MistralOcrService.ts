@@ -1,127 +1,146 @@
-import { Mistral } from '@mistralai/mistralai';
-import type { IOcrService, RawReceiptData, RawReceiptItem } from './interfaces';
+import type { IOcrService, RawReceiptData } from "./interfaces";
+import { readFile } from "fs/promises";
+import { join } from "path";
 
-const RECEIPT_SCHEMA = {
-	type: 'object',
-	properties: {
-		storeName: { type: 'string', description: 'Name of the store' },
-		storeAddress: { type: 'string', description: 'Address of the store' },
-		purchaseDate: { type: 'string', description: 'Date of purchase in ISO format (YYYY-MM-DD)' },
-		items: {
-			type: 'array',
-			items: {
-				type: 'object',
-				properties: {
-					name: { type: 'string', description: 'Name of the item' },
-					quantity: { type: 'string', description: 'Quantity with unit (e.g., "2 lbs", "500g", "1")' },
-					price: { type: 'string', description: 'Price of the item' },
-					category: {
-						type: 'string',
-						description: 'Category of the item',
-						enum: [
-							'produce',
-							'meat',
-							'seafood',
-							'dairy',
-							'bakery',
-							'frozen',
-							'pantry',
-							'beverages',
-							'snacks',
-							'household',
-							'other'
-						]
-					}
-				},
-				required: ['name']
-			}
-		},
-		subtotal: { type: 'string', description: 'Subtotal before tax' },
-		tax: { type: 'string', description: 'Tax amount' },
-		total: { type: 'string', description: 'Total amount' },
-		paymentMethod: { type: 'string', description: 'Payment method used' }
-	},
-	required: ['items']
+const RECEIPT_JSON_SCHEMA = {
+  type: "json_schema",
+  json_schema: {
+    name: "receipt_extraction",
+    strict: true,
+    schema: {
+      type: "object",
+      properties: {
+        storeName: {
+          type: "string",
+          description:
+            "The name of the store or merchant. Identify the most plausible store name (e.g. from the logo or header). Focus on trying to find the name of grocery stores, supermarkets, or convenience stores. Don't look for random text that is not the store name.",
+        },
+        purchaseDate: {
+          type: "string",
+          description: "The date of purchase (YYYY-MM-DD)",
+        },
+        currency: {
+          type: "string",
+          description:
+            "The currency symbol or code used in the receipt (e.g. EUR, USD, GBP, €). Default to EUR if unsure but looks European.",
+        },
+        items: {
+          type: "array",
+          description: "List of all line items purchased on the receipt",
+          items: {
+            type: "object",
+            properties: {
+              name: {
+                type: "string",
+                description: "The name or description of the product item",
+              },
+              quantity: {
+                type: "string",
+                description:
+                  "The count or weight of the item. Use '.' as decimal separator (e.g. 1.0, 2.5).",
+              },
+              price: {
+                type: "string",
+                description:
+                  "The total price for this item line. Use '.' as decimal separator (e.g. 15.57).",
+              },
+              category: {
+                type: "string",
+                description:
+                  "The general category of the item (e.g. groceries, meat, vegetable)",
+              },
+            },
+            required: ["name"],
+            additionalProperties: false,
+          },
+        },
+        total: {
+          type: "string",
+          description:
+            "The total amount paid for the receipt. Use '.' as decimal separator.",
+        },
+      },
+      required: ["items", "currency"],
+      additionalProperties: false,
+    },
+  },
 };
 
 export class MistralOcrService implements IOcrService {
-	private client: Mistral;
-	private model: string;
+  private apiKey: string;
 
-	constructor(apiKey: string) {
-		this.client = new Mistral({ apiKey });
-		this.model = process.env.MISTRAL_OCR_MODEL || 'mistral-ocr-latest';
-	}
+  constructor(apiKey: string) {
+    this.apiKey = apiKey;
+  }
 
-	async extractReceipt(imageUrl: string): Promise<RawReceiptData> {
-		const response = await this.client.ocr.process({
-			model: this.model,
-			document: {
-				imageUrl
-			},
-			documentAnnotationFormat: {
-				type: 'json_schema',
-				jsonSchema: {
-					name: 'receipt_data',
-					schemaDefinition: RECEIPT_SCHEMA
-				}
-			},
-			extractHeader: true,
-			extractFooter: true
-		});
+  async extractReceipt(imageUrl: string): Promise<RawReceiptData> {
+    const isUrl = imageUrl.startsWith("http");
+    const dataUrl = isUrl ? imageUrl : await this.getLocalAsBase64(imageUrl);
 
-		if (!response.documentAnnotation) {
-			throw new Error('No document annotation returned from OCR');
-		}
+    const document = {
+      type: "image_url",
+      image_url: dataUrl,
+    };
 
-		const data = JSON.parse(response.documentAnnotation) as RawReceiptData;
-		return this.validateAndClean(data);
-	}
+    return this.processOcrRequest(document);
+  }
 
-	async extractReceiptFromBuffer(imageBuffer: Buffer, mimeType: string): Promise<RawReceiptData> {
-		const base64 = imageBuffer.toString('base64');
-		const dataUrl = `data:${mimeType};base64,${base64}`;
+  async extractReceiptFromBuffer(
+    imageBuffer: Buffer,
+    mimeType: string,
+  ): Promise<RawReceiptData> {
+    const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
 
-		const response = await this.client.ocr.process({
-			model: this.model,
-			document: {
-				imageUrl: dataUrl
-			},
-			documentAnnotationFormat: {
-				type: 'json_schema',
-				jsonSchema: {
-					name: 'receipt_data',
-					schemaDefinition: RECEIPT_SCHEMA
-				}
-			},
-			extractHeader: true,
-			extractFooter: true
-		});
+    const document = {
+      type: "image_url",
+      image_url: dataUrl,
+    };
 
-		if (!response.documentAnnotation) {
-			throw new Error('No document annotation returned from OCR');
-		}
+    return this.processOcrRequest(document);
+  }
 
-		const data = JSON.parse(response.documentAnnotation) as RawReceiptData;
-		return this.validateAndClean(data);
-	}
+  private async processOcrRequest(document: any): Promise<RawReceiptData> {
+    const response = await fetch("https://api.mistral.ai/v1/ocr", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "mistral-ocr-latest",
+        document: document,
+        document_annotation_format: RECEIPT_JSON_SCHEMA,
+        include_image_base64: false,
+      }),
+    });
 
-	private validateAndClean(data: RawReceiptData): RawReceiptData {
-		// Ensure items array exists
-		if (!data.items || !Array.isArray(data.items)) {
-			data.items = [];
-		}
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Mistral OCR API failed with status ${response.status}: ${errorText}`,
+      );
+    }
 
-		// Clean up items
-		data.items = data.items
-			.filter((item: RawReceiptItem) => item.name && item.name.trim().length > 0)
-			.map((item: RawReceiptItem) => ({
-				name: item.name.trim(),
-				quantity: item.quantity?.trim() || '1',
-				price: item.price?.trim(),
-				category: item.category || 'other'
-			}));
+    const result = await response.json();
 
-		return data;
-	}
+    // Using 'any' to bypass strict type checking for the raw API response
+    const data: any = result;
+
+    const annotation = data.document_annotation || data.documentAnnotation;
+
+    if (!annotation) {
+      throw new Error(
+        "OCR failed: No annotation in response: " + JSON.stringify(data),
+      );
+    }
+
+    return typeof annotation === "string" ? JSON.parse(annotation) : annotation;
+  }
+
+  private async getLocalAsBase64(url: string): Promise<string> {
+    const path = join(process.cwd(), "static", url.replace(/^\//, ""));
+    const buffer = await readFile(path);
+    const ext = path.split(".").pop()?.toLowerCase() || "jpg";
+    return `data:image/${ext === "png" ? "png" : "jpeg"};base64,${buffer.toString("base64")}`;
+  }
 }
