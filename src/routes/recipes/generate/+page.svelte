@@ -22,10 +22,44 @@
   let customIngredients = $state<string[]>([]);
   let newIngredient = $state("");
   let selectedReceiptItems = $state<Set<string>>(new Set());
+  // Track which receipt each item comes from to determine primary source
+  let itemToReceiptMap = $state<Map<string, string>>(new Map());
   // Initialize servings from preferences - this intentionally captures the initial value
   // as the user can modify it independently via the input field
   let servings = $derived(data.preferences?.defaultServings ?? 2);
   let cuisineHint = $state("");
+
+  // Determine the primary source receipt (the one with most selected items)
+  const sourceReceiptId = $derived.by(() => {
+    if (selectedReceiptItems.size === 0) return null;
+    const receiptCounts = new Map<string, number>();
+    for (const itemId of selectedReceiptItems) {
+      const receiptId = itemToReceiptMap.get(itemId);
+      if (receiptId) {
+        receiptCounts.set(receiptId, (receiptCounts.get(receiptId) || 0) + 1);
+      }
+    }
+    let maxReceiptId: string | null = null;
+    let maxCount = 0;
+    for (const [receiptId, count] of receiptCounts) {
+      if (count > maxCount) {
+        maxCount = count;
+        maxReceiptId = receiptId;
+      }
+    }
+    return maxReceiptId;
+  });
+
+  // Build the item-to-receipt map on mount
+  $effect(() => {
+    const newMap = new Map<string, string>();
+    for (const receipt of data.recentReceipts || []) {
+      for (const item of receipt.items || []) {
+        newMap.set(item.id, receipt.id);
+      }
+    }
+    itemToReceiptMap = newMap;
+  });
 
   function addIngredient() {
     if (newIngredient.trim()) {
@@ -164,6 +198,13 @@
             name="ingredientIds"
             value={Array.from(selectedReceiptItems).join(",")}
           />
+          {#if sourceReceiptId}
+            <input
+              type="hidden"
+              name="sourceReceiptId"
+              value={sourceReceiptId}
+            />
+          {/if}
         </Card.Content>
       </Card.Root>
     {:else}

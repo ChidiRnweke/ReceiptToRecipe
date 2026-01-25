@@ -2,6 +2,9 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { ShoppingListController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
+import { db } from '$lib/db/client';
+import { shoppingLists, shoppingListItems, recipes } from '$lib/db/schema';
+import { eq, desc, inArray, sql } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -16,10 +19,38 @@ export const load: PageServerLoad = async ({ locals }) => {
 		shoppingListController.getSmartSuggestions(locals.user.id)
 	]);
 
+	// Collect all recipe IDs from shopping list items
+	const recipeIds = new Set<string>();
+	for (const list of lists) {
+		for (const item of list.items || []) {
+			if (item.fromRecipeId) {
+				recipeIds.add(item.fromRecipeId);
+			}
+		}
+	}
+
+	// Load recipe info for source attribution
+	let recipeMap: Record<string, { id: string; title: string }> = {};
+	if (recipeIds.size > 0) {
+		const recipeList = await db.query.recipes.findMany({
+			where: inArray(recipes.id, Array.from(recipeIds)),
+			columns: { id: true, title: true }
+		});
+		recipeMap = Object.fromEntries(recipeList.map(r => [r.id, r]));
+	}
+
+	// Get counts for empty state guidance
+	const recipeCount = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(recipes)
+		.where(eq(recipes.userId, locals.user.id));
+
 	return {
 		activeList,
 		lists,
-		suggestions
+		suggestions,
+		recipeMap,
+		recipeCount: recipeCount[0]?.count || 0
 	};
 };
 

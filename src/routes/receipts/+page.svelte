@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { enhance } from "$app/forms";
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card";
   import { Badge } from "$lib/components/ui/badge";
@@ -13,9 +14,12 @@
     ShoppingBag,
     Sparkles,
     ArrowRight,
+    ChefHat,
+    ShoppingCart,
   } from "lucide-svelte";
 
-  let { data } = $props();
+  let { data, form } = $props();
+  let addingToShoppingId = $state<string | null>(null);
 
   function formatDate(date: Date | string) {
     return new Date(date).toLocaleDateString("en-US", {
@@ -127,7 +131,8 @@
     <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {#each data.receipts as receipt}
         {@const status = getStatusBadge(receipt.status)}
-        <a href="/receipts/{receipt.id}" class="group">
+        {@const recipeCount = data.recipeCounts?.[receipt.id] || 0}
+        <div class="group">
           <Card.Root
             class="relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-0.5"
           >
@@ -136,58 +141,103 @@
               class="absolute left-0 top-0 h-1 w-full bg-linear-to-r from-sage-400 to-sage-200 opacity-0 transition-opacity group-hover:opacity-100"
             ></div>
 
-            <Card.Header
-              class="flex-row items-start justify-between space-y-0 pb-2"
-            >
-              <div class="flex items-start gap-3">
-                <div
-                  class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-paper-dark"
-                >
-                  <Store class="h-5 w-5 text-ink-muted" />
-                </div>
-                <div>
-                  <Card.Title class="font-serif text-lg">
-                    {receipt.storeName || "Unknown Store"}
-                  </Card.Title>
-                  <Card.Description class="text-xs">
-                    {getRelativeTime(receipt.createdAt)}
-                  </Card.Description>
-                </div>
-              </div>
-              <Badge variant={status.variant}>
-                {#if status.icon === Loader2}
-                  <status.icon class="mr-1 h-3 w-3 animate-spin" />
-                {:else}
-                  <status.icon class="mr-1 h-3 w-3" />
-                {/if}
-                {status.label}
-              </Badge>
-            </Card.Header>
-            <Card.Content class="pt-2">
-              <div class="flex items-end justify-between">
-                {#if receipt.totalAmount}
-                  <div>
-                    <p class="text-xs uppercase tracking-wide text-ink-muted">
-                      Total
-                    </p>
-                    <p class="text-2xl font-semibold text-ink">
-                      ${parseFloat(receipt.totalAmount).toFixed(2)}
-                    </p>
+            <a href="/receipts/{receipt.id}">
+              <Card.Header
+                class="flex-row items-start justify-between space-y-0 pb-2"
+              >
+                <div class="flex items-start gap-3">
+                  <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-paper-dark"
+                  >
+                    <Store class="h-5 w-5 text-ink-muted" />
                   </div>
-                {:else}
                   <div>
-                    <p class="text-sm text-ink-muted italic">Amount pending</p>
+                    <Card.Title class="font-serif text-lg">
+                      {receipt.storeName || "Unknown Store"}
+                    </Card.Title>
+                    <Card.Description class="text-xs">
+                      {getRelativeTime(receipt.createdAt)}
+                    </Card.Description>
                   </div>
-                {/if}
-                <div
-                  class="flex h-8 w-8 items-center justify-center rounded-full bg-paper-dark opacity-0 transition-opacity group-hover:opacity-100"
-                >
-                  <ArrowRight class="h-4 w-4 text-ink-muted" />
                 </div>
-              </div>
-            </Card.Content>
+                <Badge variant={status.variant}>
+                  {#if status.icon === Loader2}
+                    <status.icon class="mr-1 h-3 w-3 animate-spin" />
+                  {:else}
+                    <status.icon class="mr-1 h-3 w-3" />
+                  {/if}
+                  {status.label}
+                </Badge>
+              </Card.Header>
+              <Card.Content class="pt-2">
+                <div class="flex items-end justify-between">
+                  {#if receipt.totalAmount}
+                    <div>
+                      <p class="text-xs uppercase tracking-wide text-ink-muted">
+                        Total
+                      </p>
+                      <p class="text-2xl font-semibold text-ink">
+                        ${parseFloat(receipt.totalAmount).toFixed(2)}
+                      </p>
+                    </div>
+                  {:else}
+                    <div>
+                      <p class="text-sm text-ink-muted italic">Amount pending</p>
+                    </div>
+                  {/if}
+                  {#if recipeCount > 0}
+                    <div class="flex items-center gap-1 text-xs text-sage-600">
+                      <ChefHat class="h-3.5 w-3.5" />
+                      <span>{recipeCount} recipe{recipeCount === 1 ? "" : "s"}</span>
+                    </div>
+                  {/if}
+                </div>
+              </Card.Content>
+            </a>
+
+            <!-- Quick Actions -->
+            {#if receipt.status === "DONE"}
+              <Card.Footer class="flex gap-2 border-t border-sand pt-3">
+                <Button
+                  href="/recipes/generate?receipt={receipt.id}"
+                  variant="outline"
+                  size="sm"
+                  class="flex-1"
+                >
+                  <Sparkles class="mr-1.5 h-3.5 w-3.5" />
+                  Generate Recipe
+                </Button>
+                <form
+                  method="POST"
+                  action="?/addToShopping"
+                  use:enhance={() => {
+                    addingToShoppingId = receipt.id;
+                    return async ({ result }) => {
+                      addingToShoppingId = null;
+                    };
+                  }}
+                  class="flex-1"
+                >
+                  <input type="hidden" name="receiptId" value={receipt.id} />
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    size="sm"
+                    class="w-full"
+                    disabled={addingToShoppingId === receipt.id}
+                  >
+                    {#if addingToShoppingId === receipt.id}
+                      <Loader2 class="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    {:else}
+                      <ShoppingCart class="mr-1.5 h-3.5 w-3.5" />
+                    {/if}
+                    Add to List
+                  </Button>
+                </form>
+              </Card.Footer>
+            {/if}
           </Card.Root>
-        </a>
+        </div>
       {/each}
     </div>
   {/if}

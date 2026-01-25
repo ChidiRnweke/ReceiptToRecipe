@@ -1,0 +1,2 @@
+ALTER TABLE "recipes" ADD COLUMN "source_receipt_id" uuid;--> statement-breakpoint
+ALTER TABLE "recipes" ADD CONSTRAINT "recipes_source_receipt_id_receipts_id_fk" FOREIGN KEY ("source_receipt_id") REFERENCES "public"."receipts"("id") ON DELETE set null ON UPDATE no action;

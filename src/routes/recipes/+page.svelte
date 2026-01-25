@@ -14,10 +14,13 @@
     Flame,
     Utensils,
     Heart,
+    ShoppingCart,
+    Loader2,
   } from "lucide-svelte";
 
   let { data } = $props();
   let deletingId = $state<string | null>(null);
+  let addingToShoppingId = $state<string | null>(null);
 
   function formatTime(minutes: number | null) {
     if (!minutes) return null;
@@ -78,19 +81,37 @@
         <h3 class="mt-6 font-serif text-2xl font-medium text-ink">
           Your cookbook awaits
         </h3>
-        <p class="mx-auto mt-2 max-w-md text-ink-light">
-          Tell us what you're craving, and we'll create a custom recipe using
-          ingredients you already have. Complete with images and step-by-step
-          instructions.
-        </p>
-        <div
-          class="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center"
-        >
-          <Button href="/recipes/generate" size="lg">
-            <Sparkles class="mr-2 h-4 w-4" />
-            Generate your first recipe
-          </Button>
-        </div>
+        {#if data.receiptCount > 0}
+          <p class="mx-auto mt-2 max-w-md text-ink-light">
+            You have <strong>{data.receiptCount} receipt{data.receiptCount === 1 ? "" : "s"}</strong> ready to inspire your cooking.
+            Generate a recipe from ingredients you already bought!
+          </p>
+          <div
+            class="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center"
+          >
+            <Button href="/recipes/generate" size="lg">
+              <Sparkles class="mr-2 h-4 w-4" />
+              Generate from receipts
+            </Button>
+          </div>
+        {:else}
+          <p class="mx-auto mt-2 max-w-md text-ink-light">
+            Upload a receipt first, then we'll create custom recipes using
+            ingredients you already have. Complete with images and step-by-step
+            instructions.
+          </p>
+          <div
+            class="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center"
+          >
+            <Button href="/receipts/upload" size="lg">
+              Upload a receipt
+            </Button>
+            <Button href="/recipes/generate" variant="outline" size="lg">
+              <Sparkles class="mr-2 h-4 w-4" />
+              Or add ingredients manually
+            </Button>
+          </div>
+        {/if}
         <p class="mx-auto mt-6 max-w-sm text-sm italic text-ink-muted">
           "{randomQuote}"
         </p>
@@ -165,10 +186,10 @@
                 <Users class="h-4 w-4 text-ink-muted" />
                 {recipe.servings}
               </span>
-              {#if recipe.calories}
+              {#if recipe.estimatedCalories}
                 <span class="flex items-center gap-1">
                   <Flame class="h-4 w-4 text-ink-muted" />
-                  {recipe.calories} cal
+                  {recipe.estimatedCalories} cal
                 </span>
               {/if}
               {#if recipe.cuisineType}
@@ -179,35 +200,63 @@
             </Card.Content>
           </a>
           <Card.Footer
-            class="flex items-center justify-between border-t border-sand pt-3"
+            class="flex items-center justify-between gap-2 border-t border-sand pt-3"
           >
-            <p class="text-xs text-ink-muted">
-              {new Date(recipe.createdAt).toLocaleDateString()}
-            </p>
             <form
               method="POST"
-              action="?/delete"
-              use:enhance={({ cancel }) => {
-                const confirmed = confirm(
-                  "Are you sure you want to delete this recipe?",
-                );
-                if (!confirmed) {
-                  cancel();
-                  return;
-                }
-                deletingId = recipe.id;
+              action="?/addToShopping"
+              use:enhance={() => {
+                addingToShoppingId = recipe.id;
+                return async () => {
+                  addingToShoppingId = null;
+                };
               }}
             >
               <input type="hidden" name="recipeId" value={recipe.id} />
               <Button
+                type="submit"
                 variant="ghost"
                 size="sm"
-                class="h-8 w-8 p-0 opacity-0 transition-opacity group-hover:opacity-100"
-                disabled={deletingId === recipe.id}
+                class="text-xs"
+                disabled={addingToShoppingId === recipe.id}
               >
-                <Trash2 class="h-4 w-4 text-ink-muted hover:text-sienna-600" />
+                {#if addingToShoppingId === recipe.id}
+                  <Loader2 class="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                {:else}
+                  <ShoppingCart class="mr-1.5 h-3.5 w-3.5" />
+                {/if}
+                Add to List
               </Button>
             </form>
+            <div class="flex items-center gap-2">
+              <p class="text-xs text-ink-muted">
+                {new Date(recipe.createdAt).toLocaleDateString()}
+              </p>
+              <form
+                method="POST"
+                action="?/delete"
+                use:enhance={({ cancel }) => {
+                  const confirmed = confirm(
+                    "Are you sure you want to delete this recipe?",
+                  );
+                  if (!confirmed) {
+                    cancel();
+                    return;
+                  }
+                  deletingId = recipe.id;
+                }}
+              >
+                <input type="hidden" name="recipeId" value={recipe.id} />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="h-8 w-8 p-0 opacity-0 transition-opacity group-hover:opacity-100"
+                  disabled={deletingId === recipe.id}
+                >
+                  <Trash2 class="h-4 w-4 text-ink-muted hover:text-sienna-600" />
+                </Button>
+              </form>
+            </div>
           </Card.Footer>
         </Card.Root>
       {/each}

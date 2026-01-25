@@ -62,6 +62,7 @@ export const actions: Actions = {
 		}) ?? 2;
 		const cuisineHintRaw = data.get('cuisineHint')?.toString();
 		const cuisineHint = cuisineHintRaw ? cuisineHintRaw.slice(0, 64) : undefined;
+		const sourceReceiptId = data.get('sourceReceiptId')?.toString() || undefined;
 
 		if (ingredientIds.length === 0 && customIngredients.length === 0) {
 			return fail(400, { error: 'Please select or add at least one ingredient' });
@@ -80,7 +81,8 @@ export const actions: Actions = {
 				ingredientIds: ingredientIds.length > 0 ? ingredientIds : undefined,
 				customIngredients: customIngredients.length > 0 ? customIngredients : undefined,
 				servings,
-				cuisineHint
+				cuisineHint,
+				sourceReceiptId
 			});
 
 			throw redirect(302, `/recipes/${recipe.id}`);

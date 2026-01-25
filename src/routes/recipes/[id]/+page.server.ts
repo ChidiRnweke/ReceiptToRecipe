@@ -3,6 +3,9 @@ import type { Actions, PageServerLoad } from './$types';
 import { RecipeController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
 import { ShoppingListController } from '$lib/controllers/ShoppingListController';
+import { db } from '$lib/db/client';
+import { receipts } from '$lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const recipeController = new RecipeController(
@@ -22,10 +25,25 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const isSaved = viewerId ? await recipeController.isSaved(viewerId, recipe.id) : false;
 	const isOwner = viewerId === recipe.userId;
 
+	// Load source receipt if available
+	let sourceReceipt = null;
+	if (recipe.sourceReceiptId) {
+		sourceReceipt = await db.query.receipts.findFirst({
+			where: eq(receipts.id, recipe.sourceReceiptId),
+			columns: {
+				id: true,
+				storeName: true,
+				purchaseDate: true,
+				createdAt: true
+			}
+		});
+	}
+
 	return {
 		recipe,
 		isSaved,
-		isOwner
+		isOwner,
+		sourceReceipt
 	};
 };
 

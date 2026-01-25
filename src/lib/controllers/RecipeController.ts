@@ -11,6 +11,7 @@ export interface GenerateRecipeInput {
 	servings?: number;
 	cuisineHint?: string;
 	useRag?: boolean; // Whether to use cookbook RAG
+	sourceReceiptId?: string; // The primary receipt this recipe was generated from
 }
 
 export interface RecipeWithIngredients extends Recipe {
@@ -29,7 +30,7 @@ export class RecipeController {
 	 * Generate a recipe from available ingredients
 	 */
 	async generateRecipe(input: GenerateRecipeInput): Promise<Recipe> {
-		const { userId, ingredientIds, customIngredients, servings, cuisineHint, useRag } = input;
+		const { userId, ingredientIds, customIngredients, servings, cuisineHint, useRag, sourceReceiptId } = input;
 
 		// Get user preferences
 		const preferences = await db.query.userPreferences.findFirst({
@@ -70,7 +71,7 @@ export class RecipeController {
 		});
 
 		// Save recipe to database
-		const recipe = await this.persistRecipe(userId, generatedRecipe, useRag ? 'RAG' : 'GENERATED');
+		const recipe = await this.persistRecipe(userId, generatedRecipe, useRag ? 'RAG' : 'GENERATED', sourceReceiptId);
 
 
 		const task = () =>
@@ -96,12 +97,14 @@ export class RecipeController {
 	private async persistRecipe(
 		userId: string,
 		generated: GeneratedRecipe,
-		source: 'GENERATED' | 'RAG' | 'USER'
+		source: 'GENERATED' | 'RAG' | 'USER',
+		sourceReceiptId?: string
 	): Promise<Recipe> {
 		const [recipe] = await db
 			.insert(recipes)
 			.values({
 				userId,
+				sourceReceiptId: sourceReceiptId || null,
 				title: generated.title,
 				description: generated.description,
 				instructions: generated.instructions,

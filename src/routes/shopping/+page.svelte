@@ -15,7 +15,13 @@
     ChevronDown,
     ChevronUp,
     Check,
+    ChefHat,
   } from "lucide-svelte";
+
+  function getRecipeInfo(recipeId: string | null) {
+    if (!recipeId || !data.recipeMap) return null;
+    return data.recipeMap[recipeId] || null;
+  }
 
   let { data, form } = $props();
   let loading = $state(false);
@@ -172,10 +178,31 @@
             <h3 class="mt-6 font-serif text-xl font-medium text-ink">
               Your cart is empty
             </h3>
-            <p class="mx-auto mt-2 max-w-sm text-sm text-ink-light">
-              Create a shopping list above, or let us build one for you based on
-              your recipes and purchase history.
-            </p>
+            {#if data.recipeCount > 0}
+              <p class="mx-auto mt-2 max-w-sm text-sm text-ink-light">
+                You have <strong>{data.recipeCount} recipe{data.recipeCount === 1 ? "" : "s"}</strong> ready.
+                Add recipe ingredients to your shopping list with one click!
+              </p>
+              <div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+                <Button href="/recipes" variant="outline">
+                  <ChefHat class="mr-2 h-4 w-4" />
+                  Browse Recipes
+                </Button>
+              </div>
+            {:else}
+              <p class="mx-auto mt-2 max-w-sm text-sm text-ink-light">
+                Create a shopping list above, upload a receipt, or generate a recipe to get started.
+              </p>
+              <div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+                <Button href="/receipts/upload" variant="outline">
+                  Upload Receipt
+                </Button>
+                <Button href="/recipes/generate" variant="outline">
+                  <Sparkles class="mr-2 h-4 w-4" />
+                  Generate Recipe
+                </Button>
+              </div>
+            {/if}
           </Card.Content>
         </Card.Root>
       {:else}
@@ -300,6 +327,7 @@
                 {#if list.items && list.items.length > 0}
                   <ul class="space-y-2">
                     {#each list.items as item}
+                      {@const recipe = getRecipeInfo(item.fromRecipeId)}
                       <li
                         class="flex items-center gap-3 rounded-lg border border-sand p-3"
                       >
@@ -322,17 +350,28 @@
                             <Checkbox checked={!!item.checked} />
                           </button>
                         </form>
-                        <span
-                          class="flex-1 {item.checked
-                            ? 'text-ink-muted line-through'
-                            : 'text-ink'}"
-                        >
-                          <span class="font-medium">
-                            {item.quantity}
-                            {item.unit}
+                        <div class="flex-1 min-w-0">
+                          <span
+                            class="{item.checked
+                              ? 'text-ink-muted line-through'
+                              : 'text-ink'}"
+                          >
+                            <span class="font-medium">
+                              {item.quantity}
+                              {item.unit}
+                            </span>
+                            {item.name}
                           </span>
-                          {item.name}
-                        </span>
+                          {#if recipe}
+                            <a
+                              href="/recipes/{recipe.id}"
+                              class="mt-1 flex items-center gap-1 text-xs text-sage-600 hover:text-sage-700 hover:underline"
+                            >
+                              <ChefHat class="h-3 w-3" />
+                              <span class="truncate">For: {recipe.title}</span>
+                            </a>
+                          {/if}
+                        </div>
                         <form
                           method="POST"
                           action="?/deleteItem"

@@ -1,6 +1,6 @@
-import { redirect, error } from '@sveltejs/kit';
+import { redirect, error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { RecipeController } from '$lib/controllers';
+import { RecipeController, ShoppingListController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -17,8 +17,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const recipes = await recipeController.getUserRecipes(locals.user.id);
 
+	// Get receipt count for empty state guidance
+	const { db } = await import('$lib/db/client');
+	const { receipts } = await import('$lib/db/schema');
+	const { eq, sql } = await import('drizzle-orm');
+
+	const [receiptCountResult] = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(receipts)
+		.where(eq(receipts.userId, locals.user.id));
+
 	return {
-		recipes
+		recipes,
+		receiptCount: receiptCountResult?.count || 0
 	};
 };
 
@@ -49,5 +60,27 @@ export const actions: Actions = {
 		}
 
 		return { success: true };
+	},
+
+	addToShopping: async ({ locals, request }) => {
+		if (!locals.user) {
+			throw redirect(302, '/login');
+		}
+
+		const formData = await request.formData();
+		const recipeId = formData.get('recipeId')?.toString();
+
+		if (!recipeId) {
+			return fail(400, { error: 'Recipe ID is required' });
+		}
+
+		try {
+			const listController = new ShoppingListController();
+			const list = await listController.getActiveList(locals.user.id);
+			await listController.addRecipeIngredients(list.id, recipeId);
+			return { success: true, listId: list.id };
+		} catch (err) {
+			return fail(500, { error: err instanceof Error ? err.message : 'Failed to add to shopping list' });
+		}
 	}
 };

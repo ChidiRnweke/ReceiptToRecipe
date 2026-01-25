@@ -22,9 +22,12 @@
     Store,
     Package,
     AlertCircle,
+    ArrowRight,
   } from "lucide-svelte";
 
   let { data } = $props();
+
+  const generatedRecipes = $derived(data.generatedRecipes ?? []);
 
   let pollingInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -382,6 +385,76 @@
             </form>
           {/if}
         </div>
+
+        <!-- Recipes from this receipt -->
+        <Card.Root class="mt-6">
+          <Card.Header>
+            <div class="flex items-center justify-between">
+              <div>
+                <Card.Title class="flex items-center gap-2">
+                  <Sparkles class="h-5 w-5 text-sage-500" />
+                  Recipes from this Receipt
+                </Card.Title>
+                <Card.Description>
+                  {generatedRecipes.length === 0
+                    ? "No recipes generated yet"
+                    : `${generatedRecipes.length} recipe${generatedRecipes.length === 1 ? "" : "s"} created`}
+                </Card.Description>
+              </div>
+            </div>
+          </Card.Header>
+          <Card.Content>
+            {#if generatedRecipes.length > 0}
+              <div class="space-y-3">
+                {#each generatedRecipes as recipe}
+                  <a
+                    href="/recipes/{recipe.id}"
+                    class="group flex items-center gap-4 rounded-lg border border-sand p-3 transition-all hover:border-sage-300 hover:bg-sage-50/50"
+                  >
+                    {#if recipe.imageUrl}
+                      <img
+                        src={recipe.imageUrl}
+                        alt={recipe.title}
+                        class="h-16 w-16 rounded-lg object-cover"
+                      />
+                    {:else}
+                      <div class="flex h-16 w-16 items-center justify-center rounded-lg bg-sage-100">
+                        <ChefHat class="h-6 w-6 text-sage-400" />
+                      </div>
+                    {/if}
+                    <div class="flex-1 min-w-0">
+                      <h4 class="font-serif text-lg font-medium text-ink truncate group-hover:text-sage-700">
+                        {recipe.title}
+                      </h4>
+                      <div class="flex items-center gap-3 text-xs text-ink-muted mt-1">
+                        <span>{recipe.servings} servings</span>
+                        {#if recipe.cuisineType}
+                          <Badge variant="outline" class="text-xs">{recipe.cuisineType}</Badge>
+                        {/if}
+                      </div>
+                    </div>
+                    <ArrowRight class="h-4 w-4 text-ink-muted opacity-0 transition-opacity group-hover:opacity-100" />
+                  </a>
+                {/each}
+              </div>
+            {:else}
+              <div class="py-6 text-center">
+                <ChefHat class="mx-auto h-10 w-10 text-ink-muted" />
+                <p class="mt-3 font-serif text-lg text-ink">Ready to cook?</p>
+                <p class="mt-1 text-sm text-ink-light">
+                  Generate a recipe using ingredients from this receipt
+                </p>
+                <Button
+                  href="/recipes/generate?receipt={data.receipt.id}"
+                  class="mt-4"
+                >
+                  <Sparkles class="mr-2 h-4 w-4" />
+                  Generate Recipe
+                </Button>
+              </div>
+            {/if}
+          </Card.Content>
+        </Card.Root>
       </div>
 
       <!-- Receipt Image -->

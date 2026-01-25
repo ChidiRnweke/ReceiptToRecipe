@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { enhance } from "$app/forms";
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card";
   import {
@@ -11,12 +12,17 @@
     Lightbulb,
     Clock,
     History,
+    Receipt,
+    CheckCircle,
+    Loader2,
+    XCircle,
+    Store,
   } from "lucide-svelte";
   import PushPin from "$lib/components/PushPin.svelte";
   import WashiTape from "$lib/components/WashiTape.svelte";
 
-  let { data } = $props();
-  type Ingredient = { name: string; note?: string };
+  let { data, form } = $props();
+  type Ingredient = { name: string; quantity?: string; unit?: string; note?: string };
 
   // Time-based greeting
   const hour = new Date().getHours();
@@ -44,23 +50,26 @@
 
   const featuredRecipe = $derived(data.recentRecipes?.[0]);
   const recipeFeed = $derived(data.recentRecipes ?? []);
+  const recentReceipts = $derived(data.recentReceipts ?? []);
 
-  // Ingredients Logic
+  // Ingredients Logic - use actual recipe ingredients when available
   const ingredientList = $derived.by<Ingredient[]>(() => {
     if (
       featuredRecipe &&
       "ingredients" in featuredRecipe &&
-      Array.isArray(featuredRecipe.ingredients)
+      Array.isArray(featuredRecipe.ingredients) &&
+      featuredRecipe.ingredients.length > 0
     ) {
-      return featuredRecipe.ingredients as Ingredient[];
+      return featuredRecipe.ingredients.map((ing: any) => ({
+        name: ing.name,
+        quantity: ing.quantity,
+        unit: ing.unit,
+        note: ing.notes || (ing.optional ? "optional" : undefined)
+      }));
     }
+    // Only show placeholder when there are no recipes
     return [
-      { name: "2 cups baby spinach" },
-      { name: "1 lb roasted chicken thighs" },
-      { name: "1/2 cup torn basil leaves" },
-      { name: "1 lemon, zested & juiced" },
-      { name: "1 tbsp smoked olive oil", note: "for finishing" },
-      { name: "Cracked pepper & flaky salt" },
+      { name: "Upload a receipt to get started", note: "Your ingredients will appear here" }
     ];
   });
 
@@ -68,46 +77,42 @@
   let flashIngredient = $state<string | null>(null);
   let cartOpen = $state(false);
   let showAllIngredients = $state(false);
+  let addingIngredient = $state<string | null>(null);
 
   const shoppingPreview = $derived(data.suggestions ?? []);
-  const cartItems = $derived.by(() => {
-    const names = new Set<string>();
-    const collected: string[] = [];
-    for (const suggestion of shoppingPreview) {
-      if (suggestion?.itemName && !names.has(suggestion.itemName)) {
-        names.add(suggestion.itemName);
-        collected.push(suggestion.itemName);
-      }
-    }
-    for (const name of addedIngredients) {
-      if (!names.has(name)) {
-        names.add(name);
-        collected.push(name);
-      }
-    }
-    return collected;
-  });
-  const cartCount = $derived(cartItems.length);
+  const cartCount = $derived(data.activeList?.stats?.totalItems ?? shoppingPreview.length);
   const visibleIngredients = $derived.by(() =>
     showAllIngredients ? ingredientList : ingredientList.slice(0, 6),
   );
 
-  function toggleIngredient(name: string) {
-    const next = new Set(addedIngredients);
-    const adding = !next.has(name);
-    if (adding) {
-      next.add(name);
-      cartOpen = true;
-      flashIngredient = name;
-      setTimeout(() => {
-        if (flashIngredient === name) {
-          flashIngredient = null;
-        }
-      }, 450);
-    } else {
-      next.delete(name);
+  function formatIngredientDisplay(ing: Ingredient): string {
+    if (ing.quantity && ing.unit) {
+      return `${ing.quantity} ${ing.unit} ${ing.name}`;
     }
-    addedIngredients = next;
+    if (ing.quantity) {
+      return `${ing.quantity} ${ing.name}`;
+    }
+    return ing.name;
+  }
+
+  function getStatusIcon(status: string) {
+    switch (status) {
+      case "DONE": return CheckCircle;
+      case "PROCESSING": return Loader2;
+      case "QUEUED": return Clock;
+      case "FAILED": return XCircle;
+      default: return Clock;
+    }
+  }
+
+  function getStatusLabel(status: string) {
+    switch (status) {
+      case "DONE": return "Ready";
+      case "PROCESSING": return "Processing";
+      case "QUEUED": return "Queued";
+      case "FAILED": return "Failed";
+      default: return status;
+    }
   }
 </script>
 
@@ -204,39 +209,47 @@
               </div>
 
               <div class="p-2">
-                <button
+                <a
+                  href="/shopping"
                   class="flex w-full items-center justify-between rounded-lg p-3 text-left hover:bg-stone-50 transition-colors"
-                  onclick={() => (cartOpen = !cartOpen)}
                 >
                   <div>
                     <p
                       class="text-[10px] uppercase tracking-wider text-ink-muted"
                     >
-                      To Buy
+                      Shopping List
                     </p>
                     <p class="font-display text-xl text-ink">
                       {cartCount} items
                     </p>
+                    {#if data.activeList?.stats}
+                      <div class="flex items-center gap-2 mt-1">
+                        <div class="h-1.5 w-16 rounded-full bg-stone-200">
+                          <div
+                            class="h-1.5 rounded-full bg-sage-500 transition-all"
+                            style="width: {data.activeList.stats.completionPercent}%"
+                          ></div>
+                        </div>
+                        <span class="text-[10px] text-ink-muted">
+                          {data.activeList.stats.completionPercent}%
+                        </span>
+                      </div>
+                    {/if}
                   </div>
                   <ShoppingCart class="h-5 w-5 text-sage-600" />
-                </button>
+                </a>
 
-                {#if cartOpen}
+                {#if shoppingPreview.length > 0}
                   <div
-                    class="mt-2 max-h-40 overflow-y-auto px-3 pb-3 space-y-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"
+                    class="mt-2 max-h-32 overflow-y-auto px-3 pb-3 space-y-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"
                   >
-                    {#if cartItems.length === 0}
-                      <p class="text-xs text-ink-muted italic">
-                        Cart is empty.
-                      </p>
-                    {:else}
-                      {#each cartItems as item}
-                        <div class="flex items-center gap-2 text-xs text-ink">
-                          <Check class="h-3 w-3 text-sage-500" />
-                          <span class="truncate">{item}</span>
-                        </div>
-                      {/each}
-                    {/if}
+                    <p class="text-[10px] uppercase tracking-wider text-ink-muted mb-1">Suggested</p>
+                    {#each shoppingPreview.slice(0, 4) as suggestion}
+                      <div class="flex items-center gap-2 text-xs text-ink">
+                        <Sparkles class="h-3 w-3 text-sage-400" />
+                        <span class="truncate">{suggestion.itemName}</span>
+                      </div>
+                    {/each}
                   </div>
                 {/if}
               </div>
@@ -252,24 +265,59 @@
           >
             <History class="h-3 w-3" /> Recent Pulls
           </div>
-          <ul class="space-y-2 font-hand text-sm text-ink/70">
-            <li
-              class="cursor-pointer hover:text-ink hover:underline decoration-wavy decoration-sage-300"
-            >
-              Lentil Stir-fry
-            </li>
-            <li
-              class="cursor-pointer hover:text-ink hover:underline decoration-wavy decoration-sage-300"
-            >
-              Sourdough Starter
-            </li>
-            <li
-              class="cursor-pointer hover:text-ink hover:underline decoration-wavy decoration-sage-300"
-            >
-              Sunday Roast
-            </li>
-          </ul>
+          {#if recipeFeed.length > 0}
+            <ul class="space-y-2 font-hand text-sm text-ink/70">
+              {#each recipeFeed.slice(0, 3) as recipe}
+                <li>
+                  <a
+                    href="/recipes/{recipe.id}"
+                    class="block cursor-pointer hover:text-ink hover:underline decoration-wavy decoration-sage-300 truncate"
+                  >
+                    {recipe.title}
+                  </a>
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <p class="text-sm text-ink-muted italic">No recipes yet</p>
+          {/if}
         </div>
+
+        <!-- Recent Receipts -->
+        {#if recentReceipts.length > 0}
+          <div
+            class="rounded-xl border border-sand/60 bg-[#fffdf5] p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] rotate-1"
+          >
+            <div
+              class="flex items-center gap-2 text-xs text-ink-muted uppercase tracking-wider mb-2 border-b border-sand/40 pb-2"
+            >
+              <Receipt class="h-3 w-3" /> Recent Receipts
+            </div>
+            <ul class="space-y-2">
+              {#each recentReceipts as receipt}
+                {@const StatusIcon = getStatusIcon(receipt.status)}
+                <li>
+                  <a
+                    href="/receipts/{receipt.id}"
+                    class="flex items-center gap-2 text-sm text-ink/70 hover:text-ink transition-colors"
+                  >
+                    <Store class="h-3 w-3 text-ink-muted shrink-0" />
+                    <span class="truncate flex-1">{receipt.storeName || "Receipt"}</span>
+                    {#if receipt.status === "PROCESSING"}
+                      <StatusIcon class="h-3 w-3 text-sage-500 animate-spin shrink-0" />
+                    {:else if receipt.status === "DONE"}
+                      <StatusIcon class="h-3 w-3 text-sage-500 shrink-0" />
+                    {:else if receipt.status === "FAILED"}
+                      <StatusIcon class="h-3 w-3 text-sienna-500 shrink-0" />
+                    {:else}
+                      <StatusIcon class="h-3 w-3 text-ink-muted shrink-0" />
+                    {/if}
+                  </a>
+                </li>
+              {/each}
+            </ul>
+          </div>
+        {/if}
       </div>
     </aside>
 
@@ -430,15 +478,30 @@
                 >
                   {#each visibleIngredients as ingredient}
                     {@const isAdded = addedIngredients.has(ingredient.name)}
-                    <button
+                    {@const ingredientDisplay = formatIngredientDisplay(ingredient)}
+                    {@const isAdding = addingIngredient === ingredient.name}
+                    <form
+                      method="POST"
+                      action="?/addToList"
+                      use:enhance={() => {
+                        addingIngredient = ingredient.name;
+                        return async ({ result }) => {
+                          addingIngredient = null;
+                          if (result.type === "success") {
+                            addedIngredients = new Set([...addedIngredients, ingredient.name]);
+                          }
+                        };
+                      }}
                       class={`group relative flex w-full items-start gap-4 px-4 py-3 text-left transition-colors duration-200 ${isAdded ? "bg-emerald-50/30" : "hover:bg-blue-50/30"}`}
-                      onclick={() => toggleIngredient(ingredient.name)}
                     >
+                      <input type="hidden" name="ingredientName" value={ingredientDisplay} />
                       <div
                         class="absolute bottom-0 left-0 right-0 border-b border-blue-200/30"
                       ></div>
-                      <div
-                        class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-stone-300 bg-white transition-colors group-hover:border-stone-400"
+                      <button
+                        type="submit"
+                        disabled={isAdded || isAdding || !featuredRecipe}
+                        class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-stone-300 bg-white transition-colors group-hover:border-stone-400 disabled:cursor-not-allowed"
                       >
                         {#if isAdded}
                           <div
@@ -446,13 +509,15 @@
                           >
                             <Check class="h-3 w-3" />
                           </div>
+                        {:else if isAdding}
+                          <Loader2 class="h-3 w-3 animate-spin text-sage-500" />
                         {/if}
-                      </div>
+                      </button>
                       <div class="flex-1 pl-2 font-mono text-sm leading-snug">
                         <p
                           class={`transition-all ${isAdded ? "text-stone-400 line-through decoration-stone-300" : "text-stone-700"}`}
                         >
-                          {ingredient.name}
+                          {ingredientDisplay}
                         </p>
                         {#if ingredient.note}
                           <p class="mt-0.5 text-[10px] italic text-stone-400">
@@ -460,7 +525,7 @@
                           </p>
                         {/if}
                       </div>
-                    </button>
+                    </form>
                   {/each}
 
                   {#if visibleIngredients.length < 6}

@@ -1,8 +1,9 @@
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/db/client';
-import { receipts, recipes, savedRecipes, shoppingLists } from '$lib/db/schema';
+import { receipts, recipes, savedRecipes, shoppingLists, recipeIngredients } from '$lib/db/schema';
 import { desc, eq, sql, and } from 'drizzle-orm';
 import { ShoppingListController } from '$lib/controllers';
+import { fail, redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -24,14 +25,30 @@ export const load: PageServerLoad = async ({ locals }) => {
 		limit: 3
 	});
 
+	// Load recent recipes with ingredients for the featured recipe
 	const recentRecipes = await db.query.recipes.findMany({
 		where: eq(recipes.userId, userId),
 		orderBy: [desc(recipes.createdAt)],
-		limit: 3
+		limit: 6,
+		with: {
+			ingredients: {
+				orderBy: [recipeIngredients.orderIndex],
+				limit: 8
+			}
+		}
 	});
 
 	const listController = new ShoppingListController();
 	const suggestions = await listController.getSmartSuggestions(userId, 5);
+
+	// Calculate shopping list stats
+	const activeListStats = activeList?.items ? {
+		totalItems: activeList.items.length,
+		checkedItems: activeList.items.filter(i => i.checked).length,
+		completionPercent: activeList.items.length > 0
+			? Math.round((activeList.items.filter(i => i.checked).length / activeList.items.length) * 100)
+			: 0
+	} : null;
 
 	return {
 		user: locals.user,
@@ -43,6 +60,39 @@ export const load: PageServerLoad = async ({ locals }) => {
 		},
 		recentReceipts,
 		recentRecipes,
-		suggestions
+		suggestions,
+		activeList: activeList ? {
+			id: activeList.id,
+			name: activeList.name,
+			stats: activeListStats
+		} : null
 	};
+};
+
+export const actions: Actions = {
+	addToList: async ({ locals, request }) => {
+		if (!locals.user) {
+			throw redirect(302, '/login');
+		}
+
+		const data = await request.formData();
+		const ingredientName = data.get('ingredientName')?.toString();
+
+		if (!ingredientName) {
+			return fail(400, { error: 'Ingredient name is required' });
+		}
+
+		try {
+			const listController = new ShoppingListController();
+			const list = await listController.getActiveList(locals.user.id);
+			await listController.addItem(list.id, {
+				name: ingredientName,
+				quantity: '1',
+				unit: ''
+			});
+			return { success: true, added: ingredientName };
+		} catch (error) {
+			return fail(500, { error: error instanceof Error ? error.message : 'Failed to add item' });
+		}
+	}
 };

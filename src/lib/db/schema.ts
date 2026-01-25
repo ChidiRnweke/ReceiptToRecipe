@@ -107,6 +107,9 @@ export const recipes = pgTable("recipes", {
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+  sourceReceiptId: uuid("source_receipt_id").references(() => receipts.id, {
+    onDelete: "set null",
+  }),
   title: text("title").notNull(),
   description: text("description"),
   instructions: text("instructions").notNull(),
@@ -242,6 +245,7 @@ export const receiptsRelations = relations(receipts, ({ one, many }) => ({
     references: [users.id],
   }),
   items: many(receiptItems),
+  generatedRecipes: many(recipes),
 }));
 
 export const receiptItemsRelations = relations(receiptItems, ({ one }) => ({
@@ -255,6 +259,10 @@ export const recipesRelations = relations(recipes, ({ one, many }) => ({
   user: one(users, {
     fields: [recipes.userId],
     references: [users.id],
+  }),
+  sourceReceipt: one(receipts, {
+    fields: [recipes.sourceReceiptId],
+    references: [receipts.id],
   }),
   ingredients: many(recipeIngredients),
   savedBy: many(savedRecipes),
