@@ -13,7 +13,7 @@
     teal: "bg-[#f0fdfa]/90 border-teal-100/50",
   };
 
-  const selectedColor = colors[color as keyof typeof colors] || colors.white;
+  const selectedColor = $derived(colors[color as keyof typeof colors] || colors.white);
 </script>
 
 <div

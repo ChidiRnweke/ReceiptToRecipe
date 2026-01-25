@@ -30,7 +30,9 @@ import { Input } from '$lib/components/ui/input';
 
 	let { data } = $props();
 
-	let servings = $state(data.recipe.servings);
+	// Initialize servings from recipe data - this intentionally captures the initial value
+	// as the user can modify it independently via the +/- buttons
+	let servings = $state(data.recipe?.servings ?? 1);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
 	let shareMessage = $state('');
 	let saving = $state(false);

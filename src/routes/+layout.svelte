@@ -97,9 +97,13 @@
 
 		<!-- Mobile Navigation -->
 		{#if mobileMenuOpen && data.user}
-			<div class="border-t border-sand bg-paper px-4 py-3 md:hidden" onclick={() => (mobileMenuOpen = false)}>
+			<button
+				type="button"
+				class="block w-full border-t border-sand bg-paper px-4 py-3 text-left md:hidden"
+				onclick={() => (mobileMenuOpen = false)}
+			>
 				<WorkflowNav counts={data.workflowCounts} />
-			</div>
+			</button>
 		{/if}
 	</header>
 

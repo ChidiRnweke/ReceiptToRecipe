@@ -89,7 +89,7 @@
   });
   const cartCount = $derived(cartItems.length);
   const visibleIngredients = $derived.by(() =>
-    showAllIngredients ? ingredientList : ingredientList.slice(0, 6)
+    showAllIngredients ? ingredientList : ingredientList.slice(0, 6),
   );
 
   function toggleIngredient(name: string) {
@@ -135,7 +135,7 @@
           </div>
 
           <div
-            class="relative mx-auto mt-4 max-w-[260px] rotate-1 transition hover:rotate-0"
+            class="relative mx-auto mt-4 max-w-65 rotate-1 transition hover:rotate-0"
           >
             <div
               class="absolute left-1/2 -top-3 -translate-x-1/2 z-20 filter drop-shadow-sm"
@@ -143,7 +143,7 @@
               <PushPin color="red" />
             </div>
             <div
-              class="rounded-xl border border-amber-200/60 bg-gradient-to-br from-amber-50 to-[#FFF4D6] p-4 shadow-sm"
+              class="rounded-xl border border-amber-200/60 bg-linear-to-br from-amber-50 to-[#FFF4D6] p-4 shadow-sm"
             >
               <div class="flex items-start gap-3">
                 <div class="mt-0.5 text-amber-600">
@@ -170,7 +170,7 @@
                     <h3 class="font-display text-lg text-ink">Scan & Sort</h3>
 
                     <div
-                      class="flex flex-col gap-[1px] opacity-40 select-none mix-blend-multiply mt-1"
+                      class="flex flex-col gap-px opacity-40 select-none mix-blend-multiply mt-1"
                       aria-hidden="true"
                     >
                       <div
@@ -245,7 +245,7 @@
         </div>
 
         <div
-          class="mb-4 rounded-xl border border-sand/60 bg-[#fffdf5] p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] rotate-[-1deg]"
+          class="mb-4 rounded-xl border border-sand/60 bg-[#fffdf5] p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] -rotate-1"
         >
           <div
             class="flex items-center gap-2 text-xs text-ink-muted uppercase tracking-wider mb-2 border-b border-sand/40 pb-2"
@@ -290,7 +290,7 @@
           </div>
           <Button
             href="/recipes/generate"
-            class="group relative overflow-hidden rounded-full border border-amber-300/40 bg-gradient-to-br from-amber-50 to-amber-100/50 px-6 py-2.5 transition-all hover:border-amber-400/50 active:scale-[0.98]"
+            class="group relative overflow-hidden rounded-full border border-amber-300/40 bg-linear-to-br from-amber-50 to-amber-100/50 px-6 py-2.5 transition-all hover:border-amber-400/50 active:scale-[0.98]"
           >
             <Sparkles
               class="mr-2 h-4 w-4 text-amber-600/80 transition-transform group-hover:rotate-12"
@@ -310,7 +310,7 @@
               class="group relative flex h-full flex-row overflow-hidden rounded-r-2xl rounded-l-md border border-stone-200 bg-[#fffefb] shadow-[2px_3px_10px_rgba(0,0,0,0.03)] transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
               <div
-                class="pointer-events-none absolute bottom-0 left-0 top-0 z-10 w-12 bg-gradient-to-r from-stone-200/40 to-transparent"
+                class="pointer-events-none absolute bottom-0 left-0 top-0 z-10 w-12 bg-linear-to-r from-stone-200/40 to-transparent"
               ></div>
 
               <div
@@ -327,14 +327,14 @@
 
               <div class="relative w-5/12 p-5 pr-2">
                 <div
-                  class="relative h-full w-full rotate-[-1deg] transform transition-transform duration-500 group-hover:rotate-0"
+                  class="relative h-full w-full -rotate-1 transform transition-transform duration-500 group-hover:rotate-0"
                 >
                   <div
-                    class="absolute -top-2 left-1/2 z-20 h-6 w-16 -translate-x-1/2 rotate-[-2deg] bg-amber-100/40 backdrop-blur-[1px]"
+                    class="absolute -top-2 left-1/2 z-20 h-6 w-16 -translate-x-1/2 -rotate-2 bg-amber-100/40 backdrop-blur-[1px]"
                     style="mask-image: url('data:image/svg+xml;utf8,<svg width=\'100%\' height=\'100%\' xmlns=\'http://www.w3.org/2000/svg\'><rect x=\'0\' y=\'0\' width=\'100%\' height=\'100%\' fill=\'black\'/></svg>'); box-shadow: 0 1px 2px rgba(0,0,0,0.1);"
                   ></div>
                   <div
-                    class="absolute -top-2 left-1/2 z-20 h-6 w-16 -translate-x-1/2 rotate-[-2deg] opacity-20 mix-blend-multiply shadow-sm bg-stone-300"
+                    class="absolute -top-2 left-1/2 z-20 h-6 w-16 -translate-x-1/2 -rotate-2 opacity-20 mix-blend-multiply shadow-sm bg-stone-300"
                   ></div>
 
                   <div
@@ -354,7 +354,7 @@
                       </div>
                     {/if}
                     <div
-                      class="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-50"
+                      class="pointer-events-none absolute inset-0 bg-linear-to-tr from-white/20 to-transparent opacity-50"
                     ></div>
                   </div>
                 </div>
@@ -403,7 +403,7 @@
 
           <div class="lg:col-span-5">
             <Card.Root
-              class="relative mx-auto flex h-full w-full flex-col overflow-hidden rounded-[4px] border border-stone-200 bg-[#fffdf5] shadow-[2px_3px_5px_rgba(0,0,0,0.05)]"
+              class="relative mx-auto flex h-full w-full flex-col overflow-hidden rounded-lg border border-stone-200 bg-[#fffdf5] shadow-[2px_3px_5px_rgba(0,0,0,0.05)]"
               style="border-radius: 4px 16px 16px 4px;"
             >
               <div
@@ -422,11 +422,11 @@
 
               <Card.Content class="relative flex-1 p-0">
                 <div
-                  class="absolute bottom-0 left-8 top-0 z-0 h-full w-[1px] border-r border-red-200/60"
+                  class="absolute bottom-0 left-8 top-0 z-0 h-full w-px border-r border-red-200/60"
                 ></div>
 
                 <div
-                  class={`relative z-10 h-full max-h-[320px] overflow-y-auto space-y-0 pt-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']`}
+                  class={`relative z-10 h-full max-h-80 overflow-y-auto space-y-0 pt-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']`}
                 >
                   {#each visibleIngredients as ingredient}
                     {@const isAdded = addedIngredients.has(ingredient.name)}
@@ -476,7 +476,7 @@
                 </div>
 
                 <div
-                  class="pointer-events-none absolute bottom-0 inset-x-0 z-20 h-16 bg-gradient-to-t from-[#fffdf5] to-transparent"
+                  class="pointer-events-none absolute bottom-0 inset-x-0 z-20 h-16 bg-linear-to-t from-[#fffdf5] to-transparent"
                 ></div>
 
                 {#if ingredientList.length > 6}
@@ -545,7 +545,7 @@
                       {/if}
 
                       <div
-                        class="absolute inset-0 bg-gradient-to-tr from-black/20 to-transparent opacity-60 group-hover:opacity-40 transition-opacity"
+                        class="absolute inset-0 bg-linear-to-tr from-black/20 to-transparent opacity-60 group-hover:opacity-40 transition-opacity"
                       ></div>
 
                       <div
