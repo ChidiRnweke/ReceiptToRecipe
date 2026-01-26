@@ -2,9 +2,12 @@
   import { enhance } from "$app/forms";
   import { goto } from "$app/navigation";
   import { Button } from "$lib/components/ui/button";
-  import * as Card from "$lib/components/ui/card";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
+  import Notepad from "$lib/components/Notepad.svelte";
+  import PinnedNote from "$lib/components/PinnedNote.svelte";
+  import StockBadge from "$lib/components/StockBadge.svelte";
+  import WashiTape from "$lib/components/WashiTape.svelte";
   import {
     ChefHat,
     Plus,
@@ -12,18 +15,16 @@
     Sparkles,
     ArrowLeft,
     Receipt,
-    UtensilsCrossed,
     Users,
     Globe,
+    Utensils,
   } from "lucide-svelte";
-  import StockBadge from "$lib/components/StockBadge.svelte";
 
   let { data, form } = $props();
   let loading = $state(false);
   let customIngredients = $state<string[]>([]);
   let newIngredient = $state("");
   let selectedIngredientIds = $state<Set<string>>(new Set());
-  let selectedCustomIngredients = $state<Set<string>>(new Set()); // If we treat custom inputs as selection
 
   // Initialize servings from preferences
   let servings = $derived(data.preferences?.defaultServings ?? 2);
@@ -33,10 +34,10 @@
   const pantryByCategory = $derived.by(() => {
     const groups: Record<string, any[]> = {};
     for (const item of data.pantry || []) {
-      const category = item.category || 'Pantry Staples';
-      // Capitalize first letter
-      const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
-      
+      const category = item.category || "Pantry Staples";
+      const displayCategory =
+        category.charAt(0).toUpperCase() + category.slice(1);
+
       if (!groups[displayCategory]) {
         groups[displayCategory] = [];
       }
@@ -48,16 +49,14 @@
   // Pre-select high confidence items
   $effect(() => {
     if (data.pantry) {
-        const highConfidence = data.pantry.filter((i: any) => i.stockConfidence > 0.6);
-        const newSet = new Set<string>();
-        highConfidence.forEach((i: any) => {
-            if (i.id) newSet.add(i.id);
-            else {
-                // If no ID, we might need to add to custom ingredients? 
-                // Or handle separately. For now assume ID exists or ignore.
-            }
-        });
-        selectedIngredientIds = newSet;
+      const highConfidence = data.pantry.filter(
+        (i: any) => i.stockConfidence > 0.6,
+      );
+      const newSet = new Set<string>();
+      highConfidence.forEach((i: any) => {
+        if (i.id) newSet.add(i.id);
+      });
+      selectedIngredientIds = newSet;
     }
   });
 
@@ -86,288 +85,302 @@
   <title>Generate Recipe - Receipt2Recipe</title>
 </svelte:head>
 
-<div class="mx-auto max-w-3xl space-y-6">
-  <div>
-    <Button href="/recipes" variant="ghost" size="sm" class="-ml-2 mb-2">
-      <ArrowLeft class="mr-1 h-4 w-4" />
-      Back to recipes
-    </Button>
-    <div class="relative">
-      <div
-        class="absolute -left-4 -top-2 h-20 w-20 rounded-full bg-sage-100/50 blur-2xl"
-      ></div>
-      <div class="flex items-center gap-3">
-        <div
-          class="flex h-14 w-14 items-center justify-center rounded-2xl bg-sage-100"
-        >
-          <Sparkles class="h-7 w-7 text-sage-600" />
-        </div>
-        <div>
-          <h1 class="font-serif text-3xl font-medium text-ink">
-            Generate Recipe
-          </h1>
-          <p class="text-ink-light">
-            Tell us what you have, we'll tell you what to make
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
+<div
+  class="min-h-screen bg-[#FDFBF7] pb-20 font-serif text-ink selection:bg-sage-200"
+>
+  <!-- Texture Overlay -->
+  <div
+    class="pointer-events-none absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-size-[20px_20px] opacity-30"
+  ></div>
+  <div
+    class="pointer-events-none absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] opacity-20 mix-blend-multiply"
+  ></div>
 
-  <!-- Selection Summary -->
-  {#if selectedIngredientIds.size > 0 || customIngredients.length > 0}
-    <div
-      class="flex items-center gap-3 rounded-xl border border-sage-200 bg-sage-50 p-4"
+  <div class="relative mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <Button
+      href="/recipes"
+      variant="ghost"
+      size="sm"
+      class="mb-4 text-ink-muted hover:bg-transparent hover:text-ink"
     >
-      <ChefHat class="h-5 w-5 text-sage-600" />
-      <p class="text-sm text-ink">
-        <span class="font-medium"
-          >{selectedIngredientIds.size + customIngredients.length} ingredients</span
-        > selected for your recipe
+      <ArrowLeft class="mr-1 h-4 w-4" />
+      Back to Cookbook
+    </Button>
+    <div class="mb-10 text-center">
+      <div class="relative inline-block">
+        <h1
+          class="font-display text-4xl font-medium tracking-tight text-ink md:text-5xl"
+        >
+          The <span class="marker-highlight">Chef's</span> Canvas
+        </h1>
+      </div>
+      <p class="mt-3 font-hand text-2xl text-ink-light -rotate-1">
+        Let's create something new today.
       </p>
     </div>
-  {/if}
 
-  <form
-    method="POST"
-    use:enhance={() => {
-      loading = true;
-      return async ({ result }) => {
-        loading = false;
-        if (result.type === "redirect") {
-          goto(result.location);
-        }
-      };
-    }}
-    class="space-y-6"
-  >
-    {#if form?.error}
-      <div class="rounded-lg bg-sienna-50 p-3 text-sm text-sienna-700">
-        {form.error}
-      </div>
-    {/if}
-
-    <!-- Pantry Items Selection -->
-    {#if data.pantry && data.pantry.length > 0}
-      <Card.Root>
-        <Card.Header>
-          <div class="flex items-center gap-2">
-            <Receipt class="h-5 w-5 text-ink-muted" />
-            <Card.Title>From Your Pantry</Card.Title>
-          </div>
-          <Card.Description>Tap ingredients you want to use</Card.Description>
-        </Card.Header>
-        <Card.Content>
-          <div class="space-y-6">
-            {#each Object.entries(pantryByCategory) as [category, items]}
-                <div>
-                  <div class="mb-3 flex items-center gap-2">
-                    <div class="h-px flex-1 bg-sand"></div>
-                    <p
-                      class="text-xs font-medium uppercase tracking-wide text-ink-muted"
-                    >
-                      {category}
-                    </p>
-                    <div class="h-px flex-1 bg-sand"></div>
-                  </div>
-                  <div class="flex flex-wrap gap-2">
-                    {#each items as item}
-                        {#if item.id}
-                      <button
-                        type="button"
-                        onclick={() => togglePantryItem(item.id)}
-                        class="relative rounded-full border px-3 py-1.5 text-sm transition-all flex items-center gap-2 {selectedIngredientIds.has(
-                          item.id,
-                        )
-                          ? 'border-sage-500 bg-sage-100 text-sage-700 shadow-sm'
-                          : 'border-sand bg-paper hover:border-sage-400 hover:bg-sage-50'}"
-                      >
-                        {#if selectedIngredientIds.has(item.id)}
-                          <span>+</span>
-                        {/if}
-                        {item.itemName}
-                        {#if item.stockConfidence}
-                            <StockBadge confidence={item.stockConfidence} className="scale-75" />
-                        {/if}
-                      </button>
-                        {/if}
-                    {/each}
-                  </div>
-                </div>
-            {/each}
-          </div>
-          <input
-            type="hidden"
-            name="ingredientIds"
-            value={Array.from(selectedIngredientIds).join(",")}
-          />
-        </Card.Content>
-      </Card.Root>
-    {:else}
-      <Card.Root class="border-dashed">
-        <Card.Content class="py-8 text-center">
-          <Receipt class="mx-auto h-10 w-10 text-ink-muted" />
-          <p class="mt-3 font-serif text-lg text-ink">Your pantry is empty</p>
-          <p class="mt-1 text-sm text-ink-light">
-            Upload a receipt to stock your pantry, or add custom ingredients below
-          </p>
-          <Button
-            href="/receipts/upload"
-            variant="outline"
-            size="sm"
-            class="mt-4"
-          >
-            Upload a receipt
-          </Button>
-        </Card.Content>
-      </Card.Root>
-    {/if}
-
-    <!-- Custom Ingredients -->
-    <Card.Root>
-      <Card.Header>
-        <div class="flex items-center gap-2">
-          <UtensilsCrossed class="h-5 w-5 text-ink-muted" />
-          <Card.Title>Add Custom Ingredients</Card.Title>
-        </div>
-        <Card.Description
-          >Got more in the pantry? Add them here</Card.Description
-        >
-      </Card.Header>
-      <Card.Content class="space-y-4">
-        <div class="flex gap-2">
-          <Input
-            type="text"
-            placeholder="e.g., garlic, olive oil, onion..."
-            bind:value={newIngredient}
-            onkeydown={(e) =>
-              e.key === "Enter" && (e.preventDefault(), addIngredient())}
-            class="flex-1"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onclick={addIngredient}
-            disabled={!newIngredient.trim()}
-          >
-            <Plus class="mr-1 h-4 w-4" />
-            Add
-          </Button>
-        </div>
-
-        {#if customIngredients.length > 0}
-          <div class="flex flex-wrap gap-2">
-            {#each customIngredients as ingredient, i}
-              <span
-                class="group flex items-center gap-1.5 rounded-full border border-sage-500 bg-sage-100 px-3 py-1.5 text-sm text-sage-700"
-              >
-                {ingredient}
-                <button
-                  type="button"
-                  onclick={() => removeIngredient(i)}
-                  class="rounded-full p-0.5 hover:bg-sage-200"
-                >
-                  <X class="h-3 w-3" />
-                </button>
-              </span>
-            {/each}
-          </div>
-        {:else}
-          <p class="text-center text-sm text-ink-muted">
-            Press Enter or click Add to include an ingredient
-          </p>
-        {/if}
-        <input
-          type="hidden"
-          name="customIngredients"
-          value={customIngredients.join(",")}
-        />
-      </Card.Content>
-    </Card.Root>
-
-    <!-- Options -->
-    <Card.Root>
-      <Card.Header>
-        <Card.Title>Recipe Options</Card.Title>
-        <Card.Description>Customize your recipe preferences</Card.Description>
-      </Card.Header>
-      <Card.Content class="space-y-4">
-        <div class="grid gap-6 sm:grid-cols-2">
-          <div class="space-y-2">
-            <Label for="servings" class="flex items-center gap-2">
-              <Users class="h-4 w-4 text-ink-muted" />
-              Servings
-            </Label>
-            <Input
-              id="servings"
-              name="servings"
-              type="number"
-              min="1"
-              max="20"
-              bind:value={servings}
-            />
-            <p class="text-xs text-ink-muted">How many people are eating?</p>
-          </div>
-          <div class="space-y-2">
-            <Label for="cuisineHint" class="flex items-center gap-2">
-              <Globe class="h-4 w-4 text-ink-muted" />
-              Cuisine Style
-            </Label>
-            <Input
-              id="cuisineHint"
-              name="cuisineHint"
-              type="text"
-              placeholder="e.g., Italian, Mexican, Asian..."
-              bind:value={cuisineHint}
-            />
-            <p class="text-xs text-ink-muted">
-              Optional: guide the flavor profile
-            </p>
-          </div>
-        </div>
-      </Card.Content>
-    </Card.Root>
-
-    <!-- Submit -->
-    <Card.Root class="bg-linear-to-r from-sage-50 to-paper">
-      <Card.Content class="py-6">
+    <form
+      method="POST"
+      use:enhance={() => {
+        loading = true;
+        return async ({ result }) => {
+          loading = false;
+          if (result.type === "redirect") {
+            goto(result.location);
+          }
+        };
+      }}
+      class="grid gap-8 lg:grid-cols-12 items-start"
+    >
+      {#if form?.error}
         <div
-          class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+          class="col-span-full rounded-lg bg-sienna-50 p-4 text-center text-sm text-sienna-700 shadow-sm border border-sienna-100"
         >
-          <div>
-            <p class="font-serif text-lg font-medium text-ink">
-              Ready to cook?
-            </p>
-            <p class="text-sm text-ink-light">
-              {#if selectedIngredientIds.size === 0 && customIngredients.length === 0}
-                Select at least one ingredient to get started
-              {:else}
-                We'll create a custom recipe just for you
-              {/if}
-            </p>
+          {form.error}
+        </div>
+      {/if}
+
+      <!-- LEFT COLUMN: The Pantry Inventory (Notepad) -->
+      <div class="lg:col-span-7 xl:col-span-8">
+        <Notepad class="h-full" tapeWidth="w-32" tapeRotate="-rotate-2">
+          <div class="bg-lines p-6 md:p-8 min-h-[500px]">
+            <div
+              class="mb-6 flex items-baseline justify-between border-b-2 border-dashed border-stone-200 pb-4"
+            >
+              <h2 class="font-display text-2xl text-ink">Pantry Inventory</h2>
+              <span
+                class="font-mono text-xs uppercase tracking-widest text-ink-muted"
+              >
+                {selectedIngredientIds.size} Selected
+              </span>
+            </div>
+
+            {#if data.pantry && data.pantry.length > 0}
+              <div class="space-y-8">
+                {#each Object.entries(pantryByCategory) as [category, items]}
+                  <div class="relative">
+                    <h3 class="mb-3 font-serif text-lg italic text-ink-light">
+                      {category}
+                    </h3>
+                    <div class="flex flex-wrap gap-2">
+                      {#each items as item}
+                        {#if item.id}
+                          <button
+                            type="button"
+                            onclick={() => togglePantryItem(item.id)}
+                            class="group relative flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all duration-200
+                            {selectedIngredientIds.has(item.id)
+                              ? 'bg-sage-50 border-sage-400 text-sage-900 shadow-sm'
+                              : 'bg-white border-stone-200 text-ink-light hover:border-sage-300 hover:shadow-sm'}"
+                          >
+                            <div
+                              class="flex h-4 w-4 items-center justify-center rounded-full border transition-colors
+                              {selectedIngredientIds.has(item.id)
+                                ? 'border-sage-500 bg-sage-500 text-white'
+                                : 'border-stone-300 group-hover:border-sage-400'}"
+                            >
+                              {#if selectedIngredientIds.has(item.id)}
+                                <span class="text-[10px]">✓</span>
+                              {/if}
+                            </div>
+                            <span
+                              class={selectedIngredientIds.has(item.id)
+                                ? "font-medium"
+                                : ""}>{item.itemName}</span
+                            >
+                            {#if item.stockConfidence}
+                              <StockBadge
+                                confidence={item.stockConfidence}
+                                className="scale-75 opacity-70"
+                              />
+                            {/if}
+                          </button>
+                        {/if}
+                      {/each}
+                    </div>
+                  </div>
+                {/each}
+              </div>
+              <input
+                type="hidden"
+                name="ingredientIds"
+                value={Array.from(selectedIngredientIds).join(",")}
+              />
+            {:else}
+              <div
+                class="flex flex-col items-center justify-center py-12 text-center"
+              >
+                <Receipt class="mb-4 h-12 w-12 text-stone-300" />
+                <p class="font-serif text-lg text-ink-light">
+                  The pantry is looking a bit bare.
+                </p>
+                <Button
+                  href="/receipts/upload"
+                  variant="link"
+                  class="font-hand text-xl text-sage-600"
+                >
+                  Upload a receipt to stock up ->
+                </Button>
+              </div>
+            {/if}
           </div>
-          <div class="flex gap-3">
-            <Button type="button" variant="outline" href="/recipes"
-              >Cancel</Button
+        </Notepad>
+      </div>
+
+      <!-- RIGHT COLUMN: The Request Slip & Controls -->
+      <div class="space-y-6 lg:col-span-5 xl:col-span-4 lg:sticky lg:top-8">
+        <!-- Recipe Settings (Pinned Note) -->
+        <PinnedNote color="yellow" rotate="rotate-1">
+          <div class="space-y-4">
+            <h3
+              class="font-hand text-2xl text-ink font-bold border-b border-amber-200 pb-2"
             >
-            <Button
-              type="submit"
-              disabled={loading ||
-                (selectedIngredientIds.size === 0 &&
-                  customIngredients.length === 0)}
-              size="lg"
-            >
-              {#if loading}
-                <Sparkles class="mr-2 h-4 w-4 animate-pulse" />
-                Creating magic...
-              {:else}
-                <Sparkles class="mr-2 h-4 w-4" />
-                Generate Recipe
-              {/if}
-            </Button>
+              Kitchen Rules
+            </h3>
+
+            <div class="space-y-3">
+              <div class="space-y-1">
+                <Label
+                  for="servings"
+                  class="flex items-center gap-2 font-serif text-ink"
+                >
+                  <Users class="h-4 w-4 text-amber-700" />
+                  Servings
+                </Label>
+                <div class="relative">
+                  <Input
+                    id="servings"
+                    name="servings"
+                    type="number"
+                    min="1"
+                    max="20"
+                    bind:value={servings}
+                    class="border-0 border-b-2 border-amber-300 bg-transparent px-0 text-lg font-medium focus-visible:ring-0 focus-visible:border-amber-500 rounded-none h-auto py-1"
+                  />
+                  <span class="absolute right-0 top-2 text-xs text-ink-muted"
+                    >people</span
+                  >
+                </div>
+              </div>
+
+              <div class="space-y-1 pt-2">
+                <Label
+                  for="cuisineHint"
+                  class="flex items-center gap-2 font-serif text-ink"
+                >
+                  <Globe class="h-4 w-4 text-amber-700" />
+                  Vibe / Cuisine
+                </Label>
+                <Input
+                  id="cuisineHint"
+                  name="cuisineHint"
+                  type="text"
+                  placeholder="e.g. Italian, Spicy, Comfort..."
+                  bind:value={cuisineHint}
+                  class="border-0 border-b-2 border-amber-300 bg-transparent px-0 text-base focus-visible:ring-0 focus-visible:border-amber-500 rounded-none h-auto py-1 placeholder:text-amber-700/40"
+                />
+              </div>
+            </div>
+          </div>
+        </PinnedNote>
+
+        <!-- Custom Ingredients (Paper Card) -->
+        <div
+          class="relative rounded-xl bg-white p-1 shadow-[2px_3px_10px_rgba(0,0,0,0.05)]"
+        >
+          <WashiTape
+            class="absolute -top-3 left-1/2 -translate-x-1/2"
+            width="w-24"
+            color="white"
+            rotate="rotate-0"
+          />
+          <div class="rounded-lg border border-stone-100 p-5">
+            <div class="mb-4 flex items-center gap-2">
+              <Utensils class="h-4 w-4 text-ink-muted" />
+              <h3 class="font-serif font-medium text-ink">Extras & Add-ins</h3>
+            </div>
+
+            <div class="flex gap-2 mb-4">
+              <Input
+                type="text"
+                placeholder="Add garlic, oil..."
+                bind:value={newIngredient}
+                onkeydown={(e) =>
+                  e.key === "Enter" && (e.preventDefault(), addIngredient())}
+                class="bg-stone-50 border-stone-200 focus-visible:ring-sage-400"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onclick={addIngredient}
+                disabled={!newIngredient.trim()}
+                class="shrink-0 border-stone-200 hover:bg-sage-50 hover:text-sage-600"
+              >
+                <Plus class="h-4 w-4" />
+              </Button>
+            </div>
+
+            {#if customIngredients.length > 0}
+              <div class="flex flex-wrap gap-2">
+                {#each customIngredients as ingredient, i}
+                  <span
+                    class="inline-flex items-center gap-1 rounded-md bg-yellow-50 px-2 py-1 text-sm font-hand text-ink border border-yellow-200 -rotate-1 shadow-sm"
+                  >
+                    {ingredient}
+                    <button
+                      type="button"
+                      onclick={() => removeIngredient(i)}
+                      class="text-ink-light hover:text-sienna-600"
+                    >
+                      <X class="h-3 w-3" />
+                    </button>
+                  </span>
+                {/each}
+              </div>
+            {/if}
+            <input
+              type="hidden"
+              name="customIngredients"
+              value={customIngredients.join(",")}
+            />
           </div>
         </div>
-      </Card.Content>
-    </Card.Root>
-  </form>
+
+        <!-- Submit Action -->
+        <div class="pt-4">
+          <Button
+            type="submit"
+            disabled={loading ||
+              (selectedIngredientIds.size === 0 &&
+                customIngredients.length === 0)}
+            class="w-full h-14 text-lg font-serif bg-ink text-paper hover:bg-sage-800 shadow-xl transition-all hover:-translate-y-0.5"
+          >
+            {#if loading}
+              <Sparkles class="mr-2 h-5 w-5 animate-pulse" />
+              Consulting Chef...
+            {:else}
+              <ChefHat class="mr-2 h-5 w-5" />
+              Invent Recipe
+            {/if}
+          </Button>
+          <p class="mt-3 text-center font-hand text-ink-muted text-sm">
+            {#if selectedIngredientIds.size > 0 || customIngredients.length > 0}
+              Using {selectedIngredientIds.size + customIngredients.length} ingredients
+            {:else}
+              Pick something to start...
+            {/if}
+          </p>
+        </div>
+      </div>
+    </form>
+  </div>
 </div>
+
+<style>
+  .bg-lines {
+    background-image: linear-gradient(#e5e7eb 1px, transparent 1px);
+    background-size: 100% 2rem;
+    background-attachment: local;
+  }
+</style>
