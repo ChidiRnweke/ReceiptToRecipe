@@ -2,7 +2,6 @@
   import { enhance } from "$app/forms";
   import { invalidateAll } from "$app/navigation";
   import { Button } from "$lib/components/ui/button";
-  import * as Card from "$lib/components/ui/card";
   import { Input } from "$lib/components/ui/input";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import { Badge } from "$lib/components/ui/badge";
@@ -18,9 +17,15 @@
     Check,
     ChefHat,
     AlertTriangle,
+    Lightbulb,
+    X,
   } from "lucide-svelte";
   import { getContext } from "svelte";
   import type { WorkflowState } from "$lib/state/workflow.svelte";
+  import Notepad from "$lib/components/Notepad.svelte";
+  import PinnedNote from "$lib/components/PinnedNote.svelte";
+  import WashiTape from "$lib/components/WashiTape.svelte";
+  import PushPin from "$lib/components/PushPin.svelte";
 
   // Pantry warning state
   let pantryWarning = $state<{
@@ -84,13 +89,6 @@
     if (items.length === 0) return 0;
     const checked = items.filter((i) => i.checked).length;
     return Math.round((checked / items.length) * 100);
-  }
-
-  // Check if an item has a pantry match (for display purposes)
-  function getPantryMatch(itemName: string) {
-    if (!data.pantryLookup) return null;
-    const nameLC = itemName.toLowerCase();
-    return data.pantryLookup[nameLC] || null;
   }
 
   // Force add item bypassing pantry check
@@ -167,532 +165,477 @@
   <title>Shopping Lists - Receipt2Recipe</title>
 </svelte:head>
 
-<div class="mx-auto max-w-4xl space-y-6">
-  <div class="flex items-center justify-between">
-    <div class="relative">
-      <div
-        class="absolute -left-4 -top-2 h-20 w-20 rounded-full bg-sage-100/50 blur-2xl"
-      ></div>
-      <p class="text-sm uppercase tracking-wide text-ink-muted">Step 3</p>
-      <h1 class="font-serif text-3xl font-medium text-ink">Shopping Lists</h1>
-      <p class="mt-1 text-ink-light">
-        {#if data.lists.length === 0}
-          Ready to plan your next grocery run?
-        {:else}
-          {data.lists.length} list{data.lists.length === 1 ? "" : "s"} to keep you
-          organized
-        {/if}
-      </p>
+<div class="min-h-screen bg-[#FDFBF7] p-4 font-sans md:p-8 relative overflow-x-hidden">
+  <!-- Desk Texture -->
+  <div
+    class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
+  ></div>
+
+  <div class="mx-auto max-w-6xl relative z-10">
+    <!-- Header Area -->
+    <div class="mb-10 flex flex-col items-center text-center">
+      <h1 class="font-display text-5xl text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]">
+        The Market <span class="marker-highlight">List</span>
+      </h1>
+      <div class="mt-2 flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-stone-400">
+        <span>Prepared for</span>
+        <span class="text-sage-600 font-bold border-b border-sage-200">{data.user?.name || 'Chef'}</span>
+      </div>
     </div>
-  </div>
 
-  {#if form?.error}
-    <div class="rounded-lg bg-sienna-50 p-3 text-sm text-sienna-700">
-      {form.error}
-    </div>
-  {/if}
+    {#if form?.error}
+        <div class="mx-auto max-w-lg mb-6 rounded-lg bg-sienna-50 border border-sienna-100 p-3 text-sm text-sienna-700 text-center shadow-sm">
+            {form.error}
+        </div>
+    {/if}
 
-  <div class="grid gap-6 lg:grid-cols-3">
-    <!-- Main Content -->
-    <div class="lg:col-span-2 space-y-4">
-      <!-- Restock CTA -->
-      <Card.Root class="overflow-hidden bg-linear-to-br from-sage-50 to-paper">
-        <Card.Content
-          class="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between"
-        >
-          <div class="flex items-start gap-4">
-            <div
-              class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sage-100"
-            >
-              <Sparkles class="h-6 w-6 text-sage-600" />
+    <div class="grid gap-12 lg:grid-cols-12 items-start">
+      
+      <!-- LEFT SIDEBAR: Suggestions & Quick Actions -->
+      <div class="lg:col-span-4 space-y-8 order-2 lg:order-1">
+        
+        <!-- Smart Suggestions Note -->
+        <PinnedNote color="yellow" rotate="-rotate-1">
+            <div class="flex items-center gap-2 mb-3 pb-2 border-b border-yellow-200/50">
+                <Sparkles class="h-4 w-4 text-amber-600" />
+                <h3 class="font-hand text-xl font-bold text-ink/80">Pantry Gaps?</h3>
             </div>
-            <div>
-              <h3 class="font-serif text-xl text-ink">Smart Restock</h3>
-              <p class="text-sm text-ink-light">
-                We'll suggest items based on your purchase patterns. Never
-                forget the essentials!
-              </p>
-            </div>
-          </div>
-          <form method="POST" action="?/generateRestock" use:enhance={() => {}}>
-            <Button type="submit">
-              <Sparkles class="mr-2 h-4 w-4" />
-              Generate list
-            </Button>
-          </form>
-        </Card.Content>
-      </Card.Root>
+            
+            <p class="text-sm text-ink/70 leading-relaxed mb-4 font-hand">
+                Based on what you usually buy, you might be running low on these essentials:
+            </p>
 
-      <!-- Create New List -->
-      <Card.Root>
-        <Card.Content class="pt-6">
-          <form
-            method="POST"
-            action="?/createList"
-            use:enhance={() => {
-              loading = true;
-              return async ({ result }) => {
-                loading = false;
-                if (result.type === "success") {
-                  newListName = "";
-                  await invalidateAll();
-                }
-              };
-            }}
-            class="flex gap-2"
-          >
-            <Input
-              type="text"
-              name="name"
-              placeholder="New shopping list name..."
-              bind:value={newListName}
-            />
-            <Button type="submit" disabled={loading || !newListName.trim()}>
-              <ListPlus class="mr-2 h-4 w-4" />
-              Create
-            </Button>
-          </form>
-        </Card.Content>
-      </Card.Root>
-
-      <!-- Shopping Lists -->
-      {#if data.lists.length === 0}
-        <Card.Root class="border-dashed">
-          <Card.Content class="py-12 text-center">
-            <div class="relative mx-auto w-fit">
-              <div
-                class="flex h-16 w-16 items-center justify-center rounded-2xl bg-sage-50"
-              >
-                <ShoppingCart class="h-8 w-8 text-sage-600" />
-              </div>
-              <Sparkles
-                class="absolute -right-2 -top-2 h-5 w-5 text-sage-500"
-              />
-            </div>
-            <h3 class="mt-6 font-serif text-xl font-medium text-ink">
-              Your cart is empty
-            </h3>
-            {#if data.recipeCount > 0}
-              <p class="mx-auto mt-2 max-w-sm text-sm text-ink-light">
-                You have <strong>{data.recipeCount} recipe{data.recipeCount === 1 ? "" : "s"}</strong> ready.
-                Add recipe ingredients to your shopping list with one click!
-              </p>
-              <div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
-                <Button href="/recipes" variant="outline">
-                  <ChefHat class="mr-2 h-4 w-4" />
-                  Browse Recipes
-                </Button>
-              </div>
-            {:else}
-              <p class="mx-auto mt-2 max-w-sm text-sm text-ink-light">
-                Create a shopping list above, upload a receipt, or generate a recipe to get started.
-              </p>
-              <div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
-                <Button href="/receipts/upload" variant="outline">
-                  Upload Receipt
-                </Button>
-                <Button href="/recipes/generate" variant="outline">
-                  <Sparkles class="mr-2 h-4 w-4" />
-                  Generate Recipe
-                </Button>
-              </div>
-            {/if}
-          </Card.Content>
-        </Card.Root>
-      {:else}
-        {#each lists as list}
-          {@const completion = getCompletionPercentage(list.items || [])}
-          {@const isExpanded = expandedLists.has(list.id)}
-          <Card.Root>
-            <Card.Header
-              class="cursor-pointer"
-              onclick={() => toggleList(list.id)}
-            >
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  {#if isExpanded}
-                    <ChevronUp class="h-5 w-5 text-ink-muted" />
-                  {:else}
-                    <ChevronDown class="h-5 w-5 text-ink-muted" />
-                  {/if}
-                  <div>
-                    <Card.Title>{list.name}</Card.Title>
-                    <Card.Description>
-                      {list.items?.length || 0} items
-                      {#if completion === 100 && list.items?.length > 0}
-                        <Badge variant="secondary" class="ml-2">
-                          <Check class="mr-1 h-3 w-3" />
-                          Complete
-                        </Badge>
-                      {/if}
-                    </Card.Description>
-                  </div>
-                </div>
-                <div class="flex items-center gap-4">
-                  {#if list.items?.length > 0}
-                    <div class="flex items-center gap-2">
-                      <div class="h-2 w-24 rounded-full bg-sand">
-                        <div
-                          class="h-2 rounded-full bg-sage-500 transition-all"
-                          style="width: {completion}%"
-                        ></div>
-                      </div>
-                      <span class="text-sm text-ink-muted">{completion}%</span>
-                    </div>
-                  {/if}
-                  <form
-                    method="POST"
-                    action="?/deleteList"
-                    use:enhance={() => {
-                      return async () => {
-                        await invalidateAll();
-                      };
-                    }}
-                  >
-                    <input type="hidden" name="listId" value={list.id} />
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      size="icon"
-                      class="text-ink-muted hover:text-sienna-600"
-                      onclick={(e) => e.stopPropagation()}
-                    >
-                      <Trash2 class="h-4 w-4" />
-                    </Button>
-                  </form>
-                </div>
-              </div>
-            </Card.Header>
-
-            {#if isExpanded}
-              <Card.Content class="space-y-4">
-                <!-- Add Item Form -->
-                {#key list.id}
-                  {@const input = newItemInputs[list.id] ?? {
-                    name: "",
-                    quantity: "1",
-                    unit: "",
-                  }}
-                  <form
-                    method="POST"
-                    action="?/addItem"
-                    use:enhance={() => {
-                      // Optimistic increment
-                      workflowState.incrementShopping();
-
-                      return async ({ result, update }) => {
-                        if (result.type === "success") {
-                          const data = result.data as any;
-                          // Check for pantry warning
-                          if (data?.pantryWarning) {
-                            workflowState.decrementShopping(); // Revert optimistic update
-                            pantryWarning = {
-                              show: true,
-                              message: data.warningMessage,
-                              matchedItem: data.matchedItem,
-                              confidence: data.confidence,
-                              pendingItem: data.pendingItem
-                            };
-                            return;
-                          }
-                          newItemInputs = {
-                            ...newItemInputs,
-                            [list.id]: { name: "", quantity: "1", unit: "" },
-                          };
-                          await invalidateAll();
-                        } else {
-                            workflowState.decrementShopping();
-                        }
-                      };
-                    }}
-                    class="flex gap-2"
-                  >
-                    <input type="hidden" name="listId" value={list.id} />
-                    <Input
-                      type="text"
-                      name="name"
-                      placeholder="Add item..."
-                      bind:value={input.name}
-                      class="flex-1"
-                    />
-                    <Input
-                      type="text"
-                      name="quantity"
-                      placeholder="Qty"
-                      bind:value={input.quantity}
-                      class="w-16"
-                    />
-                    <Input
-                      type="text"
-                      name="unit"
-                      placeholder="Unit"
-                      bind:value={input.unit}
-                      class="w-20"
-                    />
-                    <Button type="submit" variant="outline" size="icon">
-                      <Plus class="h-4 w-4" />
-                    </Button>
-                  </form>
-                {/key}
-
-                <!-- Items List -->
-                {#if list.items && list.items.length > 0}
-                  {@const groups = groupItemsBySource(list.items)}
-                  <div class="space-y-4">
-                  {#each Object.entries(groups) as [groupName, items]}
-                    <div class="space-y-2">
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-ink-muted pl-1">{groupName}</h4>
-                        <ul class="space-y-2">
-                            {#each items as item}
-                            <li
-                                class="flex items-center gap-3 rounded-lg border border-sand p-3 transition-colors {item.checked ? 'bg-stone-50' : 'bg-white'}"
-                            >
-                                <form
+            {#if data.suggestions && data.suggestions.length > 0}
+                <ul class="space-y-1 mb-4">
+                    {#each data.suggestions.slice(0, 5) as suggestion}
+                        <li class="flex items-center justify-between group">
+                            <span class="font-hand text-lg text-ink/90">{suggestion.itemName}</span>
+                            <form
                                 method="POST"
-                                action="?/toggleItem"
-                                use:enhance={({ formData }) => {
-                                    const checked = formData.get('checked') === 'true';
-                                    
-                                    // Optimistic update using state override
-                                    lists = lists.map(l => 
-                                      l.id === list.id 
-                                        ? { ...l, items: l.items.map((i: any) => i.id === item.id ? { ...i, checked } : i) }
-                                        : l
-                                    );
-                                    
-                                    return async ({ result }) => {
-                                        if (result.type !== 'success') {
-                                            // Revert on error
-                                            lists = lists.map(l => 
-                                              l.id === list.id 
-                                                ? { ...l, items: l.items.map((i: any) => i.id === item.id ? { ...i, checked: !checked } : i) }
-                                                : l
-                                            );
-                                        } else {
-                                            await invalidateAll();
-                                        }
-                                    };
-                                }}
-                                >
-                                <input type="hidden" name="itemId" value={item.id} />
-                                <input
-                                    type="hidden"
-                                    name="checked"
-                                    value={!item.checked}
-                                />
-                                <button type="submit">
-                                    <Checkbox checked={!!item.checked} />
-                                </button>
-                                </form>
-                                <div class="flex-1 min-w-0">
-                                <span
-                                    class="{item.checked
-                                    ? 'text-ink-muted line-through'
-                                    : 'text-ink'}"
-                                >
-                                    <span class="font-medium">
-                                    {item.quantity}
-                                    {item.unit}
-                                    </span>
-                                    {item.name}
-                                </span>
-                                {#if item.notes}
-                                    <p class="text-xs text-ink-muted italic">{item.notes}</p>
-                                {/if}
-                                </div>
-                                <form
-                                method="POST"
-                                action="?/deleteItem"
+                                action="?/addSuggestion"
                                 use:enhance={() => {
-                                    // Optimistic update
-                                    lists = lists.map(l => 
-                                      l.id === list.id 
-                                        ? { ...l, items: l.items.filter((i: any) => i.id !== item.id) }
-                                        : l
-                                    );
-                                    workflowState.decrementShopping();
-                                    
+                                    workflowState.incrementShopping();
                                     return async ({ result }) => {
                                         if (result.type === 'failure') {
-                                            // Revert (reload data essentially)
-                                            workflowState.incrementShopping();
-                                            await invalidateAll();
+                                            workflowState.decrementShopping();
                                         } else {
                                             await invalidateAll();
                                         }
                                     };
                                 }}
-                                >
-                                <input type="hidden" name="itemId" value={item.id} />
-                                <Button
-                                    type="submit"
-                                    variant="ghost"
-                                    size="icon"
-                                    class="h-8 w-8 text-ink-muted hover:text-sienna-600"
-                                >
-                                    <Trash2 class="h-4 w-4" />
-                                </Button>
-                                </form>
-                            </li>
-                            {/each}
-                        </ul>
-                    </div>
-                  {/each}
-                  </div>
-
-                  {#if completion > 0}
-                    <div class="mt-6 border-t border-sand pt-4 flex justify-end">
-                        <form 
-                            method="POST" 
-                            action="?/completeShopping"
-                            use:enhance={() => {
-                                loading = true;
-                                // We don't know exact count to decrement easily here without loop
-                                // Let's rely on server sync for completion as it's a big change
-                                return async ({ result }) => {
-                                    loading = false;
-                                    if (result.type === 'success') {
-                                        await invalidateAll();
-                                    }
-                                }
-                            }}
-                        >
-                            <input type="hidden" name="listId" value={list.id} />
-                            <Button type="submit" variant="default" class="bg-sage-600 hover:bg-sage-700 text-white">
-                                <Check class="mr-2 h-4 w-4" />
-                                Done Shopping
-                            </Button>
-                        </form>
-                    </div>
-                  {/if}
-                {:else}
-                  <p class="py-4 text-center text-sm text-ink-muted">
-                    No items in this list yet
-                  </p>
-                {/if}
-              </Card.Content>
+                            >
+                                <input type="hidden" name="listId" value={data.activeList?.id} />
+                                <input type="hidden" name="itemName" value={suggestion.itemName} />
+                                <input type="hidden" name="suggestedQuantity" value={suggestion.suggestedQuantity || ""} />
+                                <input type="hidden" name="avgFrequencyDays" value={suggestion.avgFrequencyDays || ""} />
+                                <input type="hidden" name="lastPurchased" value={suggestion.lastPurchased} />
+                                <input type="hidden" name="daysSinceLastPurchase" value={suggestion.daysSinceLastPurchase} />
+                                
+                                <button type="submit" class="opacity-40 group-hover:opacity-100 text-amber-700 hover:scale-110 transition-all" title="Add to list">
+                                    <Plus class="h-4 w-4" />
+                                </button>
+                            </form>
+                        </li>
+                    {/each}
+                </ul>
+            {:else}
+                <p class="text-sm italic text-ink/40 mb-4 font-hand">No suggestions yet. Keep scanning receipts!</p>
             {/if}
-          </Card.Root>
-        {/each}
-      {/if}
-    </div>
 
-    <!-- Sidebar -->
-    <div class="space-y-6">
-      <!-- Smart Suggestions -->
-      <Card.Root>
-        <Card.Header>
-          <Card.Title class="flex items-center gap-2">
-            <Sparkles class="h-5 w-5 text-sage-600" />
-            Smart Suggestions
-          </Card.Title>
-          <Card.Description>Based on your purchase history</Card.Description>
-        </Card.Header>
-        <Card.Content>
-          {#if data.suggestions && data.suggestions.length > 0}
-            <ul class="space-y-3">
-              {#each data.suggestions as suggestion}
-                <li class="flex items-center justify-between gap-3">
-                  <div>
-                    <p class="font-medium text-ink">{suggestion.itemName}</p>
-                    <p class="text-xs text-ink-muted">
-                      Usually buy every {suggestion.avgFrequencyDays ?? "—"} days
-                    </p>
-                  </div>
-                  <form
+            <div class="pt-2 border-t border-yellow-200/50">
+                <form method="POST" action="?/generateRestock" use:enhance={() => {}}>
+                    <button type="submit" class="w-full text-left flex items-center gap-2 group">
+                        <div class="h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 transition-colors">
+                            <Sparkles class="h-3 w-3 text-amber-700" />
+                        </div>
+                        <span class="font-hand text-lg text-ink/80 group-hover:underline decoration-wavy decoration-amber-300">Generate full restock list</span>
+                    </button>
+                </form>
+            </div>
+        </PinnedNote>
+
+        <!-- Quick Actions Card (Small) -->
+        <div class="relative bg-white p-6 rounded-sm shadow-[2px_3px_5px_rgba(0,0,0,0.05)] border border-stone-100 rotate-2 max-w-xs mx-auto lg:mx-0">
+             <div class="absolute -top-3 left-1/2 -translate-x-1/2">
+                <WashiTape color="sage" width="w-24" />
+             </div>
+             
+             <h3 class="font-mono text-xs uppercase tracking-widest text-stone-400 mb-4 text-center mt-2">Quick Actions</h3>
+             
+             <div class="space-y-3">
+                <Button variant="outline" class="w-full justify-start font-serif" href="/recipes">
+                    <ChefHat class="mr-2 h-4 w-4 text-stone-400" />
+                    Browse Recipes
+                </Button>
+                
+                <form
                     method="POST"
-                    action="?/addSuggestion"
+                    action="?/createList"
                     use:enhance={() => {
-                        workflowState.incrementShopping();
+                        loading = true;
                         return async ({ result }) => {
-                            if (result.type === 'failure') {
-                                workflowState.decrementShopping();
-                            } else {
+                            loading = false;
+                            if (result.type === "success") {
+                                newListName = "";
                                 await invalidateAll();
                             }
                         };
                     }}
-                    class="flex items-center gap-2"
-                  >
-                    <input
-                      type="hidden"
-                      name="listId"
-                      value={data.activeList?.id}
-                    />
-                    <input
-                      type="hidden"
-                      name="itemName"
-                      value={suggestion.itemName}
-                    />
-                    <input
-                      type="hidden"
-                      name="suggestedQuantity"
-                      value={suggestion.suggestedQuantity || ""}
-                    />
-                    <input
-                      type="hidden"
-                      name="avgFrequencyDays"
-                      value={suggestion.avgFrequencyDays || ""}
-                    />
-                    <input
-                      type="hidden"
-                      name="lastPurchased"
-                      value={suggestion.lastPurchased}
-                    />
-                    <input
-                      type="hidden"
-                      name="daysSinceLastPurchase"
-                      value={suggestion.daysSinceLastPurchase}
-                    />
-                    <Button type="submit" size="sm" variant="outline">
-                      Add
-                    </Button>
-                  </form>
-                </li>
-              {/each}
-            </ul>
-          {:else}
-            <p class="py-4 text-center text-sm text-ink-muted">
-              Upload receipts to get personalized suggestions
-            </p>
-          {/if}
-        </Card.Content>
-      </Card.Root>
+                    class="flex flex-col gap-2 pt-2 border-t border-dashed border-stone-200"
+                >
+                    <span class="text-xs font-medium text-stone-500">Start a new list:</span>
+                    <div class="flex gap-2">
+                        <Input
+                            type="text"
+                            name="name"
+                            placeholder="e.g. Sunday Dinner..."
+                            bind:value={newListName}
+                            class="h-8 text-xs"
+                        />
+                        <Button type="submit" size="sm" class="h-8" disabled={loading || !newListName.trim()}>
+                            <ListPlus class="h-3.5 w-3.5" />
+                        </Button>
+                    </div>
+                </form>
+             </div>
+        </div>
 
-      <!-- Quick Actions -->
-      <Card.Root>
-        <Card.Header>
-          <Card.Title>Quick Actions</Card.Title>
-        </Card.Header>
-        <Card.Content class="space-y-2">
-          <Button variant="outline" class="w-full" href="/recipes">
-            <ShoppingCart class="mr-2 h-4 w-4" />
-            Generate from Recipes
-          </Button>
-        </Card.Content>
-      </Card.Root>
+      </div>
+
+      <!-- CENTER: The Main Notepad -->
+      <div class="lg:col-span-8 order-1 lg:order-2">
+        <Notepad class="w-full min-h-[600px] shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)]">
+            
+            <div class="px-2 sm:px-4 py-2">
+                {#if lists.length === 0}
+                    <div class="flex flex-col items-center justify-center py-20 text-center opacity-60">
+                        <ShoppingCart class="h-16 w-16 text-stone-300 mb-4" />
+                        <h3 class="font-hand text-3xl text-ink">Your list is empty</h3>
+                        <p class="font-serif text-ink-light max-w-xs mx-auto mt-2">
+                            Create a list or generate one from your recipes to get started.
+                        </p>
+                    </div>
+                {:else}
+                    {#each lists as list}
+                        {@const completion = getCompletionPercentage(list.items || [])}
+                        {@const isExpanded = expandedLists.has(list.id)}
+                        
+                        <div class="mb-8 last:mb-0">
+                            <!-- List Header (Handwritten Style) -->
+                            <div 
+                                role="button"
+                                tabindex="0"
+                                class="group flex items-center justify-between border-b-2 border-stone-800 pb-2 mb-4 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-sage-400 rounded-sm"
+                                onclick={() => toggleList(list.id)}
+                                onkeydown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        toggleList(list.id);
+                                    }
+                                }}
+                            >
+                                <div class="flex items-end gap-3">
+                                    <h2 class="font-hand text-3xl font-bold text-ink leading-none pt-2">
+                                        {list.name}
+                                    </h2>
+                                    <span class="font-mono text-xs text-stone-400 mb-1">
+                                        {list.items?.length || 0} items
+                                    </span>
+                                </div>
+                                
+                                <div class="flex items-center gap-3">
+                                    {#if list.items?.length > 0}
+                                        <div class="hidden sm:flex items-center gap-2">
+                                            <div class="h-1.5 w-16 rounded-full bg-stone-200/50">
+                                                <div
+                                                    class="h-1.5 rounded-full bg-sage-500 transition-all"
+                                                    style="width: {completion}%"
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    {/if}
+                                    
+                                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                                        <form
+                                            method="POST"
+                                            action="?/deleteList"
+                                            use:enhance={() => async () => invalidateAll()}
+                                            onclick={(e) => e.stopPropagation()}
+                                        >
+                                            <input type="hidden" name="listId" value={list.id} />
+                                            <button type="submit" class="p-1 text-stone-300 hover:text-red-500 transition-colors" aria-label="Delete list">
+                                                <Trash2 class="h-4 w-4" />
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    {#if isExpanded}
+                                        <ChevronUp class="h-5 w-5 text-stone-400" />
+                                    {:else}
+                                        <ChevronDown class="h-5 w-5 text-stone-400" />
+                                    {/if}
+                                </div>
+                            </div>
+
+                            {#if isExpanded}
+                                <div class="pl-1 pr-1 sm:pl-4 space-y-6">
+                                    
+                                    <!-- Add Item Input (Underlined style) -->
+                                    {#key list.id}
+                                        {@const input = newItemInputs[list.id] ?? { name: "", quantity: "1", unit: "" }}
+                                        <form
+                                            method="POST"
+                                            action="?/addItem"
+                                            use:enhance={() => {
+                                                workflowState.incrementShopping();
+                                                return async ({ result }) => {
+                                                    if (result.type === "success") {
+                                                        const data = result.data as any;
+                                                        if (data?.pantryWarning) {
+                                                            workflowState.decrementShopping();
+                                                            pantryWarning = {
+                                                                show: true,
+                                                                message: data.warningMessage,
+                                                                matchedItem: data.matchedItem,
+                                                                confidence: data.confidence,
+                                                                pendingItem: data.pendingItem
+                                                            };
+                                                            return;
+                                                        }
+                                                        newItemInputs = { ...newItemInputs, [list.id]: { name: "", quantity: "1", unit: "" } };
+                                                        await invalidateAll();
+                                                    } else {
+                                                        workflowState.decrementShopping();
+                                                    }
+                                                };
+                                            }}
+                                            class="flex items-baseline gap-2 mb-6"
+                                        >
+                                            <input type="hidden" name="listId" value={list.id} />
+                                            
+                                            <div class="flex-1 relative">
+                                                <input
+                                                    type="text"
+                                                    name="name"
+                                                    placeholder="Add an item..."
+                                                    bind:value={input.name}
+                                                    class="w-full bg-transparent border-none border-b border-stone-300 px-0 py-1 font-serif text-lg text-ink focus:ring-0 focus:border-sage-500 placeholder:text-stone-300 placeholder:font-hand placeholder:text-xl"
+                                                />
+                                            </div>
+                                            
+                                            <div class="w-12 relative">
+                                                <input
+                                                    type="text"
+                                                    name="quantity"
+                                                    placeholder="#"
+                                                    bind:value={input.quantity}
+                                                    class="w-full bg-transparent border-none border-b border-stone-300 px-0 py-1 font-mono text-sm text-right focus:ring-0 focus:border-sage-500 placeholder:text-stone-300"
+                                                />
+                                            </div>
+
+                                            <div class="w-16 relative">
+                                                <input
+                                                    type="text"
+                                                    name="unit"
+                                                    placeholder="Unit"
+                                                    bind:value={input.unit}
+                                                    class="w-full bg-transparent border-none border-b border-stone-300 px-0 py-1 font-mono text-sm focus:ring-0 focus:border-sage-500 placeholder:text-stone-300"
+                                                />
+                                            </div>
+                                            
+                                            <button type="submit" class="p-2 text-stone-400 hover:text-sage-600 transition-colors">
+                                                <Plus class="h-5 w-5" />
+                                            </button>
+                                        </form>
+                                    {/key}
+
+                                    <!-- Items List -->
+                                    {#if list.items && list.items.length > 0}
+                                        {@const groups = groupItemsBySource(list.items)}
+                                        
+                                        {#each Object.entries(groups) as [groupName, items]}
+                                            <div class="relative">
+                                                <!-- Group Header (Sticky Note Style if Recipe) -->
+                                                {#if groupName !== 'Manual & Suggestions'}
+                                                    <div class="flex items-center gap-2 mb-2 mt-4">
+                                                        <span class="inline-block px-2 py-0.5 bg-sage-100 text-sage-800 text-[10px] font-mono uppercase tracking-widest rounded-sm">
+                                                            {groupName}
+                                                        </span>
+                                                        <div class="h-px bg-stone-200 flex-1"></div>
+                                                    </div>
+                                                {/if}
+
+                                                <ul class="space-y-0">
+                                                    {#each items as item}
+                                                        <li class="group relative flex items-start py-3 border-b border-dashed border-blue-200/50 hover:bg-amber-50/30 transition-colors">
+                                                            <!-- Checkbox Area -->
+                                                            <div class="pt-1 pr-3">
+                                                                <form
+                                                                    method="POST"
+                                                                    action="?/toggleItem"
+                                                                    use:enhance={({ formData }) => {
+                                                                        const checked = formData.get('checked') === 'true';
+                                                                        lists = lists.map(l => 
+                                                                          l.id === list.id 
+                                                                            ? { ...l, items: l.items.map((i: any) => i.id === item.id ? { ...i, checked } : i) }
+                                                                            : l
+                                                                        );
+                                                                        return async ({ result }) => {
+                                                                            if (result.type !== 'success') {
+                                                                                lists = lists.map(l => 
+                                                                                  l.id === list.id 
+                                                                                    ? { ...l, items: l.items.map((i: any) => i.id === item.id ? { ...i, checked: !checked } : i) }
+                                                                                    : l
+                                                                                );
+                                                                            } else {
+                                                                                await invalidateAll();
+                                                                            }
+                                                                        };
+                                                                    }}
+                                                                >
+                                                                    <input type="hidden" name="itemId" value={item.id} />
+                                                                    <input type="hidden" name="checked" value={!item.checked} />
+                                                                    <button type="submit" class="relative flex items-center justify-center w-5 h-5">
+                                                                        {#if item.checked}
+                                                                            <!-- Hand-drawn checkmark feel -->
+                                                                            <div class="absolute inset-0 border-2 border-stone-800 rounded-sm bg-stone-800/5"></div>
+                                                                            <Check class="h-4 w-4 text-stone-800" />
+                                                                        {:else}
+                                                                            <div class="absolute inset-0 border-2 border-stone-400 rounded-sm hover:border-stone-600 transition-colors"></div>
+                                                                        {/if}
+                                                                    </button>
+                                                                </form>
+                                                            </div>
+
+                                                            <!-- Item Text -->
+                                                            <div class="flex-1 min-w-0 flex flex-col justify-center min-h-[1.75rem]">
+                                                                <div class="flex items-baseline gap-2">
+                                                                    <span class="font-mono text-sm font-bold text-stone-600 w-12 text-right shrink-0">
+                                                                        {item.quantity} {item.unit}
+                                                                    </span>
+                                                                    <span 
+                                                                        class="font-serif text-lg leading-none transition-all duration-300
+                                                                        {item.checked ? 'text-stone-400 line-through decoration-stone-300 decoration-2' : 'text-ink'}"
+                                                                    >
+                                                                        {item.name}
+                                                                    </span>
+                                                                </div>
+                                                                {#if item.notes}
+                                                                    <p class="text-xs text-ink-muted italic pl-14 font-hand">{item.notes}</p>
+                                                                {/if}
+                                                            </div>
+
+                                                            <!-- Delete Action (Hover) -->
+                                                            <div class="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity px-2 bg-white/50 backdrop-blur-[1px]">
+                                                                <form
+                                                                    method="POST"
+                                                                    action="?/deleteItem"
+                                                                    use:enhance={() => {
+                                                                        lists = lists.map(l => 
+                                                                          l.id === list.id 
+                                                                            ? { ...l, items: l.items.filter((i: any) => i.id !== item.id) }
+                                                                            : l
+                                                                        );
+                                                                        workflowState.decrementShopping();
+                                                                        return async ({ result }) => {
+                                                                            if (result.type === 'failure') {
+                                                                                workflowState.incrementShopping();
+                                                                                await invalidateAll();
+                                                                            } else {
+                                                                                await invalidateAll();
+                                                                            }
+                                                                        };
+                                                                    }}
+                                                                >
+                                                                    <input type="hidden" name="itemId" value={item.id} />
+                                                                    <button type="submit" class="text-stone-300 hover:text-red-600 transition-colors">
+                                                                        <X class="h-4 w-4" />
+                                                                    </button>
+                                                                </form>
+                                                            </div>
+                                                        </li>
+                                                    {/each}
+                                                </ul>
+                                            </div>
+                                        {/each}
+                                    {:else}
+                                        <div class="py-6 text-center text-stone-300 italic font-hand text-lg">
+                                            The list is waiting...
+                                        </div>
+                                    {/if}
+
+                                    <!-- Done Shopping Button -->
+                                    {#if list.items?.length > 0 && completion > 0}
+                                        <div class="pt-8 flex justify-end">
+                                             <form 
+                                                method="POST" 
+                                                action="?/completeShopping"
+                                                use:enhance={() => {
+                                                    loading = true;
+                                                    return async ({ result }) => {
+                                                        loading = false;
+                                                        if (result.type === 'success') {
+                                                            await invalidateAll();
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                <input type="hidden" name="listId" value={list.id} />
+                                                <!-- Rubber Stamp Style Button -->
+                                                <button 
+                                                    type="submit" 
+                                                    class="group relative inline-flex items-center justify-center px-6 py-2 border-2 border-sage-600 text-sage-700 font-display uppercase tracking-widest text-sm hover:bg-sage-600 hover:text-white transition-all transform hover:-rotate-1"
+                                                >
+                                                    <Check class="mr-2 h-4 w-4" />
+                                                    Checkout
+                                                </button>
+                                            </form>
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/if}
+                        </div>
+                    {/each}
+                {/if}
+            </div>
+
+            <!-- Bottom decorative spacing -->
+            <div class="h-16"></div>
+        </Notepad>
+      </div>
+
     </div>
   </div>
 </div>
 
 <!-- Pantry Warning Dialog -->
 <AlertDialog.Root bind:open={pantryWarning.show}>
-  <AlertDialog.Content>
+  <AlertDialog.Content class="font-serif border-sand bg-[#fffdf5]">
     <AlertDialog.Header>
-      <AlertDialog.Title class="flex items-center gap-2">
-        <AlertTriangle class="h-5 w-5 text-amber-500" />
-        You might already have this
+      <AlertDialog.Title class="flex items-center gap-2 font-display text-2xl text-amber-700">
+        <AlertTriangle class="h-6 w-6" />
+        Check the Pantry!
       </AlertDialog.Title>
-      <AlertDialog.Description>
-        <p class="mb-3">{pantryWarning.message}</p>
-        <p class="text-sm text-ink-muted">
-          Stock confidence: <Badge variant="secondary" class="ml-1">{pantryWarning.confidence}%</Badge>
-        </p>
+      <AlertDialog.Description class="text-ink">
+        <p class="mb-4 text-base leading-relaxed">{pantryWarning.message}</p>
+        <div class="flex items-center gap-2 p-3 bg-white border border-stone-200 rounded-sm">
+            <span class="text-xs uppercase tracking-widest text-stone-500">Confidence:</span>
+            <div class="flex-1 h-2 bg-stone-100 rounded-full overflow-hidden">
+                <div class="h-full bg-amber-500" style="width: {pantryWarning.confidence}%"></div>
+            </div>
+            <span class="font-mono font-bold text-amber-600">{pantryWarning.confidence}%</span>
+        </div>
       </AlertDialog.Description>
     </AlertDialog.Header>
-    <AlertDialog.Footer>
-      <AlertDialog.Cancel onclick={dismissPantryWarning}>Skip</AlertDialog.Cancel>
-      <AlertDialog.Action onclick={forceAddItem}>Add Anyway</AlertDialog.Action>
+    <AlertDialog.Footer class="gap-2">
+      <AlertDialog.Cancel onclick={dismissPantryWarning} class="border-stone-300 font-sans">
+        Skip Item
+      </AlertDialog.Cancel>
+      <AlertDialog.Action onclick={forceAddItem} class="bg-amber-600 hover:bg-amber-700 text-white font-sans">
+        Add Anyway
+      </AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>
 </AlertDialog.Root>

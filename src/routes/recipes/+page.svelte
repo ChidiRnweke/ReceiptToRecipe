@@ -2,9 +2,6 @@
   import { enhance } from "$app/forms";
   import { invalidateAll } from "$app/navigation";
   import { Button } from "$lib/components/ui/button";
-  import * as Card from "$lib/components/ui/card";
-  import { Badge } from "$lib/components/ui/badge";
-  import { Skeleton } from "$lib/components/ui/skeleton";
   import {
     Plus,
     ChefHat,
@@ -12,14 +9,15 @@
     Users,
     Trash2,
     Sparkles,
-    Flame,
-    Utensils,
-    Heart,
     ShoppingCart,
     Loader2,
+    BookOpen,
+    Search
   } from "lucide-svelte";
   import { getContext } from "svelte";
   import type { WorkflowState } from "$lib/state/workflow.svelte";
+  import WashiTape from "$lib/components/WashiTape.svelte";
+  import PinnedNote from "$lib/components/PinnedNote.svelte";
 
   let { data } = $props();
   const workflowState = getContext<WorkflowState>('workflowState');
@@ -31,13 +29,12 @@
 
   function formatTime(minutes: number | null) {
     if (!minutes) return null;
-    if (minutes < 60) return `${minutes}min`;
+    if (minutes < 60) return `${minutes}m`;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   }
 
-  // Fun cooking quotes
   const quotes = [
     "Cooking is like love. It should be entered into with abandon or not at all.",
     "The secret ingredient is always love.",
@@ -48,306 +45,194 @@
 </script>
 
 <svelte:head>
-  <title>Recipes - Receipt2Recipe</title>
+  <title>Cookbook - Receipt2Recipe</title>
 </svelte:head>
 
-<div class="space-y-6">
-  <div class="flex items-center justify-between">
-    <div class="relative">
-      <div
-        class="absolute -left-4 -top-2 h-20 w-20 rounded-full bg-sage-100/50 blur-2xl"
-      ></div>
-      <p class="text-sm uppercase tracking-wide text-ink-muted">Step 2</p>
-      <h1 class="font-serif text-3xl font-medium text-ink">Your Recipes</h1>
-      <p class="mt-1 text-ink-light">
-        {data.recipes.length === 0
-          ? "Create delicious meals from your groceries"
-          : `${data.recipes.length} recipe${data.recipes.length === 1 ? "" : "s"} in your collection`}
-      </p>
-    </div>
-    <Button href="/recipes/generate">
-      <Sparkles class="mr-2 h-4 w-4" />
-      Generate Recipe
-    </Button>
-  </div>
+<div class="min-h-screen bg-[#FDFBF7] p-4 md:p-8 relative overflow-x-hidden">
+  <!-- Desk Texture (Subtle Noise) -->
+  <div class="pointer-events-none absolute inset-0 opacity-[0.03]" style="background-image: url('https://www.transparenttextures.com/patterns/cardboard-flat.png')"></div>
 
-  {#if suggestedRecipes.length > 0}
-    <div class="space-y-4">
-        <div class="flex items-center gap-2">
-            <Sparkles class="h-5 w-5 text-amber-500" />
-            <h2 class="font-serif text-xl text-ink">You can make this now</h2>
-        </div>
-        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {#each suggestedRecipes as recipe}
-                <Card.Root class="group relative overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 border-amber-200 bg-amber-50/30">
-                     <!-- Card Content (Similar to regular card but with badge) -->
-                     <a href="/recipes/{recipe.id}" class="block">
-                        {#if recipe.imageStatus === "DONE" && recipe.imageUrl}
-                          <div class="aspect-video overflow-hidden relative">
-                            <img
-                              src={recipe.imageUrl}
-                              alt={recipe.title}
-                              class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                            />
-                            <div class="absolute top-2 right-2">
-                                <Badge class="bg-emerald-500 hover:bg-emerald-600 border-none text-white shadow-sm">
-                                    {Math.round(recipe.matchPercentage * 100)}% Match
-                                </Badge>
-                            </div>
-                          </div>
-                        {:else}
-                          <div class="relative aspect-video bg-paper-dark">
-                             <ChefHat class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-12 text-sage-400" />
-                          </div>
-                        {/if}
-            
-                        <Card.Header class="pb-2">
-                          <Card.Title class="font-serif text-xl line-clamp-1 group-hover:text-sage-700 transition-colors">
-                            {recipe.title}
-                          </Card.Title>
-                        </Card.Header>
-            
-                        <Card.Content class="text-sm text-ink-light space-y-2">
-                            <div class="flex flex-wrap items-center gap-3">
-                                <span class="flex items-center gap-1">
-                                    <Clock class="h-4 w-4 text-ink-muted" />
-                                    {formatTime((recipe.prepTime || 0) + (recipe.cookTime || 0))}
-                                </span>
-                                <span class="flex items-center gap-1">
-                                    <Users class="h-4 w-4 text-ink-muted" />
-                                    {recipe.servings}
-                                </span>
-                            </div>
-                            <div class="text-xs text-ink-muted">
-                                You have {recipe.matchCount}/{recipe.totalIngredients} ingredients
-                            </div>
-                        </Card.Content>
-                      </a>
-                      <Card.Footer class="border-t border-amber-200/50 pt-3 flex justify-between">
-                         <Button href="/recipes/{recipe.id}" variant="default" size="sm" class="w-full bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-200">
-                            Cook Now
-                         </Button>
-                      </Card.Footer>
-                </Card.Root>
-            {/each}
-        </div>
-        <hr class="border-sand" />
-    </div>
-  {/if}
+  <!-- Main "Binder" Container -->
+  <div class="mx-auto max-w-7xl flex flex-col md:flex-row relative z-10 min-h-[90vh]">
+      
+      <!-- Left Spine/Binding (Desktop only) -->
+      <div class="hidden md:block w-12 bg-stone-800 rounded-l-md relative shadow-xl z-20">
+          <div class="absolute inset-y-8 left-4 w-1 bg-stone-700/50"></div>
+          <!-- Binding Rings visual -->
+          <div class="flex flex-col gap-12 mt-12 pl-2">
+              {#each Array(6) as _}
+                  <div class="w-16 h-4 bg-stone-300 rounded-full -ml-4 shadow-inner border border-stone-400"></div>
+              {/each}
+          </div>
+      </div>
 
-  {#if data.recipes.length === 0}
-    <Card.Root class="relative overflow-hidden border-dashed py-16 text-center">
-      <div
-        class="absolute right-0 top-0 h-32 w-32 rounded-full bg-sage-50 blur-3xl"
-      ></div>
-      <Card.Content class="relative">
-        <div class="relative mx-auto w-fit">
-          <div
-            class="flex h-20 w-20 items-center justify-center rounded-2xl bg-sage-50"
-          >
-            <ChefHat class="h-10 w-10 text-sage-600" />
-          </div>
-          <Sparkles class="absolute -right-2 -top-2 h-6 w-6 text-sage-500" />
-        </div>
-        <h3 class="mt-6 font-serif text-2xl font-medium text-ink">
-          Your cookbook awaits
-        </h3>
-        {#if data.receiptCount > 0}
-          <p class="mx-auto mt-2 max-w-md text-ink-light">
-            You have <strong>{data.receiptCount} receipt{data.receiptCount === 1 ? "" : "s"}</strong> ready to inspire your cooking.
-            Generate a recipe from ingredients you already bought!
-          </p>
-          <div
-            class="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center"
-          >
-            <Button href="/recipes/generate" size="lg">
-              <Sparkles class="mr-2 h-4 w-4" />
-              Generate from receipts
-            </Button>
-          </div>
-        {:else}
-          <p class="mx-auto mt-2 max-w-md text-ink-light">
-            Upload a receipt first, then we'll create custom recipes using
-            ingredients you already have. Complete with images and step-by-step
-            instructions.
-          </p>
-          <div
-            class="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center"
-          >
-            <Button href="/receipts/upload" size="lg">
-              Upload a receipt
-            </Button>
-            <Button href="/recipes/generate" variant="outline" size="lg">
-              <Sparkles class="mr-2 h-4 w-4" />
-              Or add ingredients manually
-            </Button>
-          </div>
-        {/if}
-        <p class="mx-auto mt-6 max-w-sm text-sm italic text-ink-muted">
-          "{randomQuote}"
-        </p>
-      </Card.Content>
-    </Card.Root>
-  {:else}
-    <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {#each otherRecipes as recipe}
-        <Card.Root
-          class="group relative overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1"
-        >
-          <!-- Gradient accent on hover -->
-          <div
-            class="absolute left-0 top-0 h-1 w-full bg-linear-to-r from-sage-400 to-sage-200 opacity-0 transition-opacity group-hover:opacity-100"
-          ></div>
-
-          <a href="/recipes/{recipe.id}" class="block">
-            {#if recipe.imageStatus === "DONE" && recipe.imageUrl}
-              <div class="aspect-video overflow-hidden relative">
-                <img
-                  src={recipe.imageUrl}
-                  alt={recipe.title}
-                  class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-                {#if recipe.matchPercentage > 0}
-                    <div class="absolute top-2 right-2">
-                        <Badge variant="secondary" class="bg-white/90 backdrop-blur-sm shadow-sm">
-                            {recipe.matchCount}/{recipe.totalIngredients}
-                        </Badge>
+      <!-- The Page -->
+      <div class="flex-1 bg-white shadow-2xl rounded-r-md md:rounded-l-none rounded-l-md relative overflow-hidden border-r border-stone-200">
+           <!-- Paper Texture Overlay -->
+           <div class="pointer-events-none absolute inset-0 bg-stone-50/20 mix-blend-multiply"></div>
+           
+           <!-- Content Padding -->
+           <div class="p-8 md:p-12 lg:p-16">
+               
+               <!-- Header -->
+               <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-2 border-stone-800 pb-6 mb-10">
+                    <div>
+                        <div class="flex items-center gap-2 text-stone-400 mb-1">
+                            <BookOpen class="h-4 w-4" />
+                            <span class="font-mono text-xs uppercase tracking-widest">Chapter 1</span>
+                        </div>
+                        <h1 class="font-display text-5xl text-ink leading-none">The Collection</h1>
+                        <p class="mt-2 font-serif italic text-stone-500">
+                            {data.recipes.length} recipes curated for you.
+                        </p>
                     </div>
-                {/if}
-              </div>
-            {:else if recipe.imageStatus === "PROCESSING" || recipe.imageStatus === "QUEUED"}
-              <div class="relative aspect-video bg-paper-dark">
-                <Skeleton class="h-full w-full" />
-                <div class="absolute inset-0 flex items-center justify-center">
-                  <div
-                    class="flex items-center gap-2 rounded-full bg-paper/90 px-3 py-1.5 text-xs font-medium text-ink-muted"
-                  >
-                    <Sparkles class="h-3 w-3 animate-pulse" />
-                    Creating image...
-                  </div>
-                </div>
-              </div>
-            {:else}
-              <div
-                class="flex aspect-video items-center justify-center bg-linear-to-br from-paper-dark to-sage-50"
-              >
-                <div class="text-center">
-                  <ChefHat class="mx-auto h-12 w-12 text-sage-400" />
-                  <p class="mt-2 text-xs text-ink-muted">No image</p>
-                </div>
-              </div>
-            {/if}
+                    
+                    <Button href="/recipes/generate" class="bg-stone-800 text-white font-serif shadow-md hover:bg-stone-700">
+                        <Plus class="mr-2 h-4 w-4 text-amber-300" />
+                        Add New Entry
+                    </Button>
+               </div>
 
-            <Card.Header class="pb-2">
-              <Card.Title
-                class="font-serif text-xl line-clamp-1 group-hover:text-sage-700 transition-colors"
-              >
-                {recipe.title}
-              </Card.Title>
-              {#if recipe.description}
-                <Card.Description class="line-clamp-2"
-                  >{recipe.description}</Card.Description
-                >
-              {/if}
-            </Card.Header>
+               <!-- Suggested "Insert" -->
+               {#if suggestedRecipes.length > 0}
+                   <div class="mb-16 relative">
+                       <!-- Section Label -->
+                       <div class="absolute -left-12 top-0 -rotate-90 origin-top-right translate-x-full mt-12 hidden lg:block">
+                           <span class="font-mono text-xs uppercase tracking-[0.3em] text-stone-400 whitespace-nowrap">Chef's Selection</span>
+                       </div>
 
-            <Card.Content
-              class="flex flex-wrap items-center gap-3 text-sm text-ink-light"
-            >
-              {#if recipe.prepTime || recipe.cookTime}
-                <span class="flex items-center gap-1">
-                  <Clock class="h-4 w-4 text-ink-muted" />
-                  {formatTime((recipe.prepTime || 0) + (recipe.cookTime || 0))}
-                </span>
-              {/if}
-              <span class="flex items-center gap-1">
-                <Users class="h-4 w-4 text-ink-muted" />
-                {recipe.servings}
-              </span>
-              {#if recipe.estimatedCalories}
-                <span class="flex items-center gap-1">
-                  <Flame class="h-4 w-4 text-ink-muted" />
-                  {recipe.estimatedCalories} cal
-                </span>
-              {/if}
-              {#if recipe.cuisineType}
-                <Badge variant="outline" class="ml-auto"
-                  >{recipe.cuisineType}</Badge
-                >
-              {/if}
-            </Card.Content>
-          </a>
-          <Card.Footer
-            class="flex items-center justify-between gap-2 border-t border-sand pt-3"
-          >
-            <form
-              method="POST"
-              action="?/addToShopping"
-              use:enhance={() => {
-                addingToShoppingId = recipe.id;
-                // Optimistic increment
-                // We don't know the exact item count here easily, so we just bump by 1 for feedback
-                // Ideally the server response returns the count added.
-                workflowState.incrementShopping(); 
-                
-                return async ({ result }) => {
-                  addingToShoppingId = null;
-                  if (result.type === 'failure') {
-                    workflowState.decrementShopping();
-                  } else {
-                    await invalidateAll();
-                  }
-                };
-              }}
-            >
-              <input type="hidden" name="recipeId" value={recipe.id} />
-              <Button
-                type="submit"
-                variant="ghost"
-                size="sm"
-                class="text-xs"
-                disabled={addingToShoppingId === recipe.id}
-              >
-                {#if addingToShoppingId === recipe.id}
-                  <Loader2 class="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                {:else}
-                  <ShoppingCart class="mr-1.5 h-3.5 w-3.5" />
-                {/if}
-                Add to List
-              </Button>
-            </form>
-            <div class="flex items-center gap-2">
-              <p class="text-xs text-ink-muted">
-                {new Date(recipe.createdAt).toLocaleDateString()}
-              </p>
-              <form
-                method="POST"
-                action="?/delete"
-                use:enhance={({ cancel }) => {
-                  const confirmed = confirm(
-                    "Are you sure you want to delete this recipe?",
-                  );
-                  if (!confirmed) {
-                    cancel();
-                    return;
-                  }
-                  deletingId = recipe.id;
-                }}
-              >
-                <input type="hidden" name="recipeId" value={recipe.id} />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  class="h-8 w-8 p-0 opacity-0 transition-opacity group-hover:opacity-100"
-                  disabled={deletingId === recipe.id}
-                >
-                  <Trash2 class="h-4 w-4 text-ink-muted hover:text-sienna-600" />
-                </Button>
-              </form>
-            </div>
-          </Card.Footer>
-        </Card.Root>
-      {/each}
-    </div>
-  {/if}
+                       <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                           {#each suggestedRecipes as recipe}
+                               <div class="group relative bg-[#fffdf5] border border-stone-200 p-3 shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 duration-300 rotate-1 hover:rotate-0">
+                                   <!-- Washi Tape -->
+                                   <WashiTape color="sage" class="absolute -top-3 left-1/2 -translate-x-1/2 w-24 shadow-sm z-10" />
+                                   
+                                   <a href="/recipes/{recipe.id}" class="block relative aspect-square overflow-hidden mb-3 border border-stone-100 bg-stone-100 grayscale-[0.2] group-hover:grayscale-0 transition-all">
+                                       {#if recipe.imageUrl}
+                                            <img src={recipe.imageUrl} alt={recipe.title} class="h-full w-full object-cover" />
+                                       {:else}
+                                            <div class="absolute inset-0 flex items-center justify-center">
+                                                <ChefHat class="h-8 w-8 text-stone-300" />
+                                            </div>
+                                       {/if}
+                                       <div class="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-0.5 text-xs font-mono font-bold text-emerald-700 shadow-sm">
+                                           {Math.round(recipe.matchPercentage * 100)}% Match
+                                       </div>
+                                   </a>
+
+                                   <div class="px-1">
+                                       <h3 class="font-display text-xl leading-tight mb-2 group-hover:text-amber-700 transition-colors">
+                                           <a href="/recipes/{recipe.id}">{recipe.title}</a>
+                                       </h3>
+                                       <div class="flex items-center justify-between text-xs font-mono text-stone-500 border-t border-dashed border-stone-200 pt-2">
+                                           <span>{formatTime((recipe.prepTime || 0) + (recipe.cookTime || 0))}</span>
+                                           <span>{recipe.servings} Servings</span>
+                                       </div>
+                                       
+                                       <div class="mt-3">
+                                            <form
+                                                method="POST"
+                                                action="?/addToShopping"
+                                                use:enhance={() => {
+                                                    addingToShoppingId = recipe.id;
+                                                    workflowState.incrementShopping();
+                                                    return async ({ result }) => {
+                                                        addingToShoppingId = null;
+                                                        if (result.type === 'failure') workflowState.decrementShopping();
+                                                        else await invalidateAll();
+                                                    };
+                                                }}
+                                            >
+                                                <input type="hidden" name="recipeId" value={recipe.id} />
+                                                <Button type="submit" size="sm" variant="outline" class="w-full text-xs h-8" disabled={addingToShoppingId === recipe.id}>
+                                                    {#if addingToShoppingId === recipe.id}
+                                                        <Loader2 class="mr-2 h-3 w-3 animate-spin" />
+                                                    {:else}
+                                                        <ShoppingCart class="mr-2 h-3 w-3" />
+                                                    {/if}
+                                                    Shop Ingredients
+                                                </Button>
+                                            </form>
+                                       </div>
+                                   </div>
+                               </div>
+                           {/each}
+                       </div>
+                   </div>
+               {/if}
+
+               <!-- Archive List -->
+               {#if otherRecipes.length > 0}
+                    <div class="space-y-6">
+                        <h2 class="font-hand text-2xl text-stone-600 border-b border-stone-200 pb-2">Archive</h2>
+                        
+                        <div class="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+                            {#each otherRecipes as recipe}
+                                <div class="flex gap-4 group">
+                                    <a href="/recipes/{recipe.id}" class="w-20 h-20 shrink-0 bg-stone-100 border border-stone-200 overflow-hidden relative">
+                                        {#if recipe.imageUrl}
+                                            <img src={recipe.imageUrl} alt={recipe.title} class="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                        {:else}
+                                            <div class="absolute inset-0 flex items-center justify-center">
+                                                <ChefHat class="h-6 w-6 text-stone-300" />
+                                            </div>
+                                        {/if}
+                                    </a>
+                                    
+                                    <div class="flex-1 min-w-0">
+                                        <h3 class="font-serif font-bold text-lg leading-tight truncate">
+                                            <a href="/recipes/{recipe.id}" class="group-hover:text-amber-700 transition-colors">{recipe.title}</a>
+                                        </h3>
+                                        <div class="flex items-center gap-2 text-xs font-mono text-stone-400 mt-1 uppercase tracking-wide">
+                                            {#if recipe.cuisineType}
+                                                <span>{recipe.cuisineType}</span>
+                                                <span>•</span>
+                                            {/if}
+                                            <span>{formatTime((recipe.prepTime || 0) + (recipe.cookTime || 0))}</span>
+                                        </div>
+                                        
+                                        <div class="flex items-center gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <form method="POST" action="?/addToShopping" use:enhance={() => {
+                                                addingToShoppingId = recipe.id;
+                                                workflowState.incrementShopping();
+                                                return async ({ result }) => {
+                                                    addingToShoppingId = null;
+                                                    if (result.type === 'failure') workflowState.decrementShopping();
+                                                    else await invalidateAll();
+                                                };
+                                            }}>
+                                                <input type="hidden" name="recipeId" value={recipe.id} />
+                                                <button disabled={addingToShoppingId === recipe.id} class="text-stone-400 hover:text-amber-600 transition-colors" title="Add to list">
+                                                    <ShoppingCart class="h-3.5 w-3.5" />
+                                                </button>
+                                            </form>
+                                            
+                                            <form method="POST" action="?/delete" use:enhance={({ cancel }) => {
+                                                if (!confirm("Delete this recipe?")) cancel();
+                                                else deletingId = recipe.id;
+                                            }}>
+                                                <input type="hidden" name="recipeId" value={recipe.id} />
+                                                <button disabled={deletingId === recipe.id} class="text-stone-400 hover:text-red-600 transition-colors" title="Delete">
+                                                    <Trash2 class="h-3.5 w-3.5" />
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
+               {/if}
+
+               {#if data.recipes.length === 0}
+                    <div class="text-center py-20">
+                        <ChefHat class="h-16 w-16 text-stone-200 mx-auto mb-4" />
+                        <h3 class="font-hand text-3xl text-stone-400">Empty Pages</h3>
+                        <p class="font-serif text-stone-400 mt-2 italic">"{randomQuote}"</p>
+                    </div>
+               {/if}
+
+           </div>
+      </div>
+  </div>
 </div>
