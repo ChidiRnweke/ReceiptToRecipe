@@ -72,4 +72,36 @@ export const actions: Actions = {
       });
     }
   },
+
+  delete: async ({ locals, request }) => {
+    if (!locals.user) {
+      throw redirect(302, "/login");
+    }
+
+    const data = await request.formData();
+    const receiptId = data.get("id")?.toString();
+
+    if (!receiptId) {
+      return fail(400, { error: "Receipt ID is required" });
+    }
+
+    try {
+      const receiptController = new ReceiptController(
+        AppFactory.getStorageService(),
+        AppFactory.getOcrService(),
+        AppFactory.getNormalizationService(),
+        AppFactory.getProductNormalizationService(),
+        AppFactory.getPantryService(),
+        AppFactory.getJobQueue(),
+      );
+
+      await receiptController.deleteReceipt(receiptId, locals.user.id);
+      return { success: true };
+    } catch (err) {
+      console.error("Delete error:", err);
+      return fail(500, {
+        error: err instanceof Error ? err.message : "Failed to delete receipt",
+      });
+    }
+  },
 };

@@ -436,14 +436,12 @@
           </div>
           <Button
             href="/recipes/generate"
-            class="group relative overflow-hidden rounded-full border border-amber-300/40 bg-linear-to-br from-amber-50 to-amber-100/50 px-6 py-2.5 transition-all hover:border-amber-400/50 active:scale-[0.98]"
+            class="group relative h-10 overflow-hidden rounded-lg border border-sage-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95"
           >
-            <Sparkles
-              class="mr-2 h-4 w-4 text-amber-600/80 transition-transform group-hover:rotate-12"
-            />
-            <span class="font-display text-sm text-ink"
-              >Generate New Recipe</span
-            >
+            <div class="flex items-center gap-2">
+              <Sparkles class="h-4 w-4 text-sage-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-sage-700" />
+              <span class="font-display text-base font-medium text-ink">Generate New Recipe</span>
+            </div>
           </Button>
         </div>
 

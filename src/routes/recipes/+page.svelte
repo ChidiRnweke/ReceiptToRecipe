@@ -2,6 +2,7 @@
   import { enhance } from "$app/forms";
   import { invalidateAll } from "$app/navigation";
   import { Button } from "$lib/components/ui/button";
+  import * as AlertDialog from "$lib/components/ui/alert-dialog";
   import {
     ChefHat,
     Trash2,
@@ -17,6 +18,10 @@
   const workflowState = getContext<WorkflowState>("workflowState");
   let deletingId = $state<string | null>(null);
   let addingToShoppingId = $state<string | null>(null);
+  
+  // Dialog state
+  let deleteDialogOpen = $state(false);
+  let recipeToDelete = $state<string | null>(null);
 
   const suggestedRecipes = $derived(
     data.recipes.filter((r: any) => r.isSuggested),
@@ -31,6 +36,11 @@
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  }
+  
+  function confirmDelete(id: string) {
+    recipeToDelete = id;
+    deleteDialogOpen = true;
   }
 
   const quotes = [
@@ -78,12 +88,12 @@
 
         <Button
           href="/recipes/generate"
-          class="group relative overflow-hidden rounded-full border border-amber-300/40 bg-linear-to-br from-amber-50 to-amber-100/50 px-6 py-2.5 transition-all hover:border-amber-400/50 active:scale-[0.98]"
+          class="group relative h-10 overflow-hidden rounded-lg border border-sage-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95"
         >
-          <Sparkles
-            class="mr-2 h-4 w-4 text-amber-600/80 transition-transform group-hover:rotate-12"
-          />
-          <span class="font-display text-sm text-ink">New Recipe</span>
+          <div class="flex items-center gap-2">
+            <Sparkles class="h-4 w-4 text-sage-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-sage-700" />
+            <span class="font-display text-base font-medium text-ink">New Recipe</span>
+          </div>
         </Button>
       </div>
 
@@ -280,26 +290,23 @@
                     </button>
                   </form>
 
-                  <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
-                  <form
-                    method="POST"
-                    action="?/delete"
-                    use:enhance={({ cancel }) => {
-                      if (!confirm("Delete this recipe?")) cancel();
-                      else deletingId = recipe.id;
+                  <button
+                    type="button"
+                    onclick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        confirmDelete(recipe.id);
                     }}
-                    onclick={(e) => e.stopPropagation()}
+                    disabled={deletingId === recipe.id}
+                    class="flex h-8 w-8 items-center justify-center rounded-full bg-stone-100 text-stone-400 hover:bg-red-400 hover:text-white transition-colors"
+                    title="Delete recipe"
                   >
-                    <input type="hidden" name="recipeId" value={recipe.id} />
-                    <button
-                      type="submit"
-                      disabled={deletingId === recipe.id}
-                      class="flex h-8 w-8 items-center justify-center rounded-full bg-stone-100 text-stone-400 hover:bg-red-400 hover:text-white transition-colors"
-                      title="Delete recipe"
-                    >
-                      <Trash2 class="h-4 w-4" />
-                    </button>
-                  </form>
+                    {#if deletingId === recipe.id}
+                        <Loader2 class="h-4 w-4 animate-spin" />
+                    {:else}
+                        <Trash2 class="h-4 w-4" />
+                    {/if}
+                  </button>
                 </div>
 
                 <!-- Photo Frame -->
@@ -396,17 +403,45 @@
           </p>
           <Button
             href="/recipes/generate"
-            class="group relative overflow-hidden rounded-full border border-amber-300/40 bg-linear-to-br from-amber-50 to-amber-100/50 px-6 py-2.5 transition-all hover:border-amber-400/50 active:scale-[0.98]"
+            class="group relative h-12 overflow-hidden rounded-lg border border-sage-300 bg-white px-8 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95"
           >
-            <Sparkles
-              class="mr-2 h-4 w-4 text-amber-600/80 transition-transform group-hover:rotate-12"
-            />
-            <span class="font-display text-sm text-ink"
-              >Create Your First Recipe</span
-            >
+            <div class="flex items-center gap-2">
+              <Sparkles class="h-4 w-4 text-sage-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-sage-700" />
+              <span class="font-display text-base font-medium text-ink">Create Your First Recipe</span>
+            </div>
           </Button>
         </div>
       {/if}
     </div>
   </main>
+
+  <AlertDialog.Root bind:open={deleteDialogOpen}>
+    <AlertDialog.Content>
+      <AlertDialog.Header>
+        <AlertDialog.Title>Are you sure?</AlertDialog.Title>
+        <AlertDialog.Description>
+          This will permanently delete this recipe from your cookbook. This action cannot be undone.
+        </AlertDialog.Description>
+      </AlertDialog.Header>
+      <AlertDialog.Footer>
+        <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+        <form
+            method="POST"
+            action="?/delete"
+            use:enhance={() => {
+                deleteDialogOpen = false;
+                if (recipeToDelete) deletingId = recipeToDelete;
+                return async ({ update }) => {
+                    deletingId = null;
+                    await update();
+                };
+            }}
+            class="inline-block"
+        >
+            <input type="hidden" name="recipeId" value={recipeToDelete} />
+            <AlertDialog.Action type="submit" class="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialog.Action>
+        </form>
+      </AlertDialog.Footer>
+    </AlertDialog.Content>
+  </AlertDialog.Root>
 </div>

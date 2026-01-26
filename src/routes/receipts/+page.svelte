@@ -3,6 +3,7 @@
   import { formatCurrency } from "$lib/utils";
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card";
+  import * as AlertDialog from "$lib/components/ui/alert-dialog";
   import { Badge } from "$lib/components/ui/badge";
   import {
     Plus,
@@ -31,6 +32,16 @@
 
   let { data } = $props();
   let addingToShoppingId = $state<string | null>(null);
+
+  // Dialog state
+  let deleteDialogOpen = $state(false);
+  let receiptToDelete = $state<string | null>(null);
+  let isDeleting = $state(false);
+
+  function confirmDelete(id: string) {
+    receiptToDelete = id;
+    deleteDialogOpen = true;
+  }
 
   function formatDate(date: Date | string) {
     return new Date(date).toLocaleDateString("en-US", {
@@ -109,11 +120,12 @@
 
           <Button
             href="/receipts/upload"
-            size="lg"
-            class="bg-ink text-white font-mono shadow-[4px_4px_0px_rgba(0,0,0,0.2)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_rgba(0,0,0,0.2)] transition-all active:translate-y-[4px] active:shadow-none border-2 border-ink rounded-sm"
+            class="group relative h-11 overflow-hidden rounded-lg border border-sage-300 bg-white px-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95"
           >
-            <Plus class="mr-2 h-4 w-4" />
-            Archive New Entry
+            <div class="flex items-center gap-2">
+              <Plus class="h-4 w-4 text-sage-600 transition-transform duration-500 group-hover:rotate-90 group-hover:text-sage-700" />
+              <span class="font-display text-base font-medium text-ink">Archive New Entry</span>
+            </div>
           </Button>
         </div>
       </div>
@@ -197,23 +209,23 @@
                   </div>
 
                   <!-- 3. The Launchpad (Focus) -->
-                  <div class="flex-1 flex items-center justify-end gap-6">
+                  <div class="flex-1 flex items-center justify-end gap-4">
                     {#if receipt.status === "DONE"}
-                      <!-- Generate Button (Ink/Black) -->
+                      <!-- Generate Button (Editorial Style) -->
                       <Button
                         href="/recipes/generate?receipt={receipt.id}"
-                        variant="default"
-                        size="sm"
-                        class="bg-ink text-white font-mono text-xs shadow-[3px_3px_0px_rgba(0,0,0,0.2)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_rgba(0,0,0,0.2)] active:translate-y-[3px] active:shadow-none border border-ink rounded-sm relative z-10"
+                        class="group relative h-8 overflow-hidden rounded-md border border-sage-300 bg-white px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95 relative z-10"
                         onclick={(e: MouseEvent) => e.stopPropagation()}
                       >
-                        <ChefHat class="mr-2 h-3.5 w-3.5" />
-                        Generate Recipes
+                        <div class="flex items-center gap-2">
+                          <ChefHat class="h-3.5 w-3.5 text-sage-600 transition-transform duration-500 group-hover:scale-110 group-hover:text-sage-700" />
+                          <span class="font-display text-xs font-medium text-ink">Generate Recipes</span>
+                        </div>
                       </Button>
 
                       <!-- Verified Stamp (Green) -->
                       <div
-                        class="flex items-center justify-center p-1 border-2 border-emerald-500/30 text-emerald-600/60 rounded-sm rotate-[-8deg] select-none pointer-events-none"
+                        class="hidden sm:flex items-center justify-center p-1 border-2 border-emerald-500/30 text-emerald-600/60 rounded-sm rotate-[-8deg] select-none pointer-events-none"
                       >
                         <span
                           class="text-[10px] font-bold uppercase tracking-widest leading-none"
@@ -233,20 +245,23 @@
                     {/if}
                   </div>
 
-                  <!-- Delete/Archive Actions -->
-                  <div
-                    class="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity pl-4 bg-gradient-to-l from-white to-transparent z-20"
-                  >
-                    <form method="POST" action="?/delete" class="inline-block">
-                      <input type="hidden" name="id" value={receipt.id} />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        class="h-8 w-8 text-stone-400 hover:text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 class="h-4 w-4" />
-                      </Button>
-                    </form>
+                  <!-- 4. Actions -->
+                  <div class="flex items-center pl-2 border-l border-stone-100">
+                    <button 
+                        type="button"
+                        class="h-8 w-8 flex items-center justify-center rounded-md text-stone-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        onclick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            confirmDelete(receipt.id);
+                        }}
+                    >
+                        {#if isDeleting && receiptToDelete === receipt.id}
+                            <Loader2 class="h-4 w-4 animate-spin" />
+                        {:else}
+                            <Trash2 class="h-4 w-4" />
+                        {/if}
+                    </button>
                   </div>
                 </div>
               </a>
@@ -256,4 +271,41 @@
       {/if}
     </div>
   </main>
+
+  <AlertDialog.Root bind:open={deleteDialogOpen}>
+    <AlertDialog.Content>
+      <AlertDialog.Header>
+        <AlertDialog.Title>Delete Receipt?</AlertDialog.Title>
+        <AlertDialog.Description>
+          This will permanently delete this receipt and all its associated items from your ledger. This action cannot be undone.
+        </AlertDialog.Description>
+      </AlertDialog.Header>
+      <AlertDialog.Footer>
+        <AlertDialog.Cancel disabled={isDeleting}>Cancel</AlertDialog.Cancel>
+        <form
+            method="POST"
+            action="?/delete"
+            use:enhance={() => {
+                isDeleting = true;
+                return async ({ update }) => {
+                    isDeleting = false;
+                    deleteDialogOpen = false;
+                    await update();
+                };
+            }}
+            class="inline-block"
+        >
+            <input type="hidden" name="id" value={receiptToDelete} />
+            <AlertDialog.Action type="submit" class="bg-red-600 hover:bg-red-700 text-white" disabled={isDeleting}>
+                {#if isDeleting}
+                    <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                {:else}
+                    Delete Receipt
+                {/if}
+            </AlertDialog.Action>
+        </form>
+      </AlertDialog.Footer>
+    </AlertDialog.Content>
+  </AlertDialog.Root>
 </div>
