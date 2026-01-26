@@ -29,6 +29,7 @@
     Receipt,
     Store,
     Check,
+    Loader2,
   } from "lucide-svelte";
   import { getContext } from "svelte";
   import type { WorkflowState } from "$lib/state/workflow.svelte";
@@ -57,8 +58,8 @@
   );
   
   // Calculate missing ingredients
-  const pantrySet = $derived(new Set(data.pantryMatches?.map(i => i.toLowerCase()) || []));
-  const missingCount = $derived(data.recipe.ingredients.filter(i => !pantrySet.has(i.name.toLowerCase())).length);
+  const pantrySet = $derived(new Set(Object.keys(data.pantryMatches || {}).map((i: string) => i.toLowerCase())));
+  const missingCount = $derived(data.recipe.ingredients.filter((i: any) => !pantrySet.has(i.name.toLowerCase())).length);
 
   function toggleStep(index: number) {
     const newSet = new Set(completedSteps);

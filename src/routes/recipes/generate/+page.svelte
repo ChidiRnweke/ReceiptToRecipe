@@ -339,7 +339,7 @@
               Ready to cook?
             </p>
             <p class="text-sm text-ink-light">
-              {#if selectedReceiptItems.size === 0 && customIngredients.length === 0}
+              {#if selectedIngredientIds.size === 0 && customIngredients.length === 0}
                 Select at least one ingredient to get started
               {:else}
                 We'll create a custom recipe just for you

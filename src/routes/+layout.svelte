@@ -16,11 +16,13 @@
 	let { data, children } = $props();
 
 	// Initialize state
-	const workflowState = new WorkflowState(data.workflowCounts);
+	const workflowState = new WorkflowState(data.workflowCounts ?? undefined);
 
 	// Sync state when data changes (e.g. after navigation)
 	$effect(() => {
-		workflowState.sync(data.workflowCounts);
+		if (data.workflowCounts) {
+			workflowState.sync(data.workflowCounts);
+		}
 	});
 
 	// Provide to children
