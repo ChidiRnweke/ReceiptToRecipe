@@ -12,6 +12,7 @@
 	} from 'lucide-svelte';
 	import { setContext } from 'svelte';
 	import { WorkflowState } from '$lib/state/workflow.svelte';
+	import logo from '$lib/assets/logo.svg';
 
 	let { data, children } = $props();
 
@@ -45,7 +46,8 @@
 	<header class="sticky top-0 z-50 border-b border-sand bg-paper/95 backdrop-blur-sm">
 		<div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
 			<!-- Logo -->
-			<a href="/" class="flex items-center gap-2">
+			<a href="/" class="flex items-center gap-3 group">
+				<img src={logo} alt="Receipt2Recipe Logo" class="h-8 w-8 transition-transform duration-500 group-hover:rotate-6" />
 				<span class="font-serif text-2xl font-medium tracking-tight text-ink">Receipt2Recipe</span>
 			</a>
 

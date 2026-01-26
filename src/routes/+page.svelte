@@ -171,14 +171,14 @@
   />
 
   <div
-    class="paper-card relative flex min-h-screen gap-0 rounded-4xl border border-sand bg-[#FDFBF7] shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)] overflow-hidden"
+    class="paper-card relative flex min-h-screen gap-0 rounded-4xl border border-sand bg-[#FDFBF7] shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)]"
   >
     <div
-      class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
+      class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)] rounded-4xl"
     ></div>
 
     <aside
-      class="sticky top-0 z-20 hidden w-[320px] shrink-0 h-screen overflow-y-auto border-r border-sand bg-stone-50/80 px-6 py-6 backdrop-blur-sm lg:block [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"
+      class="sticky top-24 z-20 hidden w-[320px] shrink-0 h-[calc(100vh-8rem)] overflow-y-auto border-r border-sand bg-stone-50/80 px-6 py-6 backdrop-blur-sm lg:block rounded-tl-4xl rounded-bl-4xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"
     >
       <div class="flex h-full flex-col justify-between gap-6">
         <div class="space-y-6">
@@ -392,7 +392,7 @@
     </aside>
 
     <main
-      class="relative z-10 flex flex-1 flex-col bg-white h-screen overflow-y-auto scroll-smooth"
+      class="relative z-10 flex flex-1 flex-col bg-white rounded-4xl lg:rounded-l-none lg:rounded-r-4xl"
     >
       <div class="mx-auto w-full max-w-5xl px-6 py-6 sm:px-10">
         <div class="mb-8 flex flex-wrap items-end justify-between gap-4">

@@ -143,7 +143,7 @@
       <!-- LEFT COLUMN: The Pantry Inventory (Notepad) -->
       <div class="lg:col-span-7 xl:col-span-8">
         <Notepad class="h-full" tapeWidth="w-32" tapeRotate="-rotate-2">
-          <div class="bg-lines p-6 md:p-8 min-h-[500px]">
+          <div class="bg-lines p-6 md:p-8 min-h-125">
             <div
               class="mb-6 flex items-baseline justify-between border-b-2 border-dashed border-stone-200 pb-4"
             >

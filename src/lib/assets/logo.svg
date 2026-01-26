@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Receipt Paper -->
+  <path d="M12 4H52V52L48 56L44 52L40 56L36 52L32 56L28 52L24 56L20 52L16 56L12 52V4Z" fill="#FDFBF7" stroke="#2D3748" stroke-width="2" stroke-linejoin="round"/>
+  
+  <!-- Receipt Lines (Ingredients) -->
+  <line x1="20" y1="14" x2="36" y2="14" stroke="#A8A29E" stroke-width="2" stroke-linecap="round"/>
+  <line x1="20" y1="22" x2="44" y2="22" stroke="#A8A29E" stroke-width="2" stroke-linecap="round"/>
+  <line x1="20" y1="30" x2="30" y2="30" stroke="#A8A29E" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Spoon/Ladle Overlay (The "Recipe" transformation) -->
+  <path d="M42 34C42 34 50 34 50 42C50 50 42 50 42 50C42 50 44 42 42 34Z" fill="#D97706" fill-opacity="0.2"/>
+  <path d="M38 60L46 44" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+  <path d="M46 44C48 44 51 45 51 48C51 51 48 52 46 52C44 52 41 51 41 48C41 45 44 44 46 44Z" fill="#D97706"/>
+  
+  <!-- Decorative "Seal" or "Stamp" -->
+  <circle cx="48" cy="12" r="4" fill="#059669" fill-opacity="0.8"/>
+</svg>
