@@ -161,28 +161,29 @@
                   ></div>
 
                   <!-- 1. Merchant Block -->
-                  <div class="w-1/3 min-w-[240px] pl-6">
+                  <div class="w-1/3 min-w-[240px] pl-6 overflow-hidden">
                     <div class="flex items-center gap-3">
                       <div
                         class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 border border-amber-200 group-hover:bg-amber-50 transition-colors"
                       >
                         <Store class="h-5 w-5 text-amber-700" />
                       </div>
-                      <div>
+                      <div class="min-w-0 flex-1">
                         <h3
                           class="font-serif text-xl font-bold text-ink truncate group-hover:text-amber-700 transition-colors"
+                          title={receipt.storeName || "Unknown Merchant"}
                         >
                           {receipt.storeName || "Unknown Merchant"}
                         </h3>
                         <div class="flex items-center gap-2 mt-1">
                           <!-- Barcode lines -->
-                          <div class="flex gap-px h-3 opacity-30">
+                          <div class="flex gap-px h-3 opacity-30 shrink-0">
                             {#each Array(8) as _}
                               <div class="w-px bg-black"></div>
                               <div class="w-0.5 bg-transparent"></div>
                             {/each}
                           </div>
-                          <p class="text-xs text-ink-muted font-mono">
+                          <p class="text-xs text-ink-muted font-mono truncate">
                             {(receipt as any).items?.length || 0} items scanned
                           </p>
                         </div>
@@ -209,12 +210,12 @@
                   </div>
 
                   <!-- 3. The Launchpad (Focus) -->
-                  <div class="flex-1 flex items-center justify-end gap-4">
+                  <div class="flex-1 flex items-center justify-end gap-4 min-w-0 overflow-hidden">
                     {#if receipt.status === "DONE"}
                       <!-- Generate Button (Editorial Style) -->
                       <Button
                         href="/recipes/generate?receipt={receipt.id}"
-                        class="group relative h-8 overflow-hidden rounded-md border border-sage-300 bg-white px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95 relative z-10"
+                        class="group relative h-8 overflow-hidden rounded-md border border-sage-300 bg-white px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95 relative z-10 shrink-0"
                         onclick={(e: MouseEvent) => e.stopPropagation()}
                       >
                         <div class="flex items-center gap-2">
@@ -225,7 +226,7 @@
 
                       <!-- Verified Stamp (Green) -->
                       <div
-                        class="hidden sm:flex items-center justify-center p-1 border-2 border-emerald-500/30 text-emerald-600/60 rounded-sm rotate-[-8deg] select-none pointer-events-none"
+                        class="hidden sm:flex items-center justify-center p-1 border-2 border-emerald-500/30 text-emerald-600/60 rounded-sm rotate-[-8deg] select-none pointer-events-none shrink-0"
                       >
                         <span
                           class="text-[10px] font-bold uppercase tracking-widest leading-none"
@@ -235,12 +236,13 @@
                     {:else}
                       <!-- Status Badge (Amber/Yellow for Processing) -->
                       <div
-                        class="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1 rounded-sm text-xs font-mono uppercase tracking-wider flex items-center gap-2"
+                        class="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1 rounded-sm text-xs font-mono uppercase tracking-wider flex items-center gap-2 truncate"
+                        title={receipt.status}
                       >
                         {#if receipt.status === "PROCESSING"}
-                          <Loader2 class="h-3 w-3 animate-spin" />
+                          <Loader2 class="h-3 w-3 animate-spin shrink-0" />
                         {/if}
-                        {receipt.status}
+                        <span class="truncate">{receipt.status}</span>
                       </div>
                     {/if}
                   </div>
