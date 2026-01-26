@@ -178,9 +178,9 @@
     ></div>
 
     <aside
-      class="sticky top-24 z-20 hidden w-[320px] shrink-0 h-[calc(100vh-8rem)] overflow-y-auto border-r border-sand bg-stone-50/80 px-6 py-6 backdrop-blur-sm lg:block rounded-tl-4xl rounded-bl-4xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"
+      class="hidden w-[320px] shrink-0 h-full border-r border-sand bg-stone-50/80 px-6 py-6 backdrop-blur-sm lg:block rounded-tl-4xl rounded-bl-4xl"
     >
-      <div class="flex h-full flex-col justify-between gap-6">
+      <div class="flex h-full flex-col gap-6">
         <div class="space-y-6">
           <div
             class="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-ink-muted"
@@ -272,24 +272,6 @@
                 </div>
                 <ShoppingCart class="h-5 w-5 text-sage-600" />
               </a>
-
-              {#if shoppingPreview.length > 0}
-                <div
-                  class="mt-2 max-h-32 overflow-y-auto px-3 pb-3 space-y-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"
-                >
-                  <p
-                    class="text-[10px] uppercase tracking-wider text-ink-muted mb-1"
-                  >
-                    Suggested
-                  </p>
-                  {#each shoppingPreview.slice(0, 4) as suggestion}
-                    <div class="flex items-center gap-2 text-xs text-ink">
-                      <Sparkles class="h-3 w-3 text-sage-400" />
-                      <span class="truncate">{suggestion.itemName}</span>
-                    </div>
-                  {/each}
-                </div>
-              {/if}
             </div>
           </Notepad>
         </div>
@@ -317,72 +299,6 @@
                       className="scale-75 origin-right"
                     />
                   {/if}
-                </li>
-              {/each}
-            </ul>
-          </div>
-        {/if}
-
-        <div
-          class="mb-4 rounded-xl border border-sand/60 bg-[#fffdf5] p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] -rotate-1"
-        >
-          <div
-            class="flex items-center gap-2 text-xs text-ink-muted uppercase tracking-wider mb-2 border-b border-sand/40 pb-2"
-          >
-            <History class="h-3 w-3" /> Recent Pulls
-          </div>
-          {#if recipeFeed.length > 0}
-            <ul class="space-y-2 font-hand text-sm text-ink/70">
-              {#each recipeFeed.slice(0, 3) as recipe}
-                <li>
-                  <a
-                    href="/recipes/{recipe.id}"
-                    class="block cursor-pointer hover:text-ink hover:underline decoration-wavy decoration-sage-300 truncate"
-                  >
-                    {recipe.title}
-                  </a>
-                </li>
-              {/each}
-            </ul>
-          {:else}
-            <p class="text-sm text-ink-muted italic">No recipes yet</p>
-          {/if}
-        </div>
-
-        <!-- Recent Receipts -->
-        {#if recentReceipts.length > 0}
-          <div
-            class="rounded-xl border border-sand/60 bg-[#fffdf5] p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] rotate-1"
-          >
-            <div
-              class="flex items-center gap-2 text-xs text-ink-muted uppercase tracking-wider mb-2 border-b border-sand/40 pb-2"
-            >
-              <Receipt class="h-3 w-3" /> Recent Receipts
-            </div>
-            <ul class="space-y-2">
-              {#each recentReceipts as receipt}
-                {@const StatusIcon = getStatusIcon(receipt.status)}
-                <li>
-                  <a
-                    href="/receipts/{receipt.id}"
-                    class="flex items-center gap-2 text-sm text-ink/70 hover:text-ink transition-colors"
-                  >
-                    <Store class="h-3 w-3 text-ink-muted shrink-0" />
-                    <span class="truncate flex-1"
-                      >{receipt.storeName || "Receipt"}</span
-                    >
-                    {#if receipt.status === "PROCESSING"}
-                      <StatusIcon
-                        class="h-3 w-3 text-sage-500 animate-spin shrink-0"
-                      />
-                    {:else if receipt.status === "DONE"}
-                      <StatusIcon class="h-3 w-3 text-sage-500 shrink-0" />
-                    {:else if receipt.status === "FAILED"}
-                      <StatusIcon class="h-3 w-3 text-sienna-500 shrink-0" />
-                    {:else}
-                      <StatusIcon class="h-3 w-3 text-ink-muted shrink-0" />
-                    {/if}
-                  </a>
                 </li>
               {/each}
             </ul>
