@@ -104,90 +104,16 @@
             </span>
           </div>
 
-          <!-- Asymmetric scattered layout -->
-          <div class="relative min-h-[420px]">
+          <!-- 3 cards per row for suggested -->
+          <div
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10"
+          >
             {#each suggestedRecipes as recipe, i (recipe.id)}
-              {@const positions = [
-                "left-0 top-0",
-                "left-[42%] top-6",
-                "right-0 top-0",
-                "left-[12%] top-[230px]",
-                "left-[52%] top-[210px]",
-                "right-[2%] top-[250px]",
-              ]}
-              {@const rotations = [
-                "-rotate-3",
-                "rotate-2",
-                "-rotate-1",
-                "rotate-3",
-                "-rotate-2",
-                "rotate-1",
-              ]}
-              <a
-                href="/recipes/{recipe.id}"
-                class="group absolute w-48 {positions[i % positions.length]}"
-                style="z-index: {i + 1};"
-              >
-                <!-- Photo Frame -->
-                <div
-                  class="
-                  relative bg-white p-1.5 pb-16
-                  shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.08)]
-                  transition-all duration-300 ease-out
-                  {rotations[i % rotations.length]}
-                  group-hover:rotate-0 group-hover:-translate-y-2 group-hover:shadow-[0_12px_28px_rgba(0,0,0,0.18)] group-hover:z-50
-                "
-                >
-                  <!-- Washi Tape -->
-                  <WashiTape
-                    color="sage"
-                    class="absolute -top-2 left-1/2 -translate-x-1/2 w-14 z-10"
-                  />
-
-                  <!-- Photo -->
-                  <div
-                    class="relative aspect-square overflow-hidden bg-stone-100"
-                  >
-                    {#if recipe.imageUrl}
-                      <img
-                        src={recipe.imageUrl}
-                        alt={recipe.title}
-                        class="h-full w-full object-cover"
-                      />
-                    {:else}
-                      <div
-                        class="flex h-full w-full items-center justify-center bg-stone-100"
-                      >
-                        <ChefHat class="h-10 w-10 text-stone-300" />
-                      </div>
-                    {/if}
-                    <!-- Match badge -->
-                    <div
-                      class="absolute bottom-1.5 right-1.5 bg-emerald-500 text-white px-1.5 py-0.5 text-[10px] font-bold rounded-full shadow-sm"
-                    >
-                      {Math.round(recipe.matchPercentage * 100)}%
-                    </div>
-                  </div>
-
-                  <!-- Caption area - fixed height -->
-                  <div
-                    class="absolute bottom-0 left-0 right-0 h-14 px-2 py-1.5 flex flex-col justify-center"
-                  >
-                    <p
-                      class="font-display text-sm text-ink leading-tight truncate text-center"
-                    >
-                      {recipe.title}
-                    </p>
-                    <p
-                      class="font-mono text-[10px] text-stone-400 text-center mt-0.5 uppercase tracking-wide"
-                    >
-                      {formatTime(
-                        (recipe.prepTime || 0) + (recipe.cookTime || 0),
-                      ) || "?"} · {recipe.servings} serv
-                    </p>
-                  </div>
-
-                  <!-- Shop button on hover -->
+              {@const rotations = ["-rotate-2", "rotate-2", "-rotate-1"]}
+              {@const marginTops = ["mt-0", "mt-6", "mt-3"]}
+              <div class="group {marginTops[i % marginTops.length]}">
+                <!-- Action button on top -->
+                <div class="flex items-center justify-center mb-3">
                   <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
                   <form
                     method="POST"
@@ -203,24 +129,97 @@
                       };
                     }}
                     onclick={(e) => e.stopPropagation()}
-                    class="absolute -bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <input type="hidden" name="recipeId" value={recipe.id} />
                     <button
                       type="submit"
-                      class="flex items-center gap-1 bg-amber-400 hover:bg-amber-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-md transition-colors"
+                      class="flex items-center gap-1.5 bg-amber-100 text-amber-700 hover:bg-amber-400 hover:text-white text-xs font-semibold px-4 py-2 rounded-full shadow-sm transition-colors"
                       disabled={addingToShoppingId === recipe.id}
                     >
                       {#if addingToShoppingId === recipe.id}
-                        <Loader2 class="h-3 w-3 animate-spin" />
+                        <Loader2 class="h-3.5 w-3.5 animate-spin" />
                       {:else}
-                        <ShoppingCart class="h-3 w-3" />
+                        <ShoppingCart class="h-3.5 w-3.5" />
                       {/if}
-                      Shop
+                      Shop Ingredients
                     </button>
                   </form>
                 </div>
-              </a>
+
+                <!-- Photo Frame -->
+                <a href="/recipes/{recipe.id}" class="block">
+                  <div
+                    class="
+                    relative bg-white p-2 pb-16
+                    shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.08)]
+                    transition-all duration-300 ease-out
+                    {rotations[i % rotations.length]}
+                    group-hover:rotate-0 group-hover:-translate-y-2 group-hover:shadow-[0_12px_28px_rgba(0,0,0,0.18)] group-hover:z-50
+                  "
+                  >
+                    <!-- Washi Tape -->
+                    <WashiTape
+                      color="sage"
+                      class="absolute -top-2 left-1/2 -translate-x-1/2 w-16 z-10"
+                    />
+
+                    <!-- Photo -->
+                    <div
+                      class="relative aspect-square overflow-hidden bg-stone-100"
+                    >
+                      {#if recipe.imageUrl}
+                        <img
+                          src={recipe.imageUrl}
+                          alt={recipe.title}
+                          class="h-full w-full object-cover"
+                        />
+                      {:else}
+                        <div
+                          class="flex h-full w-full items-center justify-center bg-stone-100"
+                        >
+                          <ChefHat class="h-12 w-12 text-stone-300" />
+                        </div>
+                      {/if}
+                      <!-- Match badge -->
+                      <div
+                        class="absolute bottom-2 right-2 bg-emerald-500 text-white px-2 py-0.5 text-xs font-bold rounded-full shadow-sm"
+                      >
+                        {Math.round(recipe.matchPercentage * 100)}%
+                      </div>
+                    </div>
+
+                    <!-- Caption area -->
+                    <div
+                      class="absolute bottom-0 left-0 right-0 h-14 px-3 py-1.5 flex flex-col justify-center"
+                    >
+                      <p
+                        class="font-display text-base text-ink leading-tight truncate text-center"
+                        title={recipe.title}
+                      >
+                        {recipe.title}
+                      </p>
+                      <p
+                        class="font-mono text-xs text-stone-400 text-center mt-0.5 uppercase tracking-wide"
+                      >
+                        {formatTime(
+                          (recipe.prepTime || 0) + (recipe.cookTime || 0),
+                        ) || "?"} · {recipe.servings} servings
+                      </p>
+                    </div>
+
+                    <!-- Full title tooltip on hover -->
+                    <div
+                      class="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30"
+                    >
+                      <div
+                        class="bg-stone-800 text-white text-sm px-3 py-1.5 rounded shadow-lg max-w-[260px] text-center whitespace-normal"
+                      >
+                        {recipe.title}
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              </div>
             {/each}
           </div>
         </div>
@@ -232,7 +231,9 @@
           <div
             class="mb-8 flex items-baseline justify-between border-b border-stone-200 pb-3"
           >
-            <h2 class="font-display text-2xl text-ink">All Recipes</h2>
+            <h2 class="font-display text-2xl text-ink">
+              All Recipes
+            </h2>
             <span
               class="font-mono text-[10px] uppercase tracking-widest text-stone-400"
             >
@@ -240,137 +241,131 @@
             </span>
           </div>
 
-          <!-- Asymmetric grid with varying sizes -->
-          <div
-            class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6"
-          >
+          <!-- 3 cards per row -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
             {#each otherRecipes as recipe, i (recipe.id)}
-              {@const rotations = [
-                "rotate-1",
-                "-rotate-2",
-                "rotate-2",
-                "-rotate-1",
-                "rotate-3",
-                "-rotate-2",
-              ]}
-              {@const marginTops = [
-                "mt-0",
-                "mt-6",
-                "mt-2",
-                "mt-8",
-                "mt-4",
-                "mt-10",
-              ]}
-              <a
-                href="/recipes/{recipe.id}"
-                class="group block {marginTops[i % marginTops.length]}"
-              >
-                <!-- Photo Frame -->
-                <div
-                  class="
-                  relative bg-white p-1.5 pb-14
-                  shadow-[0_1px_4px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)]
-                  transition-all duration-300 ease-out
-                  {rotations[i % rotations.length]}
-                  group-hover:rotate-0 group-hover:-translate-y-2 group-hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)]
-                  group-hover:z-10
-                "
-                >
-                  <!-- Photo -->
-                  <div
-                    class="relative aspect-square overflow-hidden bg-stone-100"
+              {@const rotations = ["-rotate-2", "rotate-2", "-rotate-1"]}
+              {@const marginTops = ["mt-0", "mt-6", "mt-3"]}
+              <div class="group {marginTops[i % marginTops.length]}">
+                <!-- Action buttons on top -->
+                <div class="flex items-center justify-center gap-2 mb-3">
+                  <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
+                  <form
+                    method="POST"
+                    action="?/addToShopping"
+                    use:enhance={() => {
+                      addingToShoppingId = recipe.id;
+                      workflowState.incrementShopping();
+                      return async ({ result }) => {
+                        addingToShoppingId = null;
+                        if (result.type === "failure")
+                          workflowState.decrementShopping();
+                        else await invalidateAll();
+                      };
+                    }}
+                    onclick={(e) => e.stopPropagation()}
                   >
-                    {#if recipe.imageUrl}
-                      <img
-                        src={recipe.imageUrl}
-                        alt={recipe.title}
-                        class="h-full w-full object-cover"
-                      />
-                    {:else}
-                      <div
-                        class="flex h-full w-full items-center justify-center bg-stone-100"
-                      >
-                        <ChefHat class="h-8 w-8 text-stone-300" />
-                      </div>
-                    {/if}
-                  </div>
+                    <input type="hidden" name="recipeId" value={recipe.id} />
+                    <button
+                      type="submit"
+                      disabled={addingToShoppingId === recipe.id}
+                      class="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-600 hover:bg-amber-400 hover:text-white transition-colors"
+                      title="Add to shopping list"
+                    >
+                      {#if addingToShoppingId === recipe.id}
+                        <Loader2 class="h-4 w-4 animate-spin" />
+                      {:else}
+                        <ShoppingCart class="h-4 w-4" />
+                      {/if}
+                    </button>
+                  </form>
 
-                  <!-- Caption area - fixed height -->
-                  <div
-                    class="absolute bottom-0 left-0 right-0 h-12 px-1.5 py-1 flex flex-col justify-center"
+                  <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
+                  <form
+                    method="POST"
+                    action="?/delete"
+                    use:enhance={({ cancel }) => {
+                      if (!confirm("Delete this recipe?")) cancel();
+                      else deletingId = recipe.id;
+                    }}
+                    onclick={(e) => e.stopPropagation()}
                   >
-                    <p
-                      class="font-display text-xs text-ink leading-tight truncate text-center"
+                    <input type="hidden" name="recipeId" value={recipe.id} />
+                    <button
+                      type="submit"
+                      disabled={deletingId === recipe.id}
+                      class="flex h-8 w-8 items-center justify-center rounded-full bg-stone-100 text-stone-400 hover:bg-red-400 hover:text-white transition-colors"
+                      title="Delete recipe"
                     >
-                      {recipe.title}
-                    </p>
-                    <p
-                      class="font-mono text-[9px] text-stone-400 text-center uppercase tracking-wide"
-                    >
-                      {#if recipe.cuisineType}{recipe.cuisineType}{:else}{formatTime(
-                          (recipe.prepTime || 0) + (recipe.cookTime || 0),
-                        ) || ""}{/if}
-                    </p>
-                  </div>
-
-                  <!-- Hover actions -->
-                  <div
-                    class="absolute -top-2 -right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20"
-                  >
-                    <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
-                    <form
-                      method="POST"
-                      action="?/addToShopping"
-                      use:enhance={() => {
-                        addingToShoppingId = recipe.id;
-                        workflowState.incrementShopping();
-                        return async ({ result }) => {
-                          addingToShoppingId = null;
-                          if (result.type === "failure")
-                            workflowState.decrementShopping();
-                          else await invalidateAll();
-                        };
-                      }}
-                      onclick={(e) => e.stopPropagation()}
-                    >
-                      <input type="hidden" name="recipeId" value={recipe.id} />
-                      <button
-                        type="submit"
-                        disabled={addingToShoppingId === recipe.id}
-                        class="flex h-7 w-7 items-center justify-center rounded-full bg-amber-400 text-white shadow-md hover:bg-amber-500 transition-colors"
-                        title="Add to shopping list"
-                      >
-                        {#if addingToShoppingId === recipe.id}
-                          <Loader2 class="h-3.5 w-3.5 animate-spin" />
-                        {:else}
-                          <ShoppingCart class="h-3.5 w-3.5" />
-                        {/if}
-                      </button>
-                    </form>
-
-                    <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
-                    <form
-                      method="POST"
-                      action="?/delete"
-                      use:enhance={({ cancel }) => {
-                        if (!confirm("Delete this recipe?")) cancel();
-                        else deletingId = recipe.id;
-                      }}
-                      onclick={(e) => e.stopPropagation()}
-                    >
-                      <input type="hidden" name="recipeId" value={recipe.id} />
-                      <button
-                        type="submit"
-                        disabled={deletingId === recipe.id}
-                        class="flex h-7 w-7 items-center justify-center rounded-full bg-red-400 text-white shadow-md hover:bg-red-500 transition-colors"
-                        title="Delete recipe"
-                      >
-                        <Trash2 class="h-3.5 w-3.5" />
-                      </button>
-                    </form>
-                  </div>
+                      <Trash2 class="h-4 w-4" />
+                    </button>
+                  </form>
                 </div>
-              </a>
+
+                <!-- Photo Frame -->
+                <a href="/recipes/{recipe.id}" class="block">
+                  <div
+                    class="
+                    relative bg-white p-2 pb-16
+                    shadow-[0_2px_6px_rgba(0,0,0,0.1),0_1px_3px_rgba(0,0,0,0.06)]
+                    transition-all duration-300 ease-out
+                    {rotations[i % rotations.length]}
+                    group-hover:rotate-0 group-hover:-translate-y-2 group-hover:shadow-[0_12px_24px_rgba(0,0,0,0.15)]
+                    group-hover:z-10
+                  "
+                  >
+                    <!-- Photo -->
+                    <div
+                      class="relative aspect-square overflow-hidden bg-stone-100"
+                    >
+                      {#if recipe.imageUrl}
+                        <img
+                          src={recipe.imageUrl}
+                          alt={recipe.title}
+                          class="h-full w-full object-cover"
+                        />
+                      {:else}
+                        <div
+                          class="flex h-full w-full items-center justify-center bg-stone-100"
+                        >
+                          <ChefHat class="h-10 w-10 text-stone-300" />
+                        </div>
+                      {/if}
+                    </div>
+
+                    <!-- Caption area -->
+                    <div
+                      class="absolute bottom-0 left-0 right-0 h-14 px-2 py-1.5 flex flex-col justify-center"
+                    >
+                      <p
+                        class="font-display text-sm text-ink leading-tight truncate text-center"
+                        title={recipe.title}
+                      >
+                        {recipe.title}
+                      </p>
+                      <p
+                        class="font-mono text-[10px] text-stone-400 text-center uppercase tracking-wide mt-0.5"
+                      >
+                        {#if recipe.cuisineType}{recipe.cuisineType}{:else}{formatTime(
+                            (recipe.prepTime || 0) + (recipe.cookTime || 0),
+                          ) || ""}{/if}
+                      </p>
+                    </div>
+
+                    <!-- Full title tooltip on hover -->
+                    <div
+                      class="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30"
+                    >
+                      <div
+                        class="bg-stone-800 text-white text-xs px-3 py-1.5 rounded shadow-lg max-w-[220px] text-center whitespace-normal"
+                      >
+                        {recipe.title}
+                      </div>
+                    </div>
+                  </div>
+                </a>
+
+              </div>
             {/each}
           </div>
         </div>
