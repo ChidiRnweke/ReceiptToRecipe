@@ -55,6 +55,7 @@ export const actions: Actions = {
 				AppFactory.getLlmService(),
 				AppFactory.getImageGenService(),
 				AppFactory.getVectorService(),
+                AppFactory.getTasteProfileService(),
 				AppFactory.getJobQueue()
 			);
 

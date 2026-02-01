@@ -8,4 +8,5 @@ export {
 	type AddItemInput
 } from './ShoppingListController';
 export { PantryController } from './PantryController';
+export { TasteProfileController } from './TasteProfileController';
 

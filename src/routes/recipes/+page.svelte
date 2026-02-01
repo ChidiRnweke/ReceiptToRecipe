@@ -9,10 +9,15 @@
     Sparkles,
     ShoppingCart,
     Loader2,
+    AlertTriangle,
+    ShieldAlert,
+    Filter
   } from "lucide-svelte";
   import { getContext } from "svelte";
   import type { WorkflowState } from "$lib/state/workflow.svelte";
   import WashiTape from "$lib/components/WashiTape.svelte";
+  import { Checkbox } from "$lib/components/ui/checkbox";
+  import { Label } from "$lib/components/ui/label";
 
   let { data } = $props();
   const workflowState = getContext<WorkflowState>("workflowState");
@@ -23,11 +28,14 @@
   let deleteDialogOpen = $state(false);
   let recipeToDelete = $state<string | null>(null);
 
+  // Filters
+  let hideIncompatible = $state(false);
+
   const suggestedRecipes = $derived(
-    data.recipes.filter((r: any) => r.isSuggested),
+    data.recipes.filter((r: any) => r.isSuggested && (!hideIncompatible || (r.compatibility?.compatible ?? true))),
   );
   const otherRecipes = $derived(
-    data.recipes.filter((r: any) => !r.isSuggested),
+    data.recipes.filter((r: any) => !r.isSuggested && (!hideIncompatible || (r.compatibility?.compatible ?? true))),
   );
 
   function formatTime(minutes: number | null) {
@@ -78,12 +86,18 @@
           >
             Recipe <span class="marker-highlight">Scrapbook</span>
           </h1>
-          <p
-            class="mt-2 font-mono text-xs uppercase tracking-widest text-stone-400"
-          >
-            {data.recipes.length}
-            {data.recipes.length === 1 ? "recipe" : "recipes"} saved
-          </p>
+          <div class="flex items-center gap-4 mt-2">
+            <p
+                class="font-mono text-xs uppercase tracking-widest text-stone-400"
+            >
+                {data.recipes.length}
+                {data.recipes.length === 1 ? "recipe" : "recipes"} saved
+            </p>
+            <div class="flex items-center gap-2">
+                <Checkbox id="hide-incompatible" bind:checked={hideIncompatible} class="h-4 w-4" />
+                <Label for="hide-incompatible" class="text-xs text-stone-500 cursor-pointer font-medium">Hide Incompatible</Label>
+            </div>
+          </div>
         </div>
 
         <Button
@@ -208,13 +222,29 @@
                       >
                         {recipe.title}
                       </p>
-                      <p
-                        class="font-mono text-xs text-stone-400 text-center mt-0.5 uppercase tracking-wide"
-                      >
-                        {formatTime(
-                          (recipe.prepTime || 0) + (recipe.cookTime || 0),
-                        ) || "?"} · {recipe.servings} servings
-                      </p>
+                      
+                      <!-- Compatibility Badge / Metadata -->
+                      <div class="flex items-center justify-center gap-2 mt-0.5">
+                        {#if recipe.compatibility && !recipe.compatibility.compatible}
+                            <span class="inline-flex items-center text-[10px] font-bold text-red-600 bg-red-50 px-1.5 rounded border border-red-100" title={recipe.compatibility.blockers.join(", ")}>
+                                <ShieldAlert class="h-3 w-3 mr-1" />
+                                Avoid
+                            </span>
+                        {:else if recipe.compatibility && recipe.compatibility.warnings.length > 0}
+                            <span class="inline-flex items-center text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 rounded border border-amber-100" title={recipe.compatibility.warnings.join(", ")}>
+                                <AlertTriangle class="h-3 w-3 mr-1" />
+                                Warning
+                            </span>
+                        {:else}
+                            <p
+                                class="font-mono text-xs text-stone-400 text-center uppercase tracking-wide"
+                            >
+                                {formatTime(
+                                (recipe.prepTime || 0) + (recipe.cookTime || 0),
+                                ) || "?"} · {recipe.servings} servings
+                            </p>
+                        {/if}
+                      </div>
                     </div>
 
                     <!-- Full title tooltip on hover -->

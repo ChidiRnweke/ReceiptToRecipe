@@ -17,3 +17,4 @@ export { GeminiImageService } from "./GeminiImageService";
 export * from "./PgVectorService";
 export * from "./JobQueue";
 export * from "./PantryService";
+export * from "./TasteProfileService";

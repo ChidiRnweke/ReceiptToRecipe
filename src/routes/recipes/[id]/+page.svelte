@@ -447,7 +447,9 @@
       <!-- Right: Instructions (Clean White) -->
       <div class="bg-white p-8 md:p-12">
         <div class="flex items-center justify-between mb-8">
-          <h2 class="font-display text-3xl text-ink">Method</h2>
+          <h2 class="font-display text-3xl text-ink">
+            <span class="marker-highlight">Method</span>
+          </h2>
           {#if completedSteps.size > 0}
             <Badge variant="outline" class="font-mono"
               >{completedSteps.size}/{steps.length}</Badge

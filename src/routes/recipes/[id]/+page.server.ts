@@ -12,6 +12,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		AppFactory.getLlmService(),
 		AppFactory.getImageGenService(),
 		AppFactory.getVectorService(),
+        AppFactory.getTasteProfileService(),
 		AppFactory.getJobQueue()
 	);
 
@@ -78,6 +79,7 @@ export const actions: Actions = {
 			AppFactory.getLlmService(),
 			AppFactory.getImageGenService(),
 			AppFactory.getVectorService(),
+            AppFactory.getTasteProfileService(),
 			AppFactory.getJobQueue()
 		);
 
@@ -93,6 +95,7 @@ export const actions: Actions = {
 			AppFactory.getLlmService(),
 			AppFactory.getImageGenService(),
 			AppFactory.getVectorService(),
+            AppFactory.getTasteProfileService(),
 			AppFactory.getJobQueue()
 		);
 
@@ -108,6 +111,7 @@ export const actions: Actions = {
 			AppFactory.getLlmService(),
 			AppFactory.getImageGenService(),
 			AppFactory.getVectorService(),
+            AppFactory.getTasteProfileService(),
 			AppFactory.getJobQueue()
 		);
 
@@ -131,6 +135,7 @@ export const actions: Actions = {
 			AppFactory.getLlmService(),
 			AppFactory.getImageGenService(),
 			AppFactory.getVectorService(),
+            AppFactory.getTasteProfileService(),
 			AppFactory.getJobQueue()
 		);
 
@@ -166,6 +171,7 @@ export const actions: Actions = {
 			AppFactory.getLlmService(),
 			AppFactory.getImageGenService(),
 			AppFactory.getVectorService(),
+            AppFactory.getTasteProfileService(),
 			AppFactory.getJobQueue()
 		);
 

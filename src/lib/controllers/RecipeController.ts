@@ -2,7 +2,7 @@ import { db } from '$db/client';
 import { recipes, recipeIngredients, receiptItems, userPreferences, savedRecipes } from '$db/schema';
 import type { Recipe, RecipeIngredient, NewRecipe, NewRecipeIngredient, UserPreferences } from '$db/schema';
 import { eq, desc, and, inArray } from 'drizzle-orm';
-import type { ILlmService, IImageGenService, IVectorService, GeneratedRecipe } from '$services';
+import type { ILlmService, IImageGenService, IVectorService, GeneratedRecipe, TasteProfileService } from '$services';
 
 export interface GenerateRecipeInput {
 	userId: string;
@@ -23,6 +23,7 @@ export class RecipeController {
 		private llmService: ILlmService,
 		private imageGenService: IImageGenService,
 		private vectorService: IVectorService,
+		private tasteProfileService: TasteProfileService,
 		private jobQueue?: { add: (job: { name?: string; run: () => Promise<void> }) => Promise<void> }
 	) {}
 
@@ -36,6 +37,9 @@ export class RecipeController {
 		const preferences = await db.query.userPreferences.findFirst({
 			where: eq(userPreferences.userId, userId)
 		});
+
+        // Get taste profile
+        const tasteProfile = await this.tasteProfileService.getUserTasteProfile(userId);
 
 		// Gather ingredients
 		const ingredients: string[] = [...(customIngredients || [])];
@@ -65,6 +69,7 @@ export class RecipeController {
 		const generatedRecipe = await this.llmService.generateRecipe({
 			availableIngredients: ingredients,
 			preferences: preferences || {},
+            tasteProfile,
 			servings: servings || preferences?.defaultServings || 2,
 			cuisineHint,
 			cookbookContext

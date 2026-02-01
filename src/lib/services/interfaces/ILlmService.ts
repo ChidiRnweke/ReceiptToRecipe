@@ -1,4 +1,5 @@
 import type { UserPreferences } from '$db/schema';
+import type { TasteProfile } from '../TasteProfileService';
 
 export interface GeneratedRecipe {
 	title: string;
@@ -21,6 +22,7 @@ export interface GeneratedRecipe {
 export interface RecipeContext {
 	availableIngredients: string[];
 	preferences: Partial<UserPreferences>;
+	tasteProfile?: TasteProfile;
 	servings?: number;
 	cuisineHint?: string;
 	cookbookContext?: string; // RAG context from cookbook

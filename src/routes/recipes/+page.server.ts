@@ -1,6 +1,6 @@
 import { redirect, error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { RecipeController, ShoppingListController, PantryController } from '$lib/controllers';
+import { RecipeController, ShoppingListController, PantryController, TasteProfileController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -8,24 +8,31 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(302, '/login');
 	}
 
-	const recipeController = new RecipeController(
-		AppFactory.getLlmService(),
-		AppFactory.getImageGenService(),
-		AppFactory.getVectorService(),
-		AppFactory.getJobQueue()
-	);
-
+			const recipeController = new RecipeController(
+				AppFactory.getLlmService(),
+				AppFactory.getImageGenService(),
+				AppFactory.getVectorService(),
+	            AppFactory.getTasteProfileService(),
+				AppFactory.getJobQueue()
+			);
 	const recipes = await recipeController.getUserRecipesWithIngredients(locals.user.id);
 
 	// Get pantry
 	const pantryController = new PantryController(AppFactory.getPantryService());
 	const pantry = await pantryController.getUserPantry(locals.user.id);
 	
+    // Get Taste Profile
+    const tasteProfileController = new TasteProfileController(AppFactory.getTasteProfileService());
+    // Optimization: We could fetch profile once and pass it to a sync helper, but checkCompatibility is async.
+    // For many recipes, we should do this efficiently. 
+    // Ideally checkRecipeCompatibility in service should take a profile object, but it fetches it.
+    // Let's iterate.
+
 	// Create a map of pantry normalized names for fast lookup
 	const pantrySet = new Set(pantry.map(i => i.itemName.toLowerCase()));
 
 	// Augment recipes with suggestion data
-	const augmentedRecipes = recipes.map(recipe => {
+	const augmentedRecipes = await Promise.all(recipes.map(async (recipe) => {
 		let matchCount = 0;
 		const totalIngredients = recipe.ingredients.length;
 		
@@ -33,8 +40,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		for (const ing of recipe.ingredients) {
 			const ingName = ing.name.toLowerCase();
-			// Simple check if pantry contains ingredient name partially or fully
-			// This is naive; improved matching would use embedding or better normalization
 			const isMatch = Array.from(pantrySet).some(pItem => 
 				pItem.includes(ingName) || ingName.includes(pItem)
 			);
@@ -48,15 +53,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		const matchPercentage = totalIngredients > 0 ? matchCount / totalIngredients : 0;
 
+        // Check compatibility
+        const compatibility = await tasteProfileController.checkCompatibility(locals.user!.id, recipe.id);
+
 		return {
 			...recipe,
 			matchCount,
 			totalIngredients,
 			matchPercentage,
 			missingIngredients,
+            compatibility,
 			isSuggested: matchPercentage >= 0.7
 		};
-	});
+	}));
 
 	// Get receipt count for empty state guidance
 	const { db } = await import('$lib/db/client');
@@ -91,6 +100,7 @@ export const actions: Actions = {
 			AppFactory.getLlmService(),
 			AppFactory.getImageGenService(),
 			AppFactory.getVectorService(),
+            AppFactory.getTasteProfileService(),
 			AppFactory.getJobQueue()
 		);
 

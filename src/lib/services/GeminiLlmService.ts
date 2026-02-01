@@ -143,34 +143,71 @@ Respond with JSON:
     parts.push("Generate a recipe using the following available ingredients:");
     parts.push(context.availableIngredients.join(", "));
 
-    if (context.preferences.allergies?.length) {
-      parts.push(
-        `\nALLERGIES (MUST AVOID): ${context.preferences.allergies.join(", ")}`
-      );
+    // --- Taste Profile Constraints ---
+    if (context.tasteProfile) {
+        const { dietType, allergies, ingredientPreferences, cuisinePreferences } = context.tasteProfile;
+
+        if (dietType) {
+            parts.push(`\nCONSTRAINT: This recipe MUST be compatible with a ${dietType} diet.`);
+        }
+
+        const severeAllergies = allergies.filter(a => a.severity === 'severe').map(a => a.allergen);
+        const avoidAllergies = allergies.filter(a => a.severity === 'avoid').map(a => a.allergen);
+
+        if (severeAllergies.length > 0) {
+            parts.push(`\nCRITICAL SAFETY WARNING: Do NOT use ${severeAllergies.join(", ")} or any derivatives.`);
+        }
+        if (avoidAllergies.length > 0) {
+            parts.push(`\nAllergies to avoid: ${avoidAllergies.join(", ")}`);
+        }
+
+        const disliked = ingredientPreferences.filter(p => p.preference === 'dislike' || p.preference === 'avoid').map(p => p.ingredientName);
+        if (disliked.length > 0) {
+            parts.push(`\nAvoid using these ingredients: ${disliked.join(", ")}`);
+        }
+
+        const loved = ingredientPreferences.filter(p => p.preference === 'love').map(p => p.ingredientName);
+        if (loved.length > 0) {
+            parts.push(`\nTry to incorporate these favorite ingredients if they fit: ${loved.join(", ")}`);
+        }
+
+        const lovedCuisines = cuisinePreferences.filter(c => c.preference === 'love' || c.preference === 'like').map(c => c.cuisineType);
+        if (lovedCuisines.length > 0 && !context.cuisineHint) {
+             parts.push(`\nPreferred cuisines: ${lovedCuisines.join(", ")}`);
+        }
     }
 
-    if (context.preferences.dietaryRestrictions?.length) {
-      parts.push(
-        `\nDietary restrictions: ${context.preferences.dietaryRestrictions.join(
-          ", "
-        )}`
-      );
-    }
+    // Fallback to legacy preferences if taste profile not set or specific fields missing
+    if (!context.tasteProfile) {
+        if (context.preferences.allergies?.length) {
+        parts.push(
+            `\nALLERGIES (MUST AVOID): ${context.preferences.allergies.join(", ")}`
+        );
+        }
 
-    if (context.preferences.excludedIngredients?.length) {
-      parts.push(
-        `\nDo not use these ingredients: ${context.preferences.excludedIngredients.join(
-          ", "
-        )}`
-      );
-    }
+        if (context.preferences.dietaryRestrictions?.length) {
+        parts.push(
+            `\nDietary restrictions: ${context.preferences.dietaryRestrictions.join(
+            ", "
+            )}`
+        );
+        }
 
-    if (context.preferences.cuisinePreferences?.length) {
-      parts.push(
-        `\nPreferred cuisines: ${context.preferences.cuisinePreferences.join(
-          ", "
-        )}`
-      );
+        if (context.preferences.excludedIngredients?.length) {
+        parts.push(
+            `\nDo not use these ingredients: ${context.preferences.excludedIngredients.join(
+            ", "
+            )}`
+        );
+        }
+
+        if (context.preferences.cuisinePreferences?.length) {
+        parts.push(
+            `\nPreferred cuisines: ${context.preferences.cuisinePreferences.join(
+            ", "
+            )}`
+        );
+        }
     }
 
     if (context.cuisineHint) {

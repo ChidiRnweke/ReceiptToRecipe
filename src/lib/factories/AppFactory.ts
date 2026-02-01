@@ -12,6 +12,7 @@ import {
   PgVectorService,
   JobQueue,
   PantryService,
+  TasteProfileService,
   type IStorageService,
   type INormalizationService,
   type IOcrService,
@@ -32,6 +33,7 @@ let imageGenService: IImageGenService | null = null;
 let vectorService: IVectorService | null = null;
 let jobQueue: JobQueue | null = null;
 let pantryService: PantryService | null = null;
+let tasteProfileService: TasteProfileService | null = null;
 
 /**
  * Factory for creating and managing service instances
@@ -137,6 +139,13 @@ export class AppFactory {
     return pantryService;
   }
 
+  static getTasteProfileService(): TasteProfileService {
+    if (!tasteProfileService) {
+      tasteProfileService = new TasteProfileService();
+    }
+    return tasteProfileService;
+  }
+
   static getJobQueue(): JobQueue {
     if (!jobQueue) {
       const concurrency = parseInt(env.JOB_CONCURRENCY || "2");
@@ -158,5 +167,6 @@ export class AppFactory {
     vectorService = null;
     jobQueue = null;
     pantryService = null;
+    tasteProfileService = null;
   }
 }
