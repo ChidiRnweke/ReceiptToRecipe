@@ -1,10 +1,10 @@
 import { db } from '$db/client';
 import { purchaseHistory, receiptItems, receipts } from '$db/schema';
 import { eq, desc, and, gt } from 'drizzle-orm';
-import type { PantryService, PantryItem } from '$services';
+import type { IPantryService, PantryItem } from '$services';
 
 export class PantryController {
-	constructor(private pantryService: PantryService) {}
+	constructor(private pantryService: IPantryService) {}
 
 	async getUserPantry(userId: string): Promise<PantryItem[]> {
 		// 1. Fetch purchase history

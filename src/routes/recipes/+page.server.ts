@@ -68,18 +68,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}));
 
 	// Get receipt count for empty state guidance
-	const { db } = await import('$lib/db/client');
-	const { receipts } = await import('$lib/db/schema');
-	const { eq, sql } = await import('drizzle-orm');
-
-	const [receiptCountResult] = await db
-		.select({ count: sql<number>`count(*)` })
-		.from(receipts)
-		.where(eq(receipts.userId, locals.user.id));
+	const receiptRepo = AppFactory.getReceiptRepository();
+	const receiptCount = await receiptRepo.countByUserId(locals.user.id);
 
 	return {
 		recipes: augmentedRecipes,
-		receiptCount: receiptCountResult?.count || 0
+		receiptCount
 	};
 };
 

@@ -3,9 +3,6 @@ import type { Actions, PageServerLoad } from './$types';
 import { RecipeController, PantryController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
 import { ShoppingListController } from '$lib/controllers/ShoppingListController';
-import { db } from '$lib/db/client';
-import { receipts } from '$lib/db/schema';
-import { eq } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const recipeController = new RecipeController(
@@ -49,15 +46,16 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	// Load source receipt if available
 	let sourceReceipt = null;
 	if (recipe.sourceReceiptId) {
-		sourceReceipt = await db.query.receipts.findFirst({
-			where: eq(receipts.id, recipe.sourceReceiptId),
-			columns: {
-				id: true,
-				storeName: true,
-				purchaseDate: true,
-				createdAt: true
-			}
-		});
+		const receiptRepo = AppFactory.getReceiptRepository();
+		const receipt = await receiptRepo.findById(recipe.sourceReceiptId);
+		if (receipt) {
+			sourceReceipt = {
+				id: receipt.id,
+				storeName: receipt.storeName,
+				purchaseDate: receipt.purchaseDate,
+				createdAt: receipt.createdAt
+			};
+		}
 	}
 
 	return {

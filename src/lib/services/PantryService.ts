@@ -82,7 +82,7 @@ export class PantryService {
 		return depletionDate;
 	}
 
-	private getShelfLife(category: string | null): number {
+	getShelfLife(category: string | null): number {
 		if (!category) return 14;
 		const normalized = category.toLowerCase();
 		

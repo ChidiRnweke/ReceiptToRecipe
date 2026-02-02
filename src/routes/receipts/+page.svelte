@@ -104,11 +104,7 @@
         <div class="flex items-center gap-4 self-start md:self-end">
           <!-- Compact Tip -->
           <div class="hidden lg:block">
-            <PinnedNote
-              color="red"
-              rotate="-rotate-2"
-              class="max-w-[200px] text-xs"
-            >
+            <PinnedNote color="red" rotate="-rotate-2" class="max-w-50 text-xs">
               <div class="flex flex-col gap-1 p-1">
                 <span class="font-bold text-ink/80 flex items-center gap-2"
                   ><Lightbulb class="h-3 w-3 text-amber-600" /> Quick Tip</span
@@ -123,8 +119,12 @@
             class="group relative h-11 overflow-hidden rounded-lg border border-sage-300 bg-white px-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95"
           >
             <div class="flex items-center gap-2">
-              <Plus class="h-4 w-4 text-sage-600 transition-transform duration-500 group-hover:rotate-90 group-hover:text-sage-700" />
-              <span class="font-display text-base font-medium text-ink">Archive New Entry</span>
+              <Plus
+                class="h-4 w-4 text-sage-600 transition-transform duration-500 group-hover:rotate-90 group-hover:text-sage-700"
+              />
+              <span class="font-display text-base font-medium text-ink"
+                >Archive New Entry</span
+              >
             </div>
           </Button>
         </div>
@@ -161,7 +161,7 @@
                   ></div>
 
                   <!-- 1. Merchant Block -->
-                  <div class="w-1/3 min-w-[240px] pl-6 overflow-hidden">
+                  <div class="w-1/3 min-w-60 pl-6 overflow-hidden">
                     <div class="flex items-center gap-3">
                       <div
                         class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 border border-amber-200 group-hover:bg-amber-50 transition-colors"
@@ -210,17 +210,24 @@
                   </div>
 
                   <!-- 3. The Launchpad (Focus) -->
-                  <div class="flex-1 flex items-center justify-end gap-4 min-w-0 overflow-hidden">
+                  <div
+                    class="flex-1 flex items-center justify-end gap-4 min-w-0 overflow-hidden"
+                  >
                     {#if receipt.status === "DONE"}
                       <!-- Generate Button (Editorial Style) -->
                       <Button
                         href="/recipes/generate?receipt={receipt.id}"
-                        class="group relative h-8 overflow-hidden rounded-md border border-sage-300 bg-white px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95 relative z-10 shrink-0"
+                        class="group relative h-8 overflow-hidden rounded-md border border-sage-300 bg-white px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95 z-10 shrink-0"
                         onclick={(e: MouseEvent) => e.stopPropagation()}
                       >
                         <div class="flex items-center gap-2">
-                          <ChefHat class="h-3.5 w-3.5 text-sage-600 transition-transform duration-500 group-hover:scale-110 group-hover:text-sage-700" />
-                          <span class="font-display text-xs font-medium text-ink">Generate Recipes</span>
+                          <ChefHat
+                            class="h-3.5 w-3.5 text-sage-600 transition-transform duration-500 group-hover:scale-110 group-hover:text-sage-700"
+                          />
+                          <span
+                            class="font-display text-xs font-medium text-ink"
+                            >Generate Recipes</span
+                          >
                         </div>
                       </Button>
 
@@ -249,20 +256,20 @@
 
                   <!-- 4. Actions -->
                   <div class="flex items-center pl-2 border-l border-stone-100">
-                    <button 
-                        type="button"
-                        class="h-8 w-8 flex items-center justify-center rounded-md text-stone-300 hover:text-red-600 hover:bg-red-50 transition-colors"
-                        onclick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            confirmDelete(receipt.id);
-                        }}
+                    <button
+                      type="button"
+                      class="h-8 w-8 flex items-center justify-center rounded-md text-stone-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        confirmDelete(receipt.id);
+                      }}
                     >
-                        {#if isDeleting && receiptToDelete === receipt.id}
-                            <Loader2 class="h-4 w-4 animate-spin" />
-                        {:else}
-                            <Trash2 class="h-4 w-4" />
-                        {/if}
+                      {#if isDeleting && receiptToDelete === receipt.id}
+                        <Loader2 class="h-4 w-4 animate-spin" />
+                      {:else}
+                        <Trash2 class="h-4 w-4" />
+                      {/if}
                     </button>
                   </div>
                 </div>
@@ -279,33 +286,38 @@
       <AlertDialog.Header>
         <AlertDialog.Title>Delete Receipt?</AlertDialog.Title>
         <AlertDialog.Description>
-          This will permanently delete this receipt and all its associated items from your ledger. This action cannot be undone.
+          This will permanently delete this receipt and all its associated items
+          from your ledger. This action cannot be undone.
         </AlertDialog.Description>
       </AlertDialog.Header>
       <AlertDialog.Footer>
         <AlertDialog.Cancel disabled={isDeleting}>Cancel</AlertDialog.Cancel>
         <form
-            method="POST"
-            action="?/delete"
-            use:enhance={() => {
-                isDeleting = true;
-                return async ({ update }) => {
-                    isDeleting = false;
-                    deleteDialogOpen = false;
-                    await update();
-                };
-            }}
-            class="inline-block"
+          method="POST"
+          action="?/delete"
+          use:enhance={() => {
+            isDeleting = true;
+            return async ({ update }) => {
+              isDeleting = false;
+              deleteDialogOpen = false;
+              await update();
+            };
+          }}
+          class="inline-block"
         >
-            <input type="hidden" name="id" value={receiptToDelete} />
-            <AlertDialog.Action type="submit" class="bg-red-600 hover:bg-red-700 text-white" disabled={isDeleting}>
-                {#if isDeleting}
-                    <Loader2 class="mr-2 h-4 w-4 animate-spin" />
-                    Deleting...
-                {:else}
-                    Delete Receipt
-                {/if}
-            </AlertDialog.Action>
+          <input type="hidden" name="id" value={receiptToDelete} />
+          <AlertDialog.Action
+            type="submit"
+            class="bg-red-600 hover:bg-red-700 text-white"
+            disabled={isDeleting}
+          >
+            {#if isDeleting}
+              <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+              Deleting...
+            {:else}
+              Delete Receipt
+            {/if}
+          </AlertDialog.Action>
         </form>
       </AlertDialog.Footer>
     </AlertDialog.Content>

@@ -1,9 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { AuthService, setSessionCookie } from '$lib/services/AuthService';
+import { setSessionCookie } from '$lib/services/AuthService';
+import { AppFactory } from '$lib/factories';
 import { requireString } from '$lib/validation';
-
-const authService = new AuthService();
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) {
@@ -18,6 +17,7 @@ export const actions: Actions = {
 		const password = requireString(data.get('password')?.toString(), 'Password is required');
 
 		try {
+			const authService = AppFactory.getAuthService();
 			const result = await authService.login(email, password);
 			setSessionCookie(cookies, result.session.id);
 		} catch (error) {

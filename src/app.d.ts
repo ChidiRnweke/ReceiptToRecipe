@@ -1,13 +1,14 @@
-import type { User, Session } from '$lib/db/schema';
+import type { Session } from '$lib/db/schema';
+import type { UserDao, SessionDao } from '$lib/repositories/daos';
 
 declare global {
 	namespace App {
 		interface Locals {
-			user: User | null;
-			session: Session | null;
+			user: UserDao | null;
+			session: SessionDao | null;
 		}
 		interface PageData {
-			user: User | null;
+			user: UserDao | null;
 		}
 	}
 }

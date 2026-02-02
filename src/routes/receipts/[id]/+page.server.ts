@@ -2,9 +2,6 @@ import { error, redirect, fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { ReceiptController, ShoppingListController } from "$lib/controllers";
 import { AppFactory } from "$lib/factories";
-import { db } from "$lib/db/client";
-import { recipes } from "$lib/db/schema";
-import { eq, desc } from "drizzle-orm";
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   if (!locals.user) {
@@ -27,11 +24,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   }
 
   // Get recipes generated from this receipt
-  const generatedRecipes = await db.query.recipes.findMany({
-    where: eq(recipes.sourceReceiptId, params.id),
-    orderBy: [desc(recipes.createdAt)],
-    limit: 10,
-  });
+  const recipeRepo = AppFactory.getRecipeRepository();
+  const generatedRecipes = await recipeRepo.findByReceiptId(params.id);
 
   return {
     receipt,

@@ -1,9 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { AuthService, setSessionCookie } from '$lib/services/AuthService';
+import { setSessionCookie } from '$lib/services/AuthService';
+import { AppFactory } from '$lib/factories';
 import { requireString } from '$lib/validation';
-
-const authService = new AuthService();
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) {
@@ -23,6 +22,7 @@ export const actions: Actions = {
 		}
 
 		try {
+			const authService = AppFactory.getAuthService();
 			const user = await authService.createUser(email, password, name);
 			const session = await authService.createSession(user.id);
 			setSessionCookie(cookies, session.id);

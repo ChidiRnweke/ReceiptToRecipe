@@ -1,7 +1,7 @@
-import type { TasteProfileService, DietType, AllergySeverity, PreferenceLevel } from '$services';
+import type { ITasteProfileService, DietType, AllergySeverity, PreferenceLevel } from '$services';
 
 export class TasteProfileController {
-    constructor(private tasteProfileService: TasteProfileService) {}
+    constructor(private tasteProfileService: ITasteProfileService) {}
 
     async getProfile(userId: string) {
         return this.tasteProfileService.getUserTasteProfile(userId);

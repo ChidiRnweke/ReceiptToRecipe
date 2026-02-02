@@ -13,7 +13,8 @@ const config = {
 			$controllers: 'src/lib/controllers',
 			$factories: 'src/lib/factories',
 			$db: 'src/lib/db',
-			$components: 'src/lib/components'
+			$components: 'src/lib/components',
+			$repositories: 'src/lib/repositories'
 		}
 	}
 };

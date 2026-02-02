@@ -2,9 +2,6 @@ import { redirect, fail } from "@sveltejs/kit";
 import type { PageServerLoad, Actions } from "./$types";
 import { ReceiptController, ShoppingListController } from "$lib/controllers";
 import { AppFactory } from "$lib/factories";
-import { db } from "$lib/db/client";
-import { recipes } from "$lib/db/schema";
-import { eq, sql, inArray } from "drizzle-orm";
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user) {
@@ -26,19 +23,11 @@ export const load: PageServerLoad = async ({ locals }) => {
   let recipeCounts: Record<string, number> = {};
 
   if (receiptIds.length > 0) {
-    const counts = await db
-      .select({
-        sourceReceiptId: recipes.sourceReceiptId,
-        count: sql<number>`count(*)`,
-      })
-      .from(recipes)
-      .where(inArray(recipes.sourceReceiptId, receiptIds))
-      .groupBy(recipes.sourceReceiptId);
+    const recipeRepo = AppFactory.getRecipeRepository();
+    const counts = await recipeRepo.countByReceiptIds(receiptIds);
 
     recipeCounts = Object.fromEntries(
-      counts
-        .filter((c) => c.sourceReceiptId)
-        .map((c) => [c.sourceReceiptId!, c.count]),
+      counts.map((c) => [c.receiptId, c.count])
     );
   }
 

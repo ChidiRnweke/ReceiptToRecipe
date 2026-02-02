@@ -1,7 +1,5 @@
 import type { LayoutServerLoad } from './$types';
-import { db } from '$lib/db/client';
-import { receipts, recipes } from '$lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { AppFactory } from '$lib/factories';
 import { ShoppingListController } from '$lib/controllers';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
@@ -14,10 +12,13 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
 	const userId = locals.user.id;
 
-	// Fetch counts for the workflow nav
-	const [receiptCountRow, recipeCountRow] = await Promise.all([
-		db.select({ count: sql<number>`count(*)` }).from(receipts).where(eq(receipts.userId, userId)),
-		db.select({ count: sql<number>`count(*)` }).from(recipes).where(eq(recipes.userId, userId))
+	// Fetch counts for the workflow nav using repositories
+	const receiptRepo = AppFactory.getReceiptRepository();
+	const recipeRepo = AppFactory.getRecipeRepository();
+
+	const [receiptCount, recipeCount] = await Promise.all([
+		receiptRepo.countByUserId(userId),
+		recipeRepo.countByUserId(userId)
 	]);
 
 	const listController = new ShoppingListController();
@@ -32,8 +33,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 	return {
 		user: locals.user,
 		workflowCounts: {
-			receipts: Number(receiptCountRow[0]?.count) || 0,
-			recipes: Number(recipeCountRow[0]?.count) || 0,
+			receipts: receiptCount,
+			recipes: recipeCount,
 			shoppingItems
 		}
 	};

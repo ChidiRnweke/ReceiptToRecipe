@@ -2,9 +2,6 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { ShoppingListController, PantryController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
-import { db } from '$lib/db/client';
-import { shoppingLists, shoppingListItems, recipes } from '$lib/db/schema';
-import { eq, desc, inArray, sql } from 'drizzle-orm';
 import type { PantryItem } from '$lib/services/PantryService';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -35,18 +32,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Load recipe info for source attribution
 	let recipeMap: Record<string, { id: string; title: string }> = {};
 	if (recipeIds.size > 0) {
-		const recipeList = await db.query.recipes.findMany({
-			where: inArray(recipes.id, Array.from(recipeIds)),
-			columns: { id: true, title: true }
-		});
-		recipeMap = Object.fromEntries(recipeList.map(r => [r.id, r]));
+		const recipeRepo = AppFactory.getRecipeRepository();
+		const recipeList = await recipeRepo.findByIds(Array.from(recipeIds));
+		recipeMap = Object.fromEntries(recipeList.map(r => [r.id, { id: r.id, title: r.title }]));
 	}
 
 	// Get counts for empty state guidance
-	const recipeCount = await db
-		.select({ count: sql<number>`count(*)` })
-		.from(recipes)
-		.where(eq(recipes.userId, locals.user.id));
+	const recipeRepo = AppFactory.getRecipeRepository();
+	const recipeCount = await recipeRepo.countByUserId(locals.user.id);
 
 	// Build pantry lookup map for quick duplicate checks (items with >70% confidence)
 	const pantryLookup: Record<string, { confidence: number; lastPurchased: Date; daysSincePurchase: number }> = {};
@@ -65,7 +58,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		lists,
 		suggestions,
 		recipeMap,
-		recipeCount: recipeCount[0]?.count || 0,
+		recipeCount,
 		pantry,
 		pantryLookup
 	};

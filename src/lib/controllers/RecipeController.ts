@@ -2,7 +2,7 @@ import { db } from '$db/client';
 import { recipes, recipeIngredients, receiptItems, userPreferences, savedRecipes } from '$db/schema';
 import type { Recipe, RecipeIngredient, NewRecipe, NewRecipeIngredient, UserPreferences } from '$db/schema';
 import { eq, desc, and, inArray } from 'drizzle-orm';
-import type { ILlmService, IImageGenService, IVectorService, GeneratedRecipe, TasteProfileService } from '$services';
+import type { ILlmService, IImageGenService, IVectorService, LlmGeneratedRecipe, ITasteProfileService } from '$services';
 
 export interface GenerateRecipeInput {
 	userId: string;
@@ -23,7 +23,7 @@ export class RecipeController {
 		private llmService: ILlmService,
 		private imageGenService: IImageGenService,
 		private vectorService: IVectorService,
-		private tasteProfileService: TasteProfileService,
+		private tasteProfileService: ITasteProfileService,
 		private jobQueue?: { add: (job: { name?: string; run: () => Promise<void> }) => Promise<void> }
 	) {}
 
@@ -101,7 +101,7 @@ export class RecipeController {
 	 */
 	private async persistRecipe(
 		userId: string,
-		generated: GeneratedRecipe,
+		generated: LlmGeneratedRecipe,
 		source: 'GENERATED' | 'RAG' | 'USER',
 		sourceReceiptId?: string
 	): Promise<Recipe> {
@@ -125,7 +125,7 @@ export class RecipeController {
 
 		// Save ingredients
 		if (generated.ingredients.length > 0) {
-			const ingredientValues: NewRecipeIngredient[] = generated.ingredients.map((ing, index) => ({
+			const ingredientValues: NewRecipeIngredient[] = generated.ingredients.map((ing: { name: string; quantity: number | string; unit: string; optional?: boolean; notes?: string }, index: number) => ({
 				recipeId: recipe.id,
 				name: ing.name,
 				quantity: ing.quantity.toString(),
@@ -145,11 +145,11 @@ export class RecipeController {
 	/**
 	 * Background image generation
 	 */
-	private async generateRecipeImage(recipeId: string, generated: GeneratedRecipe): Promise<void> {
+	private async generateRecipeImage(recipeId: string, generated: LlmGeneratedRecipe): Promise<void> {
 		try {
 			await db.update(recipes).set({ imageStatus: 'PROCESSING' }).where(eq(recipes.id, recipeId));
 
-			const ingredientNames = generated.ingredients.slice(0, 5).map((i) => i.name);
+			const ingredientNames = generated.ingredients.slice(0, 5).map((i: { name: string }) => i.name);
 			const result = await this.imageGenService.generateRecipeImage(
 				generated.title,
 				generated.description,

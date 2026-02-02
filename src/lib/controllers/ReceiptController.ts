@@ -13,7 +13,7 @@ import type {
   INormalizationService,
   IProductNormalizationService,
   RawReceiptData,
-  PantryService,
+  IPantryService,
 } from "$services";
 
 export interface UploadReceiptInput {
@@ -31,7 +31,7 @@ export class ReceiptController {
     private ocrService: IOcrService,
     private normalizationService: INormalizationService,
     private productNormalizationService: IProductNormalizationService,
-    private pantryService: PantryService,
+    private pantryService: IPantryService,
     private jobQueue?: {
       add: (job: { name?: string; run: () => Promise<void> }) => Promise<void>;
     },

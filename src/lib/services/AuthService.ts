@@ -1,21 +1,18 @@
 import { hash, verify } from '@node-rs/argon2';
-import { db } from '$db/client';
-import { sessions, users, userPreferences } from '$db/schema';
-import { eq } from 'drizzle-orm';
-import type { User, Session, NewUser } from '$db/schema';
 import type { Cookies } from '@sveltejs/kit';
+import type { IUserRepository, ISessionRepository, IUserPreferencesRepository, UserDao, SessionDao } from '$repositories';
 
 export interface AuthResult {
-	user: User;
-	session: Session;
+	user: UserDao;
+	session: SessionDao;
 }
 
 export interface IAuthService {
-	createUser(email: string, password: string, name: string): Promise<User>;
+	createUser(email: string, password: string, name: string): Promise<UserDao>;
 	login(email: string, password: string): Promise<AuthResult>;
 	logout(sessionId: string): Promise<void>;
-	validateSession(sessionId: string): Promise<{ user: User; session: Session } | null>;
-	createSession(userId: string): Promise<Session>;
+	validateSession(sessionId: string): Promise<{ user: UserDao; session: SessionDao } | null>;
+	createSession(userId: string): Promise<SessionDao>;
 }
 
 function generateSessionId(): string {
@@ -27,11 +24,15 @@ function generateSessionId(): string {
 }
 
 export class AuthService implements IAuthService {
-	async createUser(email: string, password: string, name: string): Promise<User> {
+	constructor(
+		private userRepo: IUserRepository,
+		private sessionRepo: ISessionRepository,
+		private prefsRepo: IUserPreferencesRepository
+	) {}
+
+	async createUser(email: string, password: string, name: string): Promise<UserDao> {
 		// Check if user exists
-		const existing = await db.query.users.findFirst({
-			where: eq(users.email, email)
-		});
+		const existing = await this.userRepo.findByEmail(email);
 
 		if (existing) {
 			throw new Error('User with this email already exists');
@@ -46,17 +47,14 @@ export class AuthService implements IAuthService {
 		});
 
 		// Create user
-		const [user] = await db
-			.insert(users)
-			.values({
-				email,
-				name,
-				passwordHash
-			})
-			.returning();
+		const user = await this.userRepo.create({
+			email,
+			name,
+			passwordHash
+		});
 
 		// Create default preferences
-		await db.insert(userPreferences).values({
+		await this.prefsRepo.create({
 			userId: user.id,
 			defaultServings: 2
 		});
@@ -65,9 +63,7 @@ export class AuthService implements IAuthService {
 	}
 
 	async login(email: string, password: string): Promise<AuthResult> {
-		const user = await db.query.users.findFirst({
-			where: eq(users.email, email)
-		});
+		const user = await this.userRepo.findByEmailWithPassword(email);
 
 		if (!user || !user.passwordHash) {
 			throw new Error('Invalid email or password');
@@ -80,63 +76,49 @@ export class AuthService implements IAuthService {
 
 		const session = await this.createSession(user.id);
 
-		return { user, session };
+		// Return user without passwordHash
+		const { passwordHash: _, ...userWithoutPassword } = user;
+
+		return { user: userWithoutPassword, session };
 	}
 
 	async logout(sessionId: string): Promise<void> {
-		await db.delete(sessions).where(eq(sessions.id, sessionId));
+		await this.sessionRepo.delete(sessionId);
 	}
 
-	async validateSession(sessionId: string): Promise<{ user: User; session: Session } | null> {
-		const session = await db.query.sessions.findFirst({
-			where: eq(sessions.id, sessionId),
-			with: {
-				user: true
-			}
-		});
+	async validateSession(sessionId: string): Promise<{ user: UserDao; session: SessionDao } | null> {
+		const result = await this.sessionRepo.findByIdWithUser(sessionId);
 
-		if (!session) {
+		if (!result) {
 			return null;
 		}
 
 		// Check expiration
-		if (Date.now() >= session.expiresAt.getTime()) {
-			await db.delete(sessions).where(eq(sessions.id, sessionId));
+		if (Date.now() >= result.session.expiresAt.getTime()) {
+			await this.sessionRepo.delete(sessionId);
 			return null;
 		}
 
 		// Extend session if close to expiring (within 15 days)
 		const fifteenDays = 1000 * 60 * 60 * 24 * 15;
-		if (Date.now() >= session.expiresAt.getTime() - fifteenDays) {
+		if (Date.now() >= result.session.expiresAt.getTime() - fifteenDays) {
 			const newExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30); // 30 days
-			await db.update(sessions).set({ expiresAt: newExpiresAt }).where(eq(sessions.id, sessionId));
-			session.expiresAt = newExpiresAt;
+			await this.sessionRepo.updateExpiresAt(sessionId, newExpiresAt);
+			result.session = { ...result.session, expiresAt: newExpiresAt };
 		}
 
-		return {
-			user: session.user,
-			session: {
-				id: session.id,
-				userId: session.userId,
-				expiresAt: session.expiresAt
-			}
-		};
+		return result;
 	}
 
-	async createSession(userId: string): Promise<Session> {
+	async createSession(userId: string): Promise<SessionDao> {
 		const sessionId = generateSessionId();
 		const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30); // 30 days
 
-		const [session] = await db
-			.insert(sessions)
-			.values({
-				id: sessionId,
-				userId,
-				expiresAt
-			})
-			.returning();
-
-		return session;
+		return await this.sessionRepo.create({
+			id: sessionId,
+			userId,
+			expiresAt
+		});
 	}
 }
 
