@@ -65,7 +65,7 @@
 </svelte:head>
 
 <div
-  class="paper-card relative min-h-screen rounded-4xl border border-sand bg-[#FDFBF7] shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)] overflow-hidden"
+  class="paper-card relative min-h-screen rounded-4xl border border-sand bg-bg-paper shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)] overflow-hidden"
 >
   <!-- Radial gradient background -->
   <div
@@ -78,35 +78,35 @@
       <!-- Header -->
       <div class="mb-10 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p class="font-hand text-lg text-ink-light mb-1">
+          <p class="font-hand text-lg text-text-secondary mb-1">
             Your culinary collection
           </p>
           <h1
-            class="font-display text-4xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
+            class="font-display text-4xl leading-[1.1] text-text-primary drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
           >
             Recipe <span class="marker-highlight">Scrapbook</span>
           </h1>
           <div class="flex items-center gap-4 mt-2">
-            <p
-                class="font-mono text-xs uppercase tracking-widest text-stone-400"
-            >
+          <p
+              class="font-ui text-xs uppercase tracking-widest text-text-muted"
+          >
                 {data.recipes.length}
                 {data.recipes.length === 1 ? "recipe" : "recipes"} saved
             </p>
             <div class="flex items-center gap-2">
                 <Checkbox id="hide-incompatible" bind:checked={hideIncompatible} class="h-4 w-4" />
-                <Label for="hide-incompatible" class="text-xs text-stone-500 cursor-pointer font-medium">Hide Incompatible</Label>
+                <Label for="hide-incompatible" class="text-xs text-text-muted cursor-pointer font-medium">Hide Incompatible</Label>
             </div>
           </div>
         </div>
 
         <Button
           href="/recipes/generate"
-          class="group relative h-10 overflow-hidden rounded-lg border border-sage-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95"
+          class="group relative h-10 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95"
         >
           <div class="flex items-center gap-2">
-            <Sparkles class="h-4 w-4 text-sage-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-sage-700" />
-            <span class="font-display text-base font-medium text-ink">New Recipe</span>
+            <Sparkles class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700" />
+            <span class="font-display text-base font-medium text-text-primary">New Recipe</span>
           </div>
         </Button>
       </div>
@@ -115,13 +115,13 @@
       {#if suggestedRecipes.length > 0}
         <div class="mb-16">
           <div
-            class="mb-8 flex items-baseline justify-between border-b border-stone-200 pb-3"
+            class="mb-8 flex items-baseline justify-between border-b border-border pb-3"
           >
-            <h2 class="font-display text-2xl text-ink">
+            <h2 class="font-display text-2xl text-text-primary">
               Made for <span class="marker-highlight">Your Pantry</span>
             </h2>
             <span
-              class="font-mono text-[10px] uppercase tracking-widest text-sage-600"
+              class="font-ui text-[10px] uppercase tracking-widest text-primary-600"
             >
               <Sparkles class="h-3 w-3 inline mr-1" />
               AI Suggested
@@ -157,7 +157,7 @@
                     <input type="hidden" name="recipeId" value={recipe.id} />
                     <button
                       type="submit"
-                      class="flex items-center gap-1.5 bg-amber-100 text-amber-700 hover:bg-amber-400 hover:text-white text-xs font-semibold px-4 py-2 rounded-full shadow-sm transition-colors"
+                      class="btn-accent flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full shadow-sm"
                       disabled={addingToShoppingId === recipe.id}
                     >
                       {#if addingToShoppingId === recipe.id}
@@ -189,7 +189,7 @@
 
                     <!-- Photo -->
                     <div
-                      class="relative aspect-square overflow-hidden bg-stone-100"
+                      class="relative aspect-square overflow-hidden bg-bg-card"
                     >
                       {#if recipe.imageUrl}
                         <img
@@ -199,9 +199,9 @@
                         />
                       {:else}
                         <div
-                          class="flex h-full w-full items-center justify-center bg-stone-100"
+                          class="flex h-full w-full items-center justify-center bg-bg-card"
                         >
-                          <ChefHat class="h-12 w-12 text-stone-300" />
+                          <ChefHat class="h-12 w-12 text-text-muted" />
                         </div>
                       {/if}
                       <!-- Match badge -->
@@ -217,7 +217,7 @@
                       class="absolute bottom-0 left-0 right-0 h-14 px-3 py-1.5 flex flex-col justify-center"
                     >
                       <p
-                        class="font-display text-base text-ink leading-tight truncate text-center"
+                        class="font-display text-base text-text-primary leading-tight truncate text-center"
                         title={recipe.title}
                       >
                         {recipe.title}
@@ -237,7 +237,7 @@
                             </span>
                         {:else}
                             <p
-                                class="font-mono text-xs text-stone-400 text-center uppercase tracking-wide"
+                                class="font-ui text-xs text-text-muted text-center uppercase tracking-wide"
                             >
                                 {formatTime(
                                 (recipe.prepTime || 0) + (recipe.cookTime || 0),
@@ -252,7 +252,7 @@
                       class="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30"
                     >
                       <div
-                        class="bg-stone-800 text-white text-sm px-3 py-1.5 rounded shadow-lg max-w-[260px] text-center whitespace-normal"
+                        class="bg-text-primary text-white text-sm px-3 py-1.5 rounded shadow-lg max-w-[260px] text-center whitespace-normal"
                       >
                         {recipe.title}
                       </div>
@@ -269,13 +269,13 @@
       {#if otherRecipes.length > 0}
         <div class="mt-8">
           <div
-            class="mb-8 flex items-baseline justify-between border-b border-stone-200 pb-3"
+            class="mb-8 flex items-baseline justify-between border-b border-border pb-3"
           >
-            <h2 class="font-display text-2xl text-ink">
+            <h2 class="font-display text-2xl text-text-primary">
               All Recipes
             </h2>
             <span
-              class="font-mono text-[10px] uppercase tracking-widest text-stone-400"
+              class="font-ui text-[10px] uppercase tracking-widest text-text-muted"
             >
               {otherRecipes.length} saved
             </span>
@@ -309,7 +309,7 @@
                     <button
                       type="submit"
                       disabled={addingToShoppingId === recipe.id}
-                      class="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-600 hover:bg-amber-400 hover:text-white transition-colors"
+                      class="btn-accent flex h-8 w-8 items-center justify-center rounded-full"
                       title="Add to shopping list"
                     >
                       {#if addingToShoppingId === recipe.id}
@@ -328,7 +328,7 @@
                         confirmDelete(recipe.id);
                     }}
                     disabled={deletingId === recipe.id}
-                    class="flex h-8 w-8 items-center justify-center rounded-full bg-stone-100 text-stone-400 hover:bg-red-400 hover:text-white transition-colors"
+                    class="flex h-8 w-8 items-center justify-center rounded-full bg-bg-card text-text-muted hover:bg-danger-500 hover:text-white transition-colors"
                     title="Delete recipe"
                   >
                     {#if deletingId === recipe.id}
@@ -353,7 +353,7 @@
                   >
                     <!-- Photo -->
                     <div
-                      class="relative aspect-square overflow-hidden bg-stone-100"
+                      class="relative aspect-square overflow-hidden bg-bg-card"
                     >
                       {#if recipe.imageUrl}
                         <img
@@ -363,9 +363,9 @@
                         />
                       {:else}
                         <div
-                          class="flex h-full w-full items-center justify-center bg-stone-100"
+                          class="flex h-full w-full items-center justify-center bg-bg-card"
                         >
-                          <ChefHat class="h-10 w-10 text-stone-300" />
+                          <ChefHat class="h-10 w-10 text-text-muted" />
                         </div>
                       {/if}
                     </div>
@@ -375,13 +375,13 @@
                       class="absolute bottom-0 left-0 right-0 h-14 px-2 py-1.5 flex flex-col justify-center"
                     >
                       <p
-                        class="font-display text-sm text-ink leading-tight truncate text-center"
+                        class="font-display text-sm text-text-primary leading-tight truncate text-center"
                         title={recipe.title}
                       >
                         {recipe.title}
                       </p>
                       <p
-                        class="font-mono text-[10px] text-stone-400 text-center uppercase tracking-wide mt-0.5"
+                        class="font-ui text-[10px] text-text-muted text-center uppercase tracking-wide mt-0.5"
                       >
                         {#if recipe.cuisineType}{recipe.cuisineType}{:else}{formatTime(
                             (recipe.prepTime || 0) + (recipe.cookTime || 0),
@@ -394,7 +394,7 @@
                       class="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30"
                     >
                       <div
-                        class="bg-stone-800 text-white text-xs px-3 py-1.5 rounded shadow-lg max-w-[220px] text-center whitespace-normal"
+                        class="bg-text-primary text-white text-xs px-3 py-1.5 rounded shadow-lg max-w-[220px] text-center whitespace-normal"
                       >
                         {recipe.title}
                       </div>
@@ -415,29 +415,29 @@
             class="relative bg-white p-1.5 pb-12 shadow-[0_2px_8px_rgba(0,0,0,0.1)] rotate-2 mb-8"
           >
             <div
-              class="w-44 h-44 bg-stone-100 flex items-center justify-center"
+              class="w-44 h-44 bg-bg-card flex items-center justify-center"
             >
-              <ChefHat class="h-12 w-12 text-stone-300" />
+              <ChefHat class="h-12 w-12 text-text-muted" />
             </div>
             <p
-              class="absolute bottom-2 left-0 right-0 font-display text-sm text-stone-400 text-center"
+              class="absolute bottom-2 left-0 right-0 font-display text-sm text-text-muted text-center"
             >
               Your first recipe?
             </p>
           </div>
-          <h2 class="font-display text-2xl text-ink mb-2">No recipes yet</h2>
+          <h2 class="font-display text-2xl text-text-primary mb-2">No recipes yet</h2>
           <p
-            class="font-serif text-base text-stone-500 italic max-w-xs text-center mb-8"
+            class="font-serif text-base text-text-muted italic max-w-xs text-center mb-8"
           >
             "{randomQuote}"
           </p>
           <Button
             href="/recipes/generate"
-            class="group relative h-12 overflow-hidden rounded-lg border border-sage-300 bg-white px-8 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95"
+            class="group relative h-12 overflow-hidden rounded-lg border border-primary-300 bg-white px-8 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95"
           >
             <div class="flex items-center gap-2">
-              <Sparkles class="h-4 w-4 text-sage-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-sage-700" />
-              <span class="font-display text-base font-medium text-ink">Create Your First Recipe</span>
+              <Sparkles class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700" />
+              <span class="font-display text-base font-medium text-text-primary">Create Your First Recipe</span>
             </div>
           </Button>
         </div>
@@ -469,7 +469,7 @@
             class="inline-block"
         >
             <input type="hidden" name="recipeId" value={recipeToDelete} />
-            <AlertDialog.Action type="submit" class="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialog.Action>
+            <AlertDialog.Action type="submit" class="btn-danger">Delete</AlertDialog.Action>
         </form>
       </AlertDialog.Footer>
     </AlertDialog.Content>

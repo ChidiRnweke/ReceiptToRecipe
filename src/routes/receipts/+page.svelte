@@ -78,7 +78,7 @@
 
 <div class="flex min-h-[calc(100vh-4rem)] -mx-4 md:-mx-8">
   <!-- Ledger Main Content -->
-  <main class="flex-1 bg-[#FDFBF7] p-6 md:p-10 relative overflow-y-auto">
+  <main class="flex-1 bg-bg-paper p-6 md:p-10 relative overflow-y-auto">
     <!-- Desk Texture Overlay -->
     <div
       class="pointer-events-none absolute inset-0 opacity-[0.03]"
@@ -88,7 +88,7 @@
     <div class="mx-auto max-w-5xl space-y-8 relative z-10">
       <!-- Header Action -->
       <div
-        class="flex flex-col md:flex-row md:items-end md:justify-between gap-6 border-b border-sand pb-6"
+        class="flex flex-col md:flex-row md:items-end md:justify-between gap-6 border-b border-border pb-6"
       >
         <div>
           <h1
@@ -96,7 +96,7 @@
           >
             Track your <span class="marker-highlight">kitchen inventory</span>.
           </h1>
-          <p class="text-ink-muted font-mono text-sm mt-2">
+          <p class="text-text-muted font-ui text-sm mt-2">
             Verify scans and manage your culinary assets.
           </p>
         </div>
@@ -152,7 +152,7 @@
                 -->
               <a
                 href="/receipts/{receipt.id}"
-                class="group relative block bg-white border-b border-dashed border-stone-200 hover:bg-[#fffdf5] transition-colors duration-200 last:border-0"
+                class="group relative block bg-white border-b border-dashed border-border hover:bg-[#fffdf5] transition-colors duration-200 last:border-0"
               >
                 <div class="flex items-center gap-6 py-5 px-6">
                   <!-- Notebook Margin Line -->
@@ -183,7 +183,7 @@
                               <div class="w-0.5 bg-transparent"></div>
                             {/each}
                           </div>
-                          <p class="text-xs text-ink-muted font-mono truncate">
+                          <p class="text-xs text-text-muted font-ui truncate">
                             {(receipt as any).items?.length || 0} items scanned
                           </p>
                         </div>
@@ -195,7 +195,7 @@
                   <div class="w-32 shrink-0">
                     {#if receipt.totalAmount}
                       <div
-                        class="font-mono text-lg font-bold text-ink-dark opacity-90 tracking-tight transform -rotate-1 bg-[#fffdf5] group-hover:bg-white group-hover:scale-105 transition-all px-2 py-1 rounded inline-block border border-stone-200/50 shadow-sm"
+                        class="font-ui text-lg font-bold text-ink-dark opacity-90 tracking-tight transform -rotate-1 bg-[#fffdf5] group-hover:bg-white group-hover:scale-105 transition-all px-2 py-1 rounded inline-block border border-border/50 shadow-sm"
                       >
                         {formatCurrency(
                           receipt.totalAmount!,
@@ -203,7 +203,7 @@
                         )}
                       </div>
                     {:else}
-                      <span class="text-sm text-ink-muted italic"
+                      <span class="text-sm text-text-muted italic"
                         >Processing...</span
                       >
                     {/if}
@@ -243,7 +243,7 @@
                     {:else}
                       <!-- Status Badge (Amber/Yellow for Processing) -->
                       <div
-                        class="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1 rounded-sm text-xs font-mono uppercase tracking-wider flex items-center gap-2 truncate"
+                        class="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1 rounded-sm text-xs font-ui uppercase tracking-wider flex items-center gap-2 truncate"
                         title={receipt.status}
                       >
                         {#if receipt.status === "PROCESSING"}
@@ -255,10 +255,10 @@
                   </div>
 
                   <!-- 4. Actions -->
-                  <div class="flex items-center pl-2 border-l border-stone-100">
+                  <div class="flex items-center pl-2 border-l border-border">
                     <button
                       type="button"
-                      class="h-8 w-8 flex items-center justify-center rounded-md text-stone-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      class="h-8 w-8 flex items-center justify-center rounded-md text-text-muted hover:text-red-600 hover:bg-red-50 transition-colors"
                       onclick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();

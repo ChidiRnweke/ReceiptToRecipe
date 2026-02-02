@@ -103,7 +103,7 @@
   <title>{data.receipt.storeName || "Receipt"} - Receipt2Recipe</title>
 </svelte:head>
 
-<div class="min-h-screen bg-stone-100 p-4 font-sans md:p-8">
+<div class="min-h-screen bg-bg-paper p-4 font-sans md:p-8">
   <div class="mx-auto max-w-7xl">
     <!-- Header with Typewriter Action -->
     <div class="mb-8 flex items-center justify-between">
@@ -112,18 +112,18 @@
           variant="ghost"
           size="icon"
           href="/receipts"
-          class="text-stone-600 hover:bg-stone-200 hover:text-stone-900"
+          class="text-text-secondary hover:bg-bg-hover hover:text-text-primary"
         >
           <ArrowLeft class="h-5 w-5" />
         </Button>
         <div class="flex flex-col">
           <h1
-            class="font-display text-4xl leading-[1.1] text-stone-800 drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
+            class="font-display text-4xl leading-[1.1] text-text-primary drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
           >
             Chef's Prep <span class="marker-highlight">Worksheet</span>
           </h1>
           <div
-            class="flex items-center gap-2 text-xs font-mono text-stone-500 mt-2"
+            class="flex items-center gap-2 text-xs font-ui text-text-muted mt-2"
           >
             <!-- Clean simple date, minimal noise -->
             <span
@@ -136,7 +136,7 @@
 
       <Button
         href={`/recipes/generate?receiptId=${data.receipt.id}`}
-        class="group relative h-10 border-2 border-stone-800 bg-stone-800 px-6 font-serif font-bold text-stone-50 shadow-[4px_4px_0px_0px_rgba(28,25,23,1)] transition-all hover:-translate-y-[1px] hover:bg-stone-700 hover:shadow-[5px_5px_0px_0px_rgba(28,25,23,1)] active:translate-y-[4px] active:shadow-none disabled:opacity-50"
+        class="group relative h-10 px-6 btn-accent-filled shadow-[4px_4px_0px_0px_rgba(120,53,15,1)] transition-all hover:-translate-y-[1px] hover:shadow-[5px_5px_0px_0px_rgba(120,53,15,1)] active:translate-y-[4px] active:shadow-none disabled:opacity-50"
       >
         <ChefHat class="mr-2 h-4 w-4" />
         Generate Recipes
@@ -150,7 +150,7 @@
           <div
             class="flex h-24 w-24 items-center justify-center rounded-2xl bg-white shadow-xl"
           >
-            <Receipt class="h-10 w-10 text-stone-300" />
+            <Receipt class="h-10 w-10 text-text-muted" />
           </div>
           <div
             class="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-stone-800 shadow-md"
@@ -158,10 +158,10 @@
             <Loader2 class="h-4 w-4 animate-spin text-stone-50" />
           </div>
         </div>
-        <h3 class="font-serif text-2xl font-bold text-stone-800">
+        <h3 class="font-serif text-2xl font-bold text-text-primary">
           Reading your receipt...
         </h3>
-        <p class="mt-2 text-stone-500">
+        <p class="mt-2 text-text-secondary">
           This usually takes about 10-30 seconds.
         </p>
       </div>
@@ -182,7 +182,7 @@
       <div class="flex flex-col gap-12 lg:flex-row lg:items-start">
         <!-- LEFT COLUMN: The Worksheet Card -->
         <!-- Background: Warm #FDFBF7 -->
-        <div class="relative min-h-[800px] flex-1 bg-[#FDFBF7] shadow-xl">
+        <div class="relative min-h-[800px] flex-1 bg-bg-paper shadow-xl">
           <!-- Notebook Styling Lines -->
           <!-- Blue lines with Red Margin -->
           <div
@@ -213,11 +213,11 @@
             >
               <div>
                 <h2
-                  class="mt-4 font-serif text-4xl font-bold text-stone-800 leading-none"
+                  class="mt-4 font-serif text-4xl font-bold text-text-primary leading-none"
                 >
                   {data.receipt.storeName || "Unknown Store"}
                 </h2>
-                <div class="mt-2 text-sm font-handwriting text-stone-400">
+                <div class="mt-2 text-sm font-handwriting text-text-muted">
                   {formatDate(data.receipt.purchaseDate)}
                 </div>
               </div>
@@ -227,7 +227,7 @@
                 variant="ghost"
                 size="sm"
                 onclick={() => (isEditing = !isEditing)}
-                class="text-stone-400 hover:text-stone-800"
+                class="text-text-muted hover:text-text-primary"
               >
                 {#if isEditing}
                   <Save class="mr-2 h-4 w-4" /> Save
@@ -287,7 +287,7 @@
                       <button
                         type="submit"
                         disabled={addingItems[item.id]}
-                        class="flex h-5 w-5 items-center justify-center rounded-full transition-all text-stone-300 hover:text-emerald-500 hover:scale-110 disabled:opacity-50"
+                        class="flex h-5 w-5 items-center justify-center rounded-full transition-all text-text-muted hover:text-success-600 hover:scale-110 disabled:opacity-50"
                         class:text-emerald-500={addedItems[item.id]}
                         title="Add to Shopping List"
                       >
@@ -303,14 +303,14 @@
 
                     <!-- Quantity (Handwritten style) -->
                     <div
-                      class="font-handwriting text-stone-500 text-lg w-10 text-right"
+                      class="font-handwriting text-text-secondary text-lg w-10 text-right"
                     >
                       {#if isEditing}
                         <Input
                           value={formatQuantity(item.quantity) === "-"
                             ? ""
                             : formatQuantity(item.quantity)}
-                          class="h-6 w-full px-1 text-right font-handwriting bg-transparent border-stone-200"
+                          class="h-6 w-full px-1 text-right font-handwriting bg-transparent border-border"
                         />
                       {:else}
                         {formatQuantity(item.quantity)}<span
@@ -325,19 +325,19 @@
                     {#if isEditing}
                       <Input
                         value={item.normalizedName || item.rawName}
-                        class="h-8 border-transparent bg-transparent px-0 font-serif text-lg text-stone-900 focus-visible:ring-0"
+                        class="h-8 border-transparent bg-transparent px-0 font-serif text-lg text-text-primary focus-visible:ring-0"
                       />
                     {:else}
                       <div class="flex flex-col">
-                        <span
-                          class="font-serif text-xl font-medium text-stone-900 tracking-normal leading-none"
-                        >
+                      <span
+                        class="font-serif text-xl font-medium text-text-primary tracking-normal leading-none"
+                      >
                           {item.normalizedName || item.rawName}
                         </span>
                         {#if item.normalizedName && item.normalizedName !== item.rawName}
-                          <span
-                            class="font-mono text-xs text-stone-400 mt-1 truncate"
-                          >
+                        <span
+                          class="font-ui text-xs text-text-muted mt-1 truncate"
+                        >
                             {item.rawName}
                           </span>
                         {/if}
@@ -349,7 +349,7 @@
 
               {#if data.receipt.items.length === 0}
                 <div
-                  class="flex h-32 items-center justify-center text-stone-400 italic"
+                  class="flex h-32 items-center justify-center text-text-muted italic"
                 >
                   No items found.
                 </div>
@@ -358,7 +358,7 @@
 
             <!-- Footer Note -->
             <div class="mt-12 px-8 flex justify-center">
-              <div class="rotate-1 font-handwriting text-stone-400 text-sm">
+              <div class="rotate-1 font-handwriting text-text-muted text-sm">
                 Verified by Chef
               </div>
             </div>
@@ -372,10 +372,10 @@
           >
             <!-- Image Container -->
             <div
-              class="flex flex-col overflow-hidden rounded-sm bg-white shadow-xl ring-1 ring-stone-900/5 p-4 pb-8"
+              class="flex flex-col overflow-hidden rounded-sm bg-white shadow-xl ring-1 ring-black/5 p-4 pb-8"
             >
               {#if data.receipt.imageUrl}
-                <div class="relative bg-stone-100 rounded-sm overflow-hidden">
+                <div class="relative bg-bg-paper-dark rounded-sm overflow-hidden">
                   <!-- Washi Tape -->
                   <WashiTape
                     color="yellow"
@@ -390,12 +390,12 @@
 
                   <!-- Paper Overlay Texture -->
                   <div
-                    class="pointer-events-none absolute inset-0 bg-stone-50/10 mix-blend-overlay"
+                    class="pointer-events-none absolute inset-0 bg-white/10 mix-blend-overlay"
                   ></div>
                 </div>
               {:else}
                 <div
-                  class="flex h-full flex-col items-center justify-center bg-stone-100 p-12 text-center text-stone-400"
+                  class="flex h-full flex-col items-center justify-center bg-bg-paper-dark p-12 text-center text-text-muted"
                 >
                   <ImageIcon class="mb-4 h-12 w-12 opacity-50" />
                   <span class="font-handwriting text-xl"

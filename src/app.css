@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Patrick+Hand:wght@400;700&family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Patrick+Hand:wght@400;700&family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&display=swap");
 
 @import "tailwindcss";
 
@@ -8,49 +8,134 @@
 
 :root {
   --radius: 0.625rem;
-  --paper: #fdfbf7;
-  --paper-dark: #f2ede2;
-  --ink: #2d3748;
-  --ink-light: #4a5568;
-  --ink-muted: #6b7280;
-  --sage-50: #f1f5f9;
-  --sage-100: #e2e8f0;
-  --sage-500: #8aa399;
-  --sage-600: #718096;
+  
+  /* ============================================
+     DESIGN SYSTEM TOKENS
+     ============================================ */
+  
+  /* Background System (Warm Paper Theme) */
+  --bg-paper: #fdfbf7;
+  --bg-paper-dark: #f5efe3;
+  --bg-card: #faf6ed;
+  --bg-elevated: #f7f1e6;
+  --bg-input: #ffffff;
+  --bg-hover: #f0e9dc;
+  
+  /* Text Colors */
+  --text-primary: #2d3748;
+  --text-secondary: #4a5568;
+  --text-muted: #718096;
+  --text-inverse: #fdfbf7;
+  --text-accent: #4a8560;
+  --text-link: #3d6b52;
+  
+  /* Primary Scale (Sage - used sparingly) */
+  --primary-50: #f4f7f4;
+  --primary-100: #e8f0e9;
+  --primary-200: #d1e0d4;
+  --primary-300: #b3d0b8;
+  --primary-400: #8fb896;
+  --primary-500: #6a9f74;
+  --primary-600: #4a8560;
+  --primary-700: #3d6b52;
+  --primary-800: #2f5144;
+  --primary-900: #213c36;
+  
+  /* Secondary Scale (Warm Sand/Sienna) */
+  --secondary-50: #fff8f0;
+  --secondary-100: #ffeedd;
+  --secondary-200: #ffe0c4;
+  --secondary-300: #ffc999;
+  --secondary-400: #ffa85c;
+  --secondary-500: #f48c3f;
+  --secondary-600: #ea580c;
+  --secondary-700: #c2410c;
+  --secondary-800: #9a3412;
+  --secondary-900: #7c2d12;
+  
+  /* Semantic Colors */
+  --success-50: #ecfdf5;
+  --success-100: #d1fae5;
+  --success-500: #10b981;
+  --success-600: #059669;
+  --warning-50: #fffbeb;
+  --warning-100: #fef3c7;
+  --warning-500: #f59e0b;
+  --warning-600: #d97706;
+  --danger-50: #fef2f2;
+  --danger-100: #fee2e2;
+  --danger-500: #ef4444;
+  --danger-600: #dc2626;
+  --info-50: #eff6ff;
+  --info-100: #dbeafe;
+  --info-500: #3b82f6;
+  --info-600: #2563eb;
+  
+  /* ============================================
+     LEGACY ALIASES (Backward Compatibility)
+     ============================================ */
+  --paper: var(--bg-paper);
+  --paper-dark: var(--bg-paper-dark);
+  --ink: var(--text-primary);
+  --ink-light: var(--text-secondary);
+  --ink-muted: var(--text-muted);
+  --sage-50: var(--primary-50);
+  --sage-100: var(--primary-100);
+  --sage-200: var(--primary-200);
+  --sage-300: var(--primary-300);
+  --sage-400: var(--primary-400);
+  --sage-500: var(--primary-500);
+  --sage-600: var(--primary-600);
+  --sage-700: var(--primary-700);
+  --sage-800: var(--primary-800);
+  --sage-900: var(--primary-900);
   --sand: #e5dcc4;
-  --sienna-50: #fff3e8;
-  --sienna-600: #ed8936;
-  --background: var(--paper);
-  --foreground: var(--ink);
-  --card: var(--paper);
-  --card-foreground: var(--ink);
-  --popover: var(--paper);
-  --popover-foreground: var(--ink);
-  --primary: var(--sage-600);
-  --primary-foreground: #fdfcf8;
-  --secondary: var(--paper-dark);
-  --secondary-foreground: var(--ink);
-  --muted: var(--paper-dark);
-  --muted-foreground: var(--ink-muted);
-  --accent: #e7dec8;
-  --accent-foreground: var(--ink);
-  --destructive: var(--sienna-600);
+  --sienna-50: var(--secondary-50);
+  --sienna-100: var(--secondary-100);
+  --sienna-200: var(--secondary-200);
+  --sienna-300: var(--secondary-300);
+  --sienna-400: var(--secondary-400);
+  --sienna-500: var(--secondary-500);
+  --sienna-600: var(--secondary-600);
+  --sienna-700: var(--secondary-700);
+  --sienna-800: var(--secondary-800);
+  --sienna-900: var(--secondary-900);
+  
+  /* ============================================
+     SHADCN/UI THEME VARIABLES
+     ============================================ */
+  --background: var(--bg-paper);
+  --foreground: var(--text-primary);
+  --card: var(--bg-card);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-paper);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--primary-600);
+  --primary-foreground: var(--text-inverse);
+  --secondary: var(--bg-paper-dark);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-paper-dark);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--secondary-100);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--danger-600);
+  --destructive-foreground: var(--text-inverse);
   --border: #e0d6c6;
   --input: #e0d6c6;
-  --ring: var(--sage-500);
+  --ring: var(--primary-500);
   --chart-1: #6a8f6d;
   --chart-2: #e4b179;
   --chart-3: #c25a2c;
   --chart-4: #f1c4a9;
   --chart-5: #9fb3a0;
-  --sidebar: var(--paper);
-  --sidebar-foreground: var(--ink);
-  --sidebar-primary: var(--sage-600);
-  --sidebar-primary-foreground: #fdfcf8;
-  --sidebar-accent: var(--paper-dark);
-  --sidebar-accent-foreground: var(--ink);
+  --sidebar: var(--bg-paper);
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--primary-600);
+  --sidebar-primary-foreground: var(--text-inverse);
+  --sidebar-accent: var(--bg-paper-dark);
+  --sidebar-accent-foreground: var(--text-primary);
   --sidebar-border: #e0d6c6;
-  --sidebar-ring: var(--sage-500);
+  --sidebar-ring: var(--primary-500);
 }
 
 .dark {
@@ -88,10 +173,17 @@
 }
 
 @theme inline {
+  /* ============================================
+     BORDER RADIUS
+     ============================================ */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  
+  /* ============================================
+     SHADCN/UI BASE THEME
+     ============================================ */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -107,6 +199,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -123,6 +216,78 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* ============================================
+     SEMANTIC BACKGROUNDS
+     ============================================ */
+  --color-bg-paper: var(--bg-paper);
+  --color-bg-paper-dark: var(--bg-paper-dark);
+  --color-bg-card: var(--bg-card);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-input: var(--bg-input);
+  --color-bg-hover: var(--bg-hover);
+  
+  /* ============================================
+     SEMANTIC TEXT COLORS
+     ============================================ */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+  --color-text-accent: var(--text-accent);
+  --color-text-link: var(--text-link);
+  
+  /* ============================================
+     PRIMARY SCALE (SAGE)
+     ============================================ */
+  --color-primary-50: var(--primary-50);
+  --color-primary-100: var(--primary-100);
+  --color-primary-200: var(--primary-200);
+  --color-primary-300: var(--primary-300);
+  --color-primary-400: var(--primary-400);
+  --color-primary-500: var(--primary-500);
+  --color-primary-600: var(--primary-600);
+  --color-primary-700: var(--primary-700);
+  --color-primary-800: var(--primary-800);
+  --color-primary-900: var(--primary-900);
+  
+  /* ============================================
+     SECONDARY SCALE (WARM SAND)
+     ============================================ */
+  --color-secondary-50: var(--secondary-50);
+  --color-secondary-100: var(--secondary-100);
+  --color-secondary-200: var(--secondary-200);
+  --color-secondary-300: var(--secondary-300);
+  --color-secondary-400: var(--secondary-400);
+  --color-secondary-500: var(--secondary-500);
+  --color-secondary-600: var(--secondary-600);
+  --color-secondary-700: var(--secondary-700);
+  --color-secondary-800: var(--secondary-800);
+  --color-secondary-900: var(--secondary-900);
+  
+  /* ============================================
+     SEMANTIC COLORS
+     ============================================ */
+  --color-success-50: var(--success-50);
+  --color-success-100: var(--success-100);
+  --color-success-500: var(--success-500);
+  --color-success-600: var(--success-600);
+  --color-warning-50: var(--warning-50);
+  --color-warning-100: var(--warning-100);
+  --color-warning-500: var(--warning-500);
+  --color-warning-600: var(--warning-600);
+  --color-danger-50: var(--danger-50);
+  --color-danger-100: var(--danger-100);
+  --color-danger-500: var(--danger-500);
+  --color-danger-600: var(--danger-600);
+  --color-info-50: var(--info-50);
+  --color-info-100: var(--info-100);
+  --color-info-500: var(--info-500);
+  --color-info-600: var(--info-600);
+  
+  /* ============================================
+     LEGACY ALIASES (Backward Compatibility)
+     ============================================ */
   --color-paper: var(--paper);
   --color-paper-dark: var(--paper-dark);
   --color-ink: var(--ink);
@@ -130,11 +295,25 @@
   --color-ink-muted: var(--ink-muted);
   --color-sage-50: var(--sage-50);
   --color-sage-100: var(--sage-100);
+  --color-sage-200: var(--sage-200);
+  --color-sage-300: var(--sage-300);
+  --color-sage-400: var(--sage-400);
   --color-sage-500: var(--sage-500);
   --color-sage-600: var(--sage-600);
+  --color-sage-700: var(--sage-700);
+  --color-sage-800: var(--sage-800);
+  --color-sage-900: var(--sage-900);
   --color-sand: var(--sand);
   --color-sienna-50: var(--sienna-50);
+  --color-sienna-100: var(--sienna-100);
+  --color-sienna-200: var(--sienna-200);
+  --color-sienna-300: var(--sienna-300);
+  --color-sienna-400: var(--sienna-400);
+  --color-sienna-500: var(--sienna-500);
   --color-sienna-600: var(--sienna-600);
+  --color-sienna-700: var(--sienna-700);
+  --color-sienna-800: var(--sienna-800);
+  --color-sienna-900: var(--sienna-900);
 }
 
 .font-hand {
@@ -150,6 +329,71 @@
 .font-sans-clean {
   font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
 }
+
+/* ============================================
+   TYPOGRAPHY UTILITIES
+   ============================================ */
+
+.font-ui {
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+.font-body {
+  font-family: "Newsreader", Georgia, serif;
+}
+
+/* ============================================
+   BUTTON SYSTEM
+   ============================================ */
+
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors;
+  @apply bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors;
+  @apply border border-primary-200 bg-transparent text-text-secondary;
+  @apply hover:bg-primary-50 hover:text-text-primary;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+.btn-accent {
+  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors;
+  @apply bg-secondary-100 text-secondary-700 border border-secondary-200;
+  @apply hover:bg-secondary-200 active:bg-secondary-300;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary-400;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+.btn-accent-filled {
+  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors;
+  @apply bg-secondary-500 text-white border border-secondary-500;
+  @apply hover:bg-secondary-600 active:bg-secondary-700;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary-400;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+.btn-danger {
+  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors;
+  @apply bg-danger-600 text-white hover:bg-danger-700;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-400;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+.btn-danger-ghost {
+  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors;
+  @apply bg-transparent text-danger-600 hover:bg-danger-50;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-400;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ============================================
+   EXISTING UTILITIES (PRESERVED)
+   ============================================ */
 
 .marker-highlight {
   position: relative;
@@ -311,8 +555,8 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* Removed radial gradient as requested in cookbook_ui_refinement.md */
-    background-color: #FDFBF7;
+    /* Use semantic background variable */
+    background-color: var(--bg-paper);
     background-image: none;
   }
 }

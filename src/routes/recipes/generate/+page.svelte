@@ -86,7 +86,7 @@
 </svelte:head>
 
 <div
-  class="min-h-screen bg-[#FDFBF7] pb-20 font-serif text-ink selection:bg-sage-200"
+  class="min-h-screen bg-bg-paper pb-20 font-serif text-ink selection:bg-sage-200"
 >
   <!-- Texture Overlay -->
   <div
@@ -145,11 +145,11 @@
         <Notepad class="h-full" tapeWidth="w-32" tapeRotate="-rotate-2">
           <div class="bg-lines p-6 md:p-8 min-h-125">
             <div
-              class="mb-6 flex items-baseline justify-between border-b-2 border-dashed border-stone-200 pb-4"
+              class="mb-6 flex items-baseline justify-between border-b-2 border-dashed border-border pb-4"
             >
               <h2 class="font-display text-2xl text-ink">Pantry Inventory</h2>
               <span
-                class="font-mono text-xs uppercase tracking-widest text-ink-muted"
+                class="font-ui text-xs uppercase tracking-widest text-text-muted"
               >
                 {selectedIngredientIds.size} Selected
               </span>
@@ -171,13 +171,13 @@
                             class="group relative flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all duration-200
                             {selectedIngredientIds.has(item.id)
                               ? 'bg-sage-50 border-sage-400 text-sage-900 shadow-sm'
-                              : 'bg-white border-stone-200 text-ink-light hover:border-sage-300 hover:shadow-sm'}"
+                              : 'bg-white border-border text-text-secondary hover:border-primary-300 hover:shadow-sm'}"
                           >
                             <div
                               class="flex h-4 w-4 items-center justify-center rounded-full border transition-colors
                               {selectedIngredientIds.has(item.id)
                                 ? 'border-sage-500 bg-sage-500 text-white'
-                                : 'border-stone-300 group-hover:border-sage-400'}"
+                                : 'border-border group-hover:border-primary-400'}"
                             >
                               {#if selectedIngredientIds.has(item.id)}
                                 <span class="text-[10px]">✓</span>
@@ -210,7 +210,7 @@
               <div
                 class="flex flex-col items-center justify-center py-12 text-center"
               >
-                <Receipt class="mb-4 h-12 w-12 text-stone-300" />
+                <Receipt class="mb-4 h-12 w-12 text-text-muted" />
                 <p class="font-serif text-lg text-ink-light">
                   The pantry is looking a bit bare.
                 </p>
@@ -294,7 +294,7 @@
             color="white"
             rotate="rotate-0"
           />
-          <div class="rounded-lg border border-stone-100 p-5">
+          <div class="rounded-lg border border-border p-5">
             <div class="mb-4 flex items-center gap-2">
               <Utensils class="h-4 w-4 text-ink-muted" />
               <h3 class="font-serif font-medium text-ink">Extras & Add-ins</h3>
@@ -307,7 +307,7 @@
                 bind:value={newIngredient}
                 onkeydown={(e) =>
                   e.key === "Enter" && (e.preventDefault(), addIngredient())}
-                class="bg-stone-50 border-stone-200 focus-visible:ring-sage-400"
+                class="bg-bg-paper-dark border-border focus-visible:ring-primary-400"
               />
               <Button
                 type="button"
@@ -315,7 +315,7 @@
                 size="icon"
                 onclick={addIngredient}
                 disabled={!newIngredient.trim()}
-                class="shrink-0 border-stone-200 hover:bg-sage-50 hover:text-sage-600"
+                class="shrink-0 border-border hover:bg-primary-50 hover:text-primary-600"
               >
                 <Plus class="h-4 w-4" />
               </Button>
@@ -354,7 +354,7 @@
             disabled={loading ||
               (selectedIngredientIds.size === 0 &&
                 customIngredients.length === 0)}
-            class="w-full h-14 text-lg font-serif bg-ink text-paper hover:bg-sage-800 shadow-xl transition-all hover:-translate-y-0.5"
+            class="w-full h-14 text-lg font-serif bg-text-primary text-bg-paper hover:bg-primary-800 shadow-xl transition-all hover:-translate-y-0.5"
           >
             {#if loading}
               <Sparkles class="mr-2 h-5 w-5 animate-pulse" />

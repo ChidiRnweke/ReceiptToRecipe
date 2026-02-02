@@ -192,7 +192,7 @@
 </svelte:head>
 
 <div
-  class="min-h-screen bg-[#FDFBF7] p-4 font-sans md:p-8 relative overflow-x-hidden"
+  class="min-h-screen bg-bg-paper p-4 font-sans md:p-8 relative overflow-x-hidden"
 >
   <!-- Desk Texture -->
   <div class="pointer-events-none absolute inset-0"></div>
@@ -206,10 +206,10 @@
         The Market <span class="marker-highlight">List</span>
       </h1>
       <div
-        class="mt-2 flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-stone-400"
+        class="mt-2 flex items-center gap-2 text-[10px] font-ui uppercase tracking-widest text-fg-muted"
       >
         <span>Prepared for</span>
-        <span class="text-sage-600 font-bold border-b border-sage-200">you</span
+        <span class="text-accent-600 font-bold border-b border-accent-200">you</span
         >
       </div>
     </div>
@@ -336,14 +336,14 @@
 
         <!-- Quick Actions Card (Small) -->
         <div
-          class="relative bg-white p-6 rounded-sm shadow-[2px_3px_5px_rgba(0,0,0,0.05)] border border-stone-100 rotate-2 max-w-xs mx-auto lg:mx-0"
+          class="relative bg-white p-6 rounded-sm shadow-[2px_3px_5px_rgba(0,0,0,0.05)] border border-surface-secondary rotate-2 max-w-xs mx-auto lg:mx-0"
         >
           <div class="absolute -top-3 left-1/2 -translate-x-1/2">
             <WashiTape color="sage" width="w-24" />
           </div>
 
           <h3
-            class="font-mono text-xs uppercase tracking-widest text-stone-400 mb-4 text-center mt-2"
+            class="font-ui text-xs uppercase tracking-widest text-fg-muted mb-4 text-center mt-2"
           >
             Quick Actions
           </h3>
@@ -354,7 +354,7 @@
               class="w-full justify-start font-serif"
               href="/recipes"
             >
-              <ChefHat class="mr-2 h-4 w-4 text-stone-400" />
+              <ChefHat class="mr-2 h-4 w-4 text-fg-muted" />
               Browse Recipes
             </Button>
 
@@ -371,9 +371,9 @@
                   }
                 };
               }}
-              class="flex flex-col gap-2 pt-2 border-t border-dashed border-stone-200"
+              class="flex flex-col gap-2 pt-2 border-t border-dashed border-border"
             >
-              <span class="text-xs font-medium text-stone-500"
+              <span class="text-xs font-medium text-fg-muted"
                 >Start a new list:</span
               >
               <div class="flex gap-2">
@@ -408,7 +408,7 @@
               <div
                 class="flex flex-col items-center justify-center py-20 text-center opacity-60"
               >
-                <ShoppingCart class="h-16 w-16 text-stone-300 mb-4" />
+                <ShoppingCart class="h-16 w-16 text-fg-muted mb-4" />
                 <h3 class="font-hand text-3xl text-ink">Your list is empty</h3>
                 <p class="font-serif text-ink-light max-w-xs mx-auto mt-2">
                   Create a list or generate one from your recipes to get
@@ -425,7 +425,7 @@
                   <div
                     role="button"
                     tabindex="0"
-                    class="group flex items-center justify-between border-b-2 border-stone-800 pb-2 mb-4 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-sage-400 rounded-sm"
+                    class="group flex items-center justify-between border-b-2 border-border pb-2 mb-4 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-accent-400 rounded-sm"
                     onclick={() => toggleList(list.id)}
                     onkeydown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
@@ -440,7 +440,7 @@
                       >
                         {list.name}
                       </h2>
-                      <span class="font-mono text-xs text-stone-400 mb-1">
+                      <span class="font-ui text-xs text-fg-muted mb-1">
                         {list.items?.length || 0} items
                       </span>
                     </div>
@@ -448,9 +448,9 @@
                     <div class="flex items-center gap-3">
                       {#if list.items?.length > 0}
                         <div class="hidden sm:flex items-center gap-2">
-                          <div class="h-1.5 w-16 rounded-full bg-stone-200/50">
+                          <div class="h-1.5 w-16 rounded-full bg-muted/50">
                             <div
-                              class="h-1.5 rounded-full bg-sage-500 transition-all"
+                              class="h-1.5 rounded-full bg-accent-500 transition-all"
                               style="width: {completion}%"
                             ></div>
                           </div>
@@ -471,7 +471,7 @@
                           <input type="hidden" name="listId" value={list.id} />
                           <button
                             type="submit"
-                            class="p-1 text-stone-300 hover:text-red-500 transition-colors"
+                            class="p-1 text-fg-muted hover:text-red-500 transition-colors"
                             aria-label="Delete list"
                           >
                             <Trash2 class="h-4 w-4" />
@@ -480,9 +480,9 @@
                       </div>
 
                       {#if isExpanded}
-                        <ChevronUp class="h-5 w-5 text-stone-400" />
+                        <ChevronUp class="h-5 w-5 text-fg-muted" />
                       {:else}
-                        <ChevronDown class="h-5 w-5 text-stone-400" />
+                        <ChevronDown class="h-5 w-5 text-fg-muted" />
                       {/if}
                     </div>
                   </div>
@@ -539,7 +539,7 @@
                               name="name"
                               placeholder="Add an item..."
                               bind:value={input.name}
-                              class="w-full bg-transparent border-none border-b border-stone-300 px-0 py-1 font-serif text-lg text-ink focus:ring-0 focus:border-sage-500 placeholder:text-stone-300 placeholder:font-hand placeholder:text-xl"
+                              class="w-full bg-transparent border-none border-b border-border-muted px-0 py-1 font-serif text-lg text-ink focus:ring-0 focus:border-accent-500 placeholder:text-fg-muted placeholder:font-hand placeholder:text-xl"
                             />
                           </div>
 
@@ -549,7 +549,7 @@
                               name="quantity"
                               placeholder="#"
                               bind:value={input.quantity}
-                              class="w-full bg-transparent border-none border-b border-stone-300 px-0 py-1 font-mono text-sm text-right focus:ring-0 focus:border-sage-500 placeholder:text-stone-300"
+                              class="w-full bg-transparent border-none border-b border-border-muted px-0 py-1 font-ui text-sm text-right focus:ring-0 focus:border-accent-500 placeholder:text-fg-muted"
                             />
                           </div>
 
@@ -559,13 +559,13 @@
                               name="unit"
                               placeholder="Unit"
                               bind:value={input.unit}
-                              class="w-full bg-transparent border-none border-b border-stone-300 px-0 py-1 font-mono text-sm focus:ring-0 focus:border-sage-500 placeholder:text-stone-300"
+                              class="w-full bg-transparent border-none border-b border-border-muted px-0 py-1 font-ui text-sm focus:ring-0 focus:border-accent-500 placeholder:text-fg-muted"
                             />
                           </div>
 
                           <button
                             type="submit"
-                            class="p-2 text-stone-400 hover:text-sage-600 transition-colors"
+                            class="p-2 text-fg-muted hover:text-accent-600 transition-colors"
                           >
                             <Plus class="h-5 w-5" />
                           </button>
@@ -582,11 +582,11 @@
                             {#if groupName !== "Manual & Suggestions"}
                               <div class="flex items-center gap-2 mb-2 mt-4">
                                 <span
-                                  class="inline-block px-2 py-0.5 bg-sage-100 text-sage-800 text-[10px] font-mono uppercase tracking-widest rounded-sm"
+                                  class="inline-block px-2 py-0.5 bg-accent-100 text-accent-800 text-[10px] font-ui uppercase tracking-widest rounded-sm"
                                 >
                                   {groupName}
                                 </span>
-                                <div class="h-px bg-stone-200 flex-1"></div>
+                                <div class="h-px bg-border flex-1"></div>
                               </div>
                             {/if}
 
@@ -656,14 +656,14 @@
                                         {#if item.checked}
                                           <!-- Hand-drawn checkmark feel -->
                                           <div
-                                            class="absolute inset-0 border-2 border-stone-800 rounded-sm bg-stone-800/5"
+                                            class="absolute inset-0 border-2 border-border rounded-sm bg-fg/5"
                                           ></div>
                                           <Check
-                                            class="h-4 w-4 text-stone-800"
+                                            class="h-4 w-4 text-fg"
                                           />
                                         {:else}
                                           <div
-                                            class="absolute inset-0 border-2 border-stone-400 rounded-sm hover:border-stone-600 transition-colors"
+                                            class="absolute inset-0 border-2 border-fg-muted rounded-sm hover:border-border transition-colors"
                                           ></div>
                                         {/if}
                                       </button>
@@ -676,7 +676,7 @@
                                   >
                                     <div class="flex items-baseline gap-2">
                                       <span
-                                        class="font-mono text-sm font-bold text-stone-600 w-12 text-right shrink-0"
+                                        class="font-ui text-sm font-bold text-fg w-12 text-right shrink-0"
                                       >
                                         {item.quantity}
                                         {item.unit}
@@ -684,7 +684,7 @@
                                       <span
                                         class="font-serif text-lg leading-none transition-all duration-300
                                                                         {item.checked
-                                          ? 'text-stone-400 line-through decoration-stone-300 decoration-2'
+                                          ? 'text-fg-muted line-through decoration-border-muted decoration-2'
                                           : 'text-ink'}"
                                       >
                                         {item.name}
@@ -735,7 +735,7 @@
                                       />
                                       <button
                                         type="submit"
-                                        class="text-stone-300 hover:text-red-600 transition-colors"
+                                        class="text-fg-muted hover:text-red-600 transition-colors"
                                       >
                                         <X class="h-4 w-4" />
                                       </button>
@@ -748,7 +748,7 @@
                         {/each}
                       {:else}
                         <div
-                          class="py-6 text-center text-stone-300 italic font-hand text-lg"
+                          class="py-6 text-center text-fg-muted italic font-hand text-lg"
                         >
                           The list is waiting...
                         </div>
@@ -775,10 +775,9 @@
                               name="listId"
                               value={list.id}
                             />
-                            <!-- Rubber Stamp Style Button -->
                             <button
                               type="submit"
-                              class="group relative inline-flex items-center justify-center px-6 py-2 border-2 border-sage-600 text-sage-700 font-display uppercase tracking-widest text-sm hover:bg-sage-600 hover:text-white transition-all transform hover:-rotate-1"
+                              class="btn-accent"
                             >
                               <Check class="mr-2 h-4 w-4" />
                               Checkout
@@ -814,18 +813,18 @@
       <AlertDialog.Description class="text-ink">
         <p class="mb-4 text-base leading-relaxed">{pantryWarning.message}</p>
         <div
-          class="flex items-center gap-2 p-3 bg-white border border-stone-200 rounded-sm"
+          class="flex items-center gap-2 p-3 bg-white border border-border rounded-sm"
         >
-          <span class="text-xs uppercase tracking-widest text-stone-500"
+          <span class="text-xs uppercase tracking-widest text-fg-muted"
             >Confidence:</span
           >
-          <div class="flex-1 h-2 bg-stone-100 rounded-full overflow-hidden">
+          <div class="flex-1 h-2 bg-muted rounded-full overflow-hidden">
             <div
               class="h-full bg-amber-500"
               style="width: {pantryWarning.confidence}%"
             ></div>
           </div>
-          <span class="font-mono font-bold text-amber-600"
+          <span class="font-ui font-bold text-amber-600"
             >{pantryWarning.confidence}%</span
           >
         </div>
@@ -834,13 +833,13 @@
     <AlertDialog.Footer class="gap-2">
       <AlertDialog.Cancel
         onclick={dismissPantryWarning}
-        class="border-stone-300 font-sans"
+        class="btn-ghost"
       >
         Skip Item
       </AlertDialog.Cancel>
       <AlertDialog.Action
         onclick={forceAddItem}
-        class="bg-amber-600 hover:bg-amber-700 text-white font-sans"
+        class="btn-accent-filled"
       >
         Add Anyway
       </AlertDialog.Action>

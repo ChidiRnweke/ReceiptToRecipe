@@ -147,7 +147,7 @@
   <title>Preferences - Receipt2Recipe</title>
 </svelte:head>
 
-<div class="min-h-screen bg-[#FDFBF7] p-4 font-sans md:p-8 relative overflow-x-hidden">
+<div class="min-h-screen bg-bg-paper p-4 font-ui md:p-8 relative overflow-x-hidden">
   <!-- Desk Texture -->
   <div
     class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
@@ -155,7 +155,7 @@
 
   <div class="mx-auto max-w-5xl relative z-10">
     <div class="mb-8">
-        <Button href="/" variant="ghost" class="font-serif text-stone-500 hover:text-ink pl-0 hover:bg-transparent">
+        <Button href="/" variant="ghost" class="font-serif text-text-muted hover:text-ink pl-0 hover:bg-transparent">
             <ArrowLeft class="mr-2 h-4 w-4" />
             Back to Kitchen
         </Button>
@@ -201,7 +201,7 @@
 
                     <!-- 1. Allergies Section -->
                     <section>
-                        <div class="flex items-center gap-3 mb-4 border-b-2 border-stone-800 pb-2">
+                        <div class="flex items-center gap-3 mb-4 border-b-2 border-text-primary pb-2">
                             <AlertTriangle class="h-5 w-5 text-sienna-600" />
                             <h2 class="font-hand text-3xl font-bold text-ink pt-1">Safety First (Allergies)</h2>
                         </div>
@@ -212,10 +212,10 @@
                                 <button
                                     type="button"
                                     onclick={() => toggleItem(allergies, allergy, (v) => (allergies = v))}
-                                    class="relative px-3 py-1.5 font-mono text-sm border-2 rounded-sm transition-all duration-200 
+                                    class="relative px-3 py-1.5 font-ui text-sm border-2 rounded-sm transition-all duration-200 
                                     {allergies.includes(allergy) 
                                         ? 'bg-sienna-100 border-sienna-600 text-sienna-900 shadow-[2px_2px_0_rgba(180,83,9,0.2)] -translate-y-[1px]' 
-                                        : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'}"
+                                        : 'bg-white border-stone-200 text-text-muted hover:border-stone-400'}"
                                 >
                                     {#if allergies.includes(allergy)}
                                         <div class="absolute -top-1 -right-1 w-2 h-2 bg-sienna-500 rounded-full"></div>
@@ -231,20 +231,20 @@
                                 placeholder="Add specific allergy..."
                                 bind:value={newAllergy}
                                 onkeydown={(e) => e.key === "Enter" && (e.preventDefault(), addAllergy())}
-                                class="bg-transparent border-0 border-b border-stone-300 rounded-none px-0 py-1 font-serif focus:ring-0 focus:border-sienna-500 placeholder:text-stone-300 placeholder:italic"
+                                class="bg-transparent border-0 border-b border-text-muted rounded-none px-0 py-1 font-serif focus:ring-0 focus:border-sienna-500 placeholder:text-text-muted placeholder:italic"
                             />
-                            <Button type="button" variant="ghost" size="sm" onclick={addAllergy} class="text-stone-400 hover:text-sienna-600">
+                            <Button type="button" variant="ghost" size="sm" onclick={addAllergy} class="text-text-muted hover:text-sienna-600">
                                 <Plus class="h-5 w-5" />
                             </Button>
                         </div>
                         
                         {#if allergies.length > 0}
                             <div class="mt-4 p-4 bg-sienna-50/50 border border-dashed border-sienna-200 rounded-sm">
-                                <h4 class="font-mono text-xs uppercase tracking-widest text-sienna-700 mb-2">Active Allergies:</h4>
+                                <h4 class="font-ui text-xs uppercase tracking-widest text-sienna-700 mb-2">Active Allergies:</h4>
                                 <div class="flex flex-wrap gap-2">
                                     {#each allergies as allergy, i}
                                         {#if !commonAllergies.includes(allergy)}
-                                            <span class="inline-flex items-center gap-1 px-2 py-1 bg-white border border-sienna-200 text-sienna-800 text-xs font-bold font-mono rounded-sm shadow-sm">
+                                            <span class="inline-flex items-center gap-1 px-2 py-1 bg-white border border-sienna-200 text-sienna-800 text-xs font-bold font-ui rounded-sm shadow-sm">
                                                 {allergy}
                                                 <button type="button" onclick={() => removeItem(allergies, i, (v) => (allergies = v))} class="text-sienna-400 hover:text-sienna-900"><X class="h-3 w-3"/></button>
                                             </span>
@@ -258,7 +258,7 @@
 
                     <!-- 2. Diet Section -->
                     <section>
-                        <div class="flex items-center gap-3 mb-4 border-b-2 border-stone-800 pb-2">
+                        <div class="flex items-center gap-3 mb-4 border-b-2 border-text-primary pb-2">
                             <Utensils class="h-5 w-5 text-sage-600" />
                             <h2 class="font-hand text-3xl font-bold text-ink pt-1">The Rules (Diet)</h2>
                         </div>
@@ -268,10 +268,10 @@
                                 <button
                                     type="button"
                                     onclick={() => toggleItem(dietaryRestrictions, diet, (v) => (dietaryRestrictions = v))}
-                                    class="relative px-3 py-1.5 font-mono text-sm border-2 rounded-sm transition-all duration-200 
+                                    class="relative px-3 py-1.5 font-ui text-sm border-2 rounded-sm transition-all duration-200 
                                     {dietaryRestrictions.includes(diet) 
                                         ? 'bg-sage-100 border-sage-600 text-sage-900 shadow-[2px_2px_0_rgba(21,128,61,0.2)] -translate-y-[1px]' 
-                                        : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'}"
+                                        : 'bg-white border-stone-200 text-text-muted hover:border-stone-400'}"
                                 >
                                     {diet}
                                 </button>
@@ -284,9 +284,9 @@
                                 placeholder="Add dietary rule..."
                                 bind:value={newDietaryRestriction}
                                 onkeydown={(e) => e.key === "Enter" && (e.preventDefault(), addDietaryRestriction())}
-                                class="bg-transparent border-0 border-b border-stone-300 rounded-none px-0 py-1 font-serif focus:ring-0 focus:border-sage-500 placeholder:text-stone-300 placeholder:italic"
+                                class="bg-transparent border-0 border-b border-text-muted rounded-none px-0 py-1 font-serif focus:ring-0 focus:border-sage-500 placeholder:text-text-muted placeholder:italic"
                             />
-                            <Button type="button" variant="ghost" size="sm" onclick={addDietaryRestriction} class="text-stone-400 hover:text-sage-600">
+                            <Button type="button" variant="ghost" size="sm" onclick={addDietaryRestriction} class="text-text-muted hover:text-sage-600">
                                 <Plus class="h-5 w-5" />
                             </Button>
                         </div>
@@ -295,7 +295,7 @@
 
                      <!-- 3. Cuisines Section -->
                     <section>
-                        <div class="flex items-center gap-3 mb-4 border-b-2 border-stone-800 pb-2">
+                        <div class="flex items-center gap-3 mb-4 border-b-2 border-text-primary pb-2">
                             <Globe class="h-5 w-5 text-ink-muted" />
                             <h2 class="font-hand text-3xl font-bold text-ink pt-1">Flavor Profile</h2>
                         </div>
@@ -306,10 +306,10 @@
                                 <button
                                     type="button"
                                     onclick={() => toggleItem(cuisinePreferences, cuisine, (v) => (cuisinePreferences = v))}
-                                    class="relative px-3 py-1.5 font-mono text-sm border-2 rounded-sm transition-all duration-200 
+                                    class="relative px-3 py-1.5 font-ui text-sm border-2 rounded-sm transition-all duration-200 
                                     {cuisinePreferences.includes(cuisine) 
                                         ? 'bg-amber-100 border-amber-500 text-amber-900 shadow-[2px_2px_0_rgba(217,119,6,0.2)] -translate-y-[1px]' 
-                                        : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'}"
+                                        : 'bg-white border-stone-200 text-text-muted hover:border-stone-400'}"
                                 >
                                     {cuisine}
                                 </button>
@@ -322,9 +322,9 @@
                                 placeholder="Add cuisine..."
                                 bind:value={newCuisine}
                                 onkeydown={(e) => e.key === "Enter" && (e.preventDefault(), addCuisine())}
-                                class="bg-transparent border-0 border-b border-stone-300 rounded-none px-0 py-1 font-serif focus:ring-0 focus:border-amber-500 placeholder:text-stone-300 placeholder:italic"
+                                class="bg-transparent border-0 border-b border-text-muted rounded-none px-0 py-1 font-serif focus:ring-0 focus:border-amber-500 placeholder:text-text-muted placeholder:italic"
                             />
-                            <Button type="button" variant="ghost" size="sm" onclick={addCuisine} class="text-stone-400 hover:text-amber-600">
+                            <Button type="button" variant="ghost" size="sm" onclick={addCuisine} class="text-text-muted hover:text-amber-600">
                                 <Plus class="h-5 w-5" />
                             </Button>
                         </div>
@@ -332,7 +332,7 @@
                     </section>
                     
                     <div class="pt-8 flex justify-end">
-                         <Button type="submit" size="lg" disabled={loading} class="bg-ink text-white font-display text-lg px-8 shadow-md hover:translate-y-[1px] hover:shadow-sm transition-all">
+                         <Button type="submit" size="lg" disabled={loading} class="bg-text-primary text-white hover:bg-text-secondary font-display text-lg px-8 shadow-md hover:translate-y-[1px] hover:shadow-sm transition-all">
                             {#if loading}
                                 Saving...
                             {:else}
@@ -352,7 +352,7 @@
             <!-- Dislikes Note -->
             <PinnedNote color="red" rotate="rotate-2">
                 <div class="flex items-center gap-2 mb-3 pb-2 border-b border-red-200/50">
-                    <Ban class="h-4 w-4 text-stone-500" />
+                    <Ban class="h-4 w-4 text-text-muted" />
                     <h3 class="font-hand text-xl font-bold text-ink/80">The "No-Go" List</h3>
                 </div>
                 <p class="font-serif text-xs text-ink/70 mb-4 leading-relaxed">
@@ -363,7 +363,7 @@
                     {#each excludedIngredients as ingredient, i}
                         <div class="flex items-center justify-between bg-white/50 px-2 py-1 rounded-sm border border-blue-100">
                             <span class="font-hand text-lg text-ink">{ingredient}</span>
-                            <button type="button" onclick={() => removeItem(excludedIngredients, i, (v) => (excludedIngredients = v))} class="text-stone-400 hover:text-red-500">
+                            <button type="button" onclick={() => removeItem(excludedIngredients, i, (v) => (excludedIngredients = v))} class="text-text-muted hover:text-red-500">
                                 <X class="h-3 w-3" />
                             </button>
                         </div>
@@ -391,7 +391,7 @@
                     <WashiTape color="yellow" width="w-24" />
                  </div>
                  
-                 <h3 class="font-mono text-xs uppercase tracking-widest text-stone-400 mb-6 text-center mt-2">Kitchen Stats</h3>
+                 <h3 class="font-ui text-xs uppercase tracking-widest text-text-muted mb-6 text-center mt-2">Kitchen Stats</h3>
                  
                  <div class="space-y-6">
                     <div>
@@ -408,15 +408,15 @@
                                 max="10000"
                                 placeholder="e.g., 2000"
                                 bind:value={caloricGoal}
-                                class="font-mono text-lg bg-stone-50 border-stone-200"
+                                class="font-ui text-lg bg-bg-hover border-stone-200"
                             />
-                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-stone-400 font-mono">kcal</span>
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-muted font-ui">kcal</span>
                         </div>
                     </div>
 
                     <div>
                         <Label for="defaultServings" class="flex items-center gap-2 font-serif text-ink mb-2">
-                            <Utensils class="h-4 w-4 text-stone-500" />
+                            <Utensils class="h-4 w-4 text-text-muted" />
                             Default Servings
                         </Label>
                         <div class="relative">
@@ -427,9 +427,9 @@
                                 min="1"
                                 max="20"
                                 bind:value={defaultServings}
-                                class="font-mono text-lg bg-stone-50 border-stone-200"
+                                class="font-ui text-lg bg-bg-hover border-stone-200"
                             />
-                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-stone-400 font-mono">ppl</span>
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-muted font-ui">ppl</span>
                         </div>
                     </div>
                  </div>

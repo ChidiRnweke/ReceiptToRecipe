@@ -42,10 +42,10 @@
   <link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="min-h-screen bg-paper">
+<div class="min-h-screen bg-bg-paper">
   <!-- Header -->
   <header
-    class="sticky top-0 z-50 border-b border-sand bg-paper/95 backdrop-blur-sm"
+    class="sticky top-0 z-50 border-b border-border bg-bg-paper/95 backdrop-blur-sm"
   >
     <div
       class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8"
@@ -57,7 +57,7 @@
           alt="Receipt2Recipe Logo"
           class="h-8 w-8 transition-transform duration-500 group-hover:rotate-6"
         />
-        <span class="font-serif text-2xl font-medium tracking-tight text-ink"
+        <span class="font-serif text-2xl font-medium tracking-tight text-text-primary"
           >Receipt2Recipe</span
         >
       </a>
@@ -74,7 +74,7 @@
             <DropdownMenu.Trigger>
               <Avatar.Root class="h-9 w-9 cursor-pointer">
                 <Avatar.Image src={data.user.avatarUrl} alt={data.user.name} />
-                <Avatar.Fallback class="bg-sage-100 text-sage-700">
+                <Avatar.Fallback class="bg-primary-100 text-primary-700">
                   {data.user.name.slice(0, 2).toUpperCase()}
                 </Avatar.Fallback>
               </Avatar.Root>
@@ -85,7 +85,7 @@
                   <p class="text-sm font-medium leading-none">
                     {data.user.name}
                   </p>
-                  <p class="text-xs leading-none text-ink-muted">
+                  <p class="text-xs leading-none text-text-muted">
                     {data.user.email}
                   </p>
                 </div>
@@ -109,7 +109,7 @@
 
           <!-- Mobile Menu Button -->
           <button
-            class="rounded-lg p-2 text-ink-light hover:bg-paper-dark md:hidden"
+            class="rounded-lg p-2 text-text-secondary hover:bg-bg-paper-dark md:hidden"
             onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
           >
             {#if mobileMenuOpen}
@@ -131,7 +131,7 @@
     {#if mobileMenuOpen && data.user}
       <button
         type="button"
-        class="block w-full border-t border-sand bg-paper px-4 py-3 text-left md:hidden"
+        class="block w-full border-t border-border bg-bg-paper px-4 py-3 text-left md:hidden"
         onclick={() => (mobileMenuOpen = false)}
       >
         <WorkflowNav state={workflowState} />
@@ -145,9 +145,9 @@
   </main>
 
   <!-- Footer -->
-  <footer class="border-t border-sand bg-paper-dark">
+  <footer class="border-t border-border bg-bg-paper-dark">
     <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <p class="text-center text-sm text-ink-muted">
+      <p class="text-center text-sm text-text-muted">
         Receipt2Recipe - Transform your groceries into delicious meals
       </p>
     </div>

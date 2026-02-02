@@ -171,14 +171,14 @@
   />
 
   <div
-    class="paper-card relative flex min-h-screen gap-0 rounded-4xl border border-sand bg-[#FDFBF7] shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)]"
+    class="paper-card relative flex min-h-screen gap-0 rounded-4xl border border-sand bg-bg-paper shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)]"
   >
     <div
       class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)] rounded-4xl"
     ></div>
 
     <aside
-      class="hidden w-[320px] shrink-0 h-full border-r border-sand bg-stone-50/80 px-6 py-6 backdrop-blur-sm lg:block rounded-tl-4xl rounded-bl-4xl"
+      class="hidden w-[320px] shrink-0 h-full border-r border-sand bg-bg-paper-dark/80 px-6 py-6 backdrop-blur-sm lg:block rounded-tl-4xl rounded-bl-4xl"
     >
       <div class="flex h-full flex-col gap-6">
         <div class="space-y-6">
@@ -202,7 +202,7 @@
           </PinnedNote>
 
           <Notepad>
-            <div class="border-b border-dashed border-stone-200 p-5">
+              <div class="border-b border-dashed border-border p-5">
               <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-3">
                   <h3 class="font-display text-lg text-ink">Scan & Sort</h3>
@@ -216,7 +216,7 @@
                       style="background: linear-gradient(to right, #000 1px, transparent 1px, transparent 3px, #000 3px, #000 4px, transparent 4px, transparent 6px, #000 6px, #000 9px, transparent 9px, transparent 10px, #000 10px, #000 12px, transparent 12px, transparent 14px, #000 14px, #000 15px, transparent 15px, transparent 18px, #000 18px);"
                     ></div>
                     <div
-                      class="text-[5px] font-mono leading-none tracking-widest text-black/60 text-center"
+                      class="text-[5px] font-ui leading-none tracking-widest text-black/60 text-center"
                     >
                       8401
                     </div>
@@ -242,10 +242,10 @@
             </div>
 
             <div class="p-2">
-              <a
-                href="/shopping"
-                class="flex w-full items-center justify-between rounded-lg p-3 text-left hover:bg-stone-50 transition-colors"
-              >
+                <a
+                  href="/shopping"
+                  class="flex w-full items-center justify-between rounded-lg p-3 text-left hover:bg-bg-hover transition-colors"
+                >
                 <div>
                   <p
                     class="text-[10px] uppercase tracking-wider text-ink-muted"
@@ -257,9 +257,9 @@
                   </p>
                   {#if data.activeList?.stats}
                     <div class="flex items-center gap-2 mt-1">
-                      <div class="h-1.5 w-16 rounded-full bg-stone-200">
+                      <div class="h-1.5 w-16 rounded-full bg-border">
                         <div
-                          class="h-1.5 rounded-full bg-sage-500 transition-all"
+                          class="h-1.5 rounded-full bg-primary-500 transition-all"
                           style="width: {data.activeList.stats
                             .completionPercent}%"
                         ></div>
@@ -276,12 +276,12 @@
           </Notepad>
         </div>
 
-        {#if pantryList.length > 0}
+          {#if pantryList.length > 0}
           <div
-            class="mb-4 rounded-xl border border-sand/60 bg-[#fffdf5] p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] rotate-1"
+            class="mb-4 rounded-xl border border-sand/60 bg-bg-card p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] rotate-1"
           >
             <div
-              class="flex items-center gap-2 text-xs text-ink-muted uppercase tracking-wider mb-2 border-b border-sand/40 pb-2"
+              class="flex items-center gap-2 text-xs text-text-muted uppercase tracking-wider mb-2 border-b border-sand/40 pb-2"
             >
               <Store class="h-3 w-3" /> Your Pantry
             </div>
@@ -290,7 +290,7 @@
             >
               {#each pantryList as item}
                 <li
-                  class="flex items-center justify-between text-sm text-ink/80"
+                  class="flex items-center justify-between text-sm text-text-secondary"
                 >
                   <span class="truncate">{item.itemName}</span>
                   {#if item.stockConfidence}
@@ -331,32 +331,32 @@
               </h1>
             {/if}
             <div
-              class="mt-4 flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-stone-400"
+              class="mt-4 flex items-center gap-2 text-[10px] font-ui uppercase tracking-widest text-text-muted"
             >
-              <span
-                class={pantryItems.length === 0
-                  ? "text-sage-600 font-bold border-b-2 border-sage-200"
-                  : ""}>1. Scan</span
-              >
-              <span class="text-stone-300">→</span>
-              <span
-                class={pantryItems.length > 0
-                  ? "text-sage-600 font-bold border-b-2 border-sage-200"
-                  : ""}>2. Stock</span
-              >
-              <span class="text-stone-300">→</span>
-              <span>3. Cook</span>
-              <span class="text-stone-300">→</span>
-              <span>4. Shop</span>
+                <span
+                  class={pantryItems.length === 0
+                    ? "text-primary-600 font-bold border-b-2 border-primary-200"
+                    : ""}>1. Scan</span
+                >
+                <span class="text-border">→</span>
+                <span
+                  class={pantryItems.length > 0
+                    ? "text-primary-600 font-bold border-b-2 border-primary-200"
+                    : ""}>2. Stock</span
+                >
+                <span class="text-border">→</span>
+                <span>3. Cook</span>
+                <span class="text-border">→</span>
+                <span>4. Shop</span>
             </div>
           </div>
           <Button
             href="/recipes/generate"
-            class="group relative h-10 overflow-hidden rounded-lg border border-sage-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95"
+            class="group relative h-10 overflow-hidden rounded-lg border border-primary-300 bg-bg-input px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-paper-dark hover:shadow-md active:scale-95"
           >
             <div class="flex items-center gap-2">
-              <Sparkles class="h-4 w-4 text-sage-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-sage-700" />
-              <span class="font-display text-base font-medium text-ink">Generate New Recipe</span>
+              <Sparkles class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700" />
+              <span class="font-display text-base font-medium text-text-primary">Generate New Recipe</span>
             </div>
           </Button>
         </div>
@@ -367,10 +367,10 @@
               href={featuredRecipe
                 ? `/recipes/${featuredRecipe.id}`
                 : "/recipes"}
-              class="group relative flex h-full flex-row overflow-hidden rounded-r-2xl rounded-l-md border border-stone-200 bg-[#fffefb] shadow-[2px_3px_10px_rgba(0,0,0,0.03)] transition-all hover:-translate-y-0.5 hover:shadow-md"
+              class="group relative flex h-full flex-row overflow-hidden rounded-r-2xl rounded-l-md border border-border bg-bg-paper shadow-[2px_3px_10px_rgba(0,0,0,0.03)] transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
               <div
-                class="pointer-events-none absolute bottom-0 left-0 top-0 z-10 w-12 bg-linear-to-r from-stone-200/40 to-transparent"
+                class="pointer-events-none absolute bottom-0 left-0 top-0 z-10 w-12 bg-linear-to-r from-border/40 to-transparent"
               ></div>
 
               <div
@@ -393,13 +393,13 @@
                     class="absolute -top-2 left-1/2 z-20 h-6 w-16 -translate-x-1/2 -rotate-2 bg-amber-100/40 backdrop-blur-[1px]"
                     style="mask-image: url('data:image/svg+xml;utf8,<svg width=\'100%\' height=\'100%\' xmlns=\'http://www.w3.org/2000/svg\'><rect x=\'0\' y=\'0\' width=\'100%\' height=\'100%\' fill=\'black\'/></svg>'); box-shadow: 0 1px 2px rgba(0,0,0,0.1);"
                   ></div>
-                  <div
-                    class="absolute -top-2 left-1/2 z-20 h-6 w-16 -translate-x-1/2 -rotate-2 opacity-20 mix-blend-multiply shadow-sm bg-stone-300"
-                  ></div>
+              <div
+                class="absolute -top-2 left-1/2 z-20 h-6 w-16 -translate-x-1/2 -rotate-2 opacity-20 mix-blend-multiply shadow-sm bg-border"
+              ></div>
 
-                  <div
-                    class="h-full w-full overflow-hidden rounded-[2px] border border-stone-100 bg-white p-1.5 shadow-sm"
-                  >
+                <div
+                  class="h-full w-full overflow-hidden rounded-[2px] border border-border bg-bg-input p-1.5 shadow-sm"
+                >
                     {#if featuredRecipe?.imageUrl}
                       <img
                         src={featuredRecipe.imageUrl}
@@ -408,9 +408,9 @@
                       />
                     {:else}
                       <div
-                        class="flex h-full w-full items-center justify-center bg-stone-100"
+                        class="flex h-full w-full items-center justify-center bg-bg-paper-dark"
                       >
-                        <ChefHat class="h-8 w-8 text-stone-300" />
+                        <ChefHat class="h-8 w-8 text-border" />
                       </div>
                     {/if}
                     <div
@@ -424,36 +424,36 @@
                 class="relative flex w-7/12 flex-col justify-center p-8 pl-6"
               >
                 <div
-                  class="mb-3 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-stone-400"
+                  class="mb-3 flex items-center gap-2 font-ui text-[10px] uppercase tracking-widest text-text-muted"
                 >
                   <span>Chapter 3: Fresh Pulls</span>
                 </div>
 
                 <h3
-                  class="font-display text-3xl leading-tight text-ink decoration-stone-300 decoration-2 underline-offset-4 group-hover:underline"
+                  class="font-display text-3xl leading-tight text-text-primary decoration-border decoration-2 underline-offset-4 group-hover:underline"
                 >
                   {featuredRecipe?.title || "Seasonal Supper"}
                 </h3>
 
                 <div
-                  class="mt-4 flex items-center gap-4 text-xs font-medium text-stone-500"
+                  class="mt-4 flex items-center gap-4 text-xs font-medium text-text-secondary"
                 >
                   <span class="flex items-center gap-1.5"
-                    ><Clock class="h-3.5 w-3.5 text-stone-400" /> 25 min</span
+                    ><Clock class="h-3.5 w-3.5 text-text-muted" /> 25 min</span
                   >
-                  <span class="h-1 w-1 rounded-full bg-stone-300"></span>
+                  <span class="h-1 w-1 rounded-full bg-border"></span>
                   <span>{featuredRecipe?.servings || 2} servings</span>
                 </div>
 
                 <p
-                  class="mt-4 line-clamp-2 font-serif text-sm italic leading-relaxed text-stone-600"
+                  class="mt-4 line-clamp-2 font-body text-sm italic leading-relaxed text-text-secondary"
                 >
                   "{featuredRecipe?.description ||
                     "Pull a receipt and we'll turn it into a warm, camera-ready dinner."}"
                 </p>
 
                 <div
-                  class="absolute bottom-4 right-6 font-mono text-[10px] text-stone-300"
+                  class="absolute bottom-4 right-6 font-ui text-[10px] text-border"
                 >
                   p. 14
                 </div>
@@ -463,20 +463,20 @@
 
           <div class="lg:col-span-5">
             <Card.Root
-              class="relative mx-auto flex h-full w-full flex-col overflow-hidden rounded-lg border border-stone-200 bg-[#fffdf5] shadow-[2px_3px_5px_rgba(0,0,0,0.05)]"
+              class="relative mx-auto flex h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-bg-card shadow-[2px_3px_5px_rgba(0,0,0,0.05)]"
               style="border-radius: 4px 16px 16px 4px;"
             >
               <div
-                class="flex shrink-0 items-center justify-between border-b border-stone-200 bg-[#f7f5eb] px-6 py-4"
+                class="flex shrink-0 items-center justify-between border-b border-border bg-bg-elevated px-6 py-4"
               >
                 <span
-                  class="font-mono text-[10px] uppercase tracking-[0.2em] text-stone-500"
+                  class="font-ui text-[10px] uppercase tracking-[0.2em] text-text-muted"
                   >Mise en place</span
                 >
                 <div class="flex gap-1">
-                  <div class="h-1.5 w-1.5 rounded-full bg-stone-300"></div>
-                  <div class="h-1.5 w-1.5 rounded-full bg-stone-300"></div>
-                  <div class="h-1.5 w-1.5 rounded-full bg-stone-300"></div>
+                  <div class="h-1.5 w-1.5 rounded-full bg-border"></div>
+                  <div class="h-1.5 w-1.5 rounded-full bg-border"></div>
+                  <div class="h-1.5 w-1.5 rounded-full bg-border"></div>
                 </div>
               </div>
 
@@ -530,7 +530,7 @@
                           }
                         };
                       }}
-                      class={`group relative flex w-full items-start gap-4 px-4 py-3 text-left transition-colors duration-200 ${isAdded ? "bg-amber-50/40" : inPantry ? "bg-emerald-50/40" : "hover:bg-blue-50/30"}`}
+                      class={`group relative flex w-full items-start gap-4 px-4 py-3 text-left transition-colors duration-200 ${isAdded ? "bg-secondary-50/40" : inPantry ? "bg-success-50/40" : "hover:bg-info-50/30"}`}
                     >
                       <input
                         type="hidden"
@@ -538,7 +538,7 @@
                         value={ingredientDisplay}
                       />
                       <div
-                        class="absolute bottom-0 left-0 right-0 border-b border-blue-200/30"
+                        class="absolute bottom-0 left-0 right-0 border-b border-info-200/30"
                       ></div>
 
                       {#if inPantry}
@@ -554,8 +554,8 @@
                           disabled={isAdding}
                           class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors disabled:cursor-not-allowed
                             {isAdded
-                            ? 'bg-amber-100 border-amber-200 text-amber-700 hover:bg-amber-200'
-                            : 'border-stone-300 bg-white hover:border-stone-400'}"
+                            ? 'bg-secondary-100 border-secondary-200 text-secondary-700 hover:bg-secondary-200'
+                            : 'border-border bg-bg-input hover:border-border'}" 
                           title={isAdded
                             ? "Remove from list"
                             : "Add to shopping list"}
@@ -567,15 +567,15 @@
                               class="h-3 w-3 animate-spin text-sage-500"
                             />
                           {:else}
-                            <Plus class="h-3 w-3 text-stone-400" />
+                            <Plus class="h-3 w-3 text-text-muted" />
                           {/if}
                         </button>
                       {/if}
 
-                      <div class="flex-1 pl-2 font-mono text-sm leading-snug">
+                      <div class="flex-1 pl-2 font-ui text-sm leading-snug">
                         <div class="flex items-center justify-between">
                           <p
-                            class={`transition-all ${isAdded ? "text-amber-800/70 line-through decoration-amber-300" : inPantry ? "text-emerald-800/70 line-through decoration-emerald-300" : "text-stone-700"}`}
+                            class={`transition-all ${isAdded ? "text-secondary-800/70 line-through decoration-secondary-300" : inPantry ? "text-success-800/70 line-through decoration-success-300" : "text-text-secondary"}`}
                           >
                             {ingredientDisplay}
                           </p>
@@ -587,11 +587,11 @@
                           {/if}
                         </div>
                         {#if ingredient.note}
-                          <p class="mt-0.5 text-[10px] italic text-stone-400">
+                          <p class="mt-0.5 text-[10px] italic text-text-muted">
                             {ingredient.note}
                           </p>
                         {:else if inPantry && ingredient.pantryMatch?.lastPurchased}
-                          <p class="mt-0.5 text-[10px] italic text-stone-400">
+                          <p class="mt-0.5 text-[10px] italic text-text-muted">
                             In pantry (bought {new Date(
                               ingredient.pantryMatch.lastPurchased,
                             ).toLocaleDateString()})
@@ -605,7 +605,7 @@
                     {#each Array(6 - visibleIngredients.length) as _}
                       <div class="relative h-12 w-full">
                         <div
-                          class="absolute bottom-0 left-0 right-0 border-b border-blue-200/30"
+                          class="absolute bottom-0 left-0 right-0 border-b border-info-200/30"
                         ></div>
                       </div>
                     {/each}
@@ -614,7 +614,7 @@
                 </div>
 
                 <div
-                  class="pointer-events-none absolute bottom-0 inset-x-0 z-20 h-16 bg-linear-to-t from-[#fffdf5] to-transparent"
+                  class="pointer-events-none absolute bottom-0 inset-x-0 z-20 h-16 bg-linear-to-t from-bg-card to-transparent"
                 ></div>
 
                 {#if ingredientList.length > 6}
@@ -623,7 +623,7 @@
                   >
                     <button
                       onclick={() => (showAllIngredients = !showAllIngredients)}
-                      class="rounded-full border border-stone-200 bg-white px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-500 shadow-sm hover:bg-stone-50 hover:text-stone-700"
+                      class="rounded-full border border-border bg-bg-input px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-text-muted shadow-sm hover:bg-bg-hover hover:text-text-secondary"
                     >
                       {showAllIngredients ? "Fold Page" : "View Full List"}
                     </button>
@@ -636,12 +636,12 @@
 
         <div class="mt-16">
           <div
-            class="mb-6 flex items-baseline justify-between border-b border-stone-300 pb-2"
+            class="mb-6 flex items-baseline justify-between border-b border-border pb-2"
           >
-            <h2 class="font-display text-2xl text-ink">Recent Collections</h2>
+            <h2 class="font-display text-2xl text-text-primary">Recent Collections</h2>
             <a
               href="/recipes"
-              class="text-xs font-medium uppercase tracking-wider text-sage-600 hover:text-sage-800 hover:underline"
+              class="text-xs font-medium uppercase tracking-wider text-primary-600 hover:text-primary-800 hover:underline"
               >To your cookbook</a
             >
           </div>
@@ -657,16 +657,16 @@
                 >
                   <div
                     class="
-                    relative overflow-hidden rounded-xl border border-stone-200
-                    bg-[#fffefb] p-3
+                    relative overflow-hidden rounded-xl border border-border
+                    bg-bg-paper p-3
                     /* The Physical 'Hard' Shadow */
                     shadow-[2px_2px_0_rgba(0,0,0,0.05)]
                     transition-all duration-200 ease-out
-                    group-hover:-translate-y-1 group-hover:shadow-[4px_4px_0_rgba(0,0,0,0.05)] group-hover:border-stone-300
+                    group-hover:-translate-y-1 group-hover:shadow-[4px_4px_0_rgba(0,0,0,0.05)] group-hover:border-border
                   "
                   >
                     <div
-                      class="relative aspect-video overflow-hidden rounded-lg bg-stone-100 border border-black/5"
+                      class="relative aspect-video overflow-hidden rounded-lg bg-bg-paper-dark border border-black/5"
                     >
                       {#if recipe.imageUrl}
                         <img
@@ -676,9 +676,9 @@
                         />
                       {:else}
                         <div
-                          class="flex h-full w-full items-center justify-center bg-stone-100"
+                          class="flex h-full w-full items-center justify-center bg-bg-paper-dark"
                         >
-                          <ChefHat class="h-6 w-6 text-stone-300" />
+                          <ChefHat class="h-6 w-6 text-border" />
                         </div>
                       {/if}
 
@@ -687,7 +687,7 @@
                       ></div>
 
                       <div
-                        class="absolute top-2 right-2 rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-mono tracking-widest text-stone-500 shadow-sm backdrop-blur-sm"
+                        class="absolute top-2 right-2 rounded-md bg-bg-input/90 px-1.5 py-0.5 text-[10px] font-ui tracking-widest text-text-muted shadow-sm backdrop-blur-sm"
                       >
                         {new Date()
                           .toLocaleDateString("en-US", {
@@ -700,7 +700,7 @@
 
                     <div class="pt-4 px-1 pb-2">
                       <h3
-                        class="font-display text-xl leading-tight text-ink decoration-stone-300 underline-offset-4 group-hover:underline"
+                        class="font-display text-xl leading-tight text-text-primary decoration-border underline-offset-4 group-hover:underline"
                       >
                         {recipe.title}
                       </h3>
@@ -709,8 +709,8 @@
                         {#if recipe.cuisineType}
                           <span
                             class="
-                                    inline-flex items-center rounded border border-stone-200 bg-stone-50 px-1.5 py-0.5
-                                    font-mono text-[10px] text-stone-500 uppercase tracking-wide
+                                    inline-flex items-center rounded border border-border bg-bg-paper-dark px-1.5 py-0.5
+                                    font-ui text-[10px] text-text-muted uppercase tracking-wide
                                 "
                           >
                             {recipe.cuisineType}
@@ -718,8 +718,8 @@
                         {/if}
                         <span
                           class="
-                                inline-flex items-center rounded border border-stone-200 bg-stone-50 px-1.5 py-0.5
-                                font-mono text-[10px] text-stone-500 uppercase tracking-wide
+                                inline-flex items-center rounded border border-border bg-bg-paper-dark px-1.5 py-0.5
+                                font-ui text-[10px] text-text-muted uppercase tracking-wide
                              "
                         >
                           {recipe.servings} SERV
@@ -731,9 +731,9 @@
               {/each}
             {:else}
               <div
-                class="col-span-full rounded-xl border border-dashed border-stone-300 bg-stone-50/50 py-12 text-center"
+                class="col-span-full rounded-xl border border-dashed border-border bg-bg-paper-dark/50 py-12 text-center"
               >
-                <p class="font-hand text-lg text-ink-muted">
+                <p class="font-hand text-lg text-text-muted">
                   Your cookbook is waiting for its first entry.
                 </p>
               </div>
@@ -745,15 +745,15 @@
   </div>
 {:else}
   <div
-    class="flex min-h-screen items-center justify-center bg-[#FDFBF7] px-6 py-12 text-center"
+    class="flex min-h-screen items-center justify-center bg-bg-paper px-6 py-12 text-center"
   >
     <div class="max-w-2xl space-y-4">
-      <p class="text-xs uppercase tracking-[0.16em] text-ink-muted">Welcome</p>
-      <h1 class="font-display text-4xl text-ink">
+      <p class="text-xs uppercase tracking-[0.16em] text-text-muted">Welcome</p>
+      <h1 class="font-display text-4xl text-text-primary">
         Turn grocery <span class="marker-highlight">receipts</span> into an editorial
         cookbook.
       </h1>
-      <p class="font-hand text-lg text-ink-light">
+      <p class="font-hand text-lg text-text-secondary">
         Sign in to drop a receipt and see your recipes bloom.
       </p>
       <div
@@ -764,7 +764,7 @@
           href="/register"
           variant="outline"
           size="lg"
-          class="border-sand text-ink">Create account</Button
+          class="border-sand text-text-primary">Create account</Button
         >
       </div>
     </div>

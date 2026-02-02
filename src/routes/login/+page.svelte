@@ -14,7 +14,7 @@
   <title>Log In - Receipt2Recipe</title>
 </svelte:head>
 
-<div class="flex min-h-screen flex-col items-center justify-center bg-[#FDFBF7] p-4 relative overflow-hidden">
+<div class="flex min-h-screen flex-col items-center justify-center bg-bg-paper p-4 relative overflow-hidden">
   <!-- Desk Texture -->
   <div
     class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
@@ -64,9 +64,9 @@
             {/if}
 
             <div class="space-y-2">
-                <Label for="email" class="font-mono text-xs uppercase tracking-widest text-stone-500">Email Address</Label>
+                <Label for="email" class="font-ui text-xs uppercase tracking-widest text-text-muted">Email Address</Label>
                 <div class="relative">
-                    <Mail class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                    <Mail class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
                     <Input
                         id="email"
                         name="email"
@@ -81,11 +81,11 @@
 
             <div class="space-y-2">
                 <div class="flex items-center justify-between">
-                    <Label for="password" class="font-mono text-xs uppercase tracking-widest text-stone-500">Password</Label>
-                    <a href="/reset-password" class="text-[10px] text-stone-400 hover:text-stone-600 uppercase tracking-wider">Forgot?</a>
+                    <Label for="password" class="font-ui text-xs uppercase tracking-widest text-text-muted">Password</Label>
+                    <a href="/reset-password" class="text-xs text-text-muted hover:text-text-secondary uppercase tracking-wider">Forgot?</a>
                 </div>
                 <div class="relative">
-                    <Lock class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                    <Lock class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
                     <Input
                         id="password"
                         name="password"
@@ -98,7 +98,7 @@
             </div>
 
             <div class="pt-4">
-                <Button type="submit" class="w-full bg-ink text-white hover:bg-stone-800 font-display text-lg h-12 rounded-sm shadow-md transition-transform active:scale-[0.98]" disabled={loading}>
+                <Button type="submit" class="w-full bg-text-primary text-white hover:bg-text-secondary font-display text-lg h-12 rounded-sm shadow-md transition-transform active:scale-[0.98]" disabled={loading}>
                     {loading ? 'Signing in...' : 'Sign In'}
                     {#if !loading}
                         <ArrowRight class="ml-2 h-4 w-4" />
@@ -108,7 +108,7 @@
         </form>
 
         <div class="mt-8 pt-6 border-t border-stone-200 text-center">
-            <p class="font-serif text-stone-500 text-sm">
+            <p class="font-serif text-text-muted text-sm">
                 First time here? 
                 <a href="/register" class="text-ink font-bold hover:underline decoration-wavy decoration-sage-300 underline-offset-4">
                     Sign the Guest Book

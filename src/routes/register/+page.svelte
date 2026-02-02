@@ -14,7 +14,7 @@
   <title>Join - Receipt2Recipe</title>
 </svelte:head>
 
-<div class="flex min-h-screen flex-col items-center justify-center bg-[#FDFBF7] p-4 relative overflow-hidden">
+<div class="flex min-h-screen flex-col items-center justify-center bg-bg-paper p-4 relative overflow-hidden">
   <!-- Desk Texture -->
   <div
     class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
@@ -64,9 +64,9 @@
             {/if}
 
             <div class="space-y-2">
-                <Label for="name" class="font-mono text-xs uppercase tracking-widest text-stone-500">Full Name</Label>
+                <Label for="name" class="font-ui text-xs uppercase tracking-widest text-text-muted">Full Name</Label>
                 <div class="relative">
-                    <User class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                    <User class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
                     <Input
                         id="name"
                         name="name"
@@ -80,9 +80,9 @@
             </div>
 
             <div class="space-y-2">
-                <Label for="email" class="font-mono text-xs uppercase tracking-widest text-stone-500">Email Address</Label>
+                <Label for="email" class="font-ui text-xs uppercase tracking-widest text-text-muted">Email Address</Label>
                 <div class="relative">
-                    <Mail class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                    <Mail class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
                     <Input
                         id="email"
                         name="email"
@@ -96,9 +96,9 @@
             </div>
 
             <div class="space-y-2">
-                <Label for="password" class="font-mono text-xs uppercase tracking-widest text-stone-500">Password</Label>
+                <Label for="password" class="font-ui text-xs uppercase tracking-widest text-text-muted">Password</Label>
                 <div class="relative">
-                    <Lock class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                    <Lock class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
                     <Input
                         id="password"
                         name="password"
@@ -109,11 +109,11 @@
                         class="pl-8 bg-transparent border-0 border-b border-stone-300 rounded-none px-0 py-2 focus:ring-0 focus:border-stone-800 transition-colors font-serif text-lg placeholder:text-stone-300 placeholder:tracking-widest shadow-none"
                     />
                 </div>
-                <p class="text-[10px] text-stone-400 text-right">At least 8 characters</p>
+                <p class="text-xs text-text-muted text-right">At least 8 characters</p>
             </div>
 
             <div class="pt-4">
-                <Button type="submit" class="w-full bg-ink text-white hover:bg-stone-800 font-display text-lg h-12 rounded-sm shadow-md transition-transform active:scale-[0.98]" disabled={loading}>
+                <Button type="submit" class="w-full bg-text-primary text-white hover:bg-text-secondary font-display text-lg h-12 rounded-sm shadow-md transition-transform active:scale-[0.98]" disabled={loading}>
                     {loading ? 'Creating Account...' : 'Get Started'}
                     {#if !loading}
                         <ArrowRight class="ml-2 h-4 w-4" />
@@ -123,7 +123,7 @@
         </form>
 
         <div class="mt-8 pt-6 border-t border-stone-200 text-center">
-            <p class="font-serif text-stone-500 text-sm">
+            <p class="font-serif text-text-muted text-sm">
                 Already have a spot? 
                 <a href="/login" class="text-ink font-bold hover:underline decoration-wavy decoration-sage-300 underline-offset-4">
                     Sign in here

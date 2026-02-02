@@ -46,24 +46,24 @@
                 <form method="POST" action="?/setDiet" use:enhance>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {#each dietTypes as diet}
-                            <label class="flex items-start space-x-3 border rounded-lg p-4 hover:bg-stone-50 transition-colors cursor-pointer 
-                                {profile.dietType === diet.value ? 'border-sage-500 bg-sage-50' : 'border-stone-200'}">
+                            <label class="flex items-start space-x-3 border rounded-lg p-4 hover:bg-bg-hover transition-colors cursor-pointer 
+                                {profile.dietType === diet.value ? 'border-sage-500 bg-sage-50' : 'border-border'}">
                                 <input 
                                     type="radio" 
                                     name="dietType" 
                                     value={diet.value} 
                                     checked={profile.dietType === diet.value}
-                                    class="mt-1.5 h-4 w-4 text-sage-600 border-stone-300 focus:ring-sage-500"
+                                    class="mt-1.5 h-4 w-4 text-sage-600 border-border focus:ring-sage-500"
                                 />
                                 <div class="grid gap-1">
                                     <span class="font-medium font-serif text-lg">{diet.label}</span>
-                                    <span class="text-xs text-stone-500 font-sans">{diet.desc}</span>
+                                    <span class="text-xs text-text-muted font-ui">{diet.desc}</span>
                                 </div>
                             </label>
                         {/each}
                     </div>
                     <div class="mt-6 flex justify-end">
-                        <Button type="submit" variant="default" class="bg-ink text-white">Save Diet</Button>
+                        <Button type="submit" variant="default" class="bg-text-primary text-white">Save Diet</Button>
                     </div>
                 </form>
             </div>
@@ -77,7 +77,7 @@
             <h2 class="font-display text-2xl text-ink">Allergies & Intolerances</h2>
         </div>
 
-        <div class="bg-white rounded-xl border border-stone-200 p-6 shadow-sm relative overflow-hidden">
+        <div class="bg-white rounded-xl border border-border p-6 shadow-sm relative overflow-hidden">
             <div class="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                 <AlertTriangle class="h-32 w-32" />
             </div>
@@ -93,7 +93,7 @@
                     </Badge>
                 {/each}
                 {#if profile.allergies.length === 0}
-                    <span class="text-stone-400 italic text-sm">No allergies listed.</span>
+                    <span class="text-text-muted italic text-sm">No allergies listed.</span>
                 {/if}
             </div>
 
@@ -104,7 +104,7 @@
                         {#if !profile.allergies.find(a => a.allergen.toLowerCase() === ca.toLowerCase())}
                             <form method="POST" action="?/addAllergy" use:enhance class="inline-block">
                                 <input type="hidden" name="allergen" value={ca} />
-                                <button type="submit" class="px-3 py-1 rounded-full border border-stone-200 text-xs hover:border-amber-400 hover:bg-amber-50 transition-colors">
+                                <button type="submit" class="px-3 py-1 rounded-full border border-border text-xs hover:border-amber-400 hover:bg-amber-50 transition-colors">
                                     + {ca}
                                 </button>
                             </form>
@@ -112,7 +112,7 @@
                     {/each}
                 </div>
 
-                <div class="pt-4 border-t border-dashed border-stone-200">
+                <div class="pt-4 border-t border-dashed border-border">
                     <form method="POST" action="?/addAllergy" use:enhance class="flex gap-2 items-end">
                         <div class="grid gap-1.5 flex-1">
                             <Label for="custom-allergen">Custom Allergen</Label>
@@ -165,27 +165,27 @@
             </PinnedNote>
 
             <!-- Dislikes -->
-            <div class="relative bg-stone-100 p-6 rounded-xl border border-stone-200 rotate-1 shadow-sm">
+            <div class="relative bg-bg-card p-6 rounded-xl border border-border rotate-1 shadow-sm">
                 <div class="absolute -top-3 left-1/2 -translate-x-1/2">
                     <WashiTape color="white" width="w-24" />
                 </div>
-                <div class="flex items-center gap-2 mb-4 border-b border-stone-200 pb-2 mt-2">
-                    <ThumbsDown class="h-4 w-4 text-stone-500" />
-                    <h3 class="font-serif font-bold text-lg text-stone-600">I Avoid / Dislike</h3>
+                <div class="flex items-center gap-2 mb-4 border-b border-border pb-2 mt-2">
+                    <ThumbsDown class="h-4 w-4 text-text-muted" />
+                    <h3 class="font-serif font-bold text-lg text-text-secondary">I Avoid / Dislike</h3>
                 </div>
                 <div class="flex flex-wrap gap-2 mb-4">
                     {#each profile.ingredientPreferences.filter(p => ['dislike', 'avoid'].includes(p.preference)) as pref}
-                        <span class="inline-flex items-center bg-white px-2 py-1 rounded shadow-sm text-sm border border-stone-200 text-stone-600">
+                        <span class="inline-flex items-center bg-white px-2 py-1 rounded shadow-sm text-sm border border-border text-text-secondary">
                             {pref.ingredientName}
                             <form method="POST" action="?/removeIngredientPref" use:enhance class="inline-flex ml-1">
                                 <input type="hidden" name="ingredient" value={pref.ingredientName} />
-                                <button class="text-stone-400 hover:text-red-500"><X class="h-3 w-3" /></button>
+                                <button class="text-text-muted hover:text-red-500"><X class="h-3 w-3" /></button>
                             </form>
                         </span>
                     {/each}
                 </div>
                 <form method="POST" action="?/setIngredientPref" use:enhance class="flex gap-2">
-                    <select name="preference" class="h-8 text-xs rounded border-stone-200">
+                    <select name="preference" class="h-8 text-xs rounded border-border">
                         <option value="dislike">Dislike</option>
                         <option value="avoid">Avoid</option>
                     </select>
@@ -208,20 +208,20 @@
                 {@const pref = profile.cuisinePreferences.find(c => c.cuisineType === cuisine)}
                 <div class="bg-white p-4 rounded-lg border shadow-sm flex flex-col items-center gap-3 transition-colors
                     {pref?.preference === 'love' ? 'border-sage-400 bg-sage-50' : 
-                     pref?.preference === 'dislike' ? 'border-stone-200 opacity-60 bg-stone-50' : 'border-stone-200 hover:border-stone-300'}">
+                     pref?.preference === 'dislike' ? 'border-border opacity-60 bg-bg-hover' : 'border-border hover:border-text-muted/50'}">
                     <span class="font-serif font-medium">{cuisine}</span>
                     <div class="flex gap-2">
                         <form method="POST" action="?/setCuisinePref" use:enhance>
                             <input type="hidden" name="cuisine" value={cuisine} />
                             <input type="hidden" name="preference" value={pref?.preference === 'dislike' ? 'neutral' : 'dislike'} />
-                            <button type="submit" class="p-1 rounded hover:bg-stone-200 {pref?.preference === 'dislike' ? 'text-red-500' : 'text-stone-300'}">
+                            <button type="submit" class="p-1 rounded hover:bg-bg-hover {pref?.preference === 'dislike' ? 'text-red-500' : 'text-text-muted'}">
                                 <ThumbsDown class="h-4 w-4" />
                             </button>
                         </form>
                         <form method="POST" action="?/setCuisinePref" use:enhance>
                             <input type="hidden" name="cuisine" value={cuisine} />
                             <input type="hidden" name="preference" value={pref?.preference === 'love' ? 'neutral' : 'love'} />
-                            <button type="submit" class="p-1 rounded hover:bg-sage-200 {pref?.preference === 'love' ? 'text-red-500 fill-red-500' : 'text-stone-300'}">
+                            <button type="submit" class="p-1 rounded hover:bg-sage-200 {pref?.preference === 'love' ? 'text-red-500 fill-red-500' : 'text-text-muted'}">
                                 <Heart class="h-4 w-4" />
                             </button>
                         </form>

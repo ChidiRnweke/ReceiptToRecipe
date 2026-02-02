@@ -12,7 +12,7 @@
 	];
 </script>
 
-<div class="min-h-screen bg-[#FDFBF7] p-6 md:p-10 font-serif text-ink">
+<div class="min-h-screen bg-bg-paper p-6 md:p-10 font-serif text-ink">
     <div class="mx-auto max-w-5xl">
         <div class="mb-8">
             <Button href="/" variant="ghost" class="pl-0 hover:bg-transparent hover:text-sage-600 mb-2">

@@ -29,29 +29,29 @@
 		{@const navState = getStepState(step.href, count)}
 
 		{#if i > 0}
-			<ChevronRight class="h-4 w-4 text-ink-muted" />
+			<ChevronRight class="h-4 w-4 text-text-muted" />
 		{/if}
 
 		<a
 			href={step.href}
 			class="group relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors
 				{navState === 'active'
-					? 'bg-sage-100 text-sage-700'
+					? 'bg-primary-100 text-primary-700'
 					: navState === 'completed'
-						? 'text-ink hover:bg-paper-dark'
-						: 'text-ink-light hover:bg-paper-dark hover:text-ink'}"
+						? 'text-text-primary hover:bg-bg-paper-dark'
+						: 'text-text-secondary hover:bg-bg-paper-dark hover:text-text-primary'}"
 		>
 			<span class="relative">
 				<step.icon class="h-4 w-4" />
 				{#if count > 0 && navState !== 'active'}
-					<span class="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-sage-500 text-[8px] font-bold text-white">
+					<span class="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-primary-500 text-[8px] font-bold text-white">
 						{count > 9 ? '9+' : count}
 					</span>
 				{/if}
 			</span>
 			<span>{step.label}</span>
 			{#if navState === 'active' && count > 0}
-				<span class="ml-1 rounded-full bg-sage-200 px-1.5 py-0.5 text-xs text-sage-700">
+				<span class="ml-1 rounded-full bg-primary-200 px-1.5 py-0.5 text-xs text-primary-700">
 					{count}
 				</span>
 			{/if}
@@ -67,22 +67,22 @@
 
 		<a
 			href={step.href}
-			class="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
-				{navState === 'active'
-					? 'bg-sage-100 text-sage-700'
-					: 'text-ink-light hover:bg-paper-dark hover:text-ink'}"
+class="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
+			{navState === 'active'
+				? 'bg-primary-100 text-primary-700'
+				: 'text-text-secondary hover:bg-bg-paper-dark hover:text-text-primary'}"
 		>
 			<span class="flex items-center gap-3">
-				<span class="flex h-8 w-8 items-center justify-center rounded-full {navState === 'active' ? 'bg-sage-200' : navState === 'completed' ? 'bg-paper-dark' : 'bg-paper-dark'}">
+				<span class="flex h-8 w-8 items-center justify-center rounded-full {navState === 'active' ? 'bg-primary-200' : navState === 'completed' ? 'bg-bg-paper-dark' : 'bg-bg-paper-dark'}">
 					<step.icon class="h-4 w-4" />
 				</span>
 				<span>
 					<span class="block">{step.label}</span>
-					<span class="text-xs text-ink-muted">Step {i + 1}</span>
+					<span class="text-xs text-text-muted">Step {i + 1}</span>
 				</span>
 			</span>
 			{#if count > 0}
-				<span class="rounded-full bg-sage-100 px-2 py-0.5 text-xs font-medium text-sage-700">
+				<span class="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700">
 					{count}
 				</span>
 			{/if}

@@ -70,13 +70,13 @@
   <title>Upload Receipt - Receipt2Recipe</title>
 </svelte:head>
 
-<div class="min-h-screen bg-[#FDFBF7] p-6 md:p-10 relative overflow-x-hidden">
+<div class="min-h-screen bg-bg-paper p-6 md:p-10 relative overflow-x-hidden">
   <!-- Desk Texture (Subtle Noise) -->
   <div class="pointer-events-none absolute inset-0 opacity-[0.03]" style="background-image: url('https://www.transparenttextures.com/patterns/cardboard-flat.png')"></div>
 
   <div class="mx-auto max-w-3xl relative z-10">
     <div class="mb-8 flex items-center justify-between">
-       <Button href="/receipts" variant="ghost" class="font-serif text-stone-500 hover:text-ink pl-0 hover:bg-transparent">
+       <Button href="/receipts" variant="ghost" class="font-serif text-text-muted hover:text-text-primary pl-0 hover:bg-transparent">
             <ArrowLeft class="mr-2 h-4 w-4" />
             Back to Ledger
        </Button>
@@ -88,11 +88,11 @@
     </div>
 
     <!-- Main Drop Zone Container -->
-    <div class="relative bg-white p-2 rounded-sm shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] border border-stone-200 rotate-1 transition-transform duration-300 hover:rotate-0">
+    <div class="relative bg-white p-2 rounded-sm shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] border border-border rotate-1 transition-transform duration-300 hover:rotate-0">
         <!-- Washi Tape Decor -->
         <WashiTape color="sage" class="absolute -top-3 left-1/2 -translate-x-1/2 w-32 shadow-sm z-20" />
 
-        <div class="border-2 border-dashed border-stone-300 bg-[#fffdf5] rounded-sm p-8 min-h-[400px] flex flex-col items-center justify-center relative transition-colors duration-300 {dragover ? 'bg-sage-50 border-sage-400' : ''}">
+        <div class="border-2 border-dashed border-border bg-bg-card rounded-sm p-8 min-h-[400px] flex flex-col items-center justify-center relative transition-colors duration-300 {dragover ? 'bg-primary-50 border-primary-400' : ''}">
             
             <form
                 method="POST"
@@ -145,13 +145,13 @@
                 >
                     {#if preview}
                         <div class="relative w-full max-w-sm mx-auto transform -rotate-2 transition-transform hover:rotate-0 duration-500">
-                             <div class="bg-white p-3 shadow-lg border border-stone-100 pb-12">
+                             <div class="bg-white p-3 shadow-lg border border-border/50 pb-12">
                                 <img
                                     src={preview}
                                     alt="Receipt preview"
                                     class="w-full h-auto filter contrast-125 grayscale-[0.1]"
                                 />
-                                <div class="absolute bottom-4 right-4 font-hand text-stone-400 text-xl">
+                                <div class="absolute bottom-4 right-4 font-hand text-text-muted text-xl">
                                     Receipt #{Math.floor(Math.random() * 1000)}
                                 </div>
                              </div>
@@ -162,14 +162,14 @@
                                     e.stopPropagation();
                                     clearPreview();
                                 }}
-                                class="absolute -top-3 -right-3 bg-white rounded-full p-2 shadow-md hover:bg-red-50 text-stone-400 hover:text-red-500 transition-colors z-30"
+                                class="absolute -top-3 -right-3 bg-white rounded-full p-2 shadow-md hover:bg-red-50 text-text-muted hover:text-red-500 transition-colors z-30"
                              >
                                 <X class="h-4 w-4" />
                              </button>
                         </div>
 
                         <div class="mt-8 flex flex-col items-center gap-3">
-                             <Button type="submit" disabled={loading} size="lg" class="font-display text-lg px-8 bg-ink text-white hover:bg-stone-800 shadow-md">
+                             <Button type="submit" disabled={loading} size="lg" class="font-display text-lg px-8 bg-text-primary text-white hover:bg-text-secondary shadow-md">
                                 {#if loading}
                                     <ScanLine class="mr-2 h-4 w-4 animate-pulse" />
                                     Scanning...
@@ -177,20 +177,20 @@
                                     Process Receipt
                                 {/if}
                             </Button>
-                            <p class="font-serif text-xs text-stone-400 italic">
+                            <p class="font-serif text-xs text-text-muted italic">
                                 We'll extract ingredients and add them to your pantry.
                             </p>
                         </div>
                     {:else}
                         <div class="flex flex-col items-center gap-6 pointer-events-none">
-                            <div class="h-24 w-24 rounded-full bg-stone-100 flex items-center justify-center border border-stone-200 shadow-inner">
-                                <Upload class="h-10 w-10 text-stone-400" />
+                            <div class="h-24 w-24 rounded-full bg-bg-hover flex items-center justify-center border border-border shadow-inner">
+                                <Upload class="h-10 w-10 text-text-muted" />
                             </div>
                             <div class="text-center space-y-2">
                                 <h3 class="font-hand text-3xl text-ink">
                                     {dragover ? "Drop it here!" : "Place receipt here"}
                                 </h3>
-                                <p class="font-serif text-stone-400 text-sm">
+                                <p class="font-serif text-text-muted text-sm">
                                     Click to browse or drag & drop
                                 </p>
                             </div>
@@ -208,7 +208,7 @@
                 <WashiTape color="yellow" width="w-24" />
             </div>
             
-            <h3 class="font-mono text-xs uppercase tracking-widest text-stone-500 text-center mb-6 mt-2">
+            <h3 class="font-ui text-xs uppercase tracking-widest text-text-muted text-center mb-6 mt-2">
                 Scanning Guidelines
             </h3>
 
