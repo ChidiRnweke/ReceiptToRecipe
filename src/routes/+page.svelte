@@ -24,6 +24,7 @@
   import Notepad from "$lib/components/Notepad.svelte";
   import StockBadge from "$lib/components/StockBadge.svelte";
   import OnboardingModal from "$lib/components/OnboardingModal.svelte";
+  import LandingPage from "$lib/components/LandingPage.svelte";
   import { getContext } from "svelte";
   import type { WorkflowState } from "$lib/state/workflow.svelte";
 
@@ -283,7 +284,7 @@
             <div
               class="flex items-center gap-2 text-xs text-text-muted uppercase tracking-wider mb-2 border-b border-sand/40 pb-2"
             >
-              <Store class="h-3 w-3" /> Your Pantry
+              <Store class="h-3 w-3" /> Your Kitchen
             </div>
             <ul
               class="space-y-2 max-h-40 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"
@@ -542,10 +543,10 @@
                       ></div>
 
                       {#if inPantry}
-                        <div
-                          class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 cursor-help"
-                          title="In your pantry"
-                        >
+                          <div
+                            class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 cursor-help"
+                            title="In your kitchen"
+                          >
                           <Check class="h-3 w-3" />
                         </div>
                       {:else}
@@ -592,7 +593,7 @@
                           </p>
                         {:else if inPantry && ingredient.pantryMatch?.lastPurchased}
                           <p class="mt-0.5 text-[10px] italic text-text-muted">
-                            In pantry (bought {new Date(
+                            In stock (bought {new Date(
                               ingredient.pantryMatch.lastPurchased,
                             ).toLocaleDateString()})
                           </p>
@@ -744,23 +745,5 @@
     </main>
   </div>
 {:else}
-  <div
-    class="flex min-h-screen items-center justify-center bg-bg-paper px-6 py-12 text-center"
-  >
-    <div class="max-w-2xl space-y-4">
-      <p class="text-xs uppercase tracking-[0.16em] text-text-muted">Welcome</p>
-      <h1 class="font-display text-4xl text-text-primary">
-        Turn grocery <span class="marker-highlight">receipts</span> into an editorial
-        cookbook.
-      </h1>
-      <p class="font-hand text-lg text-text-secondary">
-        Sign in to drop a receipt and see your recipes bloom.
-      </p>
-      <div
-        class="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-center"
-      >
-        <Button href="/login" size="lg">Log in</Button>
-      </div>
-    </div>
-  </div>
+  <LandingPage />
 {/if}

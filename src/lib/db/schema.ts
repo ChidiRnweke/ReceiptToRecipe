@@ -26,6 +26,8 @@ export const recipeSourceEnum = pgEnum("recipe_source", [
   "USER",
 ]);
 
+export const userRoleEnum = pgEnum("user_role", ["WAITING", "USER", "ADMIN"]);
+
 export const unitTypeEnum = pgEnum("unit_type", ["WEIGHT", "VOLUME", "COUNT"]);
 
 // Users
@@ -33,6 +35,7 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
+  role: userRoleEnum("role").notNull().default("WAITING"),
   avatarUrl: text("avatar_url"),
   passwordHash: text("password_hash"),
   authProvider: text("auth_provider").notNull().default("auth0"),

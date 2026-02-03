@@ -118,7 +118,7 @@
             class="mb-8 flex items-baseline justify-between border-b border-border pb-3"
           >
             <h2 class="font-display text-2xl text-text-primary">
-              Made for <span class="marker-highlight">Your Pantry</span>
+              Made for <span class="marker-highlight">Your Kitchen</span>
             </h2>
             <span
               class="font-ui text-[10px] uppercase tracking-widest text-primary-600"

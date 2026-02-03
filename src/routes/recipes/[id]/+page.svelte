@@ -407,7 +407,7 @@
                   />
                   <span
                     class="font-ui text-[10px] uppercase tracking-wide text-text-muted"
-                    >Hide Pantry Items</span
+                    >Hide Items In Stock</span
                   >
                 </label>
               </div>

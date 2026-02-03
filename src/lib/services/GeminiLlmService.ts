@@ -8,7 +8,7 @@ import type {
 
 const RECIPE_SYSTEM_PROMPT = `You are a helpful culinary assistant that creates recipes based on available ingredients.
 When generating recipes:
-1. Only use ingredients from the provided list, plus common pantry staples (salt, pepper, oil, basic spices)
+1. Only use ingredients from the provided list, plus common kitchen staples (salt, pepper, oil, basic spices)
 2. Respect all dietary restrictions and allergies
 3. Consider the specified cuisine preferences
 4. Aim for the caloric goal if provided

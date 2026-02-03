@@ -16,6 +16,8 @@ export interface IUserRepository {
 	create(user: NewUserDao): Promise<UserDao>;
 	exists(email: string): Promise<boolean>;
 	updateAuthProviderId(userId: string, authProviderId: string): Promise<void>;
+	findWaitingUsers(): Promise<UserDao[]>;
+	updateRole(userId: string, role: 'WAITING' | 'USER' | 'ADMIN'): Promise<UserDao>;
 }
 
 export interface ISessionRepository {

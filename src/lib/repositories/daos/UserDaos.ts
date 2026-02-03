@@ -5,6 +5,7 @@ export interface UserDao {
 	id: string;
 	email: string;
 	name: string;
+	role: 'WAITING' | 'USER' | 'ADMIN';
 	avatarUrl: string | null;
 	createdAt: Date;
 	updatedAt: Date;
@@ -13,6 +14,7 @@ export interface UserDao {
 export interface NewUserDao {
 	email: string;
 	name: string;
+	role?: 'WAITING' | 'USER' | 'ADMIN';
 	avatarUrl?: string | null;
 	passwordHash?: string | null;
 	authProvider?: string;

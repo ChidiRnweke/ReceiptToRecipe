@@ -63,7 +63,7 @@
   }
 
   const tips = [
-    "Scan receipts to update your pantry instantly.",
+    "Scan receipts to update your stock instantly.",
     "Review scanned items to ensure accuracy before cooking.",
     "Recipes are generated based on available ingredients in your receipts.",
     "Track your spending habits over time with digital archives.",

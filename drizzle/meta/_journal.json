@@ -50,6 +50,13 @@
       "when": 1770145324276,
       "tag": "0006_panoramic_the_santerians",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1770150957790,
+      "tag": "0007_sudden_timeslip",
+      "breakpoints": true
     }
   ]
 }

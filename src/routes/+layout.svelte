@@ -125,7 +125,7 @@
           </button>
         {:else}
           <div class="flex items-center gap-2">
-            <Button href="/login">Log in</Button>
+            <Button href="/login">Start here</Button>
           </div>
         {/if}
       </div>

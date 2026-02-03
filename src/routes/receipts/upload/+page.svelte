@@ -178,7 +178,7 @@
                                 {/if}
                             </Button>
                             <p class="font-serif text-xs text-text-muted italic">
-                                We'll extract ingredients and add them to your pantry.
+                                We'll extract ingredients and add them to your kitchen.
                             </p>
                         </div>
                     {:else}

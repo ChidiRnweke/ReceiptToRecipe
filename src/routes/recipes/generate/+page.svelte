@@ -34,7 +34,7 @@
   const pantryByCategory = $derived.by(() => {
     const groups: Record<string, any[]> = {};
     for (const item of data.pantry || []) {
-      const category = item.category || "Pantry Staples";
+      const category = item.category || "Kitchen Staples";
       const displayCategory =
         category.charAt(0).toUpperCase() + category.slice(1);
 
@@ -147,7 +147,7 @@
             <div
               class="mb-6 flex items-baseline justify-between border-b-2 border-dashed border-border pb-4"
             >
-              <h2 class="font-display text-2xl text-ink">Pantry Inventory</h2>
+              <h2 class="font-display text-2xl text-ink">Kitchen Inventory</h2>
               <span
                 class="font-ui text-xs uppercase tracking-widest text-text-muted"
               >
@@ -212,7 +212,7 @@
               >
                 <Receipt class="mb-4 h-12 w-12 text-text-muted" />
                 <p class="font-serif text-lg text-ink-light">
-                  The pantry is looking a bit bare.
+                  The kitchen is looking a bit bare.
                 </p>
                 <Button
                   href="/receipts/upload"

@@ -35,20 +35,20 @@
       title: "Scan Your Receipt",
       description:
         "Drop a photo of your grocery receipt. We'll extract and organize all your purchased items automatically.",
-      cta: "This tells us what's in your pantry.",
+      cta: "This tells us what's in your kitchen.",
     },
     {
       icon: Store,
-      title: "Build Your Pantry",
+      title: "Build Your Kitchen",
       description:
-        "Your scanned items become your virtual pantry. We track what you have and estimate when things run low.",
+        "Your scanned items become your virtual kitchen. We track what you have and estimate when things run low.",
       cta: "Smart stock tracking, no manual entry.",
     },
     {
       icon: ChefHat,
       title: "Generate Recipes",
       description:
-        "Get personalized recipe suggestions based on what you have. We'll prioritize ingredients in your pantry.",
+        "Get personalized recipe suggestions based on what you have. We'll prioritize ingredients in your kitchen.",
       cta: "Cook with what you've got!",
     },
     {

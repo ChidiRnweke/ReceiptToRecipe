@@ -232,7 +232,7 @@
           >
             <Sparkles class="h-4 w-4 text-amber-600" />
             <h3 class="font-hand text-xl font-bold text-ink/80">
-              Pantry Gaps?
+              Stock Gaps?
             </h3>
           </div>
 
@@ -808,7 +808,7 @@
         class="flex items-center gap-2 font-display text-2xl text-amber-700"
       >
         <AlertTriangle class="h-6 w-6" />
-        Check the Pantry!
+        Check your Stock!
       </AlertDialog.Title>
       <AlertDialog.Description class="text-ink">
         <p class="mb-4 text-base leading-relaxed">{pantryWarning.message}</p>

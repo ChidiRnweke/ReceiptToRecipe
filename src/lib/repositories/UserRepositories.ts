@@ -35,6 +35,7 @@ export class UserRepository implements IUserRepository {
 				id: true,
 				email: true,
 				name: true,
+				role: true,
 				avatarUrl: true,
 				passwordHash: true,
 				authProvider: true,
@@ -54,6 +55,7 @@ export class UserRepository implements IUserRepository {
 		const [created] = await this.db.insert(schema.users).values({
 			email: user.email,
 			name: user.name,
+			role: user.role || 'WAITING',
 			avatarUrl: user.avatarUrl || null,
 			passwordHash: user.passwordHash || null,
 			authProvider: user.authProvider || 'auth0',
@@ -62,6 +64,7 @@ export class UserRepository implements IUserRepository {
 			id: schema.users.id,
 			email: schema.users.email,
 			name: schema.users.name,
+			role: schema.users.role,
 			avatarUrl: schema.users.avatarUrl,
 			createdAt: schema.users.createdAt,
 			updatedAt: schema.users.updatedAt
@@ -84,11 +87,31 @@ export class UserRepository implements IUserRepository {
 			.where(eq(schema.users.id, userId));
 	}
 
+	async findWaitingUsers(): Promise<UserDao[]> {
+		const users = await this.db.query.users.findMany({
+			where: eq(schema.users.role, 'WAITING'),
+			orderBy: (users, { desc }) => [desc(users.createdAt)]
+		});
+		return users.map(u => this.toDao(u));
+	}
+
+	async updateRole(userId: string, role: 'WAITING' | 'USER' | 'ADMIN'): Promise<UserDao> {
+		const [updated] = await this.db.update(schema.users)
+			.set({ role, updatedAt: new Date() })
+			.where(eq(schema.users.id, userId))
+			.returning();
+			
+		if (!updated) throw new Error('User not found');
+		
+		return this.toDao(updated);
+	}
+
 	private toDao(user: typeof schema.users.$inferSelect): UserDao {
 		return {
 			id: user.id,
 			email: user.email,
 			name: user.name,
+			role: user.role,
 			avatarUrl: user.avatarUrl,
 			createdAt: user.createdAt,
 			updatedAt: user.updatedAt
@@ -120,6 +143,7 @@ export class SessionRepository implements ISessionRepository {
 				id: result.user.id,
 				email: result.user.email,
 				name: result.user.name,
+				role: result.user.role,
 				avatarUrl: result.user.avatarUrl,
 				createdAt: result.user.createdAt,
 				updatedAt: result.user.updatedAt
