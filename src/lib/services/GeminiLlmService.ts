@@ -273,4 +273,77 @@ Respond with JSON:
 
     return recipe;
   }
+
+  async adjustRecipe(
+    currentRecipe: GeneratedRecipe,
+    instruction: string
+  ): Promise<GeneratedRecipe> {
+    const prompt = `Modify the following recipe according to this instruction: "${instruction}"
+
+Current Recipe:
+Title: ${currentRecipe.title}
+Description: ${currentRecipe.description}
+Servings: ${currentRecipe.servings}
+Prep Time: ${currentRecipe.prepTime} minutes
+Cook Time: ${currentRecipe.cookTime} minutes
+Cuisine: ${currentRecipe.cuisineType || "Not specified"}
+Estimated Calories: ${currentRecipe.estimatedCalories || "Not specified"}
+
+Ingredients:
+${currentRecipe.ingredients.map(ing => `- ${ing.quantity} ${ing.unit} ${ing.name}${ing.optional ? " (optional)" : ""}${ing.notes ? ` - ${ing.notes}` : ""}`).join("\n")}
+
+Instructions:
+${currentRecipe.instructions}
+
+Apply the requested changes while keeping the recipe coherent and delicious. Maintain the same JSON format.
+
+Respond with JSON in this exact format:
+{
+  "title": "Recipe Name",
+  "description": "Brief description",
+  "instructions": "Step 1: ...\\nStep 2: ...",
+  "servings": <number>,
+  "prepTime": <minutes>,
+  "cookTime": <minutes>,
+  "cuisineType": "cuisine",
+  "estimatedCalories": <per serving>,
+  "ingredients": [
+    {
+      "name": "ingredient name",
+      "quantity": <number>,
+      "unit": "g" | "ml" | "count" | "tbsp" | "tsp" | "cup",
+      "optional": false,
+      "notes": "optional notes"
+    }
+  ]
+}`;
+
+    const result = await this.client.models.generateContent({
+      model: this.model,
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: prompt }],
+        },
+      ],
+      config: {
+        systemInstruction: RECIPE_SYSTEM_PROMPT,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const response = result.text;
+    if (!response) {
+      throw new Error("Empty response from Gemini");
+    }
+
+    const adjustedRecipe = JSON.parse(response) as GeneratedRecipe;
+    
+    // Basic validation
+    if (!adjustedRecipe.title) adjustedRecipe.title = currentRecipe.title;
+    if (!adjustedRecipe.ingredients) adjustedRecipe.ingredients = currentRecipe.ingredients;
+    if (!adjustedRecipe.instructions) adjustedRecipe.instructions = currentRecipe.instructions;
+    
+    return adjustedRecipe;
+  }
 }

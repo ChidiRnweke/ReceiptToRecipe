@@ -29,6 +29,8 @@
   import StockBadge from "$lib/components/StockBadge.svelte";
   import WashiTape from "$lib/components/WashiTape.svelte";
   import PinnedNote from "$lib/components/PinnedNote.svelte";
+  import RecipeNarrator from "$lib/components/RecipeNarrator.svelte";
+  import RecipeAdjuster from "$lib/components/RecipeAdjuster.svelte";
 
   let { data } = $props();
   const workflowState = getContext<WorkflowState>("workflowState");
@@ -441,15 +443,36 @@
               </form>
             </div>
           </div>
+
+          <!-- Recipe Adjuster (AI-Powered) -->
+          <div class="mt-6">
+            <RecipeAdjuster
+              recipeId={data.recipe.id}
+              title={data.recipe.title}
+              description={data.recipe.description}
+              ingredients={data.recipe.ingredients}
+              instructions={data.recipe.instructions}
+              isOwner={data.isOwner}
+              onAdjust={() => invalidateAll()}
+            />
+          </div>
         </div>
       </div>
 
       <!-- Right: Instructions (Clean White) -->
       <div class="bg-white p-8 md:p-12">
         <div class="flex items-center justify-between mb-8">
-          <h2 class="font-display text-3xl text-text-primary">
-            <span class="marker-highlight">Method</span>
-          </h2>
+          <div class="flex items-center gap-4">
+            <h2 class="font-display text-3xl text-text-primary">
+              <span class="marker-highlight">Method</span>
+            </h2>
+            <RecipeNarrator
+              title={data.recipe.title}
+              ingredients={data.recipe.ingredients}
+              instructions={data.recipe.instructions}
+              servings={servings}
+            />
+          </div>
           {#if completedSteps.size > 0}
             <Badge variant="outline" class="font-ui"
               >{completedSteps.size}/{steps.length}</Badge

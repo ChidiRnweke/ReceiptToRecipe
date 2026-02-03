@@ -180,5 +180,32 @@ export const actions: Actions = {
 		}
 
 		throw redirect(302, '/recipes');
+	},
+	adjustRecipe: async ({ locals, params, request }) => {
+		if (!locals.user) {
+			throw redirect(302, '/login');
+		}
+
+		const formData = await request.formData();
+		const instruction = formData.get('instruction') as string;
+
+		if (!instruction || instruction.trim().length === 0) {
+			return fail(400, { error: 'Adjustment instruction is required' });
+		}
+
+		const recipeController = new RecipeController(
+			AppFactory.getLlmService(),
+			AppFactory.getImageGenService(),
+			AppFactory.getVectorService(),
+            AppFactory.getTasteProfileService(),
+			AppFactory.getJobQueue()
+		);
+
+		try {
+			await recipeController.adjustRecipeWithAi(params.id, locals.user.id, instruction.trim());
+			return { success: true };
+		} catch (err) {
+			return fail(500, { error: err instanceof Error ? err.message : 'Unable to adjust recipe' });
+		}
 	}
 };

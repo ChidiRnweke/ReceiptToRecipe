@@ -352,4 +352,151 @@ export class RecipeController {
 
 		return recipe || null;
 	}
+
+	/**
+	 * Update a recipe with adjusted ingredients and instructions
+	 */
+	async updateRecipe(
+		recipeId: string,
+		userId: string,
+		updates: {
+			title?: string;
+			description?: string;
+			instructions?: string;
+			ingredients?: Array<{
+				name: string;
+				quantity: string;
+				unit: string;
+				optional?: boolean;
+				notes?: string;
+			}>;
+		}
+	): Promise<RecipeWithIngredients> {
+		// Verify ownership
+		const recipe = await db.query.recipes.findFirst({
+			where: and(eq(recipes.id, recipeId), eq(recipes.userId, userId))
+		});
+
+		if (!recipe) {
+			throw new Error('Recipe not found or not authorized');
+		}
+
+		// Update recipe fields
+		const updateData: Partial<Recipe> = {
+			updatedAt: new Date()
+		};
+		if (updates.title !== undefined) updateData.title = updates.title;
+		if (updates.description !== undefined) updateData.description = updates.description;
+		if (updates.instructions !== undefined) updateData.instructions = updates.instructions;
+
+		await db.update(recipes).set(updateData).where(eq(recipes.id, recipeId));
+
+		// Update ingredients if provided
+		if (updates.ingredients !== undefined) {
+			// Delete existing ingredients
+			await db.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, recipeId));
+
+			// Insert new ingredients
+			if (updates.ingredients.length > 0) {
+				const ingredientValues: NewRecipeIngredient[] = updates.ingredients.map((ing, index) => ({
+					recipeId,
+					name: ing.name,
+					quantity: ing.quantity.toString(),
+					unit: ing.unit,
+					unitType: this.inferUnitType(ing.unit),
+					optional: ing.optional || false,
+					notes: ing.notes,
+					orderIndex: index
+				}));
+
+				await db.insert(recipeIngredients).values(ingredientValues);
+			}
+		}
+
+		// Return updated recipe
+		const updatedRecipe = await this.getRecipe(recipeId, userId);
+		if (!updatedRecipe) {
+			throw new Error('Failed to retrieve updated recipe');
+		}
+
+		return updatedRecipe;
+	}
+
+	/**
+	 * Adjust a recipe using AI based on natural language instruction
+	 */
+	async adjustRecipeWithAi(
+		recipeId: string,
+		userId: string,
+		instruction: string
+	): Promise<RecipeWithIngredients> {
+		// Get current recipe
+		const currentRecipe = await this.getRecipe(recipeId, userId);
+		if (!currentRecipe) {
+			throw new Error('Recipe not found or not authorized');
+		}
+
+		// Convert to GeneratedRecipe format for LLM
+		const recipeForLLM = {
+			title: currentRecipe.title,
+			description: currentRecipe.description || "",
+			instructions: currentRecipe.instructions,
+			servings: currentRecipe.servings,
+			prepTime: currentRecipe.prepTime || 0,
+			cookTime: currentRecipe.cookTime || 0,
+			cuisineType: currentRecipe.cuisineType || undefined,
+			estimatedCalories: currentRecipe.estimatedCalories || undefined,
+			ingredients: currentRecipe.ingredients.map(ing => ({
+				name: ing.name,
+				quantity: parseFloat(ing.quantity) || 1,
+				unit: ing.unit,
+				optional: ing.optional || false,
+				notes: ing.notes || undefined
+			}))
+		};
+
+		// Call LLM to adjust recipe
+		const adjustedRecipe = await this.llmService.adjustRecipe(recipeForLLM, instruction);
+
+		// Update the recipe in database
+		await db.update(recipes)
+			.set({
+				title: adjustedRecipe.title,
+				description: adjustedRecipe.description,
+				instructions: adjustedRecipe.instructions,
+				servings: adjustedRecipe.servings,
+				prepTime: adjustedRecipe.prepTime,
+				cookTime: adjustedRecipe.cookTime,
+				cuisineType: adjustedRecipe.cuisineType,
+				estimatedCalories: adjustedRecipe.estimatedCalories,
+				updatedAt: new Date()
+			})
+			.where(eq(recipes.id, recipeId));
+
+		// Delete existing ingredients and insert new ones
+		await db.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, recipeId));
+
+		if (adjustedRecipe.ingredients.length > 0) {
+			const ingredientValues: NewRecipeIngredient[] = adjustedRecipe.ingredients.map((ing, index) => ({
+				recipeId,
+				name: ing.name,
+				quantity: ing.quantity.toString(),
+				unit: ing.unit,
+				unitType: this.inferUnitType(ing.unit),
+				optional: ing.optional || false,
+				notes: ing.notes,
+				orderIndex: index
+			}));
+
+			await db.insert(recipeIngredients).values(ingredientValues);
+		}
+
+		// Return updated recipe
+		const result = await this.getRecipe(recipeId, userId);
+		if (!result) {
+			throw new Error('Failed to retrieve adjusted recipe');
+		}
+
+		return result;
+	}
 }

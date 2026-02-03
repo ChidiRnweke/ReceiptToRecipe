@@ -8,11 +8,11 @@
 
 :root {
   --radius: 0.625rem;
-  
+
   /* ============================================
      DESIGN SYSTEM TOKENS
      ============================================ */
-  
+
   /* Background System (Warm Paper Theme) */
   --bg-paper: #fdfbf7;
   --bg-paper-dark: #f5efe3;
@@ -20,7 +20,7 @@
   --bg-elevated: #f7f1e6;
   --bg-input: #ffffff;
   --bg-hover: #f0e9dc;
-  
+
   /* Text Colors */
   --text-primary: #2d3748;
   --text-secondary: #4a5568;
@@ -28,7 +28,7 @@
   --text-inverse: #fdfbf7;
   --text-accent: #4a8560;
   --text-link: #3d6b52;
-  
+
   /* Primary Scale (Sage - used sparingly) */
   --primary-50: #f4f7f4;
   --primary-100: #e8f0e9;
@@ -40,7 +40,7 @@
   --primary-700: #3d6b52;
   --primary-800: #2f5144;
   --primary-900: #213c36;
-  
+
   /* Secondary Scale (Warm Sand/Sienna) */
   --secondary-50: #fff8f0;
   --secondary-100: #ffeedd;
@@ -52,7 +52,7 @@
   --secondary-700: #c2410c;
   --secondary-800: #9a3412;
   --secondary-900: #7c2d12;
-  
+
   /* Semantic Colors */
   --success-50: #ecfdf5;
   --success-100: #d1fae5;
@@ -70,7 +70,7 @@
   --info-100: #dbeafe;
   --info-500: #3b82f6;
   --info-600: #2563eb;
-  
+
   /* ============================================
      LEGACY ALIASES (Backward Compatibility)
      ============================================ */
@@ -100,7 +100,7 @@
   --sienna-700: var(--secondary-700);
   --sienna-800: var(--secondary-800);
   --sienna-900: var(--secondary-900);
-  
+
   /* ============================================
      SHADCN/UI THEME VARIABLES
      ============================================ */
@@ -180,7 +180,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  
+
   /* ============================================
      SHADCN/UI BASE THEME
      ============================================ */
@@ -216,7 +216,7 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  
+
   /* ============================================
      SEMANTIC BACKGROUNDS
      ============================================ */
@@ -226,7 +226,7 @@
   --color-bg-elevated: var(--bg-elevated);
   --color-bg-input: var(--bg-input);
   --color-bg-hover: var(--bg-hover);
-  
+
   /* ============================================
      SEMANTIC TEXT COLORS
      ============================================ */
@@ -236,7 +236,7 @@
   --color-text-inverse: var(--text-inverse);
   --color-text-accent: var(--text-accent);
   --color-text-link: var(--text-link);
-  
+
   /* ============================================
      PRIMARY SCALE (SAGE)
      ============================================ */
@@ -250,7 +250,7 @@
   --color-primary-700: var(--primary-700);
   --color-primary-800: var(--primary-800);
   --color-primary-900: var(--primary-900);
-  
+
   /* ============================================
      SECONDARY SCALE (WARM SAND)
      ============================================ */
@@ -264,7 +264,7 @@
   --color-secondary-700: var(--secondary-700);
   --color-secondary-800: var(--secondary-800);
   --color-secondary-900: var(--secondary-900);
-  
+
   /* ============================================
      SEMANTIC COLORS
      ============================================ */
@@ -284,7 +284,7 @@
   --color-info-100: var(--info-100);
   --color-info-500: var(--info-500);
   --color-info-600: var(--info-600);
-  
+
   /* ============================================
      LEGACY ALIASES (Backward Compatibility)
      ============================================ */
@@ -377,20 +377,6 @@
   font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
 }
 
-.btn-danger {
-  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors;
-  @apply bg-danger-600 text-white hover:bg-danger-700;
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-400;
-  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
-}
-
-.btn-danger-ghost {
-  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors;
-  @apply bg-transparent text-danger-600 hover:bg-danger-50;
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-400;
-  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
-}
-
 /* ============================================
    EXISTING UTILITIES (PRESERVED)
    ============================================ */
@@ -399,7 +385,11 @@
   position: relative;
   display: inline-block;
   padding: 0 3px;
-  background-image: linear-gradient(100deg, rgba(255, 231, 150, 0.7), rgba(255, 231, 150, 0.8));
+  background-image: linear-gradient(
+    100deg,
+    rgba(255, 231, 150, 0.7),
+    rgba(255, 231, 150, 0.8)
+  );
   background-repeat: no-repeat;
   background-size: 100% 55%;
   background-position: 0 70%;
@@ -420,8 +410,10 @@
   height: 32px;
   pointer-events: none;
   background:
-    linear-gradient(135deg, transparent 55%, var(--paper) 55%) 0 0/24px 24px repeat-x,
-    linear-gradient(225deg, transparent 55%, var(--paper) 55%) 12px 0/24px 24px repeat-x;
+    linear-gradient(135deg, transparent 55%, var(--paper) 55%) 0 0/24px 24px
+      repeat-x,
+    linear-gradient(225deg, transparent 55%, var(--paper) 55%) 12px 0/24px 24px
+      repeat-x;
 }
 
 .paper-card {
@@ -445,7 +437,9 @@
     0 12px 22px -16px rgba(45, 55, 72, 0.45),
     0 1px 0 rgba(255, 255, 255, 0.9) inset,
     0 -1px 0 rgba(0, 0, 0, 0.08) inset;
-  transition: transform 140ms ease, box-shadow 140ms ease;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .btn-mech:hover {
@@ -473,7 +467,9 @@
     0 8px 16px -12px rgba(0, 0, 0, 0.25),
     0 1px 0 rgba(255, 255, 255, 0.75) inset,
     0 -1px 0 rgba(0, 0, 0, 0.08) inset;
-  transition: transform 140ms ease, box-shadow 140ms ease;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .btn-steel:hover {
@@ -502,14 +498,31 @@
 }
 
 .torn-fade {
-  background: linear-gradient(180deg, rgba(249, 246, 239, 0) 0%, rgba(249, 246, 239, 0.9) 70%, rgba(249, 246, 239, 1) 100%);
-  mask-image: linear-gradient(#000, transparent), repeating-linear-gradient(135deg, #000 0 8px, transparent 8px 16px);
-  mask-size: 100% 100%, 16px 16px;
-  mask-position: 0 0, 0 100%;
+  background: linear-gradient(
+    180deg,
+    rgba(249, 246, 239, 0) 0%,
+    rgba(249, 246, 239, 0.9) 70%,
+    rgba(249, 246, 239, 1) 100%
+  );
+  mask-image:
+    linear-gradient(#000, transparent),
+    repeating-linear-gradient(135deg, #000 0 8px, transparent 8px 16px);
+  mask-size:
+    100% 100%,
+    16px 16px;
+  mask-position:
+    0 0,
+    0 100%;
   mask-repeat: no-repeat, repeat-x;
-  -webkit-mask-image: linear-gradient(#000, transparent), repeating-linear-gradient(135deg, #000 0 8px, transparent 8px 16px);
-  -webkit-mask-size: 100% 100%, 16px 16px;
-  -webkit-mask-position: 0 0, 0 100%;
+  -webkit-mask-image:
+    linear-gradient(#000, transparent),
+    repeating-linear-gradient(135deg, #000 0 8px, transparent 8px 16px);
+  -webkit-mask-size:
+    100% 100%,
+    16px 16px;
+  -webkit-mask-position:
+    0 0,
+    0 100%;
   -webkit-mask-repeat: no-repeat, repeat-x;
 }
 
@@ -537,15 +550,25 @@
 
 .receipt-tear {
   position: relative;
-  mask-image: linear-gradient(#000 0 0),
+  mask-image:
+    linear-gradient(#000 0 0),
     repeating-linear-gradient(135deg, #000 0 8px, transparent 8px 16px);
-  mask-size: auto, 16px 16px;
-  mask-position: 0 0, 0 100%;
+  mask-size:
+    auto,
+    16px 16px;
+  mask-position:
+    0 0,
+    0 100%;
   mask-repeat: no-repeat, repeat-x;
-  -webkit-mask-image: linear-gradient(#000 0 0),
+  -webkit-mask-image:
+    linear-gradient(#000 0 0),
     repeating-linear-gradient(135deg, #000 0 8px, transparent 8px 16px);
-  -webkit-mask-size: auto, 16px 16px;
-  -webkit-mask-position: 0 0, 0 100%;
+  -webkit-mask-size:
+    auto,
+    16px 16px;
+  -webkit-mask-position:
+    0 0,
+    0 100%;
   -webkit-mask-repeat: no-repeat, repeat-x;
 }
 
