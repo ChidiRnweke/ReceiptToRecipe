@@ -760,12 +760,6 @@
         class="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-center"
       >
         <Button href="/login" size="lg">Log in</Button>
-        <Button
-          href="/register"
-          variant="outline"
-          size="lg"
-          class="border-sand text-text-primary">Create account</Button
-        >
       </div>
     </div>
   </div>

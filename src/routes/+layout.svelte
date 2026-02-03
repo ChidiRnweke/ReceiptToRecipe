@@ -13,7 +13,7 @@
   let { data, children } = $props();
 
   // Initialize state
-  const workflowState = new WorkflowState(data.workflowCounts ?? undefined);
+  let workflowState = new WorkflowState(data.workflowCounts ?? undefined);
 
   // Sync state when data changes (e.g. after navigation)
   $effect(() => {
@@ -57,7 +57,8 @@
           alt="Receipt2Recipe Logo"
           class="h-8 w-8 transition-transform duration-500 group-hover:rotate-6"
         />
-        <span class="font-serif text-2xl font-medium tracking-tight text-text-primary"
+        <span
+          class="font-serif text-2xl font-medium tracking-tight text-text-primary"
           >Receipt2Recipe</span
         >
       </a>
@@ -99,7 +100,11 @@
               </DropdownMenu.Item>
               <DropdownMenu.Separator />
               <DropdownMenu.Item>
-                <a href="/logout" class="flex w-full items-center">
+                <a
+                  href="/logout"
+                  data-sveltekit-reload
+                  class="flex w-full items-center"
+                >
                   <LogOut class="mr-2 h-4 w-4" />
                   Log out
                 </a>
@@ -120,8 +125,7 @@
           </button>
         {:else}
           <div class="flex items-center gap-2">
-            <Button variant="ghost" href="/login">Log in</Button>
-            <Button href="/register">Sign up</Button>
+            <Button href="/login">Log in</Button>
           </div>
         {/if}
       </div>

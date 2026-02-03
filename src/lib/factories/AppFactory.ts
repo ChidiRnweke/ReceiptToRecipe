@@ -4,7 +4,7 @@ import {
   MinioStorageService,
   FileSystemStorageService,
   NormalizationService,
-  AuthService,
+  Auth0OAuthService,
   MistralOcrService,
   MockOcrService,
   GeminiLlmService,
@@ -22,7 +22,7 @@ import {
   type IImageGenService,
   type IVectorService,
   type IProductNormalizationService,
-  type IAuthService,
+  type IOAuthService,
   type IPantryService,
   type ITasteProfileService,
   type IDashboardService,
@@ -70,8 +70,8 @@ let imageGenService: IImageGenService | null = null;
 let vectorService: IVectorService | null = null;
 let jobQueue: JobQueue | null = null;
 
-// Domain Services
-let authService: IAuthService | null = null;
+// Domain Services - Using IOAuthService as the auth interface
+let oauthService: IOAuthService | null = null;
 let pantryService: IPantryService | null = null;
 let tasteProfileService: ITasteProfileService | null = null;
 let dashboardService: IDashboardService | null = null;
@@ -178,16 +178,37 @@ export class AppFactory {
     return jobQueue;
   }
 
-  // Domain Services
-  static getAuthService(): IAuthService {
-    if (!authService) {
-      authService = new AuthService(
+  // Domain Services - Auth now uses OAuth2/Auth0
+  static getOAuthService(): IOAuthService {
+    if (!oauthService) {
+      const domain = env.OAUTH_DOMAIN;
+      const clientId = env.OAUTH_CLIENT_ID;
+      const clientSecret = env.OAUTH_CLIENT_SECRET;
+      
+      if (!domain || !clientId || !clientSecret) {
+        throw new Error(
+          "OAuth environment variables (OAUTH_DOMAIN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET) are required"
+        );
+      }
+
+      oauthService = new Auth0OAuthService(
         AppFactory.getUserRepository(),
         AppFactory.getSessionRepository(),
-        AppFactory.getUserPreferencesRepository()
+        AppFactory.getUserPreferencesRepository(),
+        {
+          domain,
+          clientId,
+          clientSecret,
+          callbackUrl: env.OAUTH_CALLBACK_URL || "/callback",
+        }
       );
     }
-    return authService;
+    return oauthService;
+  }
+
+  // Backwards compatibility - AuthService is now OAuth-based
+  static getAuthService(): IOAuthService {
+    return AppFactory.getOAuthService();
   }
 
   static getPantryService(): IPantryService {
@@ -345,7 +366,7 @@ export class AppFactory {
     jobQueue = null;
 
     // Domain Services
-    authService = null;
+    oauthService = null;
     pantryService = null;
     tasteProfileService = null;
     dashboardService = null;

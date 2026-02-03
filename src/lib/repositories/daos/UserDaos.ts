@@ -15,6 +15,8 @@ export interface NewUserDao {
 	name: string;
 	avatarUrl?: string | null;
 	passwordHash?: string | null;
+	authProvider?: string;
+	authProviderId?: string | null;
 }
 
 export interface SessionDao {

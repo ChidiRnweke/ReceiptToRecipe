@@ -21,6 +21,13 @@ export class UserRepository implements IUserRepository {
 		return user ? this.toDao(user) : null;
 	}
 
+	async findByAuthProviderId(authProviderId: string): Promise<UserDao | null> {
+		const user = await this.db.query.users.findFirst({
+			where: eq(schema.users.authProviderId, authProviderId)
+		});
+		return user ? this.toDao(user) : null;
+	}
+
 	async findByEmailWithPassword(email: string): Promise<(UserDao & { passwordHash: string | null }) | null> {
 		const user = await this.db.query.users.findFirst({
 			where: eq(schema.users.email, email),
@@ -30,6 +37,8 @@ export class UserRepository implements IUserRepository {
 				name: true,
 				avatarUrl: true,
 				passwordHash: true,
+				authProvider: true,
+				authProviderId: true,
 				createdAt: true,
 				updatedAt: true
 			}
@@ -46,14 +55,33 @@ export class UserRepository implements IUserRepository {
 			email: user.email,
 			name: user.name,
 			avatarUrl: user.avatarUrl || null,
-			passwordHash: user.passwordHash || null
-		}).returning();
-		return this.toDao(created);
+			passwordHash: user.passwordHash || null,
+			authProvider: user.authProvider || 'auth0',
+			authProviderId: user.authProviderId || null
+		}).returning({
+			id: schema.users.id,
+			email: schema.users.email,
+			name: schema.users.name,
+			avatarUrl: schema.users.avatarUrl,
+			createdAt: schema.users.createdAt,
+			updatedAt: schema.users.updatedAt
+		});
+		return created;
 	}
 
 	async exists(email: string): Promise<boolean> {
 		const user = await this.findByEmail(email);
 		return user !== null;
+	}
+
+	async updateAuthProviderId(userId: string, authProviderId: string): Promise<void> {
+		await this.db.update(schema.users)
+			.set({ 
+				authProviderId,
+				authProvider: 'auth0',
+				updatedAt: new Date()
+			})
+			.where(eq(schema.users.id, userId));
 	}
 
 	private toDao(user: typeof schema.users.$inferSelect): UserDao {

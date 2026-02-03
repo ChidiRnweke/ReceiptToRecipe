@@ -35,6 +35,8 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   avatarUrl: text("avatar_url"),
   passwordHash: text("password_hash"),
+  authProvider: text("auth_provider").notNull().default("auth0"),
+  authProviderId: text("auth_provider_id").unique(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

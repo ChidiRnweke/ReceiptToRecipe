@@ -43,6 +43,13 @@
       "when": 1769461093748,
       "tag": "0005_brief_karnak",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1770145324276,
+      "tag": "0006_panoramic_the_santerians",
+      "breakpoints": true
     }
   ]
 }

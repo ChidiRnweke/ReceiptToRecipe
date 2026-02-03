@@ -1,32 +1,24 @@
-import { fail, redirect } from '@sveltejs/kit';
-import type { Actions, PageServerLoad } from './$types';
-import { setSessionCookie } from '$lib/services/AuthService';
+import { redirect } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
 import { AppFactory } from '$lib/factories';
-import { requireString } from '$lib/validation';
+import { setPKCECookie } from '$lib/services/Auth0OAuthService';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	if (locals.user) {
-		throw redirect(302, '/');
-	}
-};
+export const load: PageServerLoad = async ({ cookies, locals }) => {
+  // If already logged in, redirect to home
+  if (locals.user) {
+    throw redirect(302, '/');
+  }
 
-export const actions: Actions = {
-	default: async ({ request, cookies }) => {
-		const data = await request.formData();
-		const email = requireString(data.get('email')?.toString(), 'Email is required');
-		const password = requireString(data.get('password')?.toString(), 'Password is required');
-
-		try {
-			const authService = AppFactory.getAuthService();
-			const result = await authService.login(email, password);
-			setSessionCookie(cookies, result.session.id);
-		} catch (error) {
-			return fail(400, {
-				error: error instanceof Error ? error.message : 'Login failed',
-				email
-			});
-		}
-
-		throw redirect(302, '/');
-	}
+  // Generate PKCE challenge
+  const oauthService = AppFactory.getOAuthService();
+  const pkce = await oauthService.generatePKCE();
+  
+  // Store PKCE data in cookie for callback
+  setPKCECookie(cookies, pkce.state, pkce.codeVerifier);
+  
+  // Get Auth0 authorization URL
+  const authUrl = await oauthService.getAuthorizationUrl(pkce.state, pkce.codeChallenge);
+  
+  // Redirect to Auth0
+  throw redirect(302, authUrl);
 };

@@ -15,3 +15,11 @@ export type { IDashboardService, DashboardData, DashboardMetrics, ActiveList, Ac
 
 // Auth interfaces (defined in AuthService.ts for now)
 export type { IAuthService, AuthResult } from "../AuthService";
+
+// OAuth interfaces
+export type {
+  IOAuthService,
+  Auth0Tokens,
+  Auth0UserInfo,
+  PKCEChallenge,
+} from "./IOAuthService";

@@ -49,7 +49,12 @@ export type {
 	ActiveList,
 	ActiveListStats,
 	IAuthService,
-	AuthResult
+	AuthResult,
+	// OAuth interfaces
+	IOAuthService,
+	Auth0Tokens,
+	Auth0UserInfo,
+	PKCEChallenge
 } from "./interfaces";
 
 // Export implementations
@@ -62,6 +67,13 @@ export {
 	setSessionCookie,
 	deleteSessionCookie,
 } from "./AuthService";
+export {
+	Auth0OAuthService,
+	getPKCECookie,
+	setPKCECookie,
+	deletePKCECookie,
+	type OAuthResult
+} from "./Auth0OAuthService";
 export { MistralOcrService } from "./MistralOcrService";
 export { MockOcrService } from "./MockOcrService";
 export { GeminiLlmService } from "./GeminiLlmService";
