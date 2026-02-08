@@ -1,7 +1,7 @@
 services:
   app:
     # Use the image built by GitHub Actions
-    image: ghcr.io/chidirnweke/receipt2recipe:latest
+    image: ghcr.io/chidirnweke/ReceiptToRecipe:latest
     container_name: receipt2recipe
     restart: unless-stopped
     expose:
@@ -33,7 +33,7 @@ services:
         condition: service_completed_successfully
 
   migrate:
-    image: ghcr.io/chidirnweke/receipt2recipe:latest
+    image: ghcr.io/chidirnweke/ReceiptToRecipe:latest
     container_name: receipt2recipe-migrate
     restart: "no"
     command: node scripts/prod-migrate.js
@@ -49,7 +49,7 @@ services:
       - telemetry-network
 
   minio-init:
-    image: ghcr.io/chidirnweke/receipt2recipe:latest
+    image: ghcr.io/chidirnweke/ReceiptToRecipe:latest
     container_name: receipt2recipe-minio-init
     restart: "no"
     command: node scripts/prod-minio-init.js
