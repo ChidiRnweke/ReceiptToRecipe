@@ -174,15 +174,13 @@
           />
         </div>
         <div
-          class="w-8 h-4 border-l-[16px] border-r-[16px] border-t-[10px] border-l-transparent border-r-transparent border-t-red-700"
+          class="w-8 h-4 border-l-16 border-r-16 border-t-10 border-l-transparent border-r-transparent border-t-red-700"
         ></div>
       </div>
     </div>
 
     <!-- Hero Image Area (Compact) -->
-    <div
-      class="relative h-[200px] md:h-[300px] w-full bg-bg-card overflow-hidden group"
-    >
+    <div class="relative h-50 md:h-75 w-full bg-bg-card overflow-hidden group">
       {#if data.recipe.imageStatus === "DONE" && data.recipe.imageUrl}
         <img
           src={data.recipe.imageUrl}
@@ -190,14 +188,16 @@
           class="h-full w-full object-cover transition-transform duration-[2s] group-hover:scale-105"
         />
         <div
-          class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60"
+          class="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent opacity-60"
         ></div>
       {:else if data.recipe.imageStatus === "PROCESSING" || data.recipe.imageStatus === "QUEUED"}
         <div
           class="h-full w-full flex items-center justify-center bg-bg-paper-dark"
         >
           <div class="text-center">
-            <Loader2 class="h-8 w-8 animate-spin text-text-muted mx-auto mb-2" />
+            <Loader2
+              class="h-8 w-8 animate-spin text-text-muted mx-auto mb-2"
+            />
             <p class="font-display text-lg text-text-secondary">
               Developing photo...
             </p>
@@ -283,7 +283,7 @@
 
           <!-- Compact Meta Data -->
           <div
-            class="flex flex-row md:flex-col gap-4 md:gap-2 border-t md:border-t-0 md:border-l border-border pt-3 md:pt-0 md:pl-6 shrink-0 min-w-[140px]"
+            class="flex flex-row md:flex-col gap-4 md:gap-2 border-t md:border-t-0 md:border-l border-border pt-3 md:pt-0 md:pl-6 shrink-0 min-w-35"
           >
             {#if data.recipe.prepTime || data.recipe.cookTime}
               <div class="flex items-center gap-2 text-text-secondary">
@@ -296,7 +296,9 @@
               </div>
             {/if}
 
-            <div class="flex items-center gap-2 text-text-secondary group relative">
+            <div
+              class="flex items-center gap-2 text-text-secondary group relative"
+            >
               <Users class="h-4 w-4 text-primary-500" />
               <span class="font-ui text-xs uppercase tracking-wider">
                 {servings} Servings
@@ -332,9 +334,7 @@
     <!-- The Spread (Two Columns) -->
     <div class="grid md:grid-cols-[1fr_1.5fr] gap-0 border-t border-border">
       <!-- Left: Ingredients (Textured Background) -->
-      <div
-        class="bg-[#faf9f6] p-8 md:p-12 border-r border-border/50 relative"
-      >
+      <div class="bg-[#faf9f6] p-8 md:p-12 border-r border-border/50 relative">
         <div class="sticky top-8">
           <div class="flex items-center justify-between mb-8">
             <h2 class="font-display text-3xl text-text-primary">Ingredients</h2>
@@ -453,6 +453,7 @@
               ingredients={data.recipe.ingredients}
               instructions={data.recipe.instructions}
               isOwner={data.isOwner}
+              suggestions={data.suggestions}
               onAdjust={() => invalidateAll()}
             />
           </div>
@@ -470,7 +471,7 @@
               title={data.recipe.title}
               ingredients={data.recipe.ingredients}
               instructions={data.recipe.instructions}
-              servings={servings}
+              {servings}
             />
           </div>
           {#if completedSteps.size > 0}

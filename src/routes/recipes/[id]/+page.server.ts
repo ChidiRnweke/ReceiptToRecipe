@@ -58,12 +58,40 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		}
 	}
 
+	// Generate AI suggestions for modifications
+	let suggestions: string[] = [];
+	try {
+		const llmService = AppFactory.getLlmService();
+		// Map DB recipe to GeneratedRecipe interface for the AI service
+		const recipeForAi = {
+			title: recipe.title,
+			description: recipe.description || "",
+			instructions: recipe.instructions,
+			servings: recipe.servings,
+			prepTime: recipe.prepTime || 0,
+			cookTime: recipe.cookTime || 0,
+			cuisineType: recipe.cuisineType || undefined,
+			ingredients: recipe.ingredients.map((i: any) => ({
+				name: i.name,
+				quantity: typeof i.quantity === 'string' ? parseFloat(i.quantity) : i.quantity,
+				unit: i.unit,
+				optional: i.optional || false,
+				notes: i.notes || undefined
+			}))
+		};
+		suggestions = await llmService.suggestModifications(recipeForAi);
+	} catch (err) {
+		console.warn("Failed to generate recipe suggestions:", err);
+		// Keep empty on error
+	}
+
 	return {
 		recipe,
 		isSaved,
 		isOwner,
 		sourceReceipt,
-		pantryMatches
+		pantryMatches,
+		suggestions
 	};
 };
 

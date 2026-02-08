@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { AppFactory } from '$lib/factories';
-import { setPKCECookie } from '$lib/services/Auth0OAuthService';
+import { setPKCECookie } from '$lib/services';
 
 export const load: PageServerLoad = async ({ cookies, locals }) => {
   // If already logged in, redirect to home

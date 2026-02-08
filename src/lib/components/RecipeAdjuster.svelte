@@ -17,6 +17,7 @@
     }>;
     instructions: string;
     isOwner: boolean;
+    suggestions?: string[];
     onAdjust?: () => void;
   }
 
@@ -27,6 +28,7 @@
     ingredients, 
     instructions, 
     isOwner,
+    suggestions = [],
     onAdjust 
   }: Props = $props();
 
@@ -34,7 +36,7 @@
   let isAdjusting = $state(false);
   let instruction = $state("");
 
-  const examples = [
+  const defaultExamples = [
     "Make it spicier",
     "Replace chicken with tofu",
     "Double the garlic",
@@ -42,6 +44,8 @@
     "Add more vegetables",
     "Make it for 6 people instead of 4"
   ];
+
+  let activeSuggestions = $derived(suggestions.length > 0 ? suggestions : defaultExamples);
 
   function toggleOpen() {
     isOpen = !isOpen;
@@ -119,7 +123,7 @@
 
             <!-- Example chips -->
             <div class="flex flex-wrap gap-1.5 mt-2">
-              {#each examples as example}
+              {#each activeSuggestions as example}
                 <button
                   type="button"
                   class="px-2 py-0.5 text-xs font-ui bg-bg-paper border border-border rounded-full hover:border-primary-300 hover:bg-primary-50/30 transition-colors"

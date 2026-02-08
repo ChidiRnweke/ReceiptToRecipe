@@ -78,4 +78,11 @@ export interface ILlmService {
 		currentRecipe: GeneratedRecipe,
 		instruction: string
 	): Promise<GeneratedRecipe>;
+
+	/**
+	 * Suggest context-aware modifications for a recipe
+	 * @param recipe - The recipe to generate suggestions for
+	 * @returns Array of short suggestion strings (3-4 items)
+	 */
+	suggestModifications(recipe: GeneratedRecipe): Promise<string[]>;
 }

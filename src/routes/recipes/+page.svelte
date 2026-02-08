@@ -11,7 +11,6 @@
     Loader2,
     AlertTriangle,
     ShieldAlert,
-    Filter
   } from "lucide-svelte";
   import { getContext } from "svelte";
   import type { WorkflowState } from "$lib/state/workflow.svelte";
@@ -23,7 +22,7 @@
   const workflowState = getContext<WorkflowState>("workflowState");
   let deletingId = $state<string | null>(null);
   let addingToShoppingId = $state<string | null>(null);
-  
+
   // Dialog state
   let deleteDialogOpen = $state(false);
   let recipeToDelete = $state<string | null>(null);
@@ -32,10 +31,18 @@
   let hideIncompatible = $state(false);
 
   const suggestedRecipes = $derived(
-    data.recipes.filter((r: any) => r.isSuggested && (!hideIncompatible || (r.compatibility?.compatible ?? true))),
+    data.recipes.filter(
+      (r: any) =>
+        r.isSuggested &&
+        (!hideIncompatible || (r.compatibility?.compatible ?? true)),
+    ),
   );
   const otherRecipes = $derived(
-    data.recipes.filter((r: any) => !r.isSuggested && (!hideIncompatible || (r.compatibility?.compatible ?? true))),
+    data.recipes.filter(
+      (r: any) =>
+        !r.isSuggested &&
+        (!hideIncompatible || (r.compatibility?.compatible ?? true)),
+    ),
   );
 
   function formatTime(minutes: number | null) {
@@ -45,7 +52,7 @@
     const mins = minutes % 60;
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   }
-  
+
   function confirmDelete(id: string) {
     recipeToDelete = id;
     deleteDialogOpen = true;
@@ -87,15 +94,23 @@
             Recipe <span class="marker-highlight">Scrapbook</span>
           </h1>
           <div class="flex items-center gap-4 mt-2">
-          <p
+            <p
               class="font-ui text-xs uppercase tracking-widest text-text-muted"
-          >
-                {data.recipes.length}
-                {data.recipes.length === 1 ? "recipe" : "recipes"} saved
+            >
+              {data.recipes.length}
+              {data.recipes.length === 1 ? "recipe" : "recipes"} saved
             </p>
             <div class="flex items-center gap-2">
-                <Checkbox id="hide-incompatible" bind:checked={hideIncompatible} class="h-4 w-4" />
-                <Label for="hide-incompatible" class="text-xs text-text-muted cursor-pointer font-medium">Hide Incompatible</Label>
+              <Checkbox
+                id="hide-incompatible"
+                bind:checked={hideIncompatible}
+                class="h-4 w-4"
+              />
+              <Label
+                for="hide-incompatible"
+                class="text-xs text-text-muted cursor-pointer font-medium"
+                >Hide Incompatible</Label
+              >
             </div>
           </div>
         </div>
@@ -105,8 +120,12 @@
           class="group relative h-10 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95"
         >
           <div class="flex items-center gap-2">
-            <Sparkles class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700" />
-            <span class="font-display text-base font-medium text-text-primary">New Recipe</span>
+            <Sparkles
+              class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
+            />
+            <span class="font-display text-base font-medium text-text-primary"
+              >New Recipe</span
+            >
           </div>
         </Button>
       </div>
@@ -138,7 +157,6 @@
               <div class="group {marginTops[i % marginTops.length]}">
                 <!-- Action button on top -->
                 <div class="flex items-center justify-center mb-3">
-                  <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
                   <form
                     method="POST"
                     action="?/addToShopping"
@@ -152,7 +170,6 @@
                         else await invalidateAll();
                       };
                     }}
-                    onclick={(e) => e.stopPropagation()}
                   >
                     <input type="hidden" name="recipeId" value={recipe.id} />
                     <button
@@ -222,27 +239,35 @@
                       >
                         {recipe.title}
                       </p>
-                      
+
                       <!-- Compatibility Badge / Metadata -->
-                      <div class="flex items-center justify-center gap-2 mt-0.5">
+                      <div
+                        class="flex items-center justify-center gap-2 mt-0.5"
+                      >
                         {#if recipe.compatibility && !recipe.compatibility.compatible}
-                            <span class="inline-flex items-center text-[10px] font-bold text-red-600 bg-red-50 px-1.5 rounded border border-red-100" title={recipe.compatibility.blockers.join(", ")}>
-                                <ShieldAlert class="h-3 w-3 mr-1" />
-                                Avoid
-                            </span>
+                          <span
+                            class="inline-flex items-center text-[10px] font-bold text-red-600 bg-red-50 px-1.5 rounded border border-red-100"
+                            title={recipe.compatibility.blockers.join(", ")}
+                          >
+                            <ShieldAlert class="h-3 w-3 mr-1" />
+                            Avoid
+                          </span>
                         {:else if recipe.compatibility && recipe.compatibility.warnings.length > 0}
-                            <span class="inline-flex items-center text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 rounded border border-amber-100" title={recipe.compatibility.warnings.join(", ")}>
-                                <AlertTriangle class="h-3 w-3 mr-1" />
-                                Warning
-                            </span>
+                          <span
+                            class="inline-flex items-center text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 rounded border border-amber-100"
+                            title={recipe.compatibility.warnings.join(", ")}
+                          >
+                            <AlertTriangle class="h-3 w-3 mr-1" />
+                            Warning
+                          </span>
                         {:else}
-                            <p
-                                class="font-ui text-xs text-text-muted text-center uppercase tracking-wide"
-                            >
-                                {formatTime(
-                                (recipe.prepTime || 0) + (recipe.cookTime || 0),
-                                ) || "?"} · {recipe.servings} servings
-                            </p>
+                          <p
+                            class="font-ui text-xs text-text-muted text-center uppercase tracking-wide"
+                          >
+                            {formatTime(
+                              (recipe.prepTime || 0) + (recipe.cookTime || 0),
+                            ) || "?"} · {recipe.servings} servings
+                          </p>
                         {/if}
                       </div>
                     </div>
@@ -252,7 +277,7 @@
                       class="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30"
                     >
                       <div
-                        class="bg-text-primary text-white text-sm px-3 py-1.5 rounded shadow-lg max-w-[260px] text-center whitespace-normal"
+                        class="bg-text-primary text-white text-sm px-3 py-1.5 rounded shadow-lg max-w-65 text-center whitespace-normal"
                       >
                         {recipe.title}
                       </div>
@@ -271,9 +296,7 @@
           <div
             class="mb-8 flex items-baseline justify-between border-b border-border pb-3"
           >
-            <h2 class="font-display text-2xl text-text-primary">
-              All Recipes
-            </h2>
+            <h2 class="font-display text-2xl text-text-primary">All Recipes</h2>
             <span
               class="font-ui text-[10px] uppercase tracking-widest text-text-muted"
             >
@@ -282,14 +305,15 @@
           </div>
 
           <!-- 3 cards per row -->
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
+          <div
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10"
+          >
             {#each otherRecipes as recipe, i (recipe.id)}
               {@const rotations = ["-rotate-2", "rotate-2", "-rotate-1"]}
               {@const marginTops = ["mt-0", "mt-6", "mt-3"]}
               <div class="group {marginTops[i % marginTops.length]}">
                 <!-- Action buttons on top -->
                 <div class="flex items-center justify-center gap-2 mb-3">
-                  <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
                   <form
                     method="POST"
                     action="?/addToShopping"
@@ -303,7 +327,6 @@
                         else await invalidateAll();
                       };
                     }}
-                    onclick={(e) => e.stopPropagation()}
                   >
                     <input type="hidden" name="recipeId" value={recipe.id} />
                     <button
@@ -323,18 +346,18 @@
                   <button
                     type="button"
                     onclick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        confirmDelete(recipe.id);
+                      e.stopPropagation();
+                      e.preventDefault();
+                      confirmDelete(recipe.id);
                     }}
                     disabled={deletingId === recipe.id}
                     class="flex h-8 w-8 items-center justify-center rounded-full bg-bg-card text-text-muted hover:bg-danger-500 hover:text-white transition-colors"
                     title="Delete recipe"
                   >
                     {#if deletingId === recipe.id}
-                        <Loader2 class="h-4 w-4 animate-spin" />
+                      <Loader2 class="h-4 w-4 animate-spin" />
                     {:else}
-                        <Trash2 class="h-4 w-4" />
+                      <Trash2 class="h-4 w-4" />
                     {/if}
                   </button>
                 </div>
@@ -394,14 +417,13 @@
                       class="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30"
                     >
                       <div
-                        class="bg-text-primary text-white text-xs px-3 py-1.5 rounded shadow-lg max-w-[220px] text-center whitespace-normal"
+                        class="bg-text-primary text-white text-xs px-3 py-1.5 rounded shadow-lg max-w-55 text-center whitespace-normal"
                       >
                         {recipe.title}
                       </div>
                     </div>
                   </div>
                 </a>
-
               </div>
             {/each}
           </div>
@@ -414,9 +436,7 @@
           <div
             class="relative bg-white p-1.5 pb-12 shadow-[0_2px_8px_rgba(0,0,0,0.1)] rotate-2 mb-8"
           >
-            <div
-              class="w-44 h-44 bg-bg-card flex items-center justify-center"
-            >
+            <div class="w-44 h-44 bg-bg-card flex items-center justify-center">
               <ChefHat class="h-12 w-12 text-text-muted" />
             </div>
             <p
@@ -425,7 +445,9 @@
               Your first recipe?
             </p>
           </div>
-          <h2 class="font-display text-2xl text-text-primary mb-2">No recipes yet</h2>
+          <h2 class="font-display text-2xl text-text-primary mb-2">
+            No recipes yet
+          </h2>
           <p
             class="font-serif text-base text-text-muted italic max-w-xs text-center mb-8"
           >
@@ -436,8 +458,12 @@
             class="group relative h-12 overflow-hidden rounded-lg border border-primary-300 bg-white px-8 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95"
           >
             <div class="flex items-center gap-2">
-              <Sparkles class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700" />
-              <span class="font-display text-base font-medium text-text-primary">Create Your First Recipe</span>
+              <Sparkles
+                class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
+              />
+              <span class="font-display text-base font-medium text-text-primary"
+                >Create Your First Recipe</span
+              >
             </div>
           </Button>
         </div>
@@ -450,26 +476,29 @@
       <AlertDialog.Header>
         <AlertDialog.Title>Are you sure?</AlertDialog.Title>
         <AlertDialog.Description>
-          This will permanently delete this recipe from your cookbook. This action cannot be undone.
+          This will permanently delete this recipe from your cookbook. This
+          action cannot be undone.
         </AlertDialog.Description>
       </AlertDialog.Header>
       <AlertDialog.Footer>
         <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
         <form
-            method="POST"
-            action="?/delete"
-            use:enhance={() => {
-                deleteDialogOpen = false;
-                if (recipeToDelete) deletingId = recipeToDelete;
-                return async ({ update }) => {
-                    deletingId = null;
-                    await update();
-                };
-            }}
-            class="inline-block"
+          method="POST"
+          action="?/delete"
+          use:enhance={() => {
+            deleteDialogOpen = false;
+            if (recipeToDelete) deletingId = recipeToDelete;
+            return async ({ update }) => {
+              deletingId = null;
+              await update();
+            };
+          }}
+          class="inline-block"
         >
-            <input type="hidden" name="recipeId" value={recipeToDelete} />
-            <AlertDialog.Action type="submit" class="btn-danger">Delete</AlertDialog.Action>
+          <input type="hidden" name="recipeId" value={recipeToDelete} />
+          <AlertDialog.Action type="submit" class="btn-danger"
+            >Delete</AlertDialog.Action
+          >
         </form>
       </AlertDialog.Footer>
     </AlertDialog.Content>

@@ -88,7 +88,7 @@
       <PinnedNote color="red" rotate="-rotate-2">
         <div class="w-48 text-center p-2">
           <p class="font-hand text-xl text-ink leading-tight">
-            "Finally, a use for that receipt in my pocket!"
+            "I’ve stopped buying ingredients I already own."
           </p>
           <div class="mt-3 flex justify-center">
             <div class="h-1 w-12 bg-border/50 rounded-full"></div>
@@ -103,7 +103,7 @@
       <PinnedNote color="yellow" rotate="rotate-2">
         <div class="w-48 text-center p-2">
           <p class="font-hand text-xl text-ink leading-tight">
-            "The stock tracking is a game changer."
+            "Turns my kitchen chaos into a dinner menu."
           </p>
           <div class="mt-3 flex justify-center">
             <div class="h-1 w-12 bg-border/50 rounded-full"></div>

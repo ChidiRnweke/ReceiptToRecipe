@@ -68,12 +68,12 @@ export {
 	deleteSessionCookie,
 } from "./AuthService";
 export {
-	Auth0OAuthService,
+	AuthentikOAuthService,
 	getPKCECookie,
 	setPKCECookie,
 	deletePKCECookie,
 	type OAuthResult
-} from "./Auth0OAuthService";
+} from "./AuthentikOAuthService";
 export { MistralOcrService } from "./MistralOcrService";
 export { MockOcrService } from "./MockOcrService";
 export { GeminiLlmService } from "./GeminiLlmService";

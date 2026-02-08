@@ -1,7 +1,7 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { AppFactory } from '$lib/factories';
-import { getPKCECookie, deletePKCECookie, setSessionCookie } from '$lib/services/Auth0OAuthService';
+import { getPKCECookie, deletePKCECookie, setSessionCookie } from '$lib/services';
 
 export const load: PageServerLoad = async ({ url, cookies }) => {
 	const code = url.searchParams.get('code');

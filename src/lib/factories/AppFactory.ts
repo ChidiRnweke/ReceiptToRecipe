@@ -4,7 +4,7 @@ import {
   MinioStorageService,
   FileSystemStorageService,
   NormalizationService,
-  Auth0OAuthService,
+  AuthentikOAuthService,
   MistralOcrService,
   MockOcrService,
   GeminiLlmService,
@@ -191,7 +191,7 @@ export class AppFactory {
         );
       }
 
-      oauthService = new Auth0OAuthService(
+      oauthService = new AuthentikOAuthService(
         AppFactory.getUserRepository(),
         AppFactory.getSessionRepository(),
         AppFactory.getUserPreferencesRepository(),
@@ -200,10 +200,11 @@ export class AppFactory {
           clientId,
           clientSecret,
           callbackUrl: env.OAUTH_CALLBACK_URL || "/callback",
+          slug: env.OAUTH_APP_SLUG,
         }
       );
     }
-    return oauthService;
+    return oauthService!;
   }
 
   // Backwards compatibility - AuthService is now OAuth-based

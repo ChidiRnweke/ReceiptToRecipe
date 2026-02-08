@@ -346,4 +346,50 @@ Respond with JSON in this exact format:
     
     return adjustedRecipe;
   }
+
+  async suggestModifications(recipe: GeneratedRecipe): Promise<string[]> {
+    const prompt = `Based on the following recipe, suggest 3-4 short, practical modifications or variations a cook might want to make.
+    
+    Recipe: ${recipe.title}
+    Ingredients: ${recipe.ingredients.map(i => i.name).join(", ")}
+    Cuisine: ${recipe.cuisineType || "General"}
+    
+    Examples of good suggestions:
+    - "Make it vegan" (if it has meat)
+    - "Add more protein"
+    - "Make it spicy"
+    - "Use gluten-free alternative"
+    - "Add roasted vegetables"
+    
+    Keep suggestions concise (max 5-6 words). Do NOT number them. Just return a JSON array of strings.
+    
+    Respond with JSON: ["suggestion 1", "suggestion 2", ...]`;
+
+    try {
+      const result = await this.client.models.generateContent({
+        model: "gemini-2.0-flash", // Use fast model as requested
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }],
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+        },
+      });
+
+      const response = result.text;
+      if (!response) return [];
+      
+      const suggestions = JSON.parse(response);
+      if (Array.isArray(suggestions)) {
+        return suggestions.slice(0, 4); // Limit to 4 max
+      }
+      return [];
+    } catch (error) {
+      console.warn("Failed to generate recipe suggestions:", error);
+      return []; // Fail gracefully with empty suggestions
+    }
+  }
 }

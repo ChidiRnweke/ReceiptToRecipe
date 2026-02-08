@@ -46,11 +46,12 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
   return base64URLEncode(digest);
 }
 
-export class Auth0OAuthService implements IOAuthService {
+export class AuthentikOAuthService implements IOAuthService {
   private domain: string;
   private clientId: string;
   private clientSecret: string;
   private callbackUrl: string;
+  private slug: string;
 
   constructor(
     private userRepo: IUserRepository,
@@ -61,12 +62,27 @@ export class Auth0OAuthService implements IOAuthService {
       clientId: string;
       clientSecret: string;
       callbackUrl: string;
+      slug?: string;
     }
   ) {
     this.domain = config.domain;
     this.clientId = config.clientId;
     this.clientSecret = config.clientSecret;
     this.callbackUrl = config.callbackUrl;
+    this.slug = config.slug || "receipt2recipe";
+  }
+
+  // Authentik endpoints
+  private get authorizeUrl(): string {
+    return `https://${this.domain}/application/o/authorize/`;
+  }
+
+  private get tokenUrl(): string {
+    return `https://${this.domain}/application/o/token/`;
+  }
+
+  private get userInfoUrl(): string {
+    return `https://${this.domain}/application/o/userinfo/`;
   }
 
   async generatePKCE(): Promise<PKCEChallenge> {
@@ -91,26 +107,28 @@ export class Auth0OAuthService implements IOAuthService {
       code_challenge_method: "S256",
     });
 
-    return `https://${this.domain}/authorize?${params.toString()}`;
+    return `${this.authorizeUrl}?${params.toString()}`;
   }
 
   async exchangeCodeForTokens(
     code: string,
     codeVerifier: string
   ): Promise<Auth0Tokens> {
-    const response = await fetch(`https://${this.domain}/oauth/token`, {
+    const params = new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: this.clientId,
+      client_secret: this.clientSecret,
+      code: code,
+      redirect_uri: this.callbackUrl,
+      code_verifier: codeVerifier,
+    });
+
+    const response = await fetch(this.tokenUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: JSON.stringify({
-        grant_type: "authorization_code",
-        client_id: this.clientId,
-        client_secret: this.clientSecret,
-        code: code,
-        redirect_uri: this.callbackUrl,
-        code_verifier: codeVerifier,
-      }),
+      body: params,
     });
 
     if (!response.ok) {
@@ -122,7 +140,7 @@ export class Auth0OAuthService implements IOAuthService {
   }
 
   async getUserInfo(accessToken: string): Promise<Auth0UserInfo> {
-    const response = await fetch(`https://${this.domain}/userinfo`, {
+    const response = await fetch(this.userInfoUrl, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
@@ -137,7 +155,7 @@ export class Auth0OAuthService implements IOAuthService {
   }
 
   async findOrCreateUser(userInfo: Auth0UserInfo): Promise<UserDao> {
-    // First, try to find by Auth0 provider ID
+    // Authentik returns 'sub' as usual
     const existingByProviderId = await this.userRepo.findByAuthProviderId(
       userInfo.sub
     );
@@ -145,10 +163,9 @@ export class Auth0OAuthService implements IOAuthService {
       return existingByProviderId;
     }
 
-    // Then, try to find by email and link accounts
+    // Try to find by email
     const existingByEmail = await this.userRepo.findByEmail(userInfo.email);
     if (existingByEmail) {
-      // Link the account by updating authProviderId
       await this.userRepo.updateAuthProviderId(existingByEmail.id, userInfo.sub);
       return existingByEmail;
     }
@@ -158,7 +175,7 @@ export class Auth0OAuthService implements IOAuthService {
       email: userInfo.email,
       name: userInfo.name || userInfo.nickname || userInfo.email.split("@")[0],
       avatarUrl: userInfo.picture || null,
-      authProvider: "auth0",
+      authProvider: "authentik", // Updated provider name
       authProviderId: userInfo.sub,
     });
 
@@ -212,23 +229,14 @@ export class Auth0OAuthService implements IOAuthService {
     await this.sessionRepo.delete(sessionId);
   }
 
-  // Complete OAuth flow helper
   async completeOAuthFlow(
     code: string,
     codeVerifier: string
   ): Promise<OAuthResult> {
-    // Exchange code for tokens
     const tokens = await this.exchangeCodeForTokens(code, codeVerifier);
-
-    // Get user info
     const userInfo = await this.getUserInfo(tokens.access_token);
-
-    // Find or create user
     const user = await this.findOrCreateUser(userInfo);
-
-    // Create session
     const session = await this.createSession(user.id);
-
     return { user, session };
   }
 }
@@ -265,7 +273,6 @@ export function deletePKCECookie(cookies: Cookies, state: string): void {
   cookies.delete(`oauth_${state}`, { path: "/" });
 }
 
-// Re-export session cookie helpers from AuthService
 export {
   getSessionCookie,
   setSessionCookie,

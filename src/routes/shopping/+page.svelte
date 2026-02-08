@@ -209,7 +209,8 @@
         class="mt-2 flex items-center gap-2 text-[10px] font-ui uppercase tracking-widest text-fg-muted"
       >
         <span>Prepared for</span>
-        <span class="text-accent-600 font-bold border-b border-accent-200">you</span
+        <span class="text-accent-600 font-bold border-b border-accent-200"
+          >you</span
         >
       </div>
     </div>
@@ -231,14 +232,11 @@
             class="flex items-center gap-2 mb-3 pb-2 border-b border-yellow-200/50"
           >
             <Sparkles class="h-4 w-4 text-amber-600" />
-            <h3 class="font-hand text-xl font-bold text-ink/80">
-              Stock Gaps?
-            </h3>
+            <h3 class="font-hand text-xl font-bold text-ink/80">Stock Gaps?</h3>
           </div>
 
           <p class="text-sm text-ink/70 leading-relaxed mb-4 font-hand">
-            Based on what you usually buy, you might be running low on these
-            essentials:
+            Based on what you usually buy, you might be on these essentials:
           </p>
 
           {#if data.suggestions && data.suggestions.length > 0}
@@ -401,7 +399,7 @@
       <!-- CENTER: The Main Notepad -->
       <div class="lg:col-span-8 order-1 lg:order-2">
         <Notepad
-          class="w-full min-h-[600px] shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)]"
+          class="w-full min-h-150 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)]"
         >
           <div class="px-2 sm:px-4 py-2">
             {#if lists.length === 0}
@@ -658,9 +656,7 @@
                                           <div
                                             class="absolute inset-0 border-2 border-border rounded-sm bg-fg/5"
                                           ></div>
-                                          <Check
-                                            class="h-4 w-4 text-fg"
-                                          />
+                                          <Check class="h-4 w-4 text-fg" />
                                         {:else}
                                           <div
                                             class="absolute inset-0 border-2 border-fg-muted rounded-sm hover:border-border transition-colors"
@@ -672,7 +668,7 @@
 
                                   <!-- Item Text -->
                                   <div
-                                    class="flex-1 min-w-0 flex flex-col justify-center min-h-[1.75rem]"
+                                    class="flex-1 min-w-0 flex flex-col justify-center min-h-7"
                                   >
                                     <div class="flex items-baseline gap-2">
                                       <span
@@ -775,10 +771,7 @@
                               name="listId"
                               value={list.id}
                             />
-                            <button
-                              type="submit"
-                              class="btn-accent"
-                            >
+                            <button type="submit" class="btn-accent">
                               <Check class="mr-2 h-4 w-4" />
                               Checkout
                             </button>
@@ -831,16 +824,10 @@
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer class="gap-2">
-      <AlertDialog.Cancel
-        onclick={dismissPantryWarning}
-        class="btn-ghost"
-      >
+      <AlertDialog.Cancel onclick={dismissPantryWarning} class="btn-ghost">
         Skip Item
       </AlertDialog.Cancel>
-      <AlertDialog.Action
-        onclick={forceAddItem}
-        class="btn-accent-filled"
-      >
+      <AlertDialog.Action onclick={forceAddItem} class="btn-accent-filled">
         Add Anyway
       </AlertDialog.Action>
     </AlertDialog.Footer>
