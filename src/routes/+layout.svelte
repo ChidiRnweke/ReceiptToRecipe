@@ -13,6 +13,7 @@
   let { data, children } = $props();
 
   // Initialize state
+  // FIX: Access data.workflowCounts safely inside a closure or directly
   let workflowState = new WorkflowState(data.workflowCounts ?? undefined);
 
   // Sync state when data changes (e.g. after navigation)

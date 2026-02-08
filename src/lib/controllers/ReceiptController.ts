@@ -1,4 +1,4 @@
-import { db } from "$db/client";
+import { getDb } from "$db/client";
 import { receipts, receiptItems, purchaseHistory } from "$db/schema";
 import type {
   Receipt,
@@ -53,6 +53,8 @@ export class ReceiptController {
     );
 
     // Create receipt record with QUEUED status
+    const db = getDb();
+    if (!db) throw new Error("Database not initialized");
     const [receipt] = await db
       .insert(receipts)
       .values({
@@ -92,6 +94,11 @@ export class ReceiptController {
     receiptId: string,
     imageUrl: string,
   ): Promise<void> {
+    const db = getDb();
+    if (!db) {
+      console.error("Database not initialized during OCR processing");
+      return;
+    }
     try {
       // Update status to PROCESSING
       await db
@@ -146,6 +153,8 @@ export class ReceiptController {
     receiptId: string,
     ocrData: RawReceiptData,
   ): Promise<void> {
+    const db = getDb();
+    if (!db) throw new Error("Database not initialized");
     const receipt = await db.query.receipts.findFirst({
       where: eq(receipts.id, receiptId),
     });
@@ -209,6 +218,8 @@ export class ReceiptController {
     items: NewReceiptItem[],
     purchaseDate: Date,
   ): Promise<void> {
+    const db = getDb();
+    if (!db) throw new Error("Database not initialized");
     for (const item of items) {
       const existing = await db.query.purchaseHistory.findFirst({
         where: and(
@@ -291,6 +302,8 @@ export class ReceiptController {
     receiptId: string,
     userId: string,
   ): Promise<ReceiptWithItems | null> {
+    const db = getDb();
+    if (!db) throw new Error("Database not initialized");
     const receipt = await db.query.receipts.findFirst({
       where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId)),
       with: {
@@ -308,6 +321,8 @@ export class ReceiptController {
     receiptId: string,
     userId: string,
   ): Promise<{ status: string; errorMessage?: string | null } | null> {
+    const db = getDb();
+    if (!db) throw new Error("Database not initialized");
     const receipt = await db.query.receipts.findFirst({
       where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId)),
       columns: {
@@ -326,6 +341,8 @@ export class ReceiptController {
     userId: string,
     limit: number = 20,
   ): Promise<Receipt[]> {
+    const db = getDb();
+    if (!db) throw new Error("Database not initialized");
     return db.query.receipts.findMany({
       where: eq(receipts.userId, userId),
       orderBy: [desc(receipts.createdAt)],
@@ -340,6 +357,8 @@ export class ReceiptController {
    * Delete a receipt
    */
   async deleteReceipt(receiptId: string, userId: string): Promise<void> {
+    const db = getDb();
+    if (!db) throw new Error("Database not initialized");
     const receipt = await db.query.receipts.findFirst({
       where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId)),
     });
@@ -373,6 +392,8 @@ export class ReceiptController {
       category?: string | null;
     },
   ): Promise<ReceiptItem> {
+    const db = getDb();
+    if (!db) throw new Error("Database not initialized");
     const receipt = await db.query.receipts.findFirst({
       where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId)),
     });
@@ -420,6 +441,8 @@ export class ReceiptController {
       category?: string | null;
     },
   ): Promise<ReceiptItem> {
+    const db = getDb();
+    if (!db) throw new Error("Database not initialized");
     const receipt = await db.query.receipts.findFirst({
       where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId)),
     });
@@ -455,6 +478,8 @@ export class ReceiptController {
     userId: string,
     itemId: string,
   ): Promise<void> {
+    const db = getDb();
+    if (!db) throw new Error("Database not initialized");
     const receipt = await db.query.receipts.findFirst({
       where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId)),
     });

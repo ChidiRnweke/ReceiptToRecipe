@@ -1,5 +1,5 @@
-import { env } from "$env/dynamic/private";
-import { db } from "$db/client";
+import { ConfigService } from "$services/ConfigService";
+import { getDb } from "$db/client";
 import {
   MinioStorageService,
   FileSystemStorageService,
@@ -90,8 +90,10 @@ let shoppingListItemRepository: IShoppingListItemRepository | null = null;
 let purchaseHistoryRepository: IPurchaseHistoryRepository | null = null;
 let userDietaryProfileRepository: IUserDietaryProfileRepository | null = null;
 let userAllergyRepository: IUserAllergyRepository | null = null;
-let userIngredientPreferenceRepository: IUserIngredientPreferenceRepository | null = null;
-let userCuisinePreferenceRepository: IUserCuisinePreferenceRepository | null = null;
+let userIngredientPreferenceRepository: IUserIngredientPreferenceRepository | null =
+  null;
+let userCuisinePreferenceRepository: IUserCuisinePreferenceRepository | null =
+  null;
 
 /**
  * Factory for creating and managing service and repository instances
@@ -115,18 +117,20 @@ export class AppFactory {
 
   static getProductNormalizationService(): IProductNormalizationService {
     if (!productNormalizationService) {
-      const apiKey = env.GEMINI_API_KEY;
+      const apiKey = ConfigService.get("GEMINI_API_KEY");
       if (!apiKey) {
         throw new Error("GEMINI_API_KEY environment variable is required");
       }
-      productNormalizationService = new GeminiProductNormalizationService(apiKey);
+      productNormalizationService = new GeminiProductNormalizationService(
+        apiKey,
+      );
     }
     return productNormalizationService;
   }
 
   static getOcrService(): IOcrService {
     if (!ocrService) {
-      const apiKey = env.MISTRAL_API_KEY;
+      const apiKey = ConfigService.get("MISTRAL_API_KEY");
       ocrService = apiKey
         ? new MistralOcrService(apiKey)
         : new MockOcrService();
@@ -136,14 +140,14 @@ export class AppFactory {
 
   static getLlmService(): ILlmService {
     if (!llmService) {
-      const apiKey = env.GEMINI_API_KEY;
+      const apiKey = ConfigService.get("GEMINI_API_KEY");
       if (!apiKey) {
         throw new Error("GEMINI_API_KEY environment variable is required");
       }
       llmService = new GeminiLlmService(
         apiKey,
-        env.GEMINI_MODEL || "gemini-2.5-flash",
-        env.GEMINI_EMBEDDING_MODEL || "text-embedding-004",
+        ConfigService.get("GEMINI_MODEL") || "gemini-2.5-flash",
+        ConfigService.get("GEMINI_EMBEDDING_MODEL") || "text-embedding-004",
       );
     }
     return llmService;
@@ -151,13 +155,13 @@ export class AppFactory {
 
   static getImageGenService(): IImageGenService {
     if (!imageGenService) {
-      const apiKey = env.GEMINI_API_KEY;
+      const apiKey = ConfigService.get("GEMINI_API_KEY");
       if (!apiKey) {
         throw new Error("GEMINI_API_KEY environment variable is required");
       }
       imageGenService = new GeminiImageService(
         apiKey,
-        env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image",
+        ConfigService.get("GEMINI_IMAGE_MODEL") || "gemini-2.5-flash-image",
       );
     }
     return imageGenService;
@@ -172,7 +176,7 @@ export class AppFactory {
 
   static getJobQueue(): JobQueue {
     if (!jobQueue) {
-      const concurrency = parseInt(env.JOB_CONCURRENCY || "2");
+      const concurrency = parseInt(ConfigService.get("JOB_CONCURRENCY") || "2");
       jobQueue = new JobQueue(Number.isFinite(concurrency) ? concurrency : 2);
     }
     return jobQueue;
@@ -181,13 +185,13 @@ export class AppFactory {
   // Domain Services - Auth now uses OAuth2/Auth0
   static getOAuthService(): IOAuthService {
     if (!oauthService) {
-      const domain = env.OAUTH_DOMAIN;
-      const clientId = env.OAUTH_CLIENT_ID;
-      const clientSecret = env.OAUTH_CLIENT_SECRET;
-      
+      const domain = ConfigService.get("OAUTH_DOMAIN");
+      const clientId = ConfigService.get("OAUTH_CLIENT_ID");
+      const clientSecret = ConfigService.get("OAUTH_CLIENT_SECRET");
+
       if (!domain || !clientId || !clientSecret) {
         throw new Error(
-          "OAuth environment variables (OAUTH_DOMAIN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET) are required"
+          "OAuth environment variables (OAUTH_DOMAIN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET) are required",
         );
       }
 
@@ -199,9 +203,9 @@ export class AppFactory {
           domain,
           clientId,
           clientSecret,
-          callbackUrl: env.OAUTH_CALLBACK_URL || "/callback",
-          slug: env.OAUTH_APP_SLUG,
-        }
+          callbackUrl: ConfigService.get("OAUTH_CALLBACK_URL") || "/callback",
+          slug: ConfigService.get("OAUTH_APP_SLUG"),
+        },
       );
     }
     return oauthService!;
@@ -227,7 +231,7 @@ export class AppFactory {
         AppFactory.getUserIngredientPreferenceRepository(),
         AppFactory.getUserCuisinePreferenceRepository(),
         AppFactory.getRecipeRepository(),
-        AppFactory.getRecipeIngredientRepository()
+        AppFactory.getRecipeIngredientRepository(),
       );
     }
     return tasteProfileService;
@@ -240,7 +244,7 @@ export class AppFactory {
         AppFactory.getRecipeRepository(),
         AppFactory.getSavedRecipeRepository(),
         AppFactory.getShoppingListRepository(),
-        AppFactory.getPantryService()
+        AppFactory.getPantryService(),
       );
     }
     return dashboardService;
@@ -249,105 +253,108 @@ export class AppFactory {
   // Repositories
   static getUserRepository(): IUserRepository {
     if (!userRepository) {
-      userRepository = new UserRepository(db);
+      userRepository = new UserRepository(getDb());
     }
     return userRepository;
   }
 
   static getSessionRepository(): ISessionRepository {
     if (!sessionRepository) {
-      sessionRepository = new SessionRepository(db);
+      sessionRepository = new SessionRepository(getDb());
     }
     return sessionRepository;
   }
 
   static getUserPreferencesRepository(): IUserPreferencesRepository {
     if (!userPreferencesRepository) {
-      userPreferencesRepository = new UserPreferencesRepository(db);
+      userPreferencesRepository = new UserPreferencesRepository(getDb());
     }
     return userPreferencesRepository;
   }
 
   static getReceiptRepository(): IReceiptRepository {
     if (!receiptRepository) {
-      receiptRepository = new ReceiptRepository(db);
+      receiptRepository = new ReceiptRepository(getDb());
     }
     return receiptRepository;
   }
 
   static getReceiptItemRepository(): IReceiptItemRepository {
     if (!receiptItemRepository) {
-      receiptItemRepository = new ReceiptItemRepository(db);
+      receiptItemRepository = new ReceiptItemRepository(getDb());
     }
     return receiptItemRepository;
   }
 
   static getRecipeRepository(): IRecipeRepository {
     if (!recipeRepository) {
-      recipeRepository = new RecipeRepository(db);
+      recipeRepository = new RecipeRepository(getDb());
     }
     return recipeRepository;
   }
 
   static getRecipeIngredientRepository(): IRecipeIngredientRepository {
     if (!recipeIngredientRepository) {
-      recipeIngredientRepository = new RecipeIngredientRepository(db);
+      recipeIngredientRepository = new RecipeIngredientRepository(getDb());
     }
     return recipeIngredientRepository;
   }
 
   static getSavedRecipeRepository(): ISavedRecipeRepository {
     if (!savedRecipeRepository) {
-      savedRecipeRepository = new SavedRecipeRepository(db);
+      savedRecipeRepository = new SavedRecipeRepository(getDb());
     }
     return savedRecipeRepository;
   }
 
   static getShoppingListRepository(): IShoppingListRepository {
     if (!shoppingListRepository) {
-      shoppingListRepository = new ShoppingListRepository(db);
+      shoppingListRepository = new ShoppingListRepository(getDb());
     }
     return shoppingListRepository;
   }
 
   static getShoppingListItemRepository(): IShoppingListItemRepository {
     if (!shoppingListItemRepository) {
-      shoppingListItemRepository = new ShoppingListItemRepository(db);
+      shoppingListItemRepository = new ShoppingListItemRepository(getDb());
     }
     return shoppingListItemRepository;
   }
 
   static getPurchaseHistoryRepository(): IPurchaseHistoryRepository {
     if (!purchaseHistoryRepository) {
-      purchaseHistoryRepository = new PurchaseHistoryRepository(db);
+      purchaseHistoryRepository = new PurchaseHistoryRepository(getDb());
     }
     return purchaseHistoryRepository;
   }
 
   static getUserDietaryProfileRepository(): IUserDietaryProfileRepository {
     if (!userDietaryProfileRepository) {
-      userDietaryProfileRepository = new UserDietaryProfileRepository(db);
+      userDietaryProfileRepository = new UserDietaryProfileRepository(getDb());
     }
     return userDietaryProfileRepository;
   }
 
   static getUserAllergyRepository(): IUserAllergyRepository {
     if (!userAllergyRepository) {
-      userAllergyRepository = new UserAllergyRepository(db);
+      userAllergyRepository = new UserAllergyRepository(getDb());
     }
     return userAllergyRepository;
   }
 
   static getUserIngredientPreferenceRepository(): IUserIngredientPreferenceRepository {
     if (!userIngredientPreferenceRepository) {
-      userIngredientPreferenceRepository = new UserIngredientPreferenceRepository(db);
+      userIngredientPreferenceRepository =
+        new UserIngredientPreferenceRepository(getDb());
     }
     return userIngredientPreferenceRepository;
   }
 
   static getUserCuisinePreferenceRepository(): IUserCuisinePreferenceRepository {
     if (!userCuisinePreferenceRepository) {
-      userCuisinePreferenceRepository = new UserCuisinePreferenceRepository(db);
+      userCuisinePreferenceRepository = new UserCuisinePreferenceRepository(
+        getDb(),
+      );
     }
     return userCuisinePreferenceRepository;
   }

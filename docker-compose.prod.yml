@@ -1,0 +1,59 @@
+services:
+  app:
+    # Use the image built by GitHub Actions
+    image: ghcr.io/chidinweke/receipt2recipe:latest
+    container_name: receipt2recipe
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      - ORIGIN=https://receipttorecipe.chidinweke.be
+      - BODY_SIZE_LIMIT=10M
+
+      - INFISICAL_CLIENT_ID=${INFISICAL_CLIENT_ID}
+      - INFISICAL_CLIENT_SECRET=${INFISICAL_CLIENT_SECRET}
+      - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID}
+      - INFISICAL_ENVIRONMENT=prod
+
+    networks:
+      - reverse-proxy
+
+    labels:
+      caddy: receipttorecipe.chidinweke.be
+      caddy.reverse_proxy: "{{upstreams 3000}}"
+
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+
+  migrate:
+    image: ghcr.io/chidinweke/receipt2recipe:latest
+    container_name: receipt2recipe-migrate
+    restart: "no"
+    command: node scripts/prod-migrate.js
+    environment:
+      - INFISICAL_CLIENT_ID=${INFISICAL_CLIENT_ID}
+      - INFISICAL_CLIENT_SECRET=${INFISICAL_CLIENT_SECRET}
+      - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID}
+      - INFISICAL_ENVIRONMENT=prod
+    networks:
+      - reverse-proxy
+
+  minio-init:
+    image: ghcr.io/chidinweke/receipt2recipe:latest
+    container_name: receipt2recipe-minio-init
+    restart: "no"
+    command: node scripts/prod-minio-init.js
+    environment:
+      - INFISICAL_CLIENT_ID=${INFISICAL_CLIENT_ID}
+      - INFISICAL_CLIENT_SECRET=${INFISICAL_CLIENT_SECRET}
+      - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID}
+      - INFISICAL_ENVIRONMENT=prod
+    networks:
+      - reverse-proxy
+
+networks:
+  reverse-proxy:
+    external: true

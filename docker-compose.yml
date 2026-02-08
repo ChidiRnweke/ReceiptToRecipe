@@ -1,4 +1,25 @@
 services:
+  app:
+    build: .
+    container_name: receipt2recipe
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Local Development Overrides
+      - DATABASE_URL=postgresql://r2r:r2r@postgres:5432/r2r
+      - MINIO_ENDPOINT=minio
+      - ORIGIN=http://localhost:3000
+      # Infisical Config (Optional for local if using .env, Required for Prod)
+      # - INFISICAL_CLIENT_ID=...
+      # - INFISICAL_CLIENT_SECRET=...
+      # - INFISICAL_PROJECT_ID=...
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
   postgres:
     image: pgvector/pgvector:pg16
     container_name: r2r-postgres

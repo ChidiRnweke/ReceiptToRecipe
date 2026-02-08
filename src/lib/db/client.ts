@@ -1,14 +1,29 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import * as schema from './schema';
-import { env } from '$env/dynamic/private';
+import { ConfigService } from '$services/ConfigService';
 
 const { Pool } = pg;
 
-const pool = new Pool({
-	connectionString: env.DATABASE_URL || 'postgresql://r2r:r2r@localhost:5432/r2r'
-});
+let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
-export const db = drizzle(pool, { schema });
+export const getDb = () => {
+	if (!dbInstance) {
+		const connectionString = ConfigService.get('DATABASE_URL');
+		if (!connectionString) {
+			// Fallback for build time / when secrets aren't loaded yet
+			// This allows the app to build without crashing, though runtime will fail if secrets are missing
+			console.warn('DATABASE_URL not found, using default localhost');
+		}
+		
+		const pool = new Pool({
+			connectionString: connectionString || 'postgresql://r2r:r2r@localhost:5432/r2r'
+		});
+		
+		dbInstance = drizzle(pool, { schema });
+	}
+	return dbInstance;
+};
 
-export type Database = typeof db;
+// Type helper
+export type Database = ReturnType<typeof getDb>;
