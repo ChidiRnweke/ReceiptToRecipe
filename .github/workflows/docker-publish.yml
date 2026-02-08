@@ -2,12 +2,12 @@ name: Docker Build & Publish
 
 on:
   push:
-    branches: [ "master" ]
-    tags: [ 'v*' ]
+    branches: ["master"]
+    tags: ["v*"]
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: chidirnweke/receipt2recipe
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build:
@@ -43,8 +43,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Deploy to Komodo
-        if: github.ref == 'refs/heads/master'
-        run: |
-          curl -X POST "${{ secrets.KOMODO_WEBHOOK_URL }}?secret=${{ secrets.KOMODO_WEBHOOK_SECRET }}"
