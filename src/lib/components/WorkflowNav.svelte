@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { Receipt, ChefHat, ShoppingCart, ChevronRight } from 'lucide-svelte';
-	import type { WorkflowState } from '$lib/state/workflow.svelte';
-
-	let { state }: { state: WorkflowState } = $props();
+	import { workflowStore } from '$lib/state/workflow.svelte';
 
 	const steps = [
 		{ href: '/receipts', label: 'Receipts', icon: Receipt, countKey: 'receipts' as const },
@@ -25,7 +23,7 @@
 <!-- Desktop Navigation -->
 <nav class="hidden items-center gap-1 md:flex">
 	{#each steps as step, i}
-		{@const count = state[step.countKey]}
+		{@const count = workflowStore[step.countKey]}
 		{@const navState = getStepState(step.href, count)}
 
 		{#if i > 0}
@@ -62,12 +60,12 @@
 <!-- Mobile Navigation -->
 <nav class="flex flex-col gap-1 md:hidden">
 	{#each steps as step, i}
-		{@const count = state[step.countKey]}
+		{@const count = workflowStore[step.countKey]}
 		{@const navState = getStepState(step.href, count)}
 
 		<a
 			href={step.href}
-class="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
+			class="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
 			{navState === 'active'
 				? 'bg-primary-100 text-primary-700'
 				: 'text-text-secondary hover:bg-bg-paper-dark hover:text-text-primary'}"

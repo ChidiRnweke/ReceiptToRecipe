@@ -5,26 +5,18 @@
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
   import WorkflowNav from "$lib/components/WorkflowNav.svelte";
   import { Settings, LogOut, Menu, X } from "lucide-svelte";
-  import { setContext } from "svelte";
-  import { WorkflowState } from "$lib/state/workflow.svelte";
+  import { workflowStore } from "$lib/state/workflow.svelte";
   import logo from "$lib/assets/logo.svg";
   import favicon from "$lib/assets/favicon.svg";
 
   let { data, children } = $props();
 
-  // Initialize state
-  // FIX: Access data.workflowCounts safely inside a closure or directly
-  let workflowState = new WorkflowState(data.workflowCounts ?? undefined);
-
   // Sync state when data changes (e.g. after navigation)
   $effect(() => {
     if (data.workflowCounts) {
-      workflowState.sync(data.workflowCounts);
+      workflowStore.sync(data.workflowCounts);
     }
   });
-
-  // Provide to children
-  setContext("workflowState", workflowState);
 
   let mobileMenuOpen = $state(false);
 </script>
@@ -66,7 +58,7 @@
 
       <!-- Desktop Navigation -->
       {#if data.user}
-        <WorkflowNav state={workflowState} />
+        <WorkflowNav />
       {/if}
 
       <!-- User Menu -->
@@ -139,7 +131,7 @@
         class="block w-full border-t border-border bg-bg-paper px-4 py-3 text-left md:hidden"
         onclick={() => (mobileMenuOpen = false)}
       >
-        <WorkflowNav state={workflowState} />
+        <WorkflowNav />
       </button>
     {/if}
   </header>

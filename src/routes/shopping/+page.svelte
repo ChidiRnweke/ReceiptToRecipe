@@ -20,8 +20,7 @@
     Lightbulb,
     X,
   } from "lucide-svelte";
-  import { getContext } from "svelte";
-  import type { WorkflowState } from "$lib/state/workflow.svelte";
+  import { workflowStore } from "$lib/state/workflow.svelte";
   import Notepad from "$lib/components/Notepad.svelte";
   import PinnedNote from "$lib/components/PinnedNote.svelte";
   import WashiTape from "$lib/components/WashiTape.svelte";
@@ -53,7 +52,6 @@
   }
 
   let { data, form } = $props();
-  const workflowState = getContext<WorkflowState>("workflowState");
 
   // Use $derived for state but allow overrides for optimistic UI
   let lists = $derived(data.lists ?? []);
@@ -128,7 +126,7 @@
       [listId]: { name: "", quantity: "1", unit: "" },
     };
 
-    workflowState.incrementShopping();
+    workflowStore.incrementShopping();
 
     const response = await fetch("?/addItem", {
       method: "POST",
@@ -138,7 +136,7 @@
     if (response.ok) {
       await invalidateAll();
     } else {
-      workflowState.decrementShopping();
+      workflowStore.decrementShopping();
     }
   }
 
@@ -250,10 +248,10 @@
                     method="POST"
                     action="?/addSuggestion"
                     use:enhance={() => {
-                      workflowState.incrementShopping();
+                      workflowStore.incrementShopping();
                       return async ({ result }) => {
                         if (result.type === "failure") {
-                          workflowState.decrementShopping();
+                          workflowStore.decrementShopping();
                         } else {
                           await invalidateAll();
                         }
@@ -498,12 +496,12 @@
                           method="POST"
                           action="?/addItem"
                           use:enhance={() => {
-                            workflowState.incrementShopping();
+                            workflowStore.incrementShopping();
                             return async ({ result }) => {
                               if (result.type === "success") {
                                 const data = result.data as any;
                                 if (data?.pantryWarning) {
-                                  workflowState.decrementShopping();
+                                  workflowStore.decrementShopping();
                                   pantryWarning = {
                                     show: true,
                                     message: data.warningMessage,
@@ -523,7 +521,7 @@
                                 };
                                 await invalidateAll();
                               } else {
-                                workflowState.decrementShopping();
+                                workflowStore.decrementShopping();
                               }
                             };
                           }}
@@ -713,10 +711,10 @@
                                               }
                                             : l,
                                         );
-                                        workflowState.decrementShopping();
+                                        workflowStore.decrementShopping();
                                         return async ({ result }) => {
                                           if (result.type === "failure") {
-                                            workflowState.incrementShopping();
+                                            workflowStore.incrementShopping();
                                             await invalidateAll();
                                           } else {
                                             await invalidateAll();

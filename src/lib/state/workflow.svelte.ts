@@ -19,3 +19,5 @@ export class WorkflowState {
     incrementShopping() { this.shoppingItems += 1; }
     decrementShopping() { this.shoppingItems -= 1; }
 }
+
+export const workflowStore = new WorkflowState();

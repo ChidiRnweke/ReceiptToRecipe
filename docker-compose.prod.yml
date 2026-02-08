@@ -13,10 +13,14 @@ services:
       - INFISICAL_CLIENT_ID=${INFISICAL_CLIENT_ID}
       - INFISICAL_CLIENT_SECRET=${INFISICAL_CLIENT_SECRET}
       - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID}
+      - INFISICAL_URL=${INFISICAL_URL}
       - INFISICAL_ENVIRONMENT=prod
 
     networks:
       - reverse-proxy
+      - postgres-network
+      - minio-network
+      - telemetry-network
 
     labels:
       caddy: receipttorecipe.chidinweke.be
@@ -40,6 +44,9 @@ services:
       - INFISICAL_ENVIRONMENT=prod
     networks:
       - reverse-proxy
+      - postgres-network
+      - minio-network
+      - telemetry-network
 
   minio-init:
     image: ghcr.io/chidinweke/receipt2recipe:latest
@@ -53,7 +60,16 @@ services:
       - INFISICAL_ENVIRONMENT=prod
     networks:
       - reverse-proxy
+      - postgres-network
+      - minio-network
+      - telemetry-network
 
 networks:
   reverse-proxy:
+    external: true
+  postgres-network:
+    external: true
+  minio-network:
+    external: true
+  telemetry-network:
     external: true

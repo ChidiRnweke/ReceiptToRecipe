@@ -1,8 +1,9 @@
-import { db } from '$db/client';
+import { getDb } from '$db/client';
 import { cookbookEmbeddings } from '$db/schema';
 import { eq, sql, desc } from 'drizzle-orm';
 import type { IVectorService, VectorSearchResult } from './interfaces';
 import type { ILlmService } from './interfaces';
+import type { PgDatabase } from 'drizzle-orm/pg-core';
 
 export class PgVectorService implements IVectorService {
 	private llmService: ILlmService;
@@ -16,6 +17,9 @@ export class PgVectorService implements IVectorService {
 		limit: number = 5,
 		threshold: number = 0.7
 	): Promise<VectorSearchResult[]> {
+		const db = getDb();
+		if (!db) throw new Error("Database not initialized");
+
 		// Convert embedding array to pgvector format
 		const embeddingStr = `[${embedding.join(',')}]`;
 
@@ -33,7 +37,7 @@ export class PgVectorService implements IVectorService {
 			.orderBy(desc(sql`1 - (${cookbookEmbeddings.embedding} <=> ${embeddingStr}::vector)`))
 			.limit(limit);
 
-		return results.map((r) => ({
+		return results.map((r: any) => ({
 			id: r.id,
 			recipeTitle: r.recipeTitle,
 			contentChunk: r.contentChunk,
@@ -53,6 +57,9 @@ export class PgVectorService implements IVectorService {
 		content: string,
 		metadata?: Record<string, unknown>
 	): Promise<void> {
+		const db = getDb();
+		if (!db) throw new Error("Database not initialized");
+
 		const embedding = await this.llmService.embed(content);
 		const embeddingStr = `[${embedding.join(',')}]`;
 
@@ -77,6 +84,8 @@ export class PgVectorService implements IVectorService {
 	}
 
 	async delete(id: string): Promise<void> {
+		const db = getDb();
+		if (!db) throw new Error("Database not initialized");
 		await db.delete(cookbookEmbeddings).where(eq(cookbookEmbeddings.id, id));
 	}
 

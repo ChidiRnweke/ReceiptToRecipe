@@ -24,8 +24,7 @@
     Receipt,
     Bookmark,
   } from "lucide-svelte";
-  import { getContext } from "svelte";
-  import type { WorkflowState } from "$lib/state/workflow.svelte";
+  import { workflowStore } from "$lib/state/workflow.svelte";
   import StockBadge from "$lib/components/StockBadge.svelte";
   import WashiTape from "$lib/components/WashiTape.svelte";
   import PinnedNote from "$lib/components/PinnedNote.svelte";
@@ -33,7 +32,6 @@
   import RecipeAdjuster from "$lib/components/RecipeAdjuster.svelte";
 
   let { data } = $props();
-  const workflowState = getContext<WorkflowState>("workflowState");
 
   // Initialize servings from recipe data
   let servings = $derived(data.recipe?.servings ?? 1);
@@ -421,11 +419,11 @@
                   const countToAdd = excludePantry
                     ? missingCount
                     : data.recipe.ingredients.length;
-                  workflowState.shoppingItems += countToAdd;
+                  workflowStore.shoppingItems += countToAdd;
                   return async ({ result }) => {
                     addingToList = false;
                     if (result.type === "failure")
-                      workflowState.shoppingItems -= countToAdd;
+                      workflowStore.shoppingItems -= countToAdd;
                     else await invalidateAll();
                   };
                 }}

@@ -11,25 +11,19 @@
     Sparkles,
     Lightbulb,
     Clock,
-    History,
-    Receipt,
     CheckCircle,
     Loader2,
     XCircle,
     Store,
   } from "lucide-svelte";
-  import PushPin from "$lib/components/PushPin.svelte";
-  import WashiTape from "$lib/components/WashiTape.svelte";
   import PinnedNote from "$lib/components/PinnedNote.svelte";
   import Notepad from "$lib/components/Notepad.svelte";
   import StockBadge from "$lib/components/StockBadge.svelte";
   import OnboardingModal from "$lib/components/OnboardingModal.svelte";
   import LandingPage from "$lib/components/LandingPage.svelte";
-  import { getContext } from "svelte";
-  import type { WorkflowState } from "$lib/state/workflow.svelte";
+  import { workflowStore } from "$lib/state/workflow.svelte";
 
   let { data, form } = $props();
-  const workflowState = getContext<WorkflowState>("workflowState");
 
   type Ingredient = {
     name: string;
@@ -113,7 +107,7 @@
   let addingIngredient = $state<string | null>(null);
 
   const shoppingPreview = $derived(data.suggestions ?? []);
-  const cartCount = $derived(workflowState.shoppingItems);
+  const cartCount = $derived(workflowStore.shoppingItems);
   const visibleIngredients = $derived.by(() =>
     showAllIngredients ? ingredientList : ingredientList.slice(0, 6),
   );
@@ -203,7 +197,7 @@
           </PinnedNote>
 
           <Notepad>
-              <div class="border-b border-dashed border-border p-5">
+            <div class="border-b border-dashed border-border p-5">
               <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-3">
                   <h3 class="font-display text-lg text-ink">Scan & Sort</h3>
@@ -243,10 +237,10 @@
             </div>
 
             <div class="p-2">
-                <a
-                  href="/shopping"
-                  class="flex w-full items-center justify-between rounded-lg p-3 text-left hover:bg-bg-hover transition-colors"
-                >
+              <a
+                href="/shopping"
+                class="flex w-full items-center justify-between rounded-lg p-3 text-left hover:bg-bg-hover transition-colors"
+              >
                 <div>
                   <p
                     class="text-[10px] uppercase tracking-wider text-ink-muted"
@@ -277,7 +271,7 @@
           </Notepad>
         </div>
 
-          {#if pantryList.length > 0}
+        {#if pantryList.length > 0}
           <div
             class="mb-4 rounded-xl border border-sand/60 bg-bg-card p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] rotate-1"
           >
@@ -334,21 +328,21 @@
             <div
               class="mt-4 flex items-center gap-2 text-[10px] font-ui uppercase tracking-widest text-text-muted"
             >
-                <span
-                  class={pantryItems.length === 0
-                    ? "text-primary-600 font-bold border-b-2 border-primary-200"
-                    : ""}>1. Scan</span
-                >
-                <span class="text-border">→</span>
-                <span
-                  class={pantryItems.length > 0
-                    ? "text-primary-600 font-bold border-b-2 border-primary-200"
-                    : ""}>2. Stock</span
-                >
-                <span class="text-border">→</span>
-                <span>3. Cook</span>
-                <span class="text-border">→</span>
-                <span>4. Shop</span>
+              <span
+                class={pantryItems.length === 0
+                  ? "text-primary-600 font-bold border-b-2 border-primary-200"
+                  : ""}>1. Scan</span
+              >
+              <span class="text-border">→</span>
+              <span
+                class={pantryItems.length > 0
+                  ? "text-primary-600 font-bold border-b-2 border-primary-200"
+                  : ""}>2. Stock</span
+              >
+              <span class="text-border">→</span>
+              <span>3. Cook</span>
+              <span class="text-border">→</span>
+              <span>4. Shop</span>
             </div>
           </div>
           <Button
@@ -356,8 +350,12 @@
             class="group relative h-10 overflow-hidden rounded-lg border border-primary-300 bg-bg-input px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-paper-dark hover:shadow-md active:scale-95"
           >
             <div class="flex items-center gap-2">
-              <Sparkles class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700" />
-              <span class="font-display text-base font-medium text-text-primary">Generate New Recipe</span>
+              <Sparkles
+                class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
+              />
+              <span class="font-display text-base font-medium text-text-primary"
+                >Generate New Recipe</span
+              >
             </div>
           </Button>
         </div>
@@ -394,13 +392,13 @@
                     class="absolute -top-2 left-1/2 z-20 h-6 w-16 -translate-x-1/2 -rotate-2 bg-amber-100/40 backdrop-blur-[1px]"
                     style="mask-image: url('data:image/svg+xml;utf8,<svg width=\'100%\' height=\'100%\' xmlns=\'http://www.w3.org/2000/svg\'><rect x=\'0\' y=\'0\' width=\'100%\' height=\'100%\' fill=\'black\'/></svg>'); box-shadow: 0 1px 2px rgba(0,0,0,0.1);"
                   ></div>
-              <div
-                class="absolute -top-2 left-1/2 z-20 h-6 w-16 -translate-x-1/2 -rotate-2 opacity-20 mix-blend-multiply shadow-sm bg-border"
-              ></div>
+                  <div
+                    class="absolute -top-2 left-1/2 z-20 h-6 w-16 -translate-x-1/2 -rotate-2 opacity-20 mix-blend-multiply shadow-sm bg-border"
+                  ></div>
 
-                <div
-                  class="h-full w-full overflow-hidden rounded-[2px] border border-border bg-bg-input p-1.5 shadow-sm"
-                >
+                  <div
+                    class="h-full w-full overflow-hidden rounded-[2px] border border-border bg-bg-input p-1.5 shadow-sm"
+                  >
                     {#if featuredRecipe?.imageUrl}
                       <img
                         src={featuredRecipe.imageUrl}
@@ -508,10 +506,10 @@
                         const newSet = new Set(shoppingListNames);
                         if (isAdded) {
                           newSet.delete(ingredientDisplay);
-                          workflowState.decrementShopping();
+                          workflowStore.decrementShopping();
                         } else {
                           newSet.add(ingredientDisplay);
-                          workflowState.incrementShopping();
+                          workflowStore.incrementShopping();
                         }
                         shoppingListNames = newSet;
 
@@ -522,10 +520,10 @@
                             const revertSet = new Set(shoppingListNames);
                             if (isAdded) {
                               revertSet.add(ingredientDisplay);
-                              workflowState.incrementShopping();
+                              workflowStore.incrementShopping();
                             } else {
                               revertSet.delete(ingredientDisplay);
-                              workflowState.decrementShopping();
+                              workflowStore.decrementShopping();
                             }
                             shoppingListNames = revertSet;
                           }
@@ -543,10 +541,10 @@
                       ></div>
 
                       {#if inPantry}
-                          <div
-                            class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 cursor-help"
-                            title="In your kitchen"
-                          >
+                        <div
+                          class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 cursor-help"
+                          title="In your kitchen"
+                        >
                           <Check class="h-3 w-3" />
                         </div>
                       {:else}
@@ -556,7 +554,7 @@
                           class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors disabled:cursor-not-allowed
                             {isAdded
                             ? 'bg-secondary-100 border-secondary-200 text-secondary-700 hover:bg-secondary-200'
-                            : 'border-border bg-bg-input hover:border-border'}" 
+                            : 'border-border bg-bg-input hover:border-border'}"
                           title={isAdded
                             ? "Remove from list"
                             : "Add to shopping list"}
@@ -639,7 +637,9 @@
           <div
             class="mb-6 flex items-baseline justify-between border-b border-border pb-2"
           >
-            <h2 class="font-display text-2xl text-text-primary">Recent Collections</h2>
+            <h2 class="font-display text-2xl text-text-primary">
+              Recent Collections
+            </h2>
             <a
               href="/recipes"
               class="text-xs font-medium uppercase tracking-wider text-primary-600 hover:text-primary-800 hover:underline"

@@ -12,14 +12,12 @@
     AlertTriangle,
     ShieldAlert,
   } from "lucide-svelte";
-  import { getContext } from "svelte";
-  import type { WorkflowState } from "$lib/state/workflow.svelte";
+  import { workflowStore } from "$lib/state/workflow.svelte";
   import WashiTape from "$lib/components/WashiTape.svelte";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import { Label } from "$lib/components/ui/label";
 
   let { data } = $props();
-  const workflowState = getContext<WorkflowState>("workflowState");
   let deletingId = $state<string | null>(null);
   let addingToShoppingId = $state<string | null>(null);
 
@@ -162,11 +160,11 @@
                     action="?/addToShopping"
                     use:enhance={() => {
                       addingToShoppingId = recipe.id;
-                      workflowState.incrementShopping();
+                      workflowStore.incrementShopping();
                       return async ({ result }) => {
                         addingToShoppingId = null;
                         if (result.type === "failure")
-                          workflowState.decrementShopping();
+                          workflowStore.decrementShopping();
                         else await invalidateAll();
                       };
                     }}
@@ -319,11 +317,11 @@
                     action="?/addToShopping"
                     use:enhance={() => {
                       addingToShoppingId = recipe.id;
-                      workflowState.incrementShopping();
+                      workflowStore.incrementShopping();
                       return async ({ result }) => {
                         addingToShoppingId = null;
                         if (result.type === "failure")
-                          workflowState.decrementShopping();
+                          workflowStore.decrementShopping();
                         else await invalidateAll();
                       };
                     }}

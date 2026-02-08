@@ -29,8 +29,11 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/scripts ./scripts
 
+# Copy OTel instrumentation entry point
+COPY --from=builder /app/instrumentation.mjs ./instrumentation.mjs
+
 # Expose port (default for adapter-node is 3000)
 EXPOSE 3000
 
-# Start application
-CMD ["node", "build"]
+# Start with OTel instrumentation loaded before the app
+CMD ["node", "--import", "./instrumentation.mjs", "build"]
