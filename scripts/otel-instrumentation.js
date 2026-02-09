@@ -2,12 +2,9 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-grpc';
-import resourcesPkg from '@opentelemetry/resources';
-import semanticConventionsPkg from '@opentelemetry/semantic-conventions';
+import { resourceFromAttributes } from '@opentelemetry/resources';
+import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
-
-const { Resource } = resourcesPkg;
-const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } = semanticConventionsPkg;
 
 let sdk = null;
 
@@ -23,7 +20,7 @@ export function initTelemetry(serviceName = 'receipt2recipe') {
 
   console.log(`[OTel] Initializing telemetry for ${serviceName}. Exporting to ${endpoint}`);
 
-  const resource = new Resource({
+  const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: serviceName,
     [ATTR_SERVICE_VERSION]: process.env.npm_package_version || '0.0.1',
     'deployment.environment': process.env.OTEL_ENVIRONMENT || process.env.NODE_ENV || 'development',
