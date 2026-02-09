@@ -91,8 +91,10 @@ export function initTelemetry(serviceName = 'receipt2recipe') {
   const logExporter = new OTLPLogExporter({ url: endpoint });
 
   // Set up LoggerProvider for console bridging
-  loggerProvider = new LoggerProvider({ resource });
-  loggerProvider.addLogRecordProcessor(new SimpleLogRecordProcessor(logExporter));
+  loggerProvider = new LoggerProvider({
+    resource,
+    processors: [new SimpleLogRecordProcessor(logExporter)],
+  });
   logs.setGlobalLoggerProvider(loggerProvider);
   
   // Bridge console.log/warn/error to OTel
