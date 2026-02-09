@@ -29,12 +29,6 @@ services:
       caddy: receipttorecipe.chidinweke.be
       caddy.reverse_proxy: "{{upstreams 3000}}"
 
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      minio-init:
-        condition: service_completed_successfully
-
   migrate:
     image: ghcr.io/chidirnweke/receipttorecipe:latest
     container_name: receipt2recipe-migrate
