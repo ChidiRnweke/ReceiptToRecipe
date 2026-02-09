@@ -2,13 +2,26 @@ import { InfisicalSDK } from "@infisical/sdk";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
+import { provisionDatabase } from "./provision-db.js";
 
 const { Pool } = pg;
 
 async function run() {
   console.log("Starting migration script...");
 
-  // 1. Fetch Secrets
+  // Step 1: Provision database if needed
+  console.log("Step 1: Provisioning database...");
+  let databaseUrl;
+  try {
+    databaseUrl = await provisionDatabase();
+    console.log("Database provisioning completed.");
+  } catch (err) {
+    console.error("Database provisioning failed:", err);
+    process.exit(1);
+  }
+
+  // Step 2: Fetch Secrets from Infisical
+  console.log("Step 2: Fetching secrets from Infisical...");
   const clientId = process.env.INFISICAL_CLIENT_ID;
   const clientSecret = process.env.INFISICAL_CLIENT_SECRET;
   const projectId = process.env.INFISICAL_PROJECT_ID;
@@ -20,7 +33,6 @@ async function run() {
     process.exit(1);
   }
 
-  console.log("Fetching secrets from Infisical...");
   const client = new InfisicalSDK({ siteUrl: process.env.INFISICAL_SITE_URL });
   await client.auth().universalAuth.login({ clientId, clientSecret });
   const secrets = await client.secrets().listSecrets({
@@ -29,15 +41,12 @@ async function run() {
     includeImports: true,
   });
 
-  // Map secrets to a helper object
   const secretMap = {};
   secrets.secrets.forEach((s) => (secretMap[s.secretKey] = s.secretValue));
 
-  // 2. Connect to DB
-  console.log("Connecting to database...");
-  // Prioritize secret from Infisical, fallback to env
+  console.log("Step 3: Connecting to database...");
   const connectionString =
-    secretMap["DATABASE_URL"] || process.env.DATABASE_URL;
+    databaseUrl || secretMap["DATABASE_URL"] || process.env.DATABASE_URL;
 
   if (!connectionString) {
     console.error("DATABASE_URL not found in secrets or environment");
@@ -47,7 +56,7 @@ async function run() {
   const pool = new Pool({ connectionString });
   const db = drizzle(pool);
 
-  // 3. Run Migrations
+  // Step 4: Run Migrations
   try {
     console.log("Running migrations from ./drizzle folder...");
     await migrate(db, { migrationsFolder: "./drizzle" });

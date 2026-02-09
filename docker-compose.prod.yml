@@ -38,10 +38,19 @@ services:
     restart: "no"
     command: node scripts/prod-migrate.js
     environment:
+      # App Infisical credentials (for reading/writing app secrets)
       - INFISICAL_CLIENT_ID=${INFISICAL_CLIENT_ID}
       - INFISICAL_CLIENT_SECRET=${INFISICAL_CLIENT_SECRET}
       - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID}
       - INFISICAL_ENVIRONMENT=prod
+      # Admin Infisical credentials (for provisioning database)
+      - INFISICAL_ADMIN_CLIENT_ID=${INFISICAL_ADMIN_CLIENT_ID}
+      - INFISICAL_ADMIN_CLIENT_SECRET=${INFISICAL_ADMIN_CLIENT_SECRET}
+      - INFISICAL_ADMIN_PROJECT_ID=${INFISICAL_ADMIN_PROJECT_ID}
+      - INFISICAL_URL=${INFISICAL_URL}
+      # Project-specific database config
+      - DB_NAME=r2r
+      - DB_USER=r2r
     networks:
       - reverse-proxy
       - postgres-network
@@ -54,10 +63,18 @@ services:
     restart: "no"
     command: node scripts/prod-minio-init.js
     environment:
+      # App Infisical credentials (for reading/writing app secrets)
       - INFISICAL_CLIENT_ID=${INFISICAL_CLIENT_ID}
       - INFISICAL_CLIENT_SECRET=${INFISICAL_CLIENT_SECRET}
       - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID}
       - INFISICAL_ENVIRONMENT=prod
+      # Admin Infisical credentials (for provisioning MinIO)
+      - INFISICAL_ADMIN_CLIENT_ID=${INFISICAL_ADMIN_CLIENT_ID}
+      - INFISICAL_ADMIN_CLIENT_SECRET=${INFISICAL_ADMIN_CLIENT_SECRET}
+      - INFISICAL_ADMIN_PROJECT_ID=${INFISICAL_ADMIN_PROJECT_ID}
+      - INFISICAL_URL=${INFISICAL_URL}
+      # Project-specific MinIO config
+      - MINIO_BUCKET=r2r-images
     networks:
       - reverse-proxy
       - postgres-network

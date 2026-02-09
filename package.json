@@ -26,6 +26,7 @@
 		"@opentelemetry/resources": "^2.5.0",
 		"@opentelemetry/sdk-node": "^0.211.0",
 		"@opentelemetry/semantic-conventions": "^1.39.0",
+		"aws4": "^1.13.2",
 		"bits-ui": "^2.15.4",
 		"clsx": "^2.1.1",
 		"dotenv": "^17.2.4",
