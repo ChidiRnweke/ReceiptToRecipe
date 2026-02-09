@@ -15,6 +15,9 @@ services:
       - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID}
       - INFISICAL_URL=${INFISICAL_URL}
       - INFISICAL_ENVIRONMENT=prod
+      # OpenTelemetry
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel_collector:4317
+      - OTEL_SERVICE_NAME=receipt2recipe
 
     networks:
       - reverse-proxy
@@ -51,6 +54,9 @@ services:
       # Project-specific database config
       - DB_NAME=r2r
       - DB_USER=r2r
+      # OpenTelemetry
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel_collector:4317
+      - OTEL_SERVICE_NAME=receipt2recipe-migrate
     networks:
       - reverse-proxy
       - postgres-network
@@ -75,6 +81,9 @@ services:
       - INFISICAL_URL=${INFISICAL_URL}
       # Project-specific MinIO config
       - MINIO_BUCKET=r2r-images
+      # OpenTelemetry
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel_collector:4317
+      - OTEL_SERVICE_NAME=receipt2recipe-minio-init
     networks:
       - reverse-proxy
       - postgres-network

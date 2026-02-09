@@ -1,8 +1,12 @@
 import { InfisicalSDK } from "@infisical/sdk";
 import * as Minio from "minio";
 import { provisionMinio } from "./provision-minio.js";
+import { initTelemetry, shutdownTelemetry } from "./otel-instrumentation.js";
 
 async function run() {
+  // Initialize OpenTelemetry
+  initTelemetry('receipt2recipe-minio-init');
+  
   console.log("Starting MinIO init script...");
 
   // Step 1: Provision MinIO if needed
@@ -14,6 +18,7 @@ async function run() {
     console.log("MinIO provisioning completed.");
   } catch (err) {
     console.error("MinIO provisioning failed:", err);
+    await shutdownTelemetry();
     process.exit(1);
   }
 
@@ -27,6 +32,7 @@ async function run() {
     console.error(
       "Missing Infisical credentials (CLIENT_ID, CLIENT_SECRET, PROJECT_ID)",
     );
+    await shutdownTelemetry();
     process.exit(1);
   }
 
@@ -63,6 +69,7 @@ async function run() {
 
   if (!accessKey || !secretKey) {
     console.error("Missing MINIO_ACCESS_KEY or MINIO_SECRET_KEY");
+    await shutdownTelemetry();
     process.exit(1);
   }
 
@@ -90,8 +97,12 @@ async function run() {
     console.log("MinIO initialization completed successfully!");
   } catch (err) {
     console.error("MinIO initialization failed:", err);
+    await shutdownTelemetry();
     process.exit(1);
   }
+  
+  // Shutdown telemetry before exiting
+  await shutdownTelemetry();
 }
 
 run();

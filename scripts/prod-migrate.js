@@ -3,10 +3,14 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 import { provisionDatabase } from "./provision-db.js";
+import { initTelemetry, shutdownTelemetry } from "./otel-instrumentation.js";
 
 const { Pool } = pg;
 
 async function run() {
+  // Initialize OpenTelemetry
+  initTelemetry('receipt2recipe-migrate');
+  
   console.log("Starting migration script...");
 
   // Step 1: Provision database if needed
@@ -17,6 +21,7 @@ async function run() {
     console.log("Database provisioning completed.");
   } catch (err) {
     console.error("Database provisioning failed:", err);
+    await shutdownTelemetry();
     process.exit(1);
   }
 
@@ -30,6 +35,7 @@ async function run() {
     console.error(
       "Missing Infisical credentials (CLIENT_ID, CLIENT_SECRET, PROJECT_ID)",
     );
+    await shutdownTelemetry();
     process.exit(1);
   }
 
@@ -50,6 +56,7 @@ async function run() {
 
   if (!connectionString) {
     console.error("DATABASE_URL not found in secrets or environment");
+    await shutdownTelemetry();
     process.exit(1);
   }
 
@@ -63,10 +70,14 @@ async function run() {
     console.log("Migrations completed successfully.");
   } catch (err) {
     console.error("Migration failed:", err);
+    await shutdownTelemetry();
     process.exit(1);
   } finally {
     await pool.end();
   }
+  
+  // Shutdown telemetry before exiting
+  await shutdownTelemetry();
 }
 
 run();
