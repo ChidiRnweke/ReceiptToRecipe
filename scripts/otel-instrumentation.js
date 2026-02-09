@@ -6,6 +6,7 @@ import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { SimpleLogRecordProcessor, LoggerProvider } from '@opentelemetry/sdk-logs';
 import { logs, SeverityNumber } from '@opentelemetry/api-logs';
+import { trace, context } from '@opentelemetry/api';
 
 let sdk = null;
 let loggerProvider = null;
@@ -41,11 +42,21 @@ function bridgeConsoleLogs(logger) {
           typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
         ).join(' ');
         
+        // Get current span context for trace correlation
+        const activeContext = context.active();
+        const span = trace.getSpan(activeContext);
+        const spanContext = span?.spanContext();
+        
         logger.emit({
           severityNumber: severity,
           severityText: method.toUpperCase(),
           body: message,
           timestamp: Date.now(),
+          context: activeContext,
+          attributes: spanContext ? {
+            'trace_id': spanContext.traceId,
+            'span_id': spanContext.spanId,
+          } : undefined,
         });
       } catch (e) {
         // Silently ignore OTel errors to prevent infinite loops
