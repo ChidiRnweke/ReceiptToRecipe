@@ -39,7 +39,7 @@ async function run() {
     process.exit(1);
   }
 
-  const client = new InfisicalSDK({ siteUrl: process.env.INFISICAL_SITE_URL });
+  const client = new InfisicalSDK({ siteUrl: process.env.INFISICAL_URL });
   await client.auth().universalAuth.login({ clientId, clientSecret });
   const secrets = await client.secrets().listSecrets({
     environment: process.env.INFISICAL_ENVIRONMENT || "prod",
