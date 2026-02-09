@@ -4,9 +4,57 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-grpc';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
-import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
+import { SimpleLogRecordProcessor, LoggerProvider } from '@opentelemetry/sdk-logs';
+import { logs, SeverityNumber } from '@opentelemetry/api-logs';
 
 let sdk = null;
+let loggerProvider = null;
+
+/**
+ * Bridge console.log/warn/error to OpenTelemetry logs
+ */
+function bridgeConsoleLogs(logger) {
+  const originalConsole = {
+    log: console.log.bind(console),
+    info: console.info.bind(console),
+    warn: console.warn.bind(console),
+    error: console.error.bind(console),
+    debug: console.debug.bind(console),
+  };
+
+  const severityMap = {
+    debug: SeverityNumber.DEBUG,
+    log: SeverityNumber.INFO,
+    info: SeverityNumber.INFO,
+    warn: SeverityNumber.WARN,
+    error: SeverityNumber.ERROR,
+  };
+
+  for (const [method, severity] of Object.entries(severityMap)) {
+    console[method] = (...args) => {
+      // Always call original console method
+      originalConsole[method](...args);
+      
+      // Send to OTel
+      try {
+        const message = args.map(arg => 
+          typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        ).join(' ');
+        
+        logger.emit({
+          severityNumber: severity,
+          severityText: method.toUpperCase(),
+          body: message,
+          timestamp: Date.now(),
+        });
+      } catch (e) {
+        // Silently ignore OTel errors to prevent infinite loops
+      }
+    };
+  }
+
+  return originalConsole;
+}
 
 export function initTelemetry(serviceName = 'receipt2recipe') {
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
@@ -18,7 +66,9 @@ export function initTelemetry(serviceName = 'receipt2recipe') {
     return null;
   }
 
-  console.log(`[OTel] Initializing telemetry for ${serviceName}. Exporting to ${endpoint}`);
+  // Log before bridging console (so this goes to stdout only)
+  const initMsg = `[OTel] Initializing telemetry for ${serviceName}. Exporting to ${endpoint}`;
+  process.stdout.write(initMsg + '\n');
 
   const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: serviceName,
@@ -28,6 +78,15 @@ export function initTelemetry(serviceName = 'receipt2recipe') {
 
   const traceExporter = new OTLPTraceExporter({ url: endpoint });
   const logExporter = new OTLPLogExporter({ url: endpoint });
+
+  // Set up LoggerProvider for console bridging
+  loggerProvider = new LoggerProvider({ resource });
+  loggerProvider.addLogRecordProcessor(new SimpleLogRecordProcessor(logExporter));
+  logs.setGlobalLoggerProvider(loggerProvider);
+  
+  // Bridge console.log/warn/error to OTel
+  const logger = loggerProvider.getLogger(serviceName);
+  bridgeConsoleLogs(logger);
 
   sdk = new NodeSDK({
     resource,
@@ -59,13 +118,16 @@ export function initTelemetry(serviceName = 'receipt2recipe') {
 }
 
 export async function shutdownTelemetry() {
-  if (sdk) {
-    try {
-      await sdk.shutdown();
-      console.log('[OTel] Telemetry shut down successfully.');
-    } catch (err) {
-      console.error('[OTel] Error shutting down telemetry:', err);
+  try {
+    if (loggerProvider) {
+      await loggerProvider.shutdown();
     }
+    if (sdk) {
+      await sdk.shutdown();
+    }
+    process.stdout.write('[OTel] Telemetry shut down successfully.\n');
+  } catch (err) {
+    process.stderr.write(`[OTel] Error shutting down telemetry: ${err}\n`);
   }
 }
 
