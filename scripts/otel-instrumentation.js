@@ -4,18 +4,23 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-grpc';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
-import { SimpleLogRecordProcessor, LoggerProvider } from '@opentelemetry/sdk-logs';
+import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { logs, SeverityNumber } from '@opentelemetry/api-logs';
 import { trace, context } from '@opentelemetry/api';
 
 let sdk = null;
-let loggerProvider = null;
+let otelLogger = null;
+let originalConsole = null;
 
 /**
  * Bridge console.log/warn/error to OpenTelemetry logs
  */
-function bridgeConsoleLogs(logger) {
-  const originalConsole = {
+function bridgeConsoleLogs() {
+  // Get the global logger provider that NodeSDK sets up
+  const loggerProvider = logs.getLoggerProvider();
+  otelLogger = loggerProvider.getLogger('console');
+  
+  originalConsole = {
     log: console.log.bind(console),
     info: console.info.bind(console),
     warn: console.warn.bind(console),
@@ -36,7 +41,9 @@ function bridgeConsoleLogs(logger) {
       // Always call original console method
       originalConsole[method](...args);
       
-      // Send to OTel
+      // Send to OTel if logger is available
+      if (!otelLogger) return;
+      
       try {
         const message = args.map(arg => 
           typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
@@ -47,7 +54,7 @@ function bridgeConsoleLogs(logger) {
         const span = trace.getSpan(activeContext);
         const spanContext = span?.spanContext();
         
-        logger.emit({
+        otelLogger.emit({
           severityNumber: severity,
           severityText: method.toUpperCase(),
           body: message,
@@ -63,23 +70,17 @@ function bridgeConsoleLogs(logger) {
       }
     };
   }
-
-  return originalConsole;
 }
 
 export function initTelemetry(serviceName = 'receipt2recipe') {
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
   
   if (!endpoint) {
-    console.warn(
-      '[OTel] OTEL_EXPORTER_OTLP_ENDPOINT is not set. Telemetry is disabled.'
-    );
+    process.stdout.write('[OTel] OTEL_EXPORTER_OTLP_ENDPOINT is not set. Telemetry is disabled.\n');
     return null;
   }
 
-  // Log before bridging console (so this goes to stdout only)
-  const initMsg = `[OTel] Initializing telemetry for ${serviceName}. Exporting to ${endpoint}`;
-  process.stdout.write(initMsg + '\n');
+  process.stdout.write(`[OTel] Initializing telemetry for ${serviceName}. Exporting to ${endpoint}\n`);
 
   const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: serviceName,
@@ -90,34 +91,19 @@ export function initTelemetry(serviceName = 'receipt2recipe') {
   const traceExporter = new OTLPTraceExporter({ url: endpoint });
   const logExporter = new OTLPLogExporter({ url: endpoint });
 
-  // Set up LoggerProvider for console bridging
-  loggerProvider = new LoggerProvider({
-    resource,
-    processors: [new SimpleLogRecordProcessor(logExporter)],
-  });
-  logs.setGlobalLoggerProvider(loggerProvider);
-  
-  // Bridge console.log/warn/error to OTel
-  const logger = loggerProvider.getLogger(serviceName);
-  bridgeConsoleLogs(logger);
-
   sdk = new NodeSDK({
     resource,
     traceExporter,
-    logRecordProcessor: new SimpleLogRecordProcessor(logExporter),
+    logRecordProcessors: [new SimpleLogRecordProcessor(logExporter)],
     instrumentations: [
       getNodeAutoInstrumentations({
-        // Disable fs instrumentation to reduce noise
         '@opentelemetry/instrumentation-fs': { enabled: false },
-        // Enable pg instrumentation with query text for rich DB spans
         '@opentelemetry/instrumentation-pg': {
           enhancedDatabaseReporting: true,
         },
-        // Enable http instrumentation (every request = a span)
         '@opentelemetry/instrumentation-http': {
           enabled: true,
         },
-        // Disable noisy/unnecessary instrumentations
         '@opentelemetry/instrumentation-dns': { enabled: false },
         '@opentelemetry/instrumentation-net': { enabled: false },
       }),
@@ -125,6 +111,9 @@ export function initTelemetry(serviceName = 'receipt2recipe') {
   });
 
   sdk.start();
+  
+  // Bridge console after SDK starts (so logger provider is registered)
+  bridgeConsoleLogs();
 
   console.log('[OTel] Telemetry initialized successfully.');
   return sdk;
@@ -132,9 +121,6 @@ export function initTelemetry(serviceName = 'receipt2recipe') {
 
 export async function shutdownTelemetry() {
   try {
-    if (loggerProvider) {
-      await loggerProvider.shutdown();
-    }
     if (sdk) {
       await sdk.shutdown();
     }
