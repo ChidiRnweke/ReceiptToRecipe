@@ -6,15 +6,14 @@ import { Resource } from '@opentelemetry/resources';
 import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_VERSION,
-  ATTR_DEPLOYMENT_ENVIRONMENT_NAME,
 } from '@opentelemetry/semantic-conventions';
 import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
-
-const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 
 let sdk = null;
 
 export function initTelemetry(serviceName = 'receipt2recipe') {
+  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  
   if (!endpoint) {
     console.warn(
       '[OTel] OTEL_EXPORTER_OTLP_ENDPOINT is not set. Telemetry is disabled.'
@@ -27,8 +26,7 @@ export function initTelemetry(serviceName = 'receipt2recipe') {
   const resource = new Resource({
     [ATTR_SERVICE_NAME]: serviceName,
     [ATTR_SERVICE_VERSION]: process.env.npm_package_version || '0.0.1',
-    [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]:
-      process.env.OTEL_ENVIRONMENT || process.env.NODE_ENV || 'development',
+    'deployment.environment': process.env.OTEL_ENVIRONMENT || process.env.NODE_ENV || 'development',
   });
 
   const traceExporter = new OTLPTraceExporter({ url: endpoint });
@@ -75,6 +73,7 @@ export async function shutdownTelemetry() {
 }
 
 // Auto-initialize if this file is imported and OTEL_EXPORTER_OTLP_ENDPOINT is set
+const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 if (endpoint && !globalThis.__otel_initialized__) {
   globalThis.__otel_initialized__ = true;
   initTelemetry();
