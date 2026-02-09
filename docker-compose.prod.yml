@@ -39,6 +39,7 @@ services:
     image: ghcr.io/chidirnweke/receipttorecipe:latest
     container_name: receipt2recipe-migrate
     restart: "no"
+    profiles: ["setup"]
     command: node scripts/prod-migrate.js
     environment:
       # App Infisical credentials (for reading/writing app secrets)
@@ -57,6 +58,8 @@ services:
       # OpenTelemetry
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel_collector:4317
       - OTEL_SERVICE_NAME=receipt2recipe-migrate
+    labels:
+      komodo.skip: # Prevent Komodo from stopping with StopAllContainers
     networks:
       - reverse-proxy
       - postgres-network
@@ -67,6 +70,7 @@ services:
     image: ghcr.io/chidirnweke/receipttorecipe:latest
     container_name: receipt2recipe-minio-init
     restart: "no"
+    profiles: ["setup"]
     command: node scripts/prod-minio-init.js
     environment:
       # App Infisical credentials (for reading/writing app secrets)
@@ -84,6 +88,8 @@ services:
       # OpenTelemetry
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel_collector:4317
       - OTEL_SERVICE_NAME=receipt2recipe-minio-init
+    labels:
+      komodo.skip: # Prevent Komodo from stopping with StopAllContainers
     networks:
       - reverse-proxy
       - postgres-network
