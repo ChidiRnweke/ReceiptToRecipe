@@ -264,12 +264,15 @@ export async function provisionDatabase() {
       console.log(`User '${dbUser}' password updated.`);
     }
 
-    // Grant privileges
+    // Grant privileges - make user the owner for full control
     console.log(
       `Granting privileges on database '${dbName}' to user '${dbUser}'...`,
     );
     await adminClient.query(
-      `GRANT CONNECT ON DATABASE "${dbName}" TO "${dbUser}"`,
+      `ALTER DATABASE "${dbName}" OWNER TO "${dbUser}"`,
+    );
+    await adminClient.query(
+      `GRANT ALL PRIVILEGES ON DATABASE "${dbName}" TO "${dbUser}"`,
     );
 
     console.log(`Reconnecting to '${dbName}' to grant schema privileges...`);

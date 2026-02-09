@@ -1,54 +1,138 @@
 import { InfisicalSDK } from "@infisical/sdk";
-import { randomBytes } from "crypto";
+import { randomBytes, createHmac, createHash } from "crypto";
 import * as Minio from "minio";
-import aws4 from "aws4";
-import https from "https";
-import http from "http";
+
+// --- CONFIGURATION ---
+const ALGORITHM = "AWS4-HMAC-SHA256";
+const REGION = "us-east-1"; // MinIO defaults to this region
+const SERVICE = "s3";
 
 /**
- * Generate a secure random access key (alphanumeric, 20 chars)
+ * --- UTILITIES ---
  */
+
 function generateAccessKey() {
-  return randomBytes(16).toString("hex").slice(0, 20);
+  return randomBytes(16).toString("hex").slice(0, 20).toUpperCase();
 }
 
-/**
- * Generate a secure random secret key (alphanumeric + symbols, 40 chars)
- */
 function generateSecretKey() {
   return randomBytes(32).toString("base64").slice(0, 40);
 }
 
+function sha256(str) {
+  return createHash("sha256").update(str).digest("hex");
+}
+
+function hmac(key, str) {
+  return createHmac("sha256", key).update(str).digest();
+}
+
 /**
- * Connect to Infisical and return authenticated client
+ * Helper to sign and execute requests against MinIO Admin API (SigV4)
  */
+async function makeMinioAdminRequest(method, path, queryParams, body, config) {
+  const { host, port, accessKey, secretKey, useSSL } = config;
+
+  // 1. Prepare Date & Payload
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, ""); // YYYYMMDDTHHMMSSZ
+  const dateStamp = amzDate.slice(0, 8); // YYYYMMDD
+
+  const payload = typeof body === "string" ? body : JSON.stringify(body || "");
+  const payloadHash = sha256(payload);
+
+  // 2. Canonical Request
+  const canonicalUri = path;
+  const canonicalQuery = new URLSearchParams(queryParams).toString(); // Sorted by default
+  const endpoint = `${host}:${port}`;
+  const headers = {
+    host: endpoint,
+    "x-amz-content-sha256": payloadHash,
+    "x-amz-date": amzDate,
+  };
+
+  const canonicalHeaders = Object.entries(headers)
+    .map(([k, v]) => `${k}:${v}\n`)
+    .join("");
+  const signedHeaders = Object.keys(headers).join(";");
+
+  const canonicalRequest = [
+    method,
+    canonicalUri,
+    canonicalQuery,
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join("\n");
+
+  // 3. String to Sign
+  const credentialScope = `${dateStamp}/${REGION}/${SERVICE}/aws4_request`;
+  const stringToSign = [
+    ALGORITHM,
+    amzDate,
+    credentialScope,
+    sha256(canonicalRequest),
+  ].join("\n");
+
+  // 4. Calculate Signature
+  const kDate = hmac("AWS4" + secretKey, dateStamp);
+  const kRegion = hmac(kDate, REGION);
+  const kService = hmac(kRegion, SERVICE);
+  const kSigning = hmac(kService, "aws4_request");
+  const signature = hmac(kSigning, stringToSign).toString("hex");
+
+  // 5. Execute Request
+  const protocol = useSSL ? "https" : "http";
+  const fullUrl = `${protocol}://${endpoint}${path}?${canonicalQuery}`;
+
+  const authHeader = `${ALGORITHM} Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  const fetchHeaders = {
+    ...headers,
+    Authorization: authHeader,
+    "Content-Type": "application/json",
+  };
+
+  const response = await fetch(fullUrl, {
+    method,
+    headers: fetchHeaders,
+    body: payload,
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    // 409 usually means "Already Exists", which we treat as success-ish
+    if (response.status === 409) return { status: 409, data: text };
+    throw new Error(`MinIO Admin API Error (${response.status}): ${text}`);
+  }
+
+  return { status: response.status, data: await response.json() };
+}
+
+/**
+ * --- INFISICAL HELPERS ---
+ */
+
 async function connectToInfisical(clientId, clientSecret, siteUrl) {
   const client = new InfisicalSDK({ siteUrl });
   await client.auth().universalAuth.login({ clientId, clientSecret });
   return client;
 }
 
-/**
- * Check if secret exists in Infisical project
- */
 async function getSecretIfExists(client, projectId, environment, secretKey) {
   try {
-    const secrets = await client.secrets().listSecrets({
-      environment,
+    const secret = await client.secrets().getSecret({
       projectId,
-      includeImports: true,
+      environment,
+      secretName: secretKey,
     });
-    const secret = secrets.secrets.find((s) => s.secretKey === secretKey);
     return secret ? secret.secretValue : null;
   } catch (err) {
-    console.error(`Failed to check for existing secret: ${err.message}`);
+    // 404/Not Found is expected if it doesn't exist
     return null;
   }
 }
 
-/**
- * Force update or create a secret (Use this for Credentials that MUST match)
- */
 async function updateOrCreateSecret(
   client,
   projectId,
@@ -57,31 +141,28 @@ async function updateOrCreateSecret(
   secretValue,
 ) {
   try {
-    // Try to update first
-    try {
-      await client.secrets().updateSecret(secretKey, {
-        environment,
-        projectId,
-        secretValue,
-      });
-      console.log(`Updated secret '${secretKey}' in Infisical`);
-    } catch (updateErr) {
-      // If update fails (doesn't exist), create it
-      await client.secrets().createSecret(secretKey, {
-        environment,
-        projectId,
-        secretValue,
-      });
-      console.log(`Created secret '${secretKey}' in Infisical`);
-    }
+    // Try update first
+    await client.secrets().updateSecret(secretKey, {
+      projectId,
+      environment,
+      secretValue,
+    });
+    console.log(`Updated '${secretKey}'`);
   } catch (err) {
-    throw new Error(`Failed to save secret '${secretKey}': ${err.message}`);
+    // If update fails, create
+    try {
+      await client.secrets().createSecret(secretKey, {
+        projectId,
+        environment,
+        secretValue,
+      });
+      console.log(`Created '${secretKey}'`);
+    } catch (createErr) {
+      throw new Error(`Failed to save '${secretKey}': ${createErr.message}`);
+    }
   }
 }
 
-/**
- * Only create secret if it doesn't exist (Use this for Config like Host/Port)
- */
 async function createSecretOnly(
   client,
   projectId,
@@ -89,344 +170,279 @@ async function createSecretOnly(
   secretKey,
   secretValue,
 ) {
+  const existing = await getSecretIfExists(
+    client,
+    projectId,
+    environment,
+    secretKey,
+  );
+  if (existing) {
+    console.log(`'${secretKey}' exists. Skipping.`);
+    return;
+  }
+
   try {
-    // Check if it exists first to avoid errors and overwrites
-    const secrets = await client.secrets().listSecrets({
-      environment,
-      projectId,
-      includeImports: true,
-    });
-    
-    const exists = secrets.secrets.some((s) => s.secretKey === secretKey);
-
-    if (exists) {
-      console.log(`Secret '${secretKey}' already exists. Preserving existing value.`);
-      return;
-    }
-
-    // It doesn't exist, so create it
     await client.secrets().createSecret(secretKey, {
-      environment,
       projectId,
+      environment,
       secretValue,
     });
-    console.log(`Created default secret '${secretKey}' in Infisical`);
+    console.log(`Created default '${secretKey}'`);
   } catch (err) {
-    console.warn(`Warning: Could not set default for '${secretKey}': ${err.message}`);
+    console.warn(`Could not set default '${secretKey}': ${err.message}`);
   }
 }
 
 /**
- * Create a Service Account (Restricted Credentials) directly via MinIO API
- * This bypasses the need for 'mc' binary using signed HTTP requests.
+ * --- MINIO PROVISIONING ---
  */
+
 async function createServiceAccount(
-  minioHost,
-  minioPort,
-  adminUser,
-  adminPassword,
+  adminConfig,
   newAccessKey,
   newSecretKey,
   bucketName,
-  useSSL,
 ) {
-  // Define the Policy (Restricted to this bucket only)
+  console.log(`Creating Service Account for bucket: ${bucketName}...`);
+
+  // Policy: Allow all S3 actions only on the specific bucket
   const policy = {
     Version: "2012-10-17",
     Statement: [
       {
         Effect: "Allow",
-        Action: [
-          "s3:ListBucket",
-          "s3:GetBucketLocation",
-          "s3:ListBucketMultipartUploads",
+        Action: ["s3:*"],
+        Resource: [
+          `arn:aws:s3:::${bucketName}`,
+          `arn:aws:s3:::${bucketName}/*`,
         ],
-        Resource: [`arn:aws:s3:::${bucketName}`],
-      },
-      {
-        Effect: "Allow",
-        Action: [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject",
-          "s3:ListMultipartUploadParts",
-          "s3:AbortMultipartUpload",
-        ],
-        Resource: [`arn:aws:s3:::${bucketName}/*`],
       },
     ],
   };
 
-  // Prepare the API Request
-  const requestOptions = {
-    host: minioHost,
-    port: minioPort,
-    method: "POST",
-    path: "/?Action=CreateServiceAccount",
-    service: "s3",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      accessKey: newAccessKey,
-      secretKey: newSecretKey,
-      policy: JSON.stringify(policy),
-    }),
-  };
+  try {
+    const result = await makeMinioAdminRequest(
+      "PUT",
+      "/minio/admin/v3/add-service-account",
+      {}, // Query params
+      {
+        accessKey: newAccessKey,
+        secretKey: newSecretKey,
+        policy: JSON.stringify(policy),
+      },
+      adminConfig,
+    );
 
-  // Sign the request using Admin Credentials (aws4)
-  const signedRequest = aws4.sign(requestOptions, {
-    accessKeyId: adminUser,
-    secretAccessKey: adminPassword,
-  });
+    if (result.status === 200) {
+      console.log("Service Account created successfully.");
+    } else if (result.status === 409) {
+      console.log("Service Account already exists. Proceeding.");
+    }
 
-  // Send the Request
-  return new Promise((resolve, reject) => {
-    const lib = useSSL ? https : http;
-    const req = lib.request(signedRequest, (res) => {
-      let data = "";
-      res.on("data", (chunk) => (data += chunk));
-      res.on("end", () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          console.log("Service Account created successfully.");
-          resolve(data ? JSON.parse(data) : null);
-        } else if (res.statusCode === 409 || data.includes("already exists") || data.includes("Access key already exists")) {
-          // Service account already exists (idempotent)
-          console.log("Service Account already exists (idempotent).");
-          resolve(null);
-        } else {
-          reject(new Error(`MinIO API Error ${res.statusCode}: ${data}`));
-        }
-      });
-    });
-
-    req.on("error", (e) => reject(e));
-    req.write(signedRequest.body);
-    req.end();
-  });
+    return true;
+  } catch (err) {
+    console.error(
+      "Failed to create service account via Admin API:",
+      err.message,
+    );
+    return false;
+  }
 }
 
-/**
- * Provision MinIO bucket and service account, then store credentials in Infisical
- */
 export async function provisionMinio() {
-  console.log("Starting MinIO provisioning...");
+  console.log("--- Starting MinIO Provisioning ---");
 
-  // Admin Infisical credentials (for accessing MinIO admin credentials)
-  const adminClientId = process.env.INFISICAL_ADMIN_CLIENT_ID;
-  const adminClientSecret = process.env.INFISICAL_ADMIN_CLIENT_SECRET;
-  const adminProjectId = process.env.INFISICAL_ADMIN_PROJECT_ID;
+  // 1. Load Env & Clients
+  const {
+    INFISICAL_ADMIN_CLIENT_ID,
+    INFISICAL_ADMIN_CLIENT_SECRET,
+    INFISICAL_ADMIN_PROJECT_ID,
+    INFISICAL_CLIENT_ID,
+    INFISICAL_CLIENT_SECRET,
+    INFISICAL_PROJECT_ID,
+    INFISICAL_ENVIRONMENT,
+    INFISICAL_URL,
+    MINIO_BUCKET,
+  } = process.env;
 
-  // App Infisical credentials (for upserting MINIO_ACCESS_KEY/SECRET_KEY)
-  const appClientId = process.env.INFISICAL_CLIENT_ID;
-  const appClientSecret = process.env.INFISICAL_CLIENT_SECRET;
-  const appProjectId = process.env.INFISICAL_PROJECT_ID;
-  const appEnvironment = process.env.INFISICAL_ENVIRONMENT;
+  if (!MINIO_BUCKET) throw new Error("Missing MINIO_BUCKET env var");
 
-  const siteUrl = process.env.INFISICAL_URL;
-
-  if (!appEnvironment) {
-    throw new Error("Missing INFISICAL_ENVIRONMENT environment variable");
-  }
-
-  // Validate all required credentials
-  if (!adminClientId || !adminClientSecret || !adminProjectId || !siteUrl) {
-    throw new Error(
-      "Missing admin Infisical credentials (INFISICAL_ADMIN_CLIENT_ID, INFISICAL_ADMIN_CLIENT_SECRET, INFISICAL_ADMIN_PROJECT_ID, INFISICAL_URL)",
-    );
-  }
-
-  if (!appClientId || !appClientSecret || !appProjectId) {
-    throw new Error(
-      "Missing app Infisical credentials (INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET, INFISICAL_PROJECT_ID)",
-    );
-  }
-
-  // Connect to both Infisical projects
-  console.log("Connecting to admin Infisical project...");
-  const adminInfisical = await connectToInfisical(
-    adminClientId,
-    adminClientSecret,
-    siteUrl,
+  const adminClient = await connectToInfisical(
+    INFISICAL_ADMIN_CLIENT_ID,
+    INFISICAL_ADMIN_CLIENT_SECRET,
+    INFISICAL_URL,
+  );
+  const appClient = await connectToInfisical(
+    INFISICAL_CLIENT_ID,
+    INFISICAL_CLIENT_SECRET,
+    INFISICAL_URL,
   );
 
-  console.log("Connecting to app Infisical project...");
-  const appInfisical = await connectToInfisical(
-    appClientId,
-    appClientSecret,
-    siteUrl,
-  );
-
-  // Check if MinIO credentials already exist in app project
-  console.log("Checking for existing MinIO credentials in app project...");
-  const existingAccessKey = await getSecretIfExists(
-    appInfisical,
-    appProjectId,
-    appEnvironment,
+  // 2. Check if App already has credentials
+  const existingAccess = await getSecretIfExists(
+    appClient,
+    INFISICAL_PROJECT_ID,
+    INFISICAL_ENVIRONMENT,
     "MINIO_ACCESS_KEY",
   );
-  const existingSecretKey = await getSecretIfExists(
-    appInfisical,
-    appProjectId,
-    appEnvironment,
+  const existingSecret = await getSecretIfExists(
+    appClient,
+    INFISICAL_PROJECT_ID,
+    INFISICAL_ENVIRONMENT,
     "MINIO_SECRET_KEY",
   );
 
-  if (existingAccessKey && existingSecretKey) {
-    console.log(
-      "MinIO credentials already exist in Infisical. Skipping MinIO provisioning.",
-    );
-    return { accessKey: existingAccessKey, secretKey: existingSecretKey };
+  if (existingAccess && existingSecret) {
+    console.log("MinIO credentials already exist in App project. Done.");
+    return { accessKey: existingAccess, secretKey: existingSecret };
   }
 
-  console.log("MinIO credentials not found. Proceeding to provision MinIO...");
-
-  // Fetch MinIO admin credentials and connection config from admin project
-  console.log("Fetching MinIO admin credentials...");
-  const adminSecrets = await adminInfisical.secrets().listSecrets({
-    environment: appEnvironment,
-    projectId: adminProjectId,
-    includeImports: true,
-  });
-
-  const adminSecretMap = {};
-  adminSecrets.secrets.forEach(
-    (s) => (adminSecretMap[s.secretKey] = s.secretValue),
+  // 3. Get Admin Credentials
+  console.log("Fetching MinIO admin credentials from Infisical...");
+  const adminSecretValue = await getSecretIfExists(
+    adminClient,
+    INFISICAL_ADMIN_PROJECT_ID,
+    INFISICAL_ENVIRONMENT,
+    "MINIO_ADMIN_PASS",
   );
+  const adminUser = await getSecretIfExists(
+    adminClient,
+    INFISICAL_ADMIN_PROJECT_ID,
+    INFISICAL_ENVIRONMENT,
+    "MINIO_ADMIN_USER",
+  );
+  const minioHost = await getSecretIfExists(
+    adminClient,
+    INFISICAL_ADMIN_PROJECT_ID,
+    INFISICAL_ENVIRONMENT,
+    "MINIO_HOST",
+  );
+  const minioPortStr = await getSecretIfExists(
+    adminClient,
+    INFISICAL_ADMIN_PROJECT_ID,
+    INFISICAL_ENVIRONMENT,
+    "MINIO_PORT",
+  );
+  const minioPort = parseInt(minioPortStr || "9000");
+  const useSSL =
+    (await getSecretIfExists(
+      adminClient,
+      INFISICAL_ADMIN_PROJECT_ID,
+      INFISICAL_ENVIRONMENT,
+      "MINIO_USE_SSL",
+    )) === "true";
 
-  const adminUser = adminSecretMap["MINIO_ADMIN_USER"];
-  const adminPassword = adminSecretMap["MINIO_ADMIN_PASS"];
-  const minioHost = adminSecretMap["MINIO_HOST"];
-  const minioPort = adminSecretMap["MINIO_PORT"];
-  const minioUseSSL = adminSecretMap["MINIO_USE_SSL"];
-
-  if (!adminUser || !adminPassword) {
+  // Validate required admin secrets
+  if (!adminUser || !adminSecretValue) {
     throw new Error(
       "Missing MINIO_ADMIN_USER or MINIO_ADMIN_PASS in admin Infisical project",
     );
   }
-
   if (!minioHost) {
-    throw new Error(
-      "Missing MINIO_HOST in admin Infisical project",
-    );
+    throw new Error("Missing MINIO_HOST in admin Infisical project");
   }
 
-  const port = minioPort ? parseInt(minioPort) : 9000;
-  const useSSL = minioUseSSL === "true";
+  const adminConfig = {
+    host: minioHost,
+    port: minioPort,
+    accessKey: adminUser,
+    secretKey: adminSecretValue,
+    useSSL,
+  };
 
-  // Bucket name comes from env var (project-specific)
-  const bucketName = process.env.MINIO_BUCKET;
-  if (!bucketName) {
-    throw new Error(
-      "Missing MINIO_BUCKET environment variable",
-    );
-  }
-
-  // Use standard Client for Bucket Operations (Data Plane)
-  console.log(`Connecting to MinIO at ${minioHost}:${port}...`);
+  // 4. Initialize MinIO Client (Data Plane)
   const minioClient = new Minio.Client({
     endPoint: minioHost,
-    port: port,
+    port: minioPort,
     useSSL: useSSL,
     accessKey: adminUser,
-    secretKey: adminPassword,
+    secretKey: adminSecretValue,
   });
 
-  // Generate new credentials for the app
-  const appAccessKey = generateAccessKey();
-  const appSecretKey = generateSecretKey();
-
-  try {
-    // 1. Create Bucket (Standard SDK works fine here)
-    console.log(`Checking if bucket '${bucketName}' exists...`);
-    const bucketExists = await minioClient.bucketExists(bucketName);
-    if (bucketExists) {
-      console.log(`Bucket '${bucketName}' already exists.`);
-    } else {
-      console.log(`Creating bucket '${bucketName}'...`);
-      await minioClient.makeBucket(bucketName);
-      console.log(`Bucket '${bucketName}' created successfully.`);
-    }
-
-    // 2. Create Service Account via API (Control Plane via signed HTTP request)
-    console.log(`Provisioning Service Account for '${appAccessKey}'...`);
-    await createServiceAccount(
-      minioHost,
-      port,
-      adminUser,
-      adminPassword,
-      appAccessKey,
-      appSecretKey,
-      bucketName,
-      useSSL,
-    );
-
-    // 3. Store credentials in app Infisical project
-    console.log("Storing MinIO credentials in app Infisical project...");
-    
-    // For CREDENTIALS: We MUST overwrite because we just generated new ones
-    await updateOrCreateSecret(
-      appInfisical,
-      appProjectId,
-      appEnvironment,
-      "MINIO_ACCESS_KEY",
-      appAccessKey,
-    );
-    await updateOrCreateSecret(
-      appInfisical,
-      appProjectId,
-      appEnvironment,
-      "MINIO_SECRET_KEY",
-      appSecretKey,
-    );
-
-    // For CONFIG: Only create if missing (Don't overwrite manual changes)
-    await createSecretOnly(
-      appInfisical,
-      appProjectId,
-      appEnvironment,
-      "MINIO_ENDPOINT",
-      minioHost,
-    );
-    await createSecretOnly(
-      appInfisical,
-      appProjectId,
-      appEnvironment,
-      "MINIO_PORT",
-      port.toString(),
-    );
-    await createSecretOnly(
-      appInfisical,
-      appProjectId,
-      appEnvironment,
-      "MINIO_BUCKET",
-      bucketName,
-    );
-    await createSecretOnly(
-      appInfisical,
-      appProjectId,
-      appEnvironment,
-      "MINIO_USE_SSL",
-      useSSL.toString(),
-    );
-
-    console.log("MinIO provisioning completed successfully!");
-    return { accessKey: appAccessKey, secretKey: appSecretKey };
-  } catch (err) {
-    throw new Error(`MinIO provisioning failed: ${err.message}`);
+  // 5. Ensure Bucket Exists
+  const bucketExists = await minioClient.bucketExists(MINIO_BUCKET);
+  if (!bucketExists) {
+    await minioClient.makeBucket(MINIO_BUCKET, REGION);
+    console.log(`Created bucket: ${MINIO_BUCKET}`);
   }
+
+  // 6. Create Service Account (Control Plane)
+  const newAccessKey = generateAccessKey();
+  const newSecretKey = generateSecretKey();
+
+  const saSuccess = await createServiceAccount(
+    adminConfig,
+    newAccessKey,
+    newSecretKey,
+    MINIO_BUCKET,
+  );
+
+  let finalAccess = newAccessKey;
+  let finalSecret = newSecretKey;
+
+  if (!saSuccess) {
+    console.warn(
+      "FALLBACK: Could not create Service Account. Using Admin credentials for App (Not Recommended).",
+    );
+    finalAccess = adminUser;
+    finalSecret = adminSecretValue;
+  }
+
+  // 7. Save to Infisical
+  console.log("Saving credentials to Infisical...");
+  await updateOrCreateSecret(
+    appClient,
+    INFISICAL_PROJECT_ID,
+    INFISICAL_ENVIRONMENT,
+    "MINIO_ACCESS_KEY",
+    finalAccess,
+  );
+  await updateOrCreateSecret(
+    appClient,
+    INFISICAL_PROJECT_ID,
+    INFISICAL_ENVIRONMENT,
+    "MINIO_SECRET_KEY",
+    finalSecret,
+  );
+
+  // Save Configs
+  await createSecretOnly(
+    appClient,
+    INFISICAL_PROJECT_ID,
+    INFISICAL_ENVIRONMENT,
+    "MINIO_ENDPOINT",
+    minioHost,
+  );
+  await createSecretOnly(
+    appClient,
+    INFISICAL_PROJECT_ID,
+    INFISICAL_ENVIRONMENT,
+    "MINIO_PORT",
+    minioPort.toString(),
+  );
+  await createSecretOnly(
+    appClient,
+    INFISICAL_PROJECT_ID,
+    INFISICAL_ENVIRONMENT,
+    "MINIO_BUCKET",
+    MINIO_BUCKET,
+  );
+  await createSecretOnly(
+    appClient,
+    INFISICAL_PROJECT_ID,
+    INFISICAL_ENVIRONMENT,
+    "MINIO_USE_SSL",
+    useSSL.toString(),
+  );
+
+  console.log("MinIO provisioning complete.");
+  return { accessKey: finalAccess, secretKey: finalSecret };
 }
 
-// Run directly if called as script
+// Run if called directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  provisionMinio()
-    .then((creds) => {
-      console.log("Provisioned MinIO credentials:", creds);
-      process.exit(0);
-    })
-    .catch((err) => {
-      console.error("MinIO provisioning failed:", err);
-      process.exit(1);
-    });
+  provisionMinio().catch((err) => {
+    console.error("Fatal Error:", err);
+    process.exit(1);
+  });
 }
