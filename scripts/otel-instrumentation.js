@@ -10,23 +10,31 @@ import { trace, context } from '@opentelemetry/api';
 
 let sdk = null;
 let otelLogger = null;
-let originalConsole = null;
+let consoleBridged = false;
+
+// Capture truly original console methods immediately at module load
+// (before any code has a chance to patch them)
+const originalConsole = {
+  log: console.log.bind(console),
+  info: console.info.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console),
+  debug: console.debug.bind(console),
+};
 
 /**
  * Bridge console.log/warn/error to OpenTelemetry logs
  */
 function bridgeConsoleLogs() {
+  // Prevent double-patching which would cause infinite recursion
+  if (consoleBridged) {
+    originalConsole.warn('[OTel] Console already bridged, skipping');
+    return;
+  }
+
   // Get the global logger provider that NodeSDK sets up
   const loggerProvider = logs.getLoggerProvider();
   otelLogger = loggerProvider.getLogger('console');
-  
-  originalConsole = {
-    log: console.log.bind(console),
-    info: console.info.bind(console),
-    warn: console.warn.bind(console),
-    error: console.error.bind(console),
-    debug: console.debug.bind(console),
-  };
 
   const severityMap = {
     debug: SeverityNumber.DEBUG,
@@ -70,6 +78,8 @@ function bridgeConsoleLogs() {
       }
     };
   }
+  
+  consoleBridged = true;
 }
 
 export function initTelemetry(serviceName = 'receipt2recipe') {
