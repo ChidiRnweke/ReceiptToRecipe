@@ -1,4 +1,4 @@
-import type { IOcrService, RawReceiptData } from "./interfaces";
+import type { IReceiptExtractor, RawReceiptData } from "./interfaces";
 import { readFile } from "fs/promises";
 import { join } from "path";
 
@@ -66,7 +66,7 @@ const RECEIPT_JSON_SCHEMA = {
   },
 };
 
-export class MistralOcrService implements IOcrService {
+export class NativeReceiptExtractor implements IReceiptExtractor {
   private apiKey: string;
 
   constructor(apiKey: string) {

@@ -2,19 +2,19 @@
 export type {
 	IStorageService,
 	UploadResult,
-	IOcrService,
+	IReceiptExtractor,
 	RawReceiptData,
 	RawReceiptItem,
-	ILlmService,
+	ICulinaryIntelligence,
 	RecipeContext,
-	GeneratedRecipe as LlmGeneratedRecipe,
+	LlmGeneratedRecipe,
 	ChatMessage,
-	IImageGenService,
+	IImageGenerator,
 	GeneratedImage,
 	IVectorService,
 	VectorSearchResult,
 	INormalizationService,
-	IProductNormalizationService,
+	IProductNormalizer,
 	NormalizedProductInfo,
 	IShoppingListService,
 	AddItemInput,
@@ -74,12 +74,12 @@ export {
 	deletePKCECookie,
 	type OAuthResult
 } from "./AuthentikOAuthService";
-export { MistralOcrService } from "./MistralOcrService";
+export { NativeReceiptExtractor } from "./NativeReceiptExtractor";
 export { MockOcrService } from "./MockOcrService";
-export { GeminiLlmService } from "./GeminiLlmService";
-export { GeminiProductNormalizationService } from "./GeminiProductNormalizationService";
+export { SmartCulinaryIntelligence } from "./SmartCulinaryIntelligence";
+export { SmartProductNormalizer } from "./SmartProductNormalizer";
 export { DalleImageService } from "./DalleImageService";
-export { GeminiImageService } from "./GeminiImageService";
+export { SmartImageGenerator } from "./SmartImageGenerator";
 export * from "./PgVectorService";
 export * from "./JobQueue";
 export { PantryService } from "./PantryService";

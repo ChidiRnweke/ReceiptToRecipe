@@ -2,14 +2,14 @@ import { getDb } from '$db/client';
 import { cookbookEmbeddings } from '$db/schema';
 import { eq, sql, desc } from 'drizzle-orm';
 import type { IVectorService, VectorSearchResult } from './interfaces';
-import type { ILlmService } from './interfaces';
+import type { ICulinaryIntelligence } from './interfaces';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 
 export class PgVectorService implements IVectorService {
-	private llmService: ILlmService;
+	private culinaryIntelligence: ICulinaryIntelligence;
 
-	constructor(llmService: ILlmService) {
-		this.llmService = llmService;
+	constructor(culinaryIntelligence: ICulinaryIntelligence) {
+		this.culinaryIntelligence = culinaryIntelligence;
 	}
 
 	async search(
@@ -47,7 +47,7 @@ export class PgVectorService implements IVectorService {
 	}
 
 	async searchByText(query: string, limit: number = 5): Promise<VectorSearchResult[]> {
-		const embedding = await this.llmService.embed(query);
+		const embedding = await this.culinaryIntelligence.embed(query);
 		return this.search(embedding, limit);
 	}
 
@@ -60,7 +60,7 @@ export class PgVectorService implements IVectorService {
 		const db = getDb();
 		if (!db) throw new Error("Database not initialized");
 
-		const embedding = await this.llmService.embed(content);
+		const embedding = await this.culinaryIntelligence.embed(content);
 		const embeddingStr = `[${embedding.join(',')}]`;
 
 		await db

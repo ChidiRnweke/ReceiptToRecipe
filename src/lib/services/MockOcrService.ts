@@ -1,4 +1,4 @@
-import type { IOcrService, RawReceiptData } from './interfaces';
+import type { IReceiptExtractor, RawReceiptData } from './interfaces';
 
 const MOCK_DATA: RawReceiptData = {
 	items: [
@@ -11,7 +11,7 @@ const MOCK_DATA: RawReceiptData = {
 	total: '$24.02'
 };
 
-export class MockOcrService implements IOcrService {
+export class MockOcrService implements IReceiptExtractor {
 	async extractReceipt(): Promise<RawReceiptData> {
 		return MOCK_DATA;
 	}

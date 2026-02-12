@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
-import type { IImageGenService, GeneratedImage } from './interfaces';
+import type { IImageGenerator, GeneratedImage } from './interfaces';
 
-export class DalleImageService implements IImageGenService {
+export class DalleImageService implements IImageGenerator {
 	private client: OpenAI;
 
 	constructor(apiKey: string) {

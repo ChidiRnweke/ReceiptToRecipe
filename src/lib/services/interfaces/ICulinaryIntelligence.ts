@@ -33,7 +33,7 @@ export interface ChatMessage {
 	content: string;
 }
 
-export interface ILlmService {
+export interface ICulinaryIntelligence {
 	/**
 	 * Generate a recipe based on available ingredients and user preferences
 	 * @param context - Recipe generation context
@@ -54,7 +54,7 @@ export interface ILlmService {
 	}>;
 
 	/**
-	 * General chat completion for the LLM
+	 * General chat completion for the culinary intelligence
 	 * @param messages - Chat history
 	 * @param systemPrompt - Optional system prompt
 	 * @returns Assistant response

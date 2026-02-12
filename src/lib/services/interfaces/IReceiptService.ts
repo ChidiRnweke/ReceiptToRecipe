@@ -1,4 +1,4 @@
-import type { RawReceiptData } from './IOcrService';
+import type { RawReceiptData } from './IReceiptExtractor';
 
 export interface Receipt {
 	id: string;

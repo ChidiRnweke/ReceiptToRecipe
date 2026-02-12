@@ -1,4 +1,4 @@
-import type { ILlmService } from './ILlmService';
+import type { ICulinaryIntelligence } from './ICulinaryIntelligence';
 
 export interface AddItemInput {
 	name: string;
@@ -51,7 +51,7 @@ export interface IShoppingListService {
 	completeShopping(listId: string): Promise<void>;
 	getSmartSuggestions(userId: string, limit?: number): Promise<SmartSuggestion[]>;
 	addSuggestion(listId: string, suggestion: SmartSuggestion): Promise<ShoppingListItem>;
-	createRestockList(userId: string, llmService: ILlmService): Promise<ShoppingListWithItems>;
+	createRestockList(userId: string, culinaryIntelligence: ICulinaryIntelligence): Promise<ShoppingListWithItems>;
 	reorderItems(listId: string, itemIds: string[]): Promise<void>;
 	deleteList(listId: string, userId: string): Promise<void>;
 	generateFromRecipes(userId: string, recipeIds: string[], name: string): Promise<ShoppingListWithItems>;

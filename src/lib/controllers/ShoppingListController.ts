@@ -9,10 +9,9 @@ import {
 import type {
   ShoppingList,
   ShoppingListItem,
-  NewShoppingListItem,
 } from "$db/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
-import type { ILlmService } from "$lib/services";
+import type { ICulinaryIntelligence } from "$lib/services";
 
 export interface ShoppingListWithItems extends ShoppingList {
   items: ShoppingListItem[];
@@ -400,11 +399,11 @@ export class ShoppingListController {
   }
 
   /**
-   * Build a restock shopping list using history and LLM reasoning
+   * Build a restock shopping list using history and culinary intelligence reasoning
    */
   async createRestockList(
     userId: string,
-    llmService: ILlmService,
+    culinaryIntelligence: ICulinaryIntelligence,
   ): Promise<ShoppingListWithItems> {
     const db = getDb();
     const history = await db.query.purchaseHistory.findMany({
@@ -440,7 +439,7 @@ ${history
     }> = [];
 
     try {
-      const response = await llmService.chat(
+      const response = await culinaryIntelligence.chat(
         [
           {
             role: "system",
@@ -456,7 +455,7 @@ ${history
       }
     } catch (err) {
       console.warn(
-        "LLM restock planning failed, falling back to heuristics",
+        "Culinary intelligence restock planning failed, falling back to heuristics",
         err,
       );
     }

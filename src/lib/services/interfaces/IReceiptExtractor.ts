@@ -18,7 +18,7 @@ export interface RawReceiptData {
   rawText?: string;
 }
 
-export interface IOcrService {
+export interface IReceiptExtractor {
   /**
    * Extract structured data from a receipt image
    * @param imageUrl - URL to the receipt image (from storage)

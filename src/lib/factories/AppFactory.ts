@@ -5,11 +5,11 @@ import {
   FileSystemStorageService,
   NormalizationService,
   AuthentikOAuthService,
-  MistralOcrService,
+  NativeReceiptExtractor,
   MockOcrService,
-  GeminiLlmService,
-  GeminiImageService,
-  GeminiProductNormalizationService,
+  SmartCulinaryIntelligence,
+  SmartImageGenerator,
+  SmartProductNormalizer,
   PgVectorService,
   JobQueue,
   PantryService,
@@ -17,11 +17,11 @@ import {
   DashboardService,
   type IStorageService,
   type INormalizationService,
-  type IOcrService,
-  type ILlmService,
-  type IImageGenService,
+  type IReceiptExtractor,
+  type ICulinaryIntelligence,
+  type IImageGenerator,
   type IVectorService,
-  type IProductNormalizationService,
+  type IProductNormalizer,
   type IOAuthService,
   type IPantryService,
   type ITasteProfileService,
@@ -63,10 +63,10 @@ import {
 // Infrastructure Services
 let storageService: IStorageService | null = null;
 let normalizationService: INormalizationService | null = null;
-let productNormalizationService: IProductNormalizationService | null = null;
-let ocrService: IOcrService | null = null;
-let llmService: ILlmService | null = null;
-let imageGenService: IImageGenService | null = null;
+let productNormalizer: IProductNormalizer | null = null;
+let receiptExtractor: IReceiptExtractor | null = null;
+let culinaryIntelligence: ICulinaryIntelligence | null = null;
+let imageGenerator: IImageGenerator | null = null;
 let vectorService: IVectorService | null = null;
 let jobQueue: JobQueue | null = null;
 
@@ -115,61 +115,80 @@ export class AppFactory {
     return normalizationService;
   }
 
-  static getProductNormalizationService(): IProductNormalizationService {
-    if (!productNormalizationService) {
-      const apiKey = ConfigService.get("GEMINI_API_KEY");
+  static getProductNormalizer(): IProductNormalizer {
+    if (!productNormalizer) {
+      const apiKey = ConfigService.get("OPENROUTER_API_KEY");
       if (!apiKey) {
-        throw new Error("GEMINI_API_KEY environment variable is required");
+        throw new Error("OPENROUTER_API_KEY environment variable is required");
       }
-      productNormalizationService = new GeminiProductNormalizationService(
-        apiKey,
-      );
+      productNormalizer = new SmartProductNormalizer(apiKey);
     }
-    return productNormalizationService;
+    return productNormalizer;
   }
 
-  static getOcrService(): IOcrService {
-    if (!ocrService) {
+  // Deprecated alias for backwards compatibility
+  static getProductNormalizationService(): IProductNormalizer {
+    return AppFactory.getProductNormalizer();
+  }
+
+  static getReceiptExtractor(): IReceiptExtractor {
+    if (!receiptExtractor) {
       const apiKey = ConfigService.get("MISTRAL_API_KEY");
-      ocrService = apiKey
-        ? new MistralOcrService(apiKey)
+      receiptExtractor = apiKey
+        ? new NativeReceiptExtractor(apiKey)
         : new MockOcrService();
     }
-    return ocrService;
+    return receiptExtractor;
   }
 
-  static getLlmService(): ILlmService {
-    if (!llmService) {
-      const apiKey = ConfigService.get("GEMINI_API_KEY");
-      if (!apiKey) {
-        throw new Error("GEMINI_API_KEY environment variable is required");
-      }
-      llmService = new GeminiLlmService(
-        apiKey,
-        ConfigService.get("GEMINI_MODEL") || "gemini-2.5-flash",
-        ConfigService.get("GEMINI_EMBEDDING_MODEL") || "text-embedding-004",
-      );
-    }
-    return llmService;
+  // Deprecated alias
+  static getOcrService(): IReceiptExtractor {
+    return AppFactory.getReceiptExtractor();
   }
 
-  static getImageGenService(): IImageGenService {
-    if (!imageGenService) {
-      const apiKey = ConfigService.get("GEMINI_API_KEY");
+  static getCulinaryIntelligence(): ICulinaryIntelligence {
+    if (!culinaryIntelligence) {
+      const apiKey = ConfigService.get("OPENROUTER_API_KEY");
       if (!apiKey) {
-        throw new Error("GEMINI_API_KEY environment variable is required");
+        throw new Error("OPENROUTER_API_KEY environment variable is required");
       }
-      imageGenService = new GeminiImageService(
+      culinaryIntelligence = new SmartCulinaryIntelligence(
         apiKey,
-        ConfigService.get("GEMINI_IMAGE_MODEL") || "gemini-2.5-flash-image",
+        ConfigService.get("OPENROUTER_MODEL") ||
+          "google/gemini-3-flash-preview",
       );
     }
-    return imageGenService;
+    return culinaryIntelligence;
+  }
+
+  // Deprecated alias
+  static getLlmService(): ICulinaryIntelligence {
+    return AppFactory.getCulinaryIntelligence();
+  }
+
+  static getImageGenerator(): IImageGenerator {
+    if (!imageGenerator) {
+      const apiKey = ConfigService.get("OPENROUTER_API_KEY");
+      if (!apiKey) {
+        throw new Error("OPENROUTER_API_KEY environment variable is required");
+      }
+      imageGenerator = new SmartImageGenerator(
+        apiKey,
+        ConfigService.get("OPENROUTER_IMAGE_MODEL") ||
+          "google/gemini-2.5-flash-image",
+      );
+    }
+    return imageGenerator;
+  }
+
+  // Deprecated alias
+  static getImageGenService(): IImageGenerator {
+    return AppFactory.getImageGenerator();
   }
 
   static getVectorService(): IVectorService {
     if (!vectorService) {
-      vectorService = new PgVectorService(AppFactory.getLlmService());
+      vectorService = new PgVectorService(AppFactory.getCulinaryIntelligence());
     }
     return vectorService;
   }
@@ -366,10 +385,10 @@ export class AppFactory {
     // Infrastructure Services
     storageService = null;
     normalizationService = null;
-    productNormalizationService = null;
-    ocrService = null;
-    llmService = null;
-    imageGenService = null;
+    productNormalizer = null;
+    receiptExtractor = null;
+    culinaryIntelligence = null;
+    imageGenerator = null;
     vectorService = null;
     jobQueue = null;
 

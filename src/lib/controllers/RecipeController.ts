@@ -9,14 +9,12 @@ import {
 import type {
   Recipe,
   RecipeIngredient,
-  NewRecipe,
   NewRecipeIngredient,
-  UserPreferences,
 } from "$db/schema";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import type {
-  ILlmService,
-  IImageGenService,
+  ICulinaryIntelligence,
+  IImageGenerator,
   IVectorService,
   LlmGeneratedRecipe,
   ITasteProfileService,
@@ -38,8 +36,8 @@ export interface RecipeWithIngredients extends Recipe {
 
 export class RecipeController {
   constructor(
-    private llmService: ILlmService,
-    private imageGenService: IImageGenService,
+    private culinaryIntelligence: ICulinaryIntelligence,
+    private imageGenerator: IImageGenerator,
     private vectorService: IVectorService,
     private tasteProfileService: ITasteProfileService,
     private jobQueue?: {
@@ -95,8 +93,8 @@ export class RecipeController {
       }
     }
 
-    // Generate recipe via LLM
-    const generatedRecipe = await this.llmService.generateRecipe({
+    // Generate recipe via AI
+    const generatedRecipe = await this.culinaryIntelligence.generateRecipe({
       availableIngredients: ingredients,
       preferences: preferences || {},
       tasteProfile,
@@ -210,7 +208,7 @@ export class RecipeController {
       const ingredientNames = generated.ingredients
         .slice(0, 5)
         .map((i: { name: string }) => i.name);
-      const result = await this.imageGenService.generateRecipeImage(
+      const result = await this.imageGenerator.generateRecipeImage(
         generated.title,
         generated.description,
         ingredientNames,
@@ -566,8 +564,8 @@ export class RecipeController {
       })),
     };
 
-    // Call LLM to adjust recipe
-    const adjustedRecipe = await this.llmService.adjustRecipe(
+    // Call AI to adjust recipe
+    const adjustedRecipe = await this.culinaryIntelligence.adjustRecipe(
       recipeForLLM,
       instruction,
     );

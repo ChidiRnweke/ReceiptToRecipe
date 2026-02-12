@@ -1,10 +1,10 @@
 export type { IStorageService, UploadResult } from "./IStorageService";
-export * from "./IOcrService";
-export type { ILlmService, RecipeContext, GeneratedRecipe as LlmGeneratedRecipe, ChatMessage } from "./ILlmService";
-export * from "./IImageGenService";
+export * from "./IReceiptExtractor";
+export type { ICulinaryIntelligence, RecipeContext, GeneratedRecipe as LlmGeneratedRecipe, ChatMessage } from "./ICulinaryIntelligence";
+export * from "./IImageGenerator";
 export * from "./IVectorService";
 export * from "./INormalizationService";
-export type { IProductNormalizationService, NormalizedProductInfo } from "./IProductNormalizationService";
+export type { IProductNormalizer, NormalizedProductInfo } from "./IProductNormalizer";
 export * from "./IShoppingListService";
 export type { IRecipeService, Recipe, RecipeWithIngredients, RecipeIngredient, GenerateRecipeInput, GeneratedRecipe, UserPreferences, TasteProfile } from "./IRecipeService";
 export * from "./IReceiptService";

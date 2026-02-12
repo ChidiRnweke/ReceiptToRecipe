@@ -3,15 +3,14 @@ import { receipts, receiptItems, purchaseHistory } from "$db/schema";
 import type {
   Receipt,
   ReceiptItem,
-  NewReceipt,
   NewReceiptItem,
 } from "$db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import type {
   IStorageService,
-  IOcrService,
+  IReceiptExtractor,
   INormalizationService,
-  IProductNormalizationService,
+  IProductNormalizer,
   RawReceiptData,
   IPantryService,
 } from "$services";
@@ -28,9 +27,9 @@ export interface ReceiptWithItems extends Receipt {
 export class ReceiptController {
   constructor(
     private storageService: IStorageService,
-    private ocrService: IOcrService,
+    private receiptExtractor: IReceiptExtractor,
     private normalizationService: INormalizationService,
-    private productNormalizationService: IProductNormalizationService,
+    private productNormalizer: IProductNormalizer,
     private pantryService: IPantryService,
     private jobQueue?: {
       add: (job: { name?: string; run: () => Promise<void> }) => Promise<void>;
@@ -107,7 +106,7 @@ export class ReceiptController {
         .where(eq(receipts.id, receiptId));
 
       // Extract data via OCR
-      const ocrData = await this.ocrService.extractReceipt(imageUrl);
+      const ocrData = await this.receiptExtractor.extractReceipt(imageUrl);
       console.log("OCR Data:", ocrData);
 
       // Normalize and save items
@@ -173,9 +172,9 @@ export class ReceiptController {
           item.quantity || "1",
         );
 
-        // Use Gemini for advanced product normalization
+        // Use AI for advanced product normalization
         const productInfo =
-          await this.productNormalizationService.normalizeProduct(rawName);
+          await this.productNormalizer.normalizeProduct(rawName);
 
         return {
           receiptId,
@@ -493,5 +492,12 @@ export class ReceiptController {
       .where(
         and(eq(receiptItems.id, itemId), eq(receiptItems.receiptId, receiptId)),
       );
+  }
+
+  async getRecipeCountsByReceiptIds(
+    receiptIds: string[],
+  ): Promise<Record<string, number>> {
+    // Implementation placeholder if needed
+    return {};
   }
 }

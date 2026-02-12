@@ -4,6 +4,6 @@ export interface NormalizedProductInfo {
   normalizedName: string;
 }
 
-export interface IProductNormalizationService {
+export interface IProductNormalizer {
   normalizeProduct(rawName: string): Promise<NormalizedProductInfo>;
 }

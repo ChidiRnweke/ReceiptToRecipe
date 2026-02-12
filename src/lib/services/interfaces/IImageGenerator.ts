@@ -3,7 +3,7 @@ export interface GeneratedImage {
 	revisedPrompt?: string;
 }
 
-export interface IImageGenService {
+export interface IImageGenerator {
 	/**
 	 * Generate an image from a text prompt
 	 * @param prompt - Text description of the image to generate

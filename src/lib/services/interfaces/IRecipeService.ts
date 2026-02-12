@@ -1,6 +1,6 @@
-import type { IImageGenService } from './IImageGenService';
+import type { IImageGenerator } from './IImageGenerator';
 import type { IVectorService } from './IVectorService';
-import type { ILlmService } from './ILlmService';
+import type { ICulinaryIntelligence } from './ICulinaryIntelligence';
 
 export interface RecipeIngredient {
 	id: string;
