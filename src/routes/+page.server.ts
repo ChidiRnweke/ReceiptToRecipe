@@ -38,10 +38,10 @@ export const actions: Actions = {
       const existingItem = list.items.find((i) => i.name === ingredientName);
 
       if (existingItem) {
-        await listController.removeItem(existingItem.id);
+        await listController.removeItem(locals.user.id, existingItem.id);
         return { success: true, removed: ingredientName };
       } else {
-        await listController.addItem(list.id, {
+        await listController.addItem(locals.user.id, list.id, {
           name: ingredientName,
           quantity: "1",
           unit: "",

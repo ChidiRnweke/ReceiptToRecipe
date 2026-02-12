@@ -150,7 +150,7 @@ export const actions: Actions = {
 				pantryItems = pantry.map((i: { itemName: string }) => i.itemName);
 			}
 
-			await listController.addRecipeIngredients(list.id, params.id, excludePantry, pantryItems);
+			await listController.addRecipeIngredients(locals.user.id, list.id, params.id, excludePantry, pantryItems);
 			return { success: true, listId: list.id };
 		} catch (err) {
 			return fail(500, { error: err instanceof Error ? err.message : 'Unable to add to shopping list' });

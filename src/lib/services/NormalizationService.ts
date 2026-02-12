@@ -103,7 +103,7 @@ export class NormalizationService implements INormalizationService {
     const original = raw;
 
     // Pattern to match number (including fractions) and unit
-    const pattern = /^([\d.,/\s]+)\s*(.*)$/;
+    const pattern = /^([-]?[\d.,/\s]+)\s*(.*)$/;
     const match = cleaned.match(pattern);
 
     if (!match) {
@@ -122,6 +122,16 @@ export class NormalizationService implements INormalizationService {
 
     // Try to identify unit type and convert
     const unitLower = unit.toLowerCase();
+
+    // Handle dozen
+    if (unitLower === "dozen" || unitLower === "doz") {
+      return {
+        value: value * 12,
+        unit: "count",
+        unitType: "COUNT",
+        originalValue: original,
+      };
+    }
 
     // Check weight
     if (WEIGHT_TO_GRAMS[unitLower] !== undefined) {
@@ -167,9 +177,9 @@ export class NormalizationService implements INormalizationService {
     return name
       .toLowerCase()
       .trim()
-      .replace(/\s+/g, " ") // Collapse multiple spaces
-      .replace(/[^\w\s-]/g, "") // Remove special characters except hyphens
       .replace(/\b(organic|fresh|frozen|canned|dried)\b/gi, "") // Remove common modifiers
+      .replace(/[^\w\s-]/g, "") // Remove special characters except hyphens
+      .replace(/\s+/g, " ") // Collapse multiple spaces
       .trim();
   }
 
@@ -251,7 +261,33 @@ export class NormalizationService implements INormalizationService {
     }
 
     // Handle regular numbers
-    const parsed = parseFloat(cleaned.replace(",", "."));
+    let numberStr = cleaned;
+
+    // Heuristic for thousands separators vs decimal comma
+    if (numberStr.includes(",") && numberStr.includes(".")) {
+      // If both present, comma is likely thousands separator (US/UK) or dot is thousands (EU)
+      // Assuming US/UK default: 1,234.56 -> remove comma
+      // If 1.234,56 (EU) -> convert dot to empty, comma to dot?
+      // Let's assume standard US/UK preference for now but handle the mix
+      if (numberStr.indexOf(",") < numberStr.indexOf(".")) {
+        // 1,234.56 -> remove comma
+        numberStr = numberStr.replace(/,/g, "");
+      } else {
+        // 1.234,56 -> remove dot, replace comma with dot
+        numberStr = numberStr.replace(/\./g, "").replace(/,/g, ".");
+      }
+    } else if ((numberStr.match(/,/g) || []).length > 1) {
+      // Multiple commas: 1,234,567 -> remove all
+      numberStr = numberStr.replace(/,/g, "");
+    } else if (/^\d{1,3}(,\d{3})+$/.test(numberStr)) {
+      // 1,234 or 12,345 format -> remove comma
+      numberStr = numberStr.replace(/,/g, "");
+    } else {
+      // Single comma, not obviously thousands: 1,5 -> 1.5
+      numberStr = numberStr.replace(",", ".");
+    }
+
+    const parsed = parseFloat(numberStr);
     return isNaN(parsed) ? 1 : parsed;
   }
 }

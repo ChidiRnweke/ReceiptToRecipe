@@ -131,7 +131,7 @@ describe('NormalizationService', () => {
 
       it('should handle dozens', () => {
         const result = service.normalizeQuantity('2 dozen');
-        expect(result.value).toBe(2);
+        expect(result.value).toBe(24);
         expect(result.unit).toBe('count');
         expect(result.unitType).toBe('COUNT');
       });
@@ -217,6 +217,41 @@ describe('NormalizationService', () => {
         const result = service.normalizeQuantity('500 g');
         expect(result.originalValue).toBe('500 g');
       });
+
+      it('should handle thousands separators (comma)', () => {
+        const result = service.normalizeQuantity('1,234 g');
+        expect(result.value).toBe(1234);
+        expect(result.unit).toBe('g');
+      });
+
+      it('should handle thousands separators with decimal (1,234.56)', () => {
+        const result = service.normalizeQuantity('1,234.56 g');
+        expect(result.value).toBe(1234.56);
+        expect(result.unit).toBe('g');
+      });
+
+      it('should handle multiple thousands separators (1,234,567)', () => {
+        const result = service.normalizeQuantity('1,234,567 g');
+        expect(result.value).toBe(1234567);
+      });
+
+      it('should handle negative numbers', () => {
+        const result = service.normalizeQuantity('-5 g');
+        expect(result.value).toBe(-5);
+        expect(result.unit).toBe('g');
+      });
+
+      it('should convert dozen to 12x count', () => {
+        const result = service.normalizeQuantity('2 dozen');
+        expect(result.value).toBe(24);
+        expect(result.unit).toBe('count');
+      });
+
+      it('should convert doz to 12x count', () => {
+        const result = service.normalizeQuantity('1 doz');
+        expect(result.value).toBe(12);
+        expect(result.unit).toBe('count');
+      });
     });
   });
 
@@ -243,6 +278,10 @@ describe('NormalizationService', () => {
 
     it('should remove common modifiers', () => {
       expect(service.normalizeName('organic fresh milk')).toBe('milk');
+    });
+
+    it('should remove modifiers in the middle without leaving double spaces', () => {
+      expect(service.normalizeName('peas frozen and carrots')).toBe('peas and carrots');
     });
 
     it('should handle frozen modifier', () => {

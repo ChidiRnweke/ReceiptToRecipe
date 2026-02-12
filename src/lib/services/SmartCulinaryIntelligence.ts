@@ -343,7 +343,9 @@ Respond with JSON:
     // Ensure required fields
     if (!recipe.title) recipe.title = "Untitled Recipe";
     if (!recipe.instructions) recipe.instructions = "";
-    if (!recipe.servings) recipe.servings = context.servings || 2;
+    if (!recipe.servings)
+      recipe.servings =
+        context.servings || context.preferences.defaultServings || 2;
     if (!recipe.ingredients) recipe.ingredients = [];
 
     // Ensure ingredient structure

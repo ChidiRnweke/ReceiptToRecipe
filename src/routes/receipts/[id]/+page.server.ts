@@ -33,7 +33,7 @@ export const actions: Actions = {
     try {
       const listController = AppFactory.getShoppingListController();
       const list = await listController.getActiveList(locals.user.id);
-      await listController.addReceiptItems(list.id, params.id);
+      await listController.addReceiptItems(locals.user.id, list.id, params.id);
       return { success: true, listId: list.id };
     } catch (err) {
       return fail(500, {
@@ -62,7 +62,7 @@ export const actions: Actions = {
     try {
       const listController = AppFactory.getShoppingListController();
       const list = await listController.getActiveList(locals.user.id);
-      await listController.addItem(list.id, {
+      await listController.addItem(locals.user.id, list.id, {
         name,
         quantity,
         unit: unit || undefined,

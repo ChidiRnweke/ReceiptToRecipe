@@ -110,7 +110,7 @@ export const actions: Actions = {
 		try {
 			const listController = AppFactory.getShoppingListController();
 			const list = await listController.getActiveList(locals.user.id);
-			await listController.addRecipeIngredients(list.id, recipeId);
+			await listController.addRecipeIngredients(locals.user.id, list.id, recipeId);
 			return { success: true, listId: list.id };
 		} catch (err) {
 			return fail(500, { error: err instanceof Error ? err.message : 'Failed to add to shopping list' });

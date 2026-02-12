@@ -78,7 +78,7 @@ export const actions: Actions = {
 
 		try {
 			const shoppingListController = AppFactory.getShoppingListController();
-			await shoppingListController.completeShopping(listId);
+			await shoppingListController.completeShopping(locals.user.id, listId);
 			return { success: true };
 		} catch (error) {
 			return fail(500, {
@@ -166,7 +166,7 @@ export const actions: Actions = {
 			}
 
 			const shoppingListController = AppFactory.getShoppingListController();
-			await shoppingListController.addItem(listId, {
+			await shoppingListController.addItem(locals.user.id, listId, {
 				name,
 				quantity: quantity || '1',
 				unit: unit || 'count'
@@ -194,7 +194,7 @@ export const actions: Actions = {
 
 		try {
 			const shoppingListController = AppFactory.getShoppingListController();
-			await shoppingListController.toggleItem(itemId, checked);
+			await shoppingListController.toggleItem(locals.user.id, itemId, checked);
 			return { success: true };
 		} catch (error) {
 			return fail(500, {
@@ -217,7 +217,7 @@ export const actions: Actions = {
 
 		try {
 			const shoppingListController = AppFactory.getShoppingListController();
-			await shoppingListController.removeItem(itemId);
+			await shoppingListController.removeItem(locals.user.id, itemId);
 			return { success: true };
 		} catch (error) {
 			return fail(500, {
@@ -298,7 +298,7 @@ export const actions: Actions = {
 
 		try {
 			const shoppingListController = AppFactory.getShoppingListController();
-			await shoppingListController.addSuggestion(listId, {
+			await shoppingListController.addSuggestion(locals.user.id, listId, {
 				itemName,
 				suggestedQuantity,
 				avgFrequencyDays,
