@@ -1,6 +1,6 @@
 import { redirect, error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { RecipeController, ShoppingListController, PantryController, TasteProfileController } from '$lib/controllers';
+import { TasteProfileController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -8,17 +8,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(302, '/login');
 	}
 
-			const recipeController = new RecipeController(
-				AppFactory.getLlmService(),
-				AppFactory.getImageGenService(),
-				AppFactory.getVectorService(),
-	            AppFactory.getTasteProfileService(),
-				AppFactory.getJobQueue()
-			);
+			const recipeController = AppFactory.getRecipeController();
 	const recipes = await recipeController.getUserRecipesWithIngredients(locals.user.id);
 
 	// Get pantry
-	const pantryController = new PantryController(AppFactory.getPantryService());
+	const pantryController = AppFactory.getPantryController();
 	const pantry = await pantryController.getUserPantry(locals.user.id);
 	
     // Get Taste Profile
@@ -90,13 +84,7 @@ export const actions: Actions = {
 			throw error(400, 'Recipe ID is required');
 		}
 
-		const recipeController = new RecipeController(
-			AppFactory.getLlmService(),
-			AppFactory.getImageGenService(),
-			AppFactory.getVectorService(),
-            AppFactory.getTasteProfileService(),
-			AppFactory.getJobQueue()
-		);
+		const recipeController = AppFactory.getRecipeController();
 
 		try {
 			await recipeController.deleteRecipe(recipeId, locals.user.id);
@@ -120,7 +108,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const listController = new ShoppingListController();
+			const listController = AppFactory.getShoppingListController();
 			const list = await listController.getActiveList(locals.user.id);
 			await listController.addRecipeIngredients(list.id, recipeId);
 			return { success: true, listId: list.id };

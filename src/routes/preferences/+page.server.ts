@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { PreferencesController } from '$lib/controllers';
+import { AppFactory } from '$lib/factories';
 import { parseNumber, parseStringList } from '$lib/validation';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(302, '/login');
 	}
 
-	const preferencesController = new PreferencesController();
+	const preferencesController = AppFactory.getPreferencesController();
 	const preferences = await preferencesController.getPreferences(locals.user.id);
 
 	return {
@@ -50,7 +50,7 @@ export const actions: Actions = {
 		}) ?? 2;
 
 		try {
-			const preferencesController = new PreferencesController();
+			const preferencesController = AppFactory.getPreferencesController();
 			await preferencesController.updatePreferences(locals.user.id, {
 				allergies,
 				dietaryRestrictions,

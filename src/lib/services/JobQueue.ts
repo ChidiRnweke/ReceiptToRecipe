@@ -1,3 +1,5 @@
+import type { IJobQueue } from './interfaces/IJobQueue';
+
 type Job = {
   name?: string;
   run: () => Promise<unknown>;
@@ -7,13 +9,13 @@ type Job = {
  * Minimal in-memory job queue with bounded concurrency.
  * Intended for short background tasks like OCR or image generation.
  */
-export class JobQueue {
+export class JobQueue implements IJobQueue {
   private queue: Job[] = [];
   private running = 0;
 
   constructor(private concurrency: number = 2) {}
 
-  add(job: Job): Promise<void> {
+  add(job: { name?: string; run: () => Promise<void> }): Promise<void> {
     return new Promise((resolve, reject) => {
       this.queue.push({
         name: job.name,

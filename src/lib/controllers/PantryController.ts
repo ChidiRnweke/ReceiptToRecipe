@@ -1,17 +1,19 @@
-import { getDb } from "$db/client";
-import { purchaseHistory, receiptItems, receipts } from "$db/schema";
-import { eq, desc, and, gt } from "drizzle-orm";
 import type { IPantryService, PantryItem } from "$services";
+import type {
+  IPurchaseHistoryRepository,
+  IReceiptItemRepository,
+} from "$repositories";
 
 export class PantryController {
-  constructor(private pantryService: IPantryService) {}
+  constructor(
+    private pantryService: IPantryService,
+    private purchaseHistoryRepository: IPurchaseHistoryRepository,
+    private receiptItemRepository: IReceiptItemRepository,
+  ) {}
 
   async getUserPantry(userId: string): Promise<PantryItem[]> {
-    const db = getDb();
     // 1. Fetch purchase history
-    const history = await db.query.purchaseHistory.findMany({
-      where: eq(purchaseHistory.userId, userId),
-    });
+    const history = await this.purchaseHistoryRepository.findByUserId(userId);
 
     // 2. Convert to PantryItems and calculate confidence
     const pantryItems: PantryItem[] = [];
@@ -21,55 +23,16 @@ export class PantryController {
       const confidence = this.pantryService.calculateStockConfidence(
         record.lastPurchased,
         record.avgFrequencyDays,
-        null, // Category not stored in purchaseHistory? It's in receiptItems.
+        null, // Category not stored in purchaseHistory - fetched below
         record.avgQuantity ? parseFloat(record.avgQuantity) : 1,
       );
 
       if (confidence > 0.2) {
-        // We need category and unit from somewhere.
-        // Let's fetch the latest receipt item for details.
-        // This acts as "provenance" and fills missing details.
-        const lastItem = await db.query.receiptItems.findFirst({
-          where: and(
-            eq(receiptItems.normalizedName, record.itemName),
-            // We might want to filter by userId indirectly via receipt?
-            // receiptItems doesn't have userId, but purchaseHistory does.
-            // We need to join receipts.
-          ),
-          with: {
-            receipt: true,
-          },
-          orderBy: [desc(receiptItems.createdAt)],
-        });
-
-        // Verify user ownership of the receipt item
-        if (lastItem && lastItem.receipt.userId !== userId) {
-          continue; // Should not happen if normalized names are unique per user?
-          // No, normalized names are just strings. purchaseHistory is per user.
-          // We must filter receiptItems by receipt.userId.
-        }
-
-        // Optimized query to get details + ownership check
-        const details = await db
-          .select({
-            id: receiptItems.id,
-            unit: receiptItems.unit,
-            category: receiptItems.category,
-            storeName: receipts.storeName,
-            receiptId: receipts.id,
-          })
-          .from(receiptItems)
-          .innerJoin(receipts, eq(receipts.id, receiptItems.receiptId))
-          .where(
-            and(
-              eq(receipts.userId, userId),
-              eq(receiptItems.normalizedName, record.itemName),
-            ),
-          )
-          .orderBy(desc(receiptItems.createdAt))
-          .limit(1);
-
-        const detail = details[0];
+        // Find the latest receipt item for this product to get category/unit details
+        const detail = await this.receiptItemRepository.findLatestByNormalizedName(
+          userId,
+          record.itemName,
+        );
 
         // Recalculate confidence with category if available
         const finalConfidence = detail?.category
@@ -83,10 +46,10 @@ export class PantryController {
 
         if (finalConfidence > 0.2) {
           pantryItems.push({
-            id: detail?.id, // Representative ID
+            id: detail?.id,
             itemName: record.itemName,
             lastPurchased: record.lastPurchased,
-            quantity: record.avgQuantity || "1", // Estimated remaining? Or avg purchase size?
+            quantity: record.avgQuantity || "1",
             unit: detail?.unit || "unit",
             category: detail?.category || null,
             stockConfidence: finalConfidence,

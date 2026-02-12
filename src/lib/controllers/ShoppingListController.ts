@@ -1,21 +1,18 @@
-import { getDb } from "$db/client";
-import {
-  shoppingLists,
-  shoppingListItems,
-  purchaseHistory,
-  recipeIngredients,
-  receiptItems,
-} from "$db/schema";
 import type {
-  ShoppingList,
-  ShoppingListItem,
-} from "$db/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+  IShoppingListRepository,
+  IShoppingListItemRepository,
+} from "$repositories";
+import type { IPurchaseHistoryRepository } from "$repositories";
+import type { IRecipeIngredientRepository } from "$repositories";
+import type { IReceiptItemRepository } from "$repositories";
 import type { ICulinaryIntelligence } from "$lib/services";
+import type {
+  ShoppingListDao,
+  ShoppingListItemDao,
+  ShoppingListWithItemsDao,
+} from "$lib/repositories/daos";
 
-export interface ShoppingListWithItems extends ShoppingList {
-  items: ShoppingListItem[];
-}
+export type { ShoppingListWithItemsDao as ShoppingListWithItems };
 
 export interface SmartSuggestion {
   itemName: string;
@@ -34,76 +31,49 @@ export interface AddItemInput {
 }
 
 export class ShoppingListController {
+  constructor(
+    private shoppingListRepo: IShoppingListRepository,
+    private shoppingListItemRepo: IShoppingListItemRepository,
+    private purchaseHistoryRepo: IPurchaseHistoryRepository,
+    private recipeIngredientRepo: IRecipeIngredientRepository,
+    private receiptItemRepo: IReceiptItemRepository,
+  ) {}
+
   /**
    * Get or create the active shopping list for a user
    */
-  async getActiveList(userId: string): Promise<ShoppingListWithItems> {
-    const db = getDb();
-    let list = await db.query.shoppingLists.findFirst({
-      where: and(
-        eq(shoppingLists.userId, userId),
-        eq(shoppingLists.isActive, true),
-      ),
-      with: {
-        items: {
-          orderBy: [shoppingListItems.orderIndex],
-        },
-      },
+  async getActiveList(userId: string): Promise<ShoppingListWithItemsDao> {
+    const existing = await this.shoppingListRepo.findActiveByUserId(userId);
+    if (existing) return existing;
+
+    const newList = await this.shoppingListRepo.create({
+      userId,
+      name: "Shopping List",
+      isActive: true,
     });
 
-    if (!list) {
-      const [newList] = await db
-        .insert(shoppingLists)
-        .values({
-          userId,
-          name: "Shopping List",
-          isActive: true,
-        })
-        .returning();
-
-      list = { ...newList, items: [] };
-    }
-
-    return list;
+    return { ...newList, items: [] };
   }
 
   /**
    * Get all shopping lists for a user
    */
-  async getUserLists(userId: string): Promise<ShoppingListWithItems[]> {
-    const db = getDb();
-    return db.query.shoppingLists.findMany({
-      where: eq(shoppingLists.userId, userId),
-      orderBy: [desc(shoppingLists.createdAt)],
-      with: {
-        items: {
-          orderBy: [shoppingListItems.orderIndex],
-        },
-      },
-    });
+  async getUserLists(userId: string): Promise<ShoppingListWithItemsDao[]> {
+    return this.shoppingListRepo.findByUserId(userId);
   }
 
   /**
    * Create a new shopping list
    */
-  async createList(userId: string, name: string): Promise<ShoppingList> {
-    const db = getDb();
+  async createList(userId: string, name: string): Promise<ShoppingListDao> {
     // Deactivate existing lists
-    await db
-      .update(shoppingLists)
-      .set({ isActive: false })
-      .where(eq(shoppingLists.userId, userId));
+    await this.shoppingListRepo.deactivateAllByUserId(userId);
 
-    const [list] = await db
-      .insert(shoppingLists)
-      .values({
-        userId,
-        name,
-        isActive: true,
-      })
-      .returning();
-
-    return list;
+    return this.shoppingListRepo.create({
+      userId,
+      name,
+      isActive: true,
+    });
   }
 
   /**
@@ -112,33 +82,19 @@ export class ShoppingListController {
   async addItem(
     listId: string,
     input: AddItemInput,
-  ): Promise<ShoppingListItem> {
-    // Get current max order index
-    const db = getDb();
+  ): Promise<ShoppingListItemDao> {
+    const maxOrder = await this.shoppingListItemRepo.getMaxOrderIndex(listId);
+    const nextOrder = maxOrder + 1;
 
-    const maxOrderResult = await db
-      .select({
-        maxOrder: sql<number>`COALESCE(MAX(${shoppingListItems.orderIndex}), -1)`,
-      })
-      .from(shoppingListItems)
-      .where(eq(shoppingListItems.shoppingListId, listId));
-
-    const nextOrder = (maxOrderResult[0]?.maxOrder || -1) + 1;
-
-    const [item] = await db
-      .insert(shoppingListItems)
-      .values({
-        shoppingListId: listId,
-        name: input.name,
-        quantity: input.quantity,
-        unit: input.unit,
-        fromRecipeId: input.fromRecipeId,
-        notes: input.notes,
-        orderIndex: nextOrder,
-      })
-      .returning();
-
-    return item;
+    return this.shoppingListItemRepo.create({
+      shoppingListId: listId,
+      name: input.name,
+      quantity: input.quantity,
+      unit: input.unit,
+      fromRecipeId: input.fromRecipeId,
+      notes: input.notes,
+      orderIndex: nextOrder,
+    });
   }
 
   /**
@@ -150,14 +106,11 @@ export class ShoppingListController {
     recipeId: string,
     excludeInStock: boolean = false,
     pantryItems: string[] = [],
-  ): Promise<ShoppingListItem[]> {
-    const db = getDb();
+  ): Promise<ShoppingListItemDao[]> {
+    const ingredients =
+      await this.recipeIngredientRepo.findByRecipeId(recipeId);
 
-    const ingredients = await db.query.recipeIngredients.findMany({
-      where: eq(recipeIngredients.recipeId, recipeId),
-    });
-
-    const items: ShoppingListItem[] = [];
+    const items: ShoppingListItemDao[] = [];
     const pantrySet = new Set(pantryItems.map((p) => p.toLowerCase()));
 
     for (const ing of ingredients) {
@@ -187,13 +140,10 @@ export class ShoppingListController {
   async addReceiptItems(
     listId: string,
     receiptId: string,
-  ): Promise<ShoppingListItem[]> {
-    const db = getDb();
-    const items = await db.query.receiptItems.findMany({
-      where: eq(receiptItems.receiptId, receiptId),
-    });
+  ): Promise<ShoppingListItemDao[]> {
+    const items = await this.receiptItemRepo.findByReceiptId(receiptId);
 
-    const results: ShoppingListItem[] = [];
+    const results: ShoppingListItemDao[] = [];
     for (const item of items) {
       const created = await this.addItem(listId, {
         name: item.normalizedName,
@@ -211,12 +161,8 @@ export class ShoppingListController {
   async toggleItem(
     itemId: string,
     checked?: boolean,
-  ): Promise<ShoppingListItem> {
-    const db = getDb();
-
-    const item = await db.query.shoppingListItems.findFirst({
-      where: eq(shoppingListItems.id, itemId),
-    });
+  ): Promise<ShoppingListItemDao> {
+    const item = await this.shoppingListItemRepo.findById(itemId);
 
     if (!item) {
       throw new Error("Item not found");
@@ -224,64 +170,41 @@ export class ShoppingListController {
 
     const nextValue = typeof checked === "boolean" ? checked : !item.checked;
 
-    const [updated] = await db
-      .update(shoppingListItems)
-      .set({ checked: nextValue })
-      .where(eq(shoppingListItems.id, itemId))
-      .returning();
-
-    return updated;
+    return this.shoppingListItemRepo.update(itemId, { checked: nextValue });
   }
 
   /**
    * Remove an item from the shopping list
    */
   async removeItem(itemId: string): Promise<void> {
-    const db = getDb();
-
-    await db.delete(shoppingListItems).where(eq(shoppingListItems.id, itemId));
+    await this.shoppingListItemRepo.delete(itemId);
   }
 
   /**
    * Clear all checked items from a list
    */
   async clearCheckedItems(listId: string): Promise<void> {
-    const db = getDb();
-
-    await db
-      .delete(shoppingListItems)
-      .where(
-        and(
-          eq(shoppingListItems.shoppingListId, listId),
-          eq(shoppingListItems.checked, true),
-        ),
-      );
+    await this.shoppingListItemRepo.deleteCheckedByListId(listId);
   }
 
   /**
    * Complete shopping: move checked items to purchase history and clear them
    */
   async completeShopping(listId: string): Promise<void> {
-    const db = getDb();
-    const checkedItems = await db.query.shoppingListItems.findMany({
-      where: and(
-        eq(shoppingListItems.shoppingListId, listId),
-        eq(shoppingListItems.checked, true),
-      ),
-    });
+    const checkedItems =
+      await this.shoppingListItemRepo.findCheckedByListId(listId);
 
     if (checkedItems.length === 0) return;
 
     const now = new Date();
+    const userId = await this.getUserIdFromList(listId);
 
     // Update purchase history
     for (const item of checkedItems) {
-      const existing = await db.query.purchaseHistory.findFirst({
-        where: and(
-          eq(purchaseHistory.userId, await this.getUserIdFromList(listId)),
-          eq(purchaseHistory.itemName, item.name), // Simple name match
-        ),
-      });
+      const existing = await this.purchaseHistoryRepo.findByUserAndItem(
+        userId,
+        item.name,
+      );
 
       if (existing) {
         const daysSinceLastPurchase = Math.floor(
@@ -289,24 +212,20 @@ export class ShoppingListController {
             (1000 * 60 * 60 * 24),
         );
         const newFrequency = existing.avgFrequencyDays
-          ? Math.round((existing.avgFrequencyDays + daysSinceLastPurchase) / 2)
+          ? Math.round(
+              (existing.avgFrequencyDays + daysSinceLastPurchase) / 2,
+            )
           : daysSinceLastPurchase > 0
             ? daysSinceLastPurchase
             : existing.avgFrequencyDays;
 
-        await db
-          .update(purchaseHistory)
-          .set({
-            lastPurchased: now,
-            purchaseCount: existing.purchaseCount + 1,
-            avgFrequencyDays: newFrequency,
-            updatedAt: now,
-          })
-          .where(eq(purchaseHistory.id, existing.id));
+        await this.purchaseHistoryRepo.update(existing.id, {
+          lastPurchased: now,
+          purchaseCount: existing.purchaseCount + 1,
+          avgFrequencyDays: newFrequency,
+        });
       } else {
-        // We need userId. Fetching it from list relationship.
-        const userId = await this.getUserIdFromList(listId);
-        await db.insert(purchaseHistory).values({
+        await this.purchaseHistoryRepo.create({
           userId,
           itemName: item.name,
           lastPurchased: now,
@@ -322,12 +241,7 @@ export class ShoppingListController {
   }
 
   private async getUserIdFromList(listId: string): Promise<string> {
-    const db = getDb();
-
-    const list = await db.query.shoppingLists.findFirst({
-      where: eq(shoppingLists.id, listId),
-      columns: { userId: true },
-    });
+    const list = await this.shoppingListRepo.findById(listId);
     if (!list) throw new Error("List not found");
     return list.userId;
   }
@@ -339,49 +253,11 @@ export class ShoppingListController {
     userId: string,
     limit: number = 10,
   ): Promise<SmartSuggestion[]> {
-    const now = new Date();
-    const db = getDb();
-
-    // Find items that might be running low based on purchase frequency
-    const history = await db.query.purchaseHistory.findMany({
-      where: eq(purchaseHistory.userId, userId),
-      orderBy: [desc(purchaseHistory.lastPurchased)],
-    });
-
-    const suggestions: SmartSuggestion[] = [];
-
-    for (const item of history) {
-      const daysSinceLastPurchase = Math.floor(
-        (now.getTime() - item.lastPurchased.getTime()) / (1000 * 60 * 60 * 24),
-      );
-
-      // Suggest if days since last purchase >= 80% of average frequency
-      if (
-        item.avgFrequencyDays &&
-        daysSinceLastPurchase >= item.avgFrequencyDays * 0.8
-      ) {
-        suggestions.push({
-          itemName: item.itemName,
-          lastPurchased: item.lastPurchased,
-          avgFrequencyDays: item.avgFrequencyDays,
-          daysSinceLastPurchase,
-          suggestedQuantity: item.avgQuantity,
-        });
-      }
-    }
-
-    // Sort by how "overdue" the item is
-    return suggestions
-      .sort((a, b) => {
-        const aOverdue = a.avgFrequencyDays
-          ? a.daysSinceLastPurchase / a.avgFrequencyDays
-          : 0;
-        const bOverdue = b.avgFrequencyDays
-          ? b.daysSinceLastPurchase / b.avgFrequencyDays
-          : 0;
-        return bOverdue - aOverdue;
-      })
-      .slice(0, limit);
+    const suggestions = await this.purchaseHistoryRepo.findSuggestions(
+      userId,
+      limit,
+    );
+    return suggestions;
   }
 
   /**
@@ -390,7 +266,7 @@ export class ShoppingListController {
   async addSuggestion(
     listId: string,
     suggestion: SmartSuggestion,
-  ): Promise<ShoppingListItem> {
+  ): Promise<ShoppingListItemDao> {
     return this.addItem(listId, {
       name: suggestion.itemName,
       quantity: suggestion.suggestedQuantity || undefined,
@@ -404,12 +280,8 @@ export class ShoppingListController {
   async createRestockList(
     userId: string,
     culinaryIntelligence: ICulinaryIntelligence,
-  ): Promise<ShoppingListWithItems> {
-    const db = getDb();
-    const history = await db.query.purchaseHistory.findMany({
-      where: eq(purchaseHistory.userId, userId),
-      orderBy: [desc(purchaseHistory.lastPurchased)],
-    });
+  ): Promise<ShoppingListWithItemsDao> {
+    const history = await this.purchaseHistoryRepo.findByUserId(userId);
 
     if (history.length === 0) {
       throw new Error("No purchase history yet");
@@ -473,7 +345,7 @@ ${history
     let orderIndex = 0;
     for (const decision of decisions) {
       if (!decision.restock) continue;
-      await db.insert(shoppingListItems).values({
+      await this.shoppingListItemRepo.create({
         shoppingListId: list.id,
         name: decision.itemName,
         quantity: decision.quantity ?? undefined,
@@ -483,10 +355,7 @@ ${history
       });
     }
 
-    const items = await db.query.shoppingListItems.findMany({
-      where: eq(shoppingListItems.shoppingListId, list.id),
-      orderBy: [shoppingListItems.orderIndex],
-    });
+    const items = await this.shoppingListItemRepo.findByListId(list.id);
 
     return { ...list, items };
   }
@@ -495,17 +364,8 @@ ${history
    * Reorder items in a list
    */
   async reorderItems(listId: string, itemIds: string[]): Promise<void> {
-    const db = getDb();
     for (let i = 0; i < itemIds.length; i++) {
-      await db
-        .update(shoppingListItems)
-        .set({ orderIndex: i })
-        .where(
-          and(
-            eq(shoppingListItems.id, itemIds[i]),
-            eq(shoppingListItems.shoppingListId, listId),
-          ),
-        );
+      await this.shoppingListItemRepo.updateOrderIndex(itemIds[i], i);
     }
   }
 
@@ -513,20 +373,13 @@ ${history
    * Delete a shopping list
    */
   async deleteList(listId: string, userId: string): Promise<void> {
-    const db = getDb();
+    const list = await this.shoppingListRepo.findById(listId);
 
-    const list = await db.query.shoppingLists.findFirst({
-      where: and(
-        eq(shoppingLists.id, listId),
-        eq(shoppingLists.userId, userId),
-      ),
-    });
-
-    if (!list) {
+    if (!list || list.userId !== userId) {
       throw new Error("Shopping list not found");
     }
 
-    await db.delete(shoppingLists).where(eq(shoppingLists.id, listId));
+    await this.shoppingListRepo.delete(listId);
   }
 
   /**
@@ -536,19 +389,14 @@ ${history
     userId: string,
     recipeIds: string[],
     name: string,
-  ): Promise<ShoppingListWithItems> {
-    const db = getDb();
-
+  ): Promise<ShoppingListWithItemsDao> {
     const list = await this.createList(userId, name);
 
     for (const recipeId of recipeIds) {
       await this.addRecipeIngredients(list.id, recipeId);
     }
 
-    const items = await db.query.shoppingListItems.findMany({
-      where: eq(shoppingListItems.shoppingListId, list.id),
-      orderBy: [shoppingListItems.orderIndex],
-    });
+    const items = await this.shoppingListItemRepo.findByListId(list.id);
 
     return { ...list, items };
   }

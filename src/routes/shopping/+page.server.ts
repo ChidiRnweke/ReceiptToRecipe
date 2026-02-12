@@ -1,6 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { ShoppingListController, PantryController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
 import type { PantryItem } from '$lib/services/PantryService';
 
@@ -9,8 +8,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(302, '/login');
 	}
 
-	const shoppingListController = new ShoppingListController();
-	const pantryController = new PantryController(AppFactory.getPantryService());
+	const shoppingListController = AppFactory.getShoppingListController();
+	const pantryController = AppFactory.getPantryController();
 
 	const [activeList, lists, suggestions, pantry] = await Promise.all([
 		shoppingListController.getActiveList(locals.user.id),
@@ -78,7 +77,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const shoppingListController = new ShoppingListController();
+			const shoppingListController = AppFactory.getShoppingListController();
 			await shoppingListController.completeShopping(listId);
 			return { success: true };
 		} catch (error) {
@@ -97,7 +96,7 @@ export const actions: Actions = {
 		const name = data.get('name')?.toString() || 'Shopping List';
 
 		try {
-			const shoppingListController = new ShoppingListController();
+			const shoppingListController = AppFactory.getShoppingListController();
 			const list = await shoppingListController.createList(locals.user.id, name);
 			return { success: true, listId: list.id };
 		} catch (error) {
@@ -113,7 +112,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const shoppingListController = new ShoppingListController();
+			const shoppingListController = AppFactory.getShoppingListController();
 			const list = await shoppingListController.createRestockList(locals.user.id, AppFactory.getLlmService());
 			return { success: true, listId: list.id };
 		} catch (error) {
@@ -142,8 +141,8 @@ export const actions: Actions = {
 		try {
 			// Check pantry for duplicates unless user explicitly wants to add anyway
 			if (!skipPantryCheck) {
-				const pantryController = new PantryController(AppFactory.getPantryService());
-				const pantry = await pantryController.getUserPantry(locals.user.id);
+				const pantryCtrl = AppFactory.getPantryController();
+				const pantry = await pantryCtrl.getUserPantry(locals.user.id);
 
 				const nameLC = name.toLowerCase();
 				const pantryMatch = pantry.find(p =>
@@ -166,7 +165,7 @@ export const actions: Actions = {
 				}
 			}
 
-			const shoppingListController = new ShoppingListController();
+			const shoppingListController = AppFactory.getShoppingListController();
 			await shoppingListController.addItem(listId, {
 				name,
 				quantity: quantity || '1',
@@ -194,7 +193,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const shoppingListController = new ShoppingListController();
+			const shoppingListController = AppFactory.getShoppingListController();
 			await shoppingListController.toggleItem(itemId, checked);
 			return { success: true };
 		} catch (error) {
@@ -217,7 +216,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const shoppingListController = new ShoppingListController();
+			const shoppingListController = AppFactory.getShoppingListController();
 			await shoppingListController.removeItem(itemId);
 			return { success: true };
 		} catch (error) {
@@ -240,7 +239,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const shoppingListController = new ShoppingListController();
+			const shoppingListController = AppFactory.getShoppingListController();
 			await shoppingListController.deleteList(listId, locals.user.id);
 			return { success: true };
 		} catch (error) {
@@ -266,7 +265,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const shoppingListController = new ShoppingListController();
+			const shoppingListController = AppFactory.getShoppingListController();
 			const list = await shoppingListController.generateFromRecipes(locals.user.id, recipeIds, listName);
 			return { success: true, listId: list.id };
 		} catch (error) {
@@ -298,7 +297,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const shoppingListController = new ShoppingListController();
+			const shoppingListController = AppFactory.getShoppingListController();
 			await shoppingListController.addSuggestion(listId, {
 				itemName,
 				suggestedQuantity,

@@ -1,11 +1,3 @@
-import { getDb } from "$db/client";
-import { receipts, receiptItems, purchaseHistory } from "$db/schema";
-import type {
-  Receipt,
-  ReceiptItem,
-  NewReceiptItem,
-} from "$db/schema";
-import { eq, desc, and } from "drizzle-orm";
 import type {
   IStorageService,
   IReceiptExtractor,
@@ -14,15 +6,22 @@ import type {
   RawReceiptData,
   IPantryService,
 } from "$services";
+import type {
+  IReceiptRepository,
+  IReceiptItemRepository,
+  IPurchaseHistoryRepository,
+  ReceiptDao,
+  ReceiptItemDao,
+  NewReceiptItemDao,
+  ReceiptWithItemsDao,
+} from "$repositories";
 
 export interface UploadReceiptInput {
   userId: string;
   file: File;
 }
 
-export interface ReceiptWithItems extends Receipt {
-  items: ReceiptItem[];
-}
+export interface ReceiptWithItems extends ReceiptWithItemsDao {}
 
 export class ReceiptController {
   constructor(
@@ -31,6 +30,9 @@ export class ReceiptController {
     private normalizationService: INormalizationService,
     private productNormalizer: IProductNormalizer,
     private pantryService: IPantryService,
+    private receiptRepository: IReceiptRepository,
+    private receiptItemRepository: IReceiptItemRepository,
+    private purchaseHistoryRepository: IPurchaseHistoryRepository,
     private jobQueue?: {
       add: (job: { name?: string; run: () => Promise<void> }) => Promise<void>;
     },
@@ -39,7 +41,7 @@ export class ReceiptController {
   /**
    * Upload a receipt image and start async OCR processing
    */
-  async uploadReceipt(input: UploadReceiptInput): Promise<Receipt> {
+  async uploadReceipt(input: UploadReceiptInput): Promise<ReceiptDao> {
     const { userId, file } = input;
 
     // Upload image to storage
@@ -52,16 +54,11 @@ export class ReceiptController {
     );
 
     // Create receipt record with QUEUED status
-    const db = getDb();
-    if (!db) throw new Error("Database not initialized");
-    const [receipt] = await db
-      .insert(receipts)
-      .values({
-        userId,
-        imageUrl: uploadResult.url,
-        status: "QUEUED",
-      })
-      .returning();
+    const receipt = await this.receiptRepository.create({
+      userId,
+      imageUrl: uploadResult.url,
+      status: "QUEUED",
+    });
 
     // Background OCR processing
     const task = () =>
@@ -93,17 +90,11 @@ export class ReceiptController {
     receiptId: string,
     imageUrl: string,
   ): Promise<void> {
-    const db = getDb();
-    if (!db) {
-      console.error("Database not initialized during OCR processing");
-      return;
-    }
     try {
       // Update status to PROCESSING
-      await db
-        .update(receipts)
-        .set({ status: "PROCESSING" })
-        .where(eq(receipts.id, receiptId));
+      await this.receiptRepository.update(receiptId, {
+        status: "PROCESSING",
+      });
 
       // Extract data via OCR
       const ocrData = await this.receiptExtractor.extractReceipt(imageUrl);
@@ -119,29 +110,21 @@ export class ReceiptController {
       const finalDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
 
       // Update status to DONE
-      await db
-        .update(receipts)
-        .set({
-          status: "DONE",
-          rawOcrData: ocrData,
-          storeName: ocrData.storeName,
-          purchaseDate: finalDate,
-          totalAmount: ocrData.total?.replace(/[^0-9.]/g, "") || undefined,
-          currency: ocrData.currency || "USD",
-          updatedAt: new Date(),
-        })
-        .where(eq(receipts.id, receiptId));
+      await this.receiptRepository.update(receiptId, {
+        status: "DONE",
+        rawOcrData: ocrData as unknown as Record<string, unknown>,
+        storeName: ocrData.storeName,
+        purchaseDate: finalDate,
+        totalAmount: ocrData.total?.replace(/[^0-9.]/g, "") || undefined,
+        currency: ocrData.currency || "USD",
+      });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      await db
-        .update(receipts)
-        .set({
-          status: "FAILED",
-          errorMessage,
-          updatedAt: new Date(),
-        })
-        .where(eq(receipts.id, receiptId));
+      await this.receiptRepository.update(receiptId, {
+        status: "FAILED",
+        errorMessage,
+      });
     }
   }
 
@@ -152,17 +135,13 @@ export class ReceiptController {
     receiptId: string,
     ocrData: RawReceiptData,
   ): Promise<void> {
-    const db = getDb();
-    if (!db) throw new Error("Database not initialized");
-    const receipt = await db.query.receipts.findFirst({
-      where: eq(receipts.id, receiptId),
-    });
+    const receipt = await this.receiptRepository.findById(receiptId);
 
     if (!receipt) {
       throw new Error("Receipt not found");
     }
 
-    const normalizedItems: NewReceiptItem[] = await Promise.all(
+    const normalizedItems: NewReceiptItemDao[] = await Promise.all(
       (ocrData.items || []).map(async (item) => {
         const nameStr =
           typeof item.name === "string" ? item.name : String(item.name || "");
@@ -194,7 +173,7 @@ export class ReceiptController {
     );
 
     if (normalizedItems.length > 0) {
-      await db.insert(receiptItems).values(normalizedItems);
+      await this.receiptItemRepository.createMany(normalizedItems);
 
       // Update purchase history
       const parsedDate = ocrData.purchaseDate
@@ -214,18 +193,14 @@ export class ReceiptController {
    */
   private async updatePurchaseHistory(
     userId: string,
-    items: NewReceiptItem[],
+    items: NewReceiptItemDao[],
     purchaseDate: Date,
   ): Promise<void> {
-    const db = getDb();
-    if (!db) throw new Error("Database not initialized");
     for (const item of items) {
-      const existing = await db.query.purchaseHistory.findFirst({
-        where: and(
-          eq(purchaseHistory.userId, userId),
-          eq(purchaseHistory.itemName, item.normalizedName),
-        ),
-      });
+      const existing = await this.purchaseHistoryRepository.findByUserAndItem(
+        userId,
+        item.normalizedName,
+      );
 
       // Calculate depletion date using PantryService
       const estimatedDepleteDate = this.pantryService.calculateDepletionDate(
@@ -269,19 +244,15 @@ export class ReceiptController {
             ? estimatedDepleteDate
             : existing.estimatedDepleteDate;
 
-        await db
-          .update(purchaseHistory)
-          .set({
-            lastPurchased: newLastPurchased,
-            purchaseCount: existing.purchaseCount + 1,
-            avgFrequencyDays: newFrequency,
-            avgQuantity: newAvgQty,
-            estimatedDepleteDate: finalDepleteDate,
-            updatedAt: new Date(),
-          })
-          .where(eq(purchaseHistory.id, existing.id));
+        await this.purchaseHistoryRepository.update(existing.id, {
+          lastPurchased: newLastPurchased,
+          purchaseCount: existing.purchaseCount + 1,
+          avgFrequencyDays: newFrequency,
+          avgQuantity: newAvgQty,
+          estimatedDepleteDate: finalDepleteDate,
+        });
       } else {
-        await db.insert(purchaseHistory).values({
+        await this.purchaseHistoryRepository.create({
           userId,
           itemName: item.normalizedName,
           lastPurchased: purchaseDate,
@@ -301,16 +272,13 @@ export class ReceiptController {
     receiptId: string,
     userId: string,
   ): Promise<ReceiptWithItems | null> {
-    const db = getDb();
-    if (!db) throw new Error("Database not initialized");
-    const receipt = await db.query.receipts.findFirst({
-      where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId)),
-      with: {
-        items: true,
-      },
-    });
+    const receipt = await this.receiptRepository.findByIdWithItems(receiptId);
 
-    return receipt || null;
+    if (!receipt || receipt.userId !== userId) {
+      return null;
+    }
+
+    return receipt;
   }
 
   /**
@@ -320,17 +288,13 @@ export class ReceiptController {
     receiptId: string,
     userId: string,
   ): Promise<{ status: string; errorMessage?: string | null } | null> {
-    const db = getDb();
-    if (!db) throw new Error("Database not initialized");
-    const receipt = await db.query.receipts.findFirst({
-      where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId)),
-      columns: {
-        status: true,
-        errorMessage: true,
-      },
-    });
+    const receipt = await this.receiptRepository.findById(receiptId);
+    if (!receipt || receipt.userId !== userId) return null;
 
-    return receipt || null;
+    return {
+      status: receipt.status,
+      errorMessage: receipt.errorMessage,
+    };
   }
 
   /**
@@ -339,30 +303,17 @@ export class ReceiptController {
   async getUserReceipts(
     userId: string,
     limit: number = 20,
-  ): Promise<Receipt[]> {
-    const db = getDb();
-    if (!db) throw new Error("Database not initialized");
-    return db.query.receipts.findMany({
-      where: eq(receipts.userId, userId),
-      orderBy: [desc(receipts.createdAt)],
-      limit,
-      with: {
-        items: true,
-      },
-    });
+  ): Promise<ReceiptWithItemsDao[]> {
+    return this.receiptRepository.findByUserIdWithItems(userId, limit);
   }
 
   /**
    * Delete a receipt
    */
   async deleteReceipt(receiptId: string, userId: string): Promise<void> {
-    const db = getDb();
-    if (!db) throw new Error("Database not initialized");
-    const receipt = await db.query.receipts.findFirst({
-      where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId)),
-    });
+    const receipt = await this.receiptRepository.findById(receiptId);
 
-    if (!receipt) {
+    if (!receipt || receipt.userId !== userId) {
       throw new Error("Receipt not found");
     }
 
@@ -373,7 +324,7 @@ export class ReceiptController {
     }
 
     // Delete from database (cascade will handle items)
-    await db.delete(receipts).where(eq(receipts.id, receiptId));
+    await this.receiptRepository.delete(receiptId);
   }
 
   /**
@@ -390,14 +341,10 @@ export class ReceiptController {
       price?: string | null;
       category?: string | null;
     },
-  ): Promise<ReceiptItem> {
-    const db = getDb();
-    if (!db) throw new Error("Database not initialized");
-    const receipt = await db.query.receipts.findFirst({
-      where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId)),
-    });
+  ): Promise<ReceiptItemDao> {
+    const receipt = await this.receiptRepository.findById(receiptId);
 
-    if (!receipt) {
+    if (!receipt || receipt.userId !== userId) {
       throw new Error("Receipt not found");
     }
 
@@ -406,25 +353,21 @@ export class ReceiptController {
     );
     const normalizedName = this.normalizationService.normalizeName(data.name);
 
-    const [updated] = await db
-      .update(receiptItems)
-      .set({
-        rawName: data.name,
-        normalizedName,
-        quantity: normalized.value.toString(),
-        unit: data.unit || normalized.unit,
-        unitType: normalized.unitType,
-        price: data.price?.replace(/[^0-9.]/g, "") || null,
-        category: data.category || "other",
-      })
-      .where(
-        and(eq(receiptItems.id, itemId), eq(receiptItems.receiptId, receiptId)),
-      )
-      .returning();
-
-    if (!updated) {
+    // Verify item belongs to receipt
+    const existingItem = await this.receiptItemRepository.findById(itemId);
+    if (!existingItem || existingItem.receiptId !== receiptId) {
       throw new Error("Item not found");
     }
+
+    const updated = await this.receiptItemRepository.update(itemId, {
+      rawName: data.name,
+      normalizedName,
+      quantity: normalized.value.toString(),
+      unit: data.unit || normalized.unit,
+      unitType: normalized.unitType,
+      price: data.price?.replace(/[^0-9.]/g, "") || null,
+      category: data.category || "other",
+    });
 
     return updated;
   }
@@ -439,14 +382,10 @@ export class ReceiptController {
       price?: string | null;
       category?: string | null;
     },
-  ): Promise<ReceiptItem> {
-    const db = getDb();
-    if (!db) throw new Error("Database not initialized");
-    const receipt = await db.query.receipts.findFirst({
-      where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId)),
-    });
+  ): Promise<ReceiptItemDao> {
+    const receipt = await this.receiptRepository.findById(receiptId);
 
-    if (!receipt) {
+    if (!receipt || receipt.userId !== userId) {
       throw new Error("Receipt not found");
     }
 
@@ -455,19 +394,16 @@ export class ReceiptController {
     );
     const normalizedName = this.normalizationService.normalizeName(data.name);
 
-    const [created] = await db
-      .insert(receiptItems)
-      .values({
-        receiptId,
-        rawName: data.name,
-        normalizedName,
-        quantity: normalized.value.toString(),
-        unit: data.unit || normalized.unit,
-        unitType: normalized.unitType,
-        price: data.price?.replace(/[^0-9.]/g, "") || null,
-        category: data.category || "other",
-      })
-      .returning();
+    const created = await this.receiptItemRepository.create({
+      receiptId,
+      rawName: data.name,
+      normalizedName,
+      quantity: normalized.value.toString(),
+      unit: data.unit || normalized.unit,
+      unitType: normalized.unitType,
+      price: data.price?.replace(/[^0-9.]/g, "") || null,
+      category: data.category || "other",
+    });
 
     return created;
   }
@@ -477,21 +413,19 @@ export class ReceiptController {
     userId: string,
     itemId: string,
   ): Promise<void> {
-    const db = getDb();
-    if (!db) throw new Error("Database not initialized");
-    const receipt = await db.query.receipts.findFirst({
-      where: and(eq(receipts.id, receiptId), eq(receipts.userId, userId)),
-    });
+    const receipt = await this.receiptRepository.findById(receiptId);
 
-    if (!receipt) {
+    if (!receipt || receipt.userId !== userId) {
       throw new Error("Receipt not found");
     }
 
-    await db
-      .delete(receiptItems)
-      .where(
-        and(eq(receiptItems.id, itemId), eq(receiptItems.receiptId, receiptId)),
-      );
+    // Verify item belongs to receipt
+    const existingItem = await this.receiptItemRepository.findById(itemId);
+    if (!existingItem || existingItem.receiptId !== receiptId) {
+      throw new Error("Item not found");
+    }
+
+    await this.receiptItemRepository.delete(itemId);
   }
 
   async getRecipeCountsByReceiptIds(

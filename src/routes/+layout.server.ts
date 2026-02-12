@@ -1,6 +1,5 @@
 import type { LayoutServerLoad } from "./$types";
 import { AppFactory } from "$lib/factories";
-import { ShoppingListController } from "$lib/controllers";
 
 export const load: LayoutServerLoad = async ({ locals }) => {
   if (!locals.user) {
@@ -21,7 +20,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     recipeRepo.countByUserId(userId),
   ]);
 
-  const listController = new ShoppingListController();
+  const listController = AppFactory.getShoppingListController();
   let shoppingItems = 0;
   try {
     const activeList = await listController.getActiveList(userId);

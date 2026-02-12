@@ -31,8 +31,7 @@ export const actions: Actions = {
     }
 
     try {
-      const { ShoppingListController } = await import("$lib/controllers");
-      const listController = new ShoppingListController();
+      const listController = AppFactory.getShoppingListController();
       const list = await listController.getActiveList(locals.user.id);
 
       // Check if item exists

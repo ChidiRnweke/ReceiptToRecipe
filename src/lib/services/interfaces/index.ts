@@ -13,6 +13,9 @@ export * from "./ITasteProfileService";
 export * from "./IPantryService";
 export type { IDashboardService, DashboardData, DashboardMetrics, ActiveList, ActiveListStats, SmartSuggestion } from "./IDashboardService";
 
+// Job Queue interface
+export type { IJobQueue } from "./IJobQueue";
+
 // Auth interfaces (defined in AuthService.ts for now)
 export type { IAuthService, AuthResult } from "../AuthService";
 

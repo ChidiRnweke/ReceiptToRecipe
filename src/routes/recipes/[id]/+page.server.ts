@@ -1,17 +1,9 @@
 import { error, redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { RecipeController, PantryController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
-import { ShoppingListController } from '$lib/controllers/ShoppingListController';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-	const recipeController = new RecipeController(
-		AppFactory.getLlmService(),
-		AppFactory.getImageGenService(),
-		AppFactory.getVectorService(),
-        AppFactory.getTasteProfileService(),
-		AppFactory.getJobQueue()
-	);
+	const recipeController = AppFactory.getRecipeController();
 
 	const viewerId = locals.user?.id;
 	const recipe = await recipeController.getRecipe(params.id, viewerId);
@@ -26,7 +18,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	// Load pantry for matching
 	let pantryMatches: Record<string, number> = {};
 	if (viewerId) {
-		const pantryController = new PantryController(AppFactory.getPantryService());
+		const pantryController = AppFactory.getPantryController();
 		const pantry = await pantryController.getUserPantry(viewerId);
 		
 		recipe.ingredients.forEach(ing => {
@@ -61,7 +53,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	// Generate AI suggestions for modifications
 	let suggestions: string[] = [];
 	try {
-		const llmService = AppFactory.getLlmService();
+		const llmService = AppFactory.getCulinaryIntelligence();
 		// Map DB recipe to GeneratedRecipe interface for the AI service
 		const recipeForAi = {
 			title: recipe.title,
@@ -101,13 +93,7 @@ export const actions: Actions = {
 			throw redirect(302, '/login');
 		}
 
-		const recipeController = new RecipeController(
-			AppFactory.getLlmService(),
-			AppFactory.getImageGenService(),
-			AppFactory.getVectorService(),
-            AppFactory.getTasteProfileService(),
-			AppFactory.getJobQueue()
-		);
+		const recipeController = AppFactory.getRecipeController();
 
 		await recipeController.saveRecipe(locals.user.id, params.id);
 		return { success: true };
@@ -117,13 +103,7 @@ export const actions: Actions = {
 			throw redirect(302, '/login');
 		}
 
-		const recipeController = new RecipeController(
-			AppFactory.getLlmService(),
-			AppFactory.getImageGenService(),
-			AppFactory.getVectorService(),
-            AppFactory.getTasteProfileService(),
-			AppFactory.getJobQueue()
-		);
+		const recipeController = AppFactory.getRecipeController();
 
 		await recipeController.unsaveRecipe(locals.user.id, params.id);
 		return { success: true };
@@ -133,13 +113,7 @@ export const actions: Actions = {
 			throw redirect(302, '/login');
 		}
 
-		const recipeController = new RecipeController(
-			AppFactory.getLlmService(),
-			AppFactory.getImageGenService(),
-			AppFactory.getVectorService(),
-            AppFactory.getTasteProfileService(),
-			AppFactory.getJobQueue()
-		);
+		const recipeController = AppFactory.getRecipeController();
 
 		const recipe = await recipeController.getRecipe(params.id, locals.user.id);
 		if (!recipe || recipe.userId !== locals.user.id) {
@@ -157,13 +131,7 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const excludePantry = formData.get('excludePantry') === 'true';
 
-		const recipeController = new RecipeController(
-			AppFactory.getLlmService(),
-			AppFactory.getImageGenService(),
-			AppFactory.getVectorService(),
-            AppFactory.getTasteProfileService(),
-			AppFactory.getJobQueue()
-		);
+		const recipeController = AppFactory.getRecipeController();
 
 		const recipe = await recipeController.getRecipe(params.id, locals.user.id);
 		if (!recipe) {
@@ -171,15 +139,15 @@ export const actions: Actions = {
 		}
 
 		try {
-			const listController = new ShoppingListController();
+			const listController = AppFactory.getShoppingListController();
 			const list = await listController.getActiveList(locals.user.id);
 			
 			// Get pantry items if excluding
 			let pantryItems: string[] = [];
 			if (excludePantry) {
-				const pantryController = new PantryController(AppFactory.getPantryService());
+				const pantryController = AppFactory.getPantryController();
 				const pantry = await pantryController.getUserPantry(locals.user.id);
-				pantryItems = pantry.map(i => i.itemName);
+				pantryItems = pantry.map((i: { itemName: string }) => i.itemName);
 			}
 
 			await listController.addRecipeIngredients(list.id, params.id, excludePantry, pantryItems);
@@ -193,13 +161,7 @@ export const actions: Actions = {
 			throw redirect(302, '/login');
 		}
 
-		const recipeController = new RecipeController(
-			AppFactory.getLlmService(),
-			AppFactory.getImageGenService(),
-			AppFactory.getVectorService(),
-            AppFactory.getTasteProfileService(),
-			AppFactory.getJobQueue()
-		);
+		const recipeController = AppFactory.getRecipeController();
 
 		try {
 			await recipeController.deleteRecipe(params.id, locals.user.id);
@@ -221,13 +183,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Adjustment instruction is required' });
 		}
 
-		const recipeController = new RecipeController(
-			AppFactory.getLlmService(),
-			AppFactory.getImageGenService(),
-			AppFactory.getVectorService(),
-            AppFactory.getTasteProfileService(),
-			AppFactory.getJobQueue()
-		);
+		const recipeController = AppFactory.getRecipeController();
 
 		try {
 			await recipeController.adjustRecipeWithAi(params.id, locals.user.id, instruction.trim());

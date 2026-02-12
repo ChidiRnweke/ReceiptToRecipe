@@ -1,16 +1,18 @@
-import type { IDashboardService, DashboardData, DashboardMetrics, ActiveList, ActiveListStats, SmartSuggestion } from './interfaces/IDashboardService';
+import type { IDashboardService, DashboardData, DashboardMetrics, ActiveList, SmartSuggestion } from './interfaces/IDashboardService';
 import type { 
 	IReceiptRepository, 
 	IRecipeRepository, 
 	ISavedRecipeRepository, 
 	IShoppingListRepository,
+	IPurchaseHistoryRepository,
+	IReceiptItemRepository,
 	ReceiptDao,
 	RecipeWithIngredientsDao,
-	ShoppingListItemDao
 } from '$repositories';
-import { ShoppingListController } from '$controllers';
+import type { ShoppingListController } from '$controllers';
 import type { IPantryService, PantryItem } from './interfaces/IPantryService';
 import { PantryController } from '$controllers';
+import { calculateListStatsPure } from './dashboardCalculations';
 
 export class DashboardService implements IDashboardService {
 	constructor(
@@ -18,7 +20,10 @@ export class DashboardService implements IDashboardService {
 		private recipeRepo: IRecipeRepository,
 		private savedRecipeRepo: ISavedRecipeRepository,
 		private shoppingListRepo: IShoppingListRepository,
-		private pantryService: IPantryService
+		private pantryService: IPantryService,
+		private purchaseHistoryRepo: IPurchaseHistoryRepository,
+		private receiptItemRepo: IReceiptItemRepository,
+		private shoppingListController: ShoppingListController
 	) {}
 
 	async getDashboardData(userId: string): Promise<DashboardData> {
@@ -37,11 +42,10 @@ export class DashboardService implements IDashboardService {
 		const recentRecipes: RecipeWithIngredientsDao[] = await this.recipeRepo.findByUserIdWithIngredients(userId, 6);
 
 		// Fetch smart suggestions (5)
-		const listController = new ShoppingListController();
-		const suggestions: SmartSuggestion[] = await listController.getSmartSuggestions(userId, 5);
+		const suggestions: SmartSuggestion[] = await this.shoppingListController.getSmartSuggestions(userId, 5);
 
 		// Fetch pantry items
-		const pantryController = new PantryController(this.pantryService);
+		const pantryController = new PantryController(this.pantryService, this.purchaseHistoryRepo, this.receiptItemRepo);
 		const pantry: PantryItem[] = await pantryController.getUserPantry(userId);
 
 		// Calculate metrics
@@ -57,7 +61,7 @@ export class DashboardService implements IDashboardService {
 			id: activeList.id,
 			name: activeList.name,
 			items: activeList.items,
-			stats: this.calculateListStats(activeList.items)
+			stats: calculateListStatsPure(activeList.items)
 		} : null;
 
 		return {
@@ -67,24 +71,6 @@ export class DashboardService implements IDashboardService {
 			suggestions,
 			pantry,
 			activeList: activeListWithStats
-		};
-	}
-
-	private calculateListStats(items: ShoppingListItemDao[]): ActiveListStats | null {
-		if (!items || items.length === 0) {
-			return null;
-		}
-
-		const totalItems = items.length;
-		const checkedItems = items.filter((i: ShoppingListItemDao) => i.checked).length;
-		const completionPercent = totalItems > 0
-			? Math.round((checkedItems / totalItems) * 100)
-			: 0;
-
-		return {
-			totalItems,
-			checkedItems,
-			completionPercent
 		};
 	}
 }

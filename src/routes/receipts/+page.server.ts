@@ -1,6 +1,5 @@
 import { redirect, fail } from "@sveltejs/kit";
 import type { PageServerLoad, Actions } from "./$types";
-import { ReceiptController, ShoppingListController } from "$lib/controllers";
 import { AppFactory } from "$lib/factories";
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -8,14 +7,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(302, "/login");
   }
 
-  const receiptController = new ReceiptController(
-    AppFactory.getStorageService(),
-    AppFactory.getOcrService(),
-    AppFactory.getNormalizationService(),
-    AppFactory.getProductNormalizationService(),
-    AppFactory.getPantryService(),
-    AppFactory.getJobQueue(),
-  );
+  const receiptController = AppFactory.getReceiptController();
   const receipts = await receiptController.getUserReceipts(locals.user.id);
 
   // Get recipe counts for each receipt
@@ -51,7 +43,7 @@ export const actions: Actions = {
     }
 
     try {
-      const listController = new ShoppingListController();
+      const listController = AppFactory.getShoppingListController();
       const list = await listController.getActiveList(locals.user.id);
       await listController.addReceiptItems(list.id, receiptId);
       return { success: true, listId: list.id };
@@ -75,15 +67,7 @@ export const actions: Actions = {
     }
 
     try {
-      const receiptController = new ReceiptController(
-        AppFactory.getStorageService(),
-        AppFactory.getOcrService(),
-        AppFactory.getNormalizationService(),
-        AppFactory.getProductNormalizationService(),
-        AppFactory.getPantryService(),
-        AppFactory.getJobQueue(),
-      );
-
+      const receiptController = AppFactory.getReceiptController();
       await receiptController.deleteReceipt(receiptId, locals.user.id);
       return { success: true };
     } catch (err) {

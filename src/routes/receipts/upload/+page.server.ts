@@ -1,6 +1,5 @@
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
-import { ReceiptController } from "$lib/controllers";
 import { AppFactory } from "$lib/factories";
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -31,14 +30,7 @@ export const actions: Actions = {
     }
 
     try {
-      const receiptController = new ReceiptController(
-        AppFactory.getStorageService(),
-        AppFactory.getOcrService(),
-        AppFactory.getNormalizationService(),
-        AppFactory.getProductNormalizationService(),
-        AppFactory.getPantryService(),
-        AppFactory.getJobQueue(),
-      );
+      const receiptController = AppFactory.getReceiptController();
       const receipt = await receiptController.uploadReceipt({
         userId: locals.user.id,
         file,

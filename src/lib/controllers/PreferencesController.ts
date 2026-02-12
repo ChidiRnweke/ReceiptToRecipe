@@ -1,7 +1,5 @@
-import { getDb } from "$db/client";
-import { userPreferences } from "$db/schema";
-import type { UserPreferences, NewUserPreferences } from "$db/schema";
-import { eq } from "drizzle-orm";
+import type { IUserPreferencesRepository } from "$repositories";
+import type { UserPreferencesDao } from "$repositories";
 
 export interface UpdatePreferencesInput {
   allergies?: string[];
@@ -13,16 +11,15 @@ export interface UpdatePreferencesInput {
 }
 
 export class PreferencesController {
+  constructor(
+    private userPreferencesRepository: IUserPreferencesRepository,
+  ) {}
+
   /**
    * Get user preferences
    */
-  async getPreferences(userId: string): Promise<UserPreferences | null> {
-    const db = getDb();
-    const prefs = await db.query.userPreferences.findFirst({
-      where: eq(userPreferences.userId, userId),
-    });
-
-    return prefs || null;
+  async getPreferences(userId: string): Promise<UserPreferencesDao | null> {
+    return this.userPreferencesRepository.findByUserId(userId);
   }
 
   /**
@@ -31,37 +28,24 @@ export class PreferencesController {
   async updatePreferences(
     userId: string,
     input: UpdatePreferencesInput,
-  ): Promise<UserPreferences> {
+  ): Promise<UserPreferencesDao> {
     const existing = await this.getPreferences(userId);
-    const db = getDb();
     if (existing) {
-      const [updated] = await db
-        .update(userPreferences)
-        .set({
-          ...input,
-          updatedAt: new Date(),
-        })
-        .where(eq(userPreferences.userId, userId))
-        .returning();
-
-      return updated;
+      return this.userPreferencesRepository.update(userId, {
+        ...input,
+      });
     } else {
-      const [created] = await db
-        .insert(userPreferences)
-        .values({
-          userId,
-          ...input,
-        })
-        .returning();
-
-      return created;
+      return this.userPreferencesRepository.create({
+        userId,
+        ...input,
+      });
     }
   }
 
   /**
    * Add an allergy
    */
-  async addAllergy(userId: string, allergy: string): Promise<UserPreferences> {
+  async addAllergy(userId: string, allergy: string): Promise<UserPreferencesDao> {
     const prefs = await this.getPreferences(userId);
     const allergies = prefs?.allergies || [];
 
@@ -78,7 +62,7 @@ export class PreferencesController {
   async removeAllergy(
     userId: string,
     allergy: string,
-  ): Promise<UserPreferences> {
+  ): Promise<UserPreferencesDao> {
     const prefs = await this.getPreferences(userId);
     const allergies = (prefs?.allergies || []).filter((a) => a !== allergy);
 
@@ -91,7 +75,7 @@ export class PreferencesController {
   async addDietaryRestriction(
     userId: string,
     restriction: string,
-  ): Promise<UserPreferences> {
+  ): Promise<UserPreferencesDao> {
     const prefs = await this.getPreferences(userId);
     const restrictions = prefs?.dietaryRestrictions || [];
 
@@ -110,7 +94,7 @@ export class PreferencesController {
   async removeDietaryRestriction(
     userId: string,
     restriction: string,
-  ): Promise<UserPreferences> {
+  ): Promise<UserPreferencesDao> {
     const prefs = await this.getPreferences(userId);
     const restrictions = (prefs?.dietaryRestrictions || []).filter(
       (r) => r !== restriction,
@@ -127,7 +111,7 @@ export class PreferencesController {
   async addExcludedIngredient(
     userId: string,
     ingredient: string,
-  ): Promise<UserPreferences> {
+  ): Promise<UserPreferencesDao> {
     const prefs = await this.getPreferences(userId);
     const excluded = prefs?.excludedIngredients || [];
 
@@ -144,7 +128,7 @@ export class PreferencesController {
   async removeExcludedIngredient(
     userId: string,
     ingredient: string,
-  ): Promise<UserPreferences> {
+  ): Promise<UserPreferencesDao> {
     const prefs = await this.getPreferences(userId);
     const excluded = (prefs?.excludedIngredients || []).filter(
       (e) => e !== ingredient,
@@ -159,7 +143,7 @@ export class PreferencesController {
   async setCuisinePreferences(
     userId: string,
     cuisines: string[],
-  ): Promise<UserPreferences> {
+  ): Promise<UserPreferencesDao> {
     return this.updatePreferences(userId, { cuisinePreferences: cuisines });
   }
 
@@ -169,7 +153,7 @@ export class PreferencesController {
   async setCaloricGoal(
     userId: string,
     caloricGoal: number | null,
-  ): Promise<UserPreferences> {
+  ): Promise<UserPreferencesDao> {
     return this.updatePreferences(userId, { caloricGoal });
   }
 
@@ -179,7 +163,7 @@ export class PreferencesController {
   async setDefaultServings(
     userId: string,
     servings: number,
-  ): Promise<UserPreferences> {
+  ): Promise<UserPreferencesDao> {
     return this.updatePreferences(userId, { defaultServings: servings });
   }
 }

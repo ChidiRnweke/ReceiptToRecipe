@@ -27,6 +27,7 @@ import {
   type ITasteProfileService,
   type IDashboardService,
 } from "$services";
+import { RecipeController, PreferencesController, ReceiptController, PantryController, ShoppingListController } from "$controllers";
 import {
   UserRepository,
   SessionRepository,
@@ -69,6 +70,13 @@ let culinaryIntelligence: ICulinaryIntelligence | null = null;
 let imageGenerator: IImageGenerator | null = null;
 let vectorService: IVectorService | null = null;
 let jobQueue: JobQueue | null = null;
+
+// Controllers
+let recipeController: RecipeController | null = null;
+let preferencesController: PreferencesController | null = null;
+let receiptController: ReceiptController | null = null;
+let pantryController: PantryController | null = null;
+let shoppingListController: ShoppingListController | null = null;
 
 // Domain Services - Using IOAuthService as the auth interface
 let oauthService: IOAuthService | null = null;
@@ -264,9 +272,81 @@ export class AppFactory {
         AppFactory.getSavedRecipeRepository(),
         AppFactory.getShoppingListRepository(),
         AppFactory.getPantryService(),
+        AppFactory.getPurchaseHistoryRepository(),
+        AppFactory.getReceiptItemRepository(),
+        AppFactory.getShoppingListController(),
       );
     }
     return dashboardService;
+  }
+
+  // Controllers
+  static getRecipeController(): RecipeController {
+    if (!recipeController) {
+      recipeController = new RecipeController(
+        AppFactory.getCulinaryIntelligence(),
+        AppFactory.getImageGenerator(),
+        AppFactory.getVectorService(),
+        AppFactory.getTasteProfileService(),
+        AppFactory.getRecipeRepository(),
+        AppFactory.getRecipeIngredientRepository(),
+        AppFactory.getSavedRecipeRepository(),
+        AppFactory.getUserPreferencesRepository(),
+        AppFactory.getReceiptItemRepository(),
+        AppFactory.getJobQueue(),
+      );
+    }
+    return recipeController;
+  }
+
+  static getPreferencesController(): PreferencesController {
+    if (!preferencesController) {
+      preferencesController = new PreferencesController(
+        AppFactory.getUserPreferencesRepository(),
+      );
+    }
+    return preferencesController;
+  }
+
+  static getReceiptController(): ReceiptController {
+    if (!receiptController) {
+      receiptController = new ReceiptController(
+        AppFactory.getStorageService(),
+        AppFactory.getReceiptExtractor(),
+        AppFactory.getNormalizationService(),
+        AppFactory.getProductNormalizer(),
+        AppFactory.getPantryService(),
+        AppFactory.getReceiptRepository(),
+        AppFactory.getReceiptItemRepository(),
+        AppFactory.getPurchaseHistoryRepository(),
+        AppFactory.getJobQueue(),
+      );
+    }
+    return receiptController;
+  }
+
+  static getPantryController(): PantryController {
+    if (!pantryController) {
+      pantryController = new PantryController(
+        AppFactory.getPantryService(),
+        AppFactory.getPurchaseHistoryRepository(),
+        AppFactory.getReceiptItemRepository(),
+      );
+    }
+    return pantryController;
+  }
+
+  static getShoppingListController(): ShoppingListController {
+    if (!shoppingListController) {
+      shoppingListController = new ShoppingListController(
+        AppFactory.getShoppingListRepository(),
+        AppFactory.getShoppingListItemRepository(),
+        AppFactory.getPurchaseHistoryRepository(),
+        AppFactory.getRecipeIngredientRepository(),
+        AppFactory.getReceiptItemRepository(),
+      );
+    }
+    return shoppingListController;
   }
 
   // Repositories
@@ -397,6 +477,13 @@ export class AppFactory {
     pantryService = null;
     tasteProfileService = null;
     dashboardService = null;
+
+    // Controllers
+    recipeController = null;
+    preferencesController = null;
+    receiptController = null;
+    pantryController = null;
+    shoppingListController = null;
 
     // Repositories
     userRepository = null;

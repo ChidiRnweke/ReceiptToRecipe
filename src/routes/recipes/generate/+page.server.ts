@@ -1,6 +1,5 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, redirect, isRedirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { RecipeController, PreferencesController, PantryController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
 import { parseNumber, parseStringList } from '$lib/validation';
 
@@ -9,11 +8,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		throw redirect(302, '/login');
 	}
 
-	const preferencesController = new PreferencesController();
+	const preferencesController = AppFactory.getPreferencesController();
 	const preferences = await preferencesController.getPreferences(locals.user.id);
 
 	// Get user pantry items
-	const pantryController = new PantryController(AppFactory.getPantryService());
+	const pantryController = AppFactory.getPantryController();
 	const pantry = await pantryController.getUserPantry(locals.user.id);
 
 	return {
@@ -51,13 +50,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const recipeController = new RecipeController(
-				AppFactory.getLlmService(),
-				AppFactory.getImageGenService(),
-				AppFactory.getVectorService(),
-                AppFactory.getTasteProfileService(),
-				AppFactory.getJobQueue()
-			);
+			const recipeController = AppFactory.getRecipeController();
 
 			const recipe = await recipeController.generateRecipe({
 				userId: locals.user.id,
@@ -70,7 +63,7 @@ export const actions: Actions = {
 
 			throw redirect(302, `/recipes/${recipe.id}`);
 		} catch (error) {
-			if (error instanceof Response) throw error;
+			if (isRedirect(error)) throw error;
 			return fail(500, {
 				error: error instanceof Error ? error.message : 'Failed to generate recipe'
 			});

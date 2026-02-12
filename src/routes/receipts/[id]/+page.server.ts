@@ -1,6 +1,5 @@
 import { error, redirect, fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
-import { ReceiptController, ShoppingListController } from "$lib/controllers";
 import { AppFactory } from "$lib/factories";
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -8,15 +7,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     throw redirect(302, "/login");
   }
 
-  const receiptController = new ReceiptController(
-    AppFactory.getStorageService(),
-    AppFactory.getOcrService(),
-    AppFactory.getNormalizationService(),
-    AppFactory.getProductNormalizationService(),
-    AppFactory.getPantryService(),
-    AppFactory.getJobQueue(),
-  );
-
+  const receiptController = AppFactory.getReceiptController();
   const receipt = await receiptController.getReceipt(params.id, locals.user.id);
 
   if (!receipt) {
@@ -40,7 +31,7 @@ export const actions: Actions = {
     }
 
     try {
-      const listController = new ShoppingListController();
+      const listController = AppFactory.getShoppingListController();
       const list = await listController.getActiveList(locals.user.id);
       await listController.addReceiptItems(list.id, params.id);
       return { success: true, listId: list.id };
@@ -69,7 +60,7 @@ export const actions: Actions = {
       quantityStr && quantityStr.trim() !== "" ? quantityStr : undefined;
 
     try {
-      const listController = new ShoppingListController();
+      const listController = AppFactory.getShoppingListController();
       const list = await listController.getActiveList(locals.user.id);
       await listController.addItem(list.id, {
         name,
@@ -102,14 +93,7 @@ export const actions: Actions = {
     }
 
     try {
-      const receiptController = new ReceiptController(
-        AppFactory.getStorageService(),
-        AppFactory.getOcrService(),
-        AppFactory.getNormalizationService(),
-        AppFactory.getProductNormalizationService(),
-        AppFactory.getPantryService(),
-        AppFactory.getJobQueue(),
-      );
+      const receiptController = AppFactory.getReceiptController();
       await receiptController.updateReceiptItem(
         params.id,
         locals.user.id,
@@ -147,14 +131,7 @@ export const actions: Actions = {
     }
 
     try {
-      const receiptController = new ReceiptController(
-        AppFactory.getStorageService(),
-        AppFactory.getOcrService(),
-        AppFactory.getNormalizationService(),
-        AppFactory.getProductNormalizationService(),
-        AppFactory.getPantryService(),
-        AppFactory.getJobQueue(),
-      );
+      const receiptController = AppFactory.getReceiptController();
       await receiptController.addManualItem(params.id, locals.user.id, {
         name,
         quantity,
@@ -180,14 +157,7 @@ export const actions: Actions = {
     if (!itemId) return fail(400, { error: "Item is required" });
 
     try {
-      const receiptController = new ReceiptController(
-        AppFactory.getStorageService(),
-        AppFactory.getOcrService(),
-        AppFactory.getNormalizationService(),
-        AppFactory.getProductNormalizationService(),
-        AppFactory.getPantryService(),
-        AppFactory.getJobQueue(),
-      );
+      const receiptController = AppFactory.getReceiptController();
       await receiptController.deleteReceiptItem(
         params.id,
         locals.user.id,

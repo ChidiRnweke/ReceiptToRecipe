@@ -1,17 +1,17 @@
-import { getDb } from "$db/client";
-import {
-  recipes,
-  recipeIngredients,
-  receiptItems,
-  userPreferences,
-  savedRecipes,
-} from "$db/schema";
 import type {
-  Recipe,
-  RecipeIngredient,
-  NewRecipeIngredient,
-} from "$db/schema";
-import { eq, desc, and, inArray } from "drizzle-orm";
+  IRecipeRepository,
+  IRecipeIngredientRepository,
+  ISavedRecipeRepository,
+  IUserPreferencesRepository,
+  IReceiptItemRepository,
+} from "$repositories";
+import type {
+  RecipeDao,
+  NewRecipeDao,
+  RecipeWithIngredientsDao,
+  RecipeIngredientDao,
+  NewRecipeIngredientDao,
+} from "$repositories";
 import type {
   ICulinaryIntelligence,
   IImageGenerator,
@@ -30,8 +30,8 @@ export interface GenerateRecipeInput {
   sourceReceiptId?: string; // The primary receipt this recipe was generated from
 }
 
-export interface RecipeWithIngredients extends Recipe {
-  ingredients: RecipeIngredient[];
+export interface RecipeWithIngredients extends RecipeDao {
+  ingredients: RecipeIngredientDao[];
 }
 
 export class RecipeController {
@@ -40,6 +40,11 @@ export class RecipeController {
     private imageGenerator: IImageGenerator,
     private vectorService: IVectorService,
     private tasteProfileService: ITasteProfileService,
+    private recipeRepository: IRecipeRepository,
+    private recipeIngredientRepository: IRecipeIngredientRepository,
+    private savedRecipeRepository: ISavedRecipeRepository,
+    private userPreferencesRepository: IUserPreferencesRepository,
+    private receiptItemRepository: IReceiptItemRepository,
     private jobQueue?: {
       add: (job: { name?: string; run: () => Promise<void> }) => Promise<void>;
     },
@@ -48,7 +53,7 @@ export class RecipeController {
   /**
    * Generate a recipe from available ingredients
    */
-  async generateRecipe(input: GenerateRecipeInput): Promise<Recipe> {
+  async generateRecipe(input: GenerateRecipeInput): Promise<RecipeDao> {
     const {
       userId,
       ingredientIds,
@@ -60,10 +65,7 @@ export class RecipeController {
     } = input;
 
     // Get user preferences
-    const db = getDb();
-    const preferences = await db.query.userPreferences.findFirst({
-      where: eq(userPreferences.userId, userId),
-    });
+    const preferences = await this.userPreferencesRepository.findByUserId(userId);
 
     // Get taste profile
     const tasteProfile =
@@ -73,10 +75,13 @@ export class RecipeController {
     const ingredients: string[] = [...(customIngredients || [])];
 
     if (ingredientIds?.length) {
-      const items = await db.query.receiptItems.findMany({
-        where: inArray(receiptItems.id, ingredientIds),
-      });
-      ingredients.push(...items.map((item) => item.normalizedName));
+      const items = await Promise.all(
+        ingredientIds.map(id => this.receiptItemRepository.findById(id))
+      );
+      ingredients.push(
+        ...items.filter((item): item is NonNullable<typeof item> => item !== null)
+          .map(item => item.normalizedName)
+      );
     }
 
     if (ingredients.length === 0) {
@@ -141,29 +146,24 @@ export class RecipeController {
     generated: LlmGeneratedRecipe,
     source: "GENERATED" | "RAG" | "USER",
     sourceReceiptId?: string,
-  ): Promise<Recipe> {
-    const db = getDb();
-    const [recipe] = await db
-      .insert(recipes)
-      .values({
-        userId,
-        sourceReceiptId: sourceReceiptId || null,
-        title: generated.title,
-        description: generated.description,
-        instructions: generated.instructions,
-        servings: generated.servings,
-        prepTime: generated.prepTime,
-        cookTime: generated.cookTime,
-        cuisineType: generated.cuisineType,
-        estimatedCalories: generated.estimatedCalories,
-        source,
-        imageStatus: "QUEUED",
-      })
-      .returning();
+  ): Promise<RecipeDao> {
+    const recipe = await this.recipeRepository.create({
+      userId,
+      sourceReceiptId: sourceReceiptId || null,
+      title: generated.title,
+      description: generated.description,
+      instructions: generated.instructions,
+      servings: generated.servings,
+      prepTime: generated.prepTime,
+      cookTime: generated.cookTime,
+      cuisineType: generated.cuisineType,
+      estimatedCalories: generated.estimatedCalories,
+      source,
+    });
 
     // Save ingredients
     if (generated.ingredients.length > 0) {
-      const ingredientValues: NewRecipeIngredient[] = generated.ingredients.map(
+      const ingredientValues: NewRecipeIngredientDao[] = generated.ingredients.map(
         (
           ing: {
             name: string;
@@ -185,7 +185,7 @@ export class RecipeController {
         }),
       );
 
-      await db.insert(recipeIngredients).values(ingredientValues);
+      await this.recipeIngredientRepository.createMany(ingredientValues);
     }
 
     return recipe;
@@ -198,12 +198,8 @@ export class RecipeController {
     recipeId: string,
     generated: LlmGeneratedRecipe,
   ): Promise<void> {
-    const db = getDb();
     try {
-      await db
-        .update(recipes)
-        .set({ imageStatus: "PROCESSING" })
-        .where(eq(recipes.id, recipeId));
+      await this.recipeRepository.update(recipeId, { imageStatus: "PROCESSING" });
 
       const ingredientNames = generated.ingredients
         .slice(0, 5)
@@ -214,23 +210,15 @@ export class RecipeController {
         ingredientNames,
       );
 
-      await db
-        .update(recipes)
-        .set({
-          imageUrl: result.url,
-          imageStatus: "DONE",
-          updatedAt: new Date(),
-        })
-        .where(eq(recipes.id, recipeId));
+      await this.recipeRepository.update(recipeId, {
+        imageUrl: result.url,
+        imageStatus: "DONE",
+      });
     } catch (error) {
       console.error("Image generation error:", error);
-      await db
-        .update(recipes)
-        .set({
-          imageStatus: "FAILED",
-          updatedAt: new Date(),
-        })
-        .where(eq(recipes.id, recipeId));
+      await this.recipeRepository.update(recipeId, {
+        imageStatus: "FAILED",
+      });
     }
   }
 
@@ -265,24 +253,21 @@ export class RecipeController {
     recipeId: string,
     userId?: string,
   ): Promise<RecipeWithIngredients | null> {
-    const db = getDb();
-    const recipe = await db.query.recipes.findFirst({
-      where: userId
-        ? and(eq(recipes.id, recipeId), eq(recipes.userId, userId))
-        : eq(recipes.id, recipeId),
-      with: {
-        ingredients: {
-          orderBy: [recipeIngredients.orderIndex],
-        },
-      },
-    });
+    const recipe = await this.recipeRepository.findByIdWithIngredients(recipeId);
 
-    // Check if recipe is public or belongs to user
-    if (recipe && !recipe.isPublic && recipe.userId !== userId) {
+    if (!recipe) return null;
+
+    // If userId is provided, check ownership or public access
+    if (userId && recipe.userId !== userId && !recipe.isPublic) {
       return null;
     }
 
-    return recipe || null;
+    // If no userId provided, only return public recipes
+    if (!userId && !recipe.isPublic) {
+      return null;
+    }
+
+    return recipe;
   }
 
   /**
@@ -311,13 +296,8 @@ export class RecipeController {
   /**
    * Get all recipes for a user
    */
-  async getUserRecipes(userId: string, limit: number = 20): Promise<Recipe[]> {
-    const db = getDb();
-    return db.query.recipes.findMany({
-      where: eq(recipes.userId, userId),
-      orderBy: [desc(recipes.createdAt)],
-      limit,
-    });
+  async getUserRecipes(userId: string, limit: number = 20): Promise<RecipeDao[]> {
+    return this.recipeRepository.findByUserId(userId, limit);
   }
 
   /**
@@ -326,112 +306,69 @@ export class RecipeController {
   async getUserRecipesWithIngredients(
     userId: string,
     limit: number = 20,
-  ): Promise<RecipeWithIngredients[]> {
-    const db = getDb();
-
-    return db.query.recipes.findMany({
-      where: eq(recipes.userId, userId),
-      orderBy: [desc(recipes.createdAt)],
-      limit,
-      with: {
-        ingredients: true,
-      },
-    });
+  ): Promise<RecipeWithIngredientsDao[]> {
+    return this.recipeRepository.findByUserIdWithIngredients(userId, limit);
   }
 
   /**
    * Save/favorite a recipe
    */
   async saveRecipe(userId: string, recipeId: string): Promise<void> {
-    const db = getDb();
-    await db
-      .insert(savedRecipes)
-      .values({ userId, recipeId })
-      .onConflictDoNothing();
+    const existing = await this.savedRecipeRepository.findByUserAndRecipe(userId, recipeId);
+    if (!existing) {
+      await this.savedRecipeRepository.create({ userId, recipeId });
+    }
   }
 
   /**
    * Unsave/unfavorite a recipe
    */
   async unsaveRecipe(userId: string, recipeId: string): Promise<void> {
-    const db = getDb();
-    await db
-      .delete(savedRecipes)
-      .where(
-        and(
-          eq(savedRecipes.userId, userId),
-          eq(savedRecipes.recipeId, recipeId),
-        ),
-      );
+    await this.savedRecipeRepository.delete(userId, recipeId);
   }
 
   /**
    * Get saved recipes for a user
    */
-  async getSavedRecipes(userId: string): Promise<Recipe[]> {
-    const db = getDb();
-    const saved = await db.query.savedRecipes.findMany({
-      where: eq(savedRecipes.userId, userId),
-      with: {
-        recipe: true,
-      },
-    });
+  async getSavedRecipes(userId: string): Promise<RecipeDao[]> {
+    const saved = await this.savedRecipeRepository.findByUserId(userId);
+    if (saved.length === 0) return [];
 
-    return saved.map((s) => s.recipe);
+    const recipeIds = saved.map(s => s.recipeId);
+    return this.recipeRepository.findByIds(recipeIds);
   }
 
   /**
    * Check if a recipe is saved by a user
    */
   async isSaved(userId: string, recipeId: string): Promise<boolean> {
-    const db = getDb();
-    const saved = await db.query.savedRecipes.findFirst({
-      where: and(
-        eq(savedRecipes.userId, userId),
-        eq(savedRecipes.recipeId, recipeId),
-      ),
-    });
-    return Boolean(saved);
+    return this.savedRecipeRepository.exists(userId, recipeId);
   }
 
   /**
    * Toggle recipe public/private
    */
   async togglePublic(recipeId: string, userId: string): Promise<boolean> {
-    const db = getDb();
+    const recipe = await this.recipeRepository.findById(recipeId);
 
-    const recipe = await db.query.recipes.findFirst({
-      where: and(eq(recipes.id, recipeId), eq(recipes.userId, userId)),
-    });
-
-    if (!recipe) {
+    if (!recipe || recipe.userId !== userId) {
       throw new Error("Recipe not found");
     }
 
-    const newValue = !recipe.isPublic;
-    await db
-      .update(recipes)
-      .set({ isPublic: newValue })
-      .where(eq(recipes.id, recipeId));
-
-    return newValue;
+    return this.recipeRepository.togglePublic(recipeId);
   }
 
   /**
    * Delete a recipe
    */
   async deleteRecipe(recipeId: string, userId: string): Promise<void> {
-    const db = getDb();
+    const recipe = await this.recipeRepository.findById(recipeId);
 
-    const recipe = await db.query.recipes.findFirst({
-      where: and(eq(recipes.id, recipeId), eq(recipes.userId, userId)),
-    });
-
-    if (!recipe) {
+    if (!recipe || recipe.userId !== userId) {
       throw new Error("Recipe not found");
     }
 
-    await db.delete(recipes).where(eq(recipes.id, recipeId));
+    await this.recipeRepository.delete(recipeId);
   }
 
   /**
@@ -440,17 +377,7 @@ export class RecipeController {
   async getImageStatus(
     recipeId: string,
   ): Promise<{ imageStatus: string | null; imageUrl: string | null } | null> {
-    const db = getDb();
-
-    const recipe = await db.query.recipes.findFirst({
-      where: eq(recipes.id, recipeId),
-      columns: {
-        imageStatus: true,
-        imageUrl: true,
-      },
-    });
-
-    return recipe || null;
+    return this.recipeRepository.getImageStatus(recipeId);
   }
 
   /**
@@ -473,38 +400,32 @@ export class RecipeController {
     },
   ): Promise<RecipeWithIngredients> {
     // Verify ownership
-    const db = getDb();
+    const recipe = await this.recipeRepository.findById(recipeId);
 
-    const recipe = await db.query.recipes.findFirst({
-      where: and(eq(recipes.id, recipeId), eq(recipes.userId, userId)),
-    });
-
-    if (!recipe) {
+    if (!recipe || recipe.userId !== userId) {
       throw new Error("Recipe not found or not authorized");
     }
 
     // Update recipe fields
-    const updateData: Partial<Recipe> = {
-      updatedAt: new Date(),
-    };
+    const updateData: Record<string, unknown> = {};
     if (updates.title !== undefined) updateData.title = updates.title;
     if (updates.description !== undefined)
       updateData.description = updates.description;
     if (updates.instructions !== undefined)
       updateData.instructions = updates.instructions;
 
-    await db.update(recipes).set(updateData).where(eq(recipes.id, recipeId));
+    if (Object.keys(updateData).length > 0) {
+      await this.recipeRepository.update(recipeId, updateData);
+    }
 
     // Update ingredients if provided
     if (updates.ingredients !== undefined) {
       // Delete existing ingredients
-      await db
-        .delete(recipeIngredients)
-        .where(eq(recipeIngredients.recipeId, recipeId));
+      await this.recipeIngredientRepository.deleteByRecipeId(recipeId);
 
       // Insert new ingredients
       if (updates.ingredients.length > 0) {
-        const ingredientValues: NewRecipeIngredient[] = updates.ingredients.map(
+        const ingredientValues: NewRecipeIngredientDao[] = updates.ingredients.map(
           (ing, index) => ({
             recipeId,
             name: ing.name,
@@ -517,7 +438,7 @@ export class RecipeController {
           }),
         );
 
-        await db.insert(recipeIngredients).values(ingredientValues);
+        await this.recipeIngredientRepository.createMany(ingredientValues);
       }
     }
 
@@ -539,7 +460,6 @@ export class RecipeController {
     instruction: string,
   ): Promise<RecipeWithIngredients> {
     // Get current recipe
-    const db = getDb();
     const currentRecipe = await this.getRecipe(recipeId, userId);
     if (!currentRecipe) {
       throw new Error("Recipe not found or not authorized");
@@ -571,28 +491,22 @@ export class RecipeController {
     );
 
     // Update the recipe in database
-    await db
-      .update(recipes)
-      .set({
-        title: adjustedRecipe.title,
-        description: adjustedRecipe.description,
-        instructions: adjustedRecipe.instructions,
-        servings: adjustedRecipe.servings,
-        prepTime: adjustedRecipe.prepTime,
-        cookTime: adjustedRecipe.cookTime,
-        cuisineType: adjustedRecipe.cuisineType,
-        estimatedCalories: adjustedRecipe.estimatedCalories,
-        updatedAt: new Date(),
-      })
-      .where(eq(recipes.id, recipeId));
+    await this.recipeRepository.update(recipeId, {
+      title: adjustedRecipe.title,
+      description: adjustedRecipe.description,
+      instructions: adjustedRecipe.instructions,
+      servings: adjustedRecipe.servings,
+      prepTime: adjustedRecipe.prepTime,
+      cookTime: adjustedRecipe.cookTime,
+      cuisineType: adjustedRecipe.cuisineType,
+      estimatedCalories: adjustedRecipe.estimatedCalories,
+    });
 
     // Delete existing ingredients and insert new ones
-    await db
-      .delete(recipeIngredients)
-      .where(eq(recipeIngredients.recipeId, recipeId));
+    await this.recipeIngredientRepository.deleteByRecipeId(recipeId);
 
     if (adjustedRecipe.ingredients.length > 0) {
-      const ingredientValues: NewRecipeIngredient[] =
+      const ingredientValues: NewRecipeIngredientDao[] =
         adjustedRecipe.ingredients.map((ing, index) => ({
           recipeId,
           name: ing.name,
@@ -604,7 +518,7 @@ export class RecipeController {
           orderIndex: index,
         }));
 
-      await db.insert(recipeIngredients).values(ingredientValues);
+      await this.recipeIngredientRepository.createMany(ingredientValues);
     }
 
     // Return updated recipe

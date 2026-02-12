@@ -25,10 +25,24 @@
   let customIngredients = $state<string[]>([]);
   let newIngredient = $state("");
   let selectedIngredientIds = $state<Set<string>>(new Set());
+  let loadingMessage = $state("Consulting Chef...");
+  let messageInterval: ReturnType<typeof setInterval> | null = null;
 
   // Initialize servings from preferences
   let servings = $derived(data.preferences?.defaultServings ?? 2);
   let cuisineHint = $state("");
+
+  // Rotating loading messages
+  const loadingMessages = [
+    "Consulting Chef...",
+    "Choosing the perfect ingredients...",
+    "Whipping up something delicious...",
+    "Adding a pinch of creativity...",
+    "Tasting and adjusting flavors...",
+    "Plating your masterpiece...",
+    "Almost ready to serve...",
+    "Final garnish going on..."
+  ];
 
   // Group pantry items by category
   const pantryByCategory = $derived.by(() => {
@@ -58,6 +72,30 @@
       });
       selectedIngredientIds = newSet;
     }
+  });
+
+  // Rotate loading messages
+  $effect(() => {
+    if (loading) {
+      let index = 0;
+      loadingMessage = loadingMessages[0];
+      messageInterval = setInterval(() => {
+        index = (index + 1) % loadingMessages.length;
+        loadingMessage = loadingMessages[index];
+      }, 3000);
+    } else {
+      if (messageInterval) {
+        clearInterval(messageInterval);
+        messageInterval = null;
+      }
+      loadingMessage = loadingMessages[0];
+    }
+
+    return () => {
+      if (messageInterval) {
+        clearInterval(messageInterval);
+      }
+    };
   });
 
   function addIngredient() {
@@ -358,7 +396,7 @@
           >
             {#if loading}
               <Sparkles class="mr-2 h-5 w-5 animate-pulse" />
-              Consulting Chef...
+              {loadingMessage}
             {:else}
               <ChefHat class="mr-2 h-5 w-5" />
               Invent Recipe
