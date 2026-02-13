@@ -154,14 +154,16 @@
                 href="/receipts/{receipt.id}"
                 class="group relative block bg-white border-b border-dashed border-border hover:bg-[#fffdf5] transition-colors duration-200 last:border-0"
               >
-                <div class="flex items-center gap-6 py-5 px-6">
+                <div
+                  class="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 py-5 px-6"
+                >
                   <!-- Notebook Margin Line -->
                   <div
                     class="absolute left-6 top-0 bottom-0 w-px bg-red-300/40"
                   ></div>
 
                   <!-- 1. Merchant Block -->
-                  <div class="w-1/3 min-w-60 pl-6 overflow-hidden">
+                  <div class="w-full md:w-1/3 md:min-w-60 pl-6 overflow-hidden">
                     <div class="flex items-center gap-3">
                       <div
                         class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 border border-amber-200 group-hover:bg-amber-50 transition-colors"
@@ -192,7 +194,7 @@
                   </div>
 
                   <!-- 2. Financials -->
-                  <div class="w-32 shrink-0">
+                  <div class="w-full md:w-32 shrink-0 pl-6 md:pl-0">
                     {#if receipt.totalAmount}
                       <div
                         class="font-ui text-lg font-bold text-ink-dark opacity-90 tracking-tight transform -rotate-1 bg-[#fffdf5] group-hover:bg-white group-hover:scale-105 transition-all px-2 py-1 rounded inline-block border border-border/50 shadow-sm"
@@ -211,7 +213,7 @@
 
                   <!-- 3. The Launchpad (Focus) -->
                   <div
-                    class="flex-1 flex items-center justify-end gap-4 min-w-0 overflow-hidden"
+                    class="w-full md:flex-1 flex items-center justify-start md:justify-end gap-4 min-w-0 overflow-hidden pl-6 md:pl-0"
                   >
                     {#if receipt.status === "DONE"}
                       <!-- Generate Button (Editorial Style) -->
@@ -255,7 +257,9 @@
                   </div>
 
                   <!-- 4. Actions -->
-                  <div class="flex items-center pl-2 border-l border-border">
+                  <div
+                    class="flex items-center justify-end w-full md:w-auto pl-0 md:pl-2 border-none md:border-l border-border mt-2 md:mt-0"
+                  >
                     <button
                       type="button"
                       class="h-8 w-8 flex items-center justify-center rounded-md text-text-muted hover:text-red-600 hover:bg-red-50 transition-colors"
