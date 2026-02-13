@@ -105,12 +105,14 @@
       </div>
 
       <!-- Current step content -->
-      {#each [steps[currentStep]] as step}
+      <AlertDialog.Header>
         <div class="space-y-4">
           <div
             class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-sage-50"
           >
-            <step.icon class="h-8 w-8 text-sage-600" />
+            {#key currentStep}
+               <svelte:component this={steps[currentStep].icon} class="h-8 w-8 text-sage-600" />
+            {/key}
           </div>
 
           <div class="space-y-2">
@@ -119,21 +121,25 @@
             >
               Step {currentStep + 1} of {steps.length}
             </p>
-            <h3 class="font-display text-2xl text-ink">{step.title}</h3>
+            <AlertDialog.Title class="font-display text-2xl text-ink text-center">
+                {steps[currentStep].title}
+            </AlertDialog.Title>
           </div>
 
-          <p class="text-sm text-ink-light leading-relaxed">{step.description}</p>
+          <AlertDialog.Description class="text-sm text-ink-light leading-relaxed text-center">
+            {steps[currentStep].description}
+          </AlertDialog.Description>
 
-          <p class="text-xs font-medium text-sage-600 italic">{step.cta}</p>
+          <p class="text-xs font-medium text-sage-600 italic">{steps[currentStep].cta}</p>
         </div>
-      {/each}
+      </AlertDialog.Header>
     </div>
 
-    <AlertDialog.Footer class="flex-col gap-2 sm:flex-row sm:justify-between">
+    <AlertDialog.Footer class="flex-col gap-2 sm:flex-row sm:justify-between mt-6">
       {#if currentStep > 0}
         <Button variant="ghost" onclick={prevStep}>Back</Button>
       {:else}
-        <Button variant="ghost" onclick={dismissOnboarding}>Skip tour</Button>
+        <AlertDialog.Cancel onclick={dismissOnboarding} class="mt-0">Skip tour</AlertDialog.Cancel>
       {/if}
 
       {#if currentStep < steps.length - 1}
@@ -144,7 +150,7 @@
       {:else}
         <Button href="/receipts/upload" onclick={dismissOnboarding}>
           <Upload class="mr-2 h-4 w-4" />
-          Upload Your First Receipt
+          Start Scanning
         </Button>
       {/if}
     </AlertDialog.Footer>

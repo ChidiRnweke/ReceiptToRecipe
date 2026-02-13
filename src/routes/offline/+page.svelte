@@ -2,15 +2,21 @@
   import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
 
-  let isOnline = $state(true);
+  let isOnline = $state(false);
 
   if (browser) {
     isOnline = navigator.onLine;
 
+    // If the user landed here but is actually online (e.g. slow first load),
+    // redirect them back home automatically instead of showing the offline page.
+    if (isOnline) {
+      goto("/", { replaceState: true });
+    }
+
     window.addEventListener("online", () => {
       isOnline = true;
-      // Optionally auto-retry navigation
-      // goto('/');
+      // Auto-navigate home when connectivity returns
+      goto("/", { replaceState: true });
     });
 
     window.addEventListener("offline", () => {
@@ -59,19 +65,19 @@
       </svg>
     </div>
 
-    <h1 class="text-3xl font-bold text-gray-800 mb-4">You're Offline</h1>
+    <h1 class="text-3xl font-bold text-gray-800 mb-4">No Connection</h1>
 
     <p class="text-gray-600 mb-8 text-lg">
-      It looks like you've lost your internet connection. Don't worry—your saved
-      recipes and shopping lists are still available!
+      You seem to be offline right now. No worries — your saved recipes
+      and shopping lists are still here, ready when you are.
     </p>
 
     <div class="space-y-4">
       {#if isOnline}
         <div class="p-4 bg-green-50 border border-green-200 rounded-lg mb-6">
-          <p class="text-green-800 font-medium">You're back online!</p>
+          <p class="text-green-800 font-medium">Welcome back!</p>
           <p class="text-green-700 text-sm mt-1">
-            Refresh the page to continue where you left off.
+            Your connection is restored. Taking you back now&hellip;
           </p>
         </div>
       {/if}
@@ -82,7 +88,7 @@
 				       hover:bg-[#1A202C] transition-colors duration-200
 				       focus:outline-none focus:ring-2 focus:ring-[#2D3748] focus:ring-offset-2"
       >
-        Go to Home
+        Try Again
       </button>
 
       <button
@@ -97,7 +103,7 @@
 
     <div class="mt-8 pt-8 border-t border-gray-200">
       <p class="text-sm text-gray-500">
-        <strong>Tip:</strong> Previously visited pages are cached and available offline.
+        <strong>Tip:</strong> Pages you've visited before are saved for offline use.
       </p>
     </div>
   </div>

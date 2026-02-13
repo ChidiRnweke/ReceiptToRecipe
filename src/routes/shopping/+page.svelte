@@ -799,15 +799,15 @@
         class="flex items-center gap-2 font-display text-2xl text-amber-700"
       >
         <AlertTriangle class="h-6 w-6" />
-        Check your Stock!
+        Hold on a sec...
       </AlertDialog.Title>
       <AlertDialog.Description class="text-ink">
         <p class="mb-4 text-base leading-relaxed">{pantryWarning.message}</p>
         <div
-          class="flex items-center gap-2 p-3 bg-white border border-border rounded-sm"
+          class="flex items-center gap-3 p-3 bg-white border border-border rounded-sm"
         >
-          <span class="text-xs uppercase tracking-widest text-fg-muted"
-            >Confidence:</span
+          <span class="text-xs font-medium text-fg-muted uppercase tracking-wider"
+            >Certainty:</span
           >
           <div class="flex-1 h-2 bg-muted rounded-full overflow-hidden">
             <div
@@ -815,7 +815,7 @@
               style="width: {pantryWarning.confidence}%"
             ></div>
           </div>
-          <span class="font-ui font-bold text-amber-600"
+          <span class="font-ui font-bold text-amber-600 text-sm"
             >{pantryWarning.confidence}%</span
           >
         </div>

@@ -65,18 +65,16 @@
         <div class="flex-1">
           <h3 class="font-semibold text-gray-900">
             {#if $offlineReady}
-              Ready for Offline
+              Kitchen Ready
             {:else}
-              Update Available
+              Fresh Update Available
             {/if}
           </h3>
           <p class="text-sm text-gray-600 mt-1">
             {#if $offlineReady}
-              This app is now available offline. Your recipes and lists are
-              saved locally.
+              Good news! Your recipes are now saved to your device, so you can cook even without internet.
             {:else}
-              A new version is available with improvements. Reload to update
-              now.
+              We've added some fresh ingredients to the app. Refresh to see what's new.
             {/if}
           </p>
 
@@ -86,14 +84,14 @@
                 onclick={updateApp}
                 class="px-3 py-1.5 bg-[#2D3748] text-white text-sm rounded-md hover:bg-[#1A202C] transition-colors"
               >
-                Reload Now
+                Update App
               </button>
             {/if}
             <button
               onclick={close}
               class="px-3 py-1.5 text-gray-600 text-sm hover:text-gray-900 transition-colors"
             >
-              Dismiss
+              Got it
             </button>
           </div>
         </div>

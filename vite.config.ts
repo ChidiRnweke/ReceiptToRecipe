@@ -34,37 +34,41 @@ export default defineConfig({
 					}
 				]
 			},
-			workbox: {
-				globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,webmanifest}', 'prerendered/**/*.html'],
-				// Network-first for all navigation requests
-				runtimeCaching: [
-					{
-						urlPattern: ({ request }) => request.mode === 'navigate',
-						handler: 'NetworkFirst',
-						options: {
-							cacheName: 'ssr-pages',
-							networkTimeoutSeconds: 3,
-							expiration: {
-								maxEntries: 100,
-								maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
-							},
-							cacheableResponse: {
-								statuses: [0, 200]
-							}
+		workbox: {
+			globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,webmanifest}', 'prerendered/**/*.html'],
+			// Network-first for all navigation requests
+			runtimeCaching: [
+				{
+					urlPattern: ({ request }) => request.mode === 'navigate',
+					handler: 'NetworkFirst',
+					options: {
+						cacheName: 'ssr-pages',
+						// No networkTimeoutSeconds on first navigation — prevents
+						// falsely showing the offline page while the browser is still
+						// fetching on a slow connection or first install.
+						expiration: {
+							maxEntries: 100,
+							maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+						},
+						cacheableResponse: {
+							statuses: [0, 200]
 						}
-					},
-					{
-						urlPattern: /\/(recipes|receipts|shopping|settings)\/.*/,
-						handler: 'NetworkFirst',
-						options: {
-							cacheName: 'app-pages',
-							networkTimeoutSeconds: 3,
-							expiration: {
-								maxEntries: 50,
-								maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
-							}
+					}
+				},
+				{
+					urlPattern: /\/(recipes|receipts|shopping|settings)\/.*/,
+					handler: 'NetworkFirst',
+					options: {
+						cacheName: 'app-pages',
+						// Timeout only for sub-pages where a cache entry is likely to
+						// exist, keeping the UX fast for repeat visits.
+						networkTimeoutSeconds: 5,
+						expiration: {
+							maxEntries: 50,
+							maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
 						}
-					},
+					}
+				},
 					{
 						urlPattern: /\/__data\.json$/,
 						handler: 'NetworkFirst',
@@ -88,16 +92,17 @@ export default defineConfig({
 						}
 					}
 				],
-				navigateFallback: '/offline',
-				navigateFallbackDenylist: [
-					/^\/login/,
-					/^\/callback/,
-					/^\/logout/,
-					/^\/api/
-				],
-				// Don't cache auth-related requests
-				skipWaiting: false,
-				clientsClaim: true
+			navigateFallback: '/offline',
+			navigateFallbackDenylist: [
+				/^\/login/,
+				/^\/callback/,
+				/^\/logout/,
+				/^\/api/
+			],
+			// Only apply navigateFallback to same-origin app routes
+			navigateFallbackAllowlist: [/^\/$/, /^\/(recipes|receipts|shopping|preferences|offline)/],
+			skipWaiting: false,
+			clientsClaim: true
 			}
 		})
 	]
