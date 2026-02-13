@@ -1,7 +1,9 @@
 import type { LayoutServerLoad } from "./$types";
 import { AppFactory } from "$lib/factories";
 
-export const load: LayoutServerLoad = async ({ locals }) => {
+export const load: LayoutServerLoad = async ({ locals, depends }) => {
+  depends("app:session");
+
   if (!locals.user) {
     return {
       user: null,

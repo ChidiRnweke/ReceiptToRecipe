@@ -55,25 +55,27 @@ export default defineConfig({
 						}
 					}
 				},
-				{
-					urlPattern: /\/(recipes|receipts|shopping|settings)\/.*/,
-					handler: 'NetworkFirst',
-					options: {
-						cacheName: 'app-pages',
-						// Timeout only for sub-pages where a cache entry is likely to
-						// exist, keeping the UX fast for repeat visits.
-						networkTimeoutSeconds: 5,
-						expiration: {
-							maxEntries: 50,
-							maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
+					{
+						urlPattern: /\/(recipes|receipts|shopping|settings)\/.*/,
+						handler: 'NetworkFirst',
+						options: {
+							cacheName: 'app-pages',
+							// Removing networkTimeoutSeconds ensures we don't serve stale
+							// cached pages (which might have wrong auth state) while online.
+							expiration: {
+								maxEntries: 50,
+								maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
+							}
 						}
-					}
-				},
+					},
 					{
 						urlPattern: /\/__data\.json$/,
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'page-data',
+							// No timeout for data requests prevents showing stale/conflicting
+							// data (e.g. logged-out header on logged-in page) on slow connections.
+							// The user will see a loading state instead.
 							expiration: {
 								maxEntries: 100,
 								maxAgeSeconds: 24 * 60 * 60 // 1 day

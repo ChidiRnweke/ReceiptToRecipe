@@ -119,22 +119,24 @@
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
-
-          <!-- Mobile Menu Button -->
-          <button
-            class="rounded-lg p-2 text-text-secondary hover:bg-bg-paper-dark md:hidden"
-            onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-          >
-            {#if mobileMenuOpen}
-              <X class="h-5 w-5" />
-            {:else}
-              <Menu class="h-5 w-5" />
-            {/if}
-          </button>
         {:else}
           <div class="flex items-center gap-2">
             <Button href="/login">Start here</Button>
           </div>
+        {/if}
+
+        <!-- Mobile Menu Button - Always show if logged in, otherwise hidden -->
+        {#if data.user}
+            <button
+                class="rounded-lg p-2 text-text-secondary hover:bg-bg-paper-dark md:hidden"
+                onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
+            >
+                {#if mobileMenuOpen}
+                <X class="h-5 w-5" />
+                {:else}
+                <Menu class="h-5 w-5" />
+                {/if}
+            </button>
         {/if}
       </div>
     </div>
