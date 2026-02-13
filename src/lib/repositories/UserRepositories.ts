@@ -28,36 +28,12 @@ export class UserRepository implements IUserRepository {
 		return user ? this.toDao(user) : null;
 	}
 
-	async findByEmailWithPassword(email: string): Promise<(UserDao & { passwordHash: string | null }) | null> {
-		const user = await this.db.query.users.findFirst({
-			where: eq(schema.users.email, email),
-			columns: {
-				id: true,
-				email: true,
-				name: true,
-				role: true,
-				avatarUrl: true,
-				passwordHash: true,
-				authProvider: true,
-				authProviderId: true,
-				createdAt: true,
-				updatedAt: true
-			}
-		});
-		if (!user) return null;
-		return {
-			...this.toDao(user),
-			passwordHash: user.passwordHash
-		};
-	}
-
 	async create(user: NewUserDao): Promise<UserDao> {
 		const [created] = await this.db.insert(schema.users).values({
 			email: user.email,
 			name: user.name,
 			role: user.role || 'WAITING',
 			avatarUrl: user.avatarUrl || null,
-			passwordHash: user.passwordHash || null,
 			authProvider: user.authProvider || 'auth0',
 			authProviderId: user.authProviderId || null
 		}).returning({

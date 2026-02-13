@@ -16,7 +16,6 @@ export interface NewUserDao {
 	name: string;
 	role?: 'WAITING' | 'USER' | 'ADMIN';
 	avatarUrl?: string | null;
-	passwordHash?: string | null;
 	authProvider?: string;
 	authProviderId?: string | null;
 }

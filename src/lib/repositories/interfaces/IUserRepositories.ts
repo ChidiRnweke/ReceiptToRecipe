@@ -11,7 +11,6 @@ import type {
 export interface IUserRepository {
 	findById(id: string): Promise<UserDao | null>;
 	findByEmail(email: string): Promise<UserDao | null>;
-	findByEmailWithPassword(email: string): Promise<(UserDao & { passwordHash: string | null }) | null>;
 	findByAuthProviderId(authProviderId: string): Promise<UserDao | null>;
 	create(user: NewUserDao): Promise<UserDao>;
 	exists(email: string): Promise<boolean>;

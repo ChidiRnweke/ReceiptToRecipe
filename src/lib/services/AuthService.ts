@@ -1,6 +1,5 @@
-import { hash, verify } from '@node-rs/argon2';
 import type { Cookies } from '@sveltejs/kit';
-import type { IUserRepository, ISessionRepository, IUserPreferencesRepository, UserDao, SessionDao } from '$repositories';
+import type { ISessionRepository, UserDao, SessionDao } from '$repositories';
 
 export interface AuthResult {
 	user: UserDao;
@@ -8,8 +7,6 @@ export interface AuthResult {
 }
 
 export interface IAuthService {
-	createUser(email: string, password: string, name: string): Promise<UserDao>;
-	login(email: string, password: string): Promise<AuthResult>;
 	logout(sessionId: string): Promise<void>;
 	validateSession(sessionId: string): Promise<{ user: UserDao; session: SessionDao } | null>;
 	createSession(userId: string): Promise<SessionDao>;
@@ -25,62 +22,8 @@ function generateSessionId(): string {
 
 export class AuthService implements IAuthService {
 	constructor(
-		private userRepo: IUserRepository,
-		private sessionRepo: ISessionRepository,
-		private prefsRepo: IUserPreferencesRepository
+		private sessionRepo: ISessionRepository
 	) {}
-
-	async createUser(email: string, password: string, name: string): Promise<UserDao> {
-		// Check if user exists
-		const existing = await this.userRepo.findByEmail(email);
-
-		if (existing) {
-			throw new Error('User with this email already exists');
-		}
-
-		// Hash password
-		const passwordHash = await hash(password, {
-			memoryCost: 19456,
-			timeCost: 2,
-			outputLen: 32,
-			parallelism: 1
-		});
-
-		// Create user
-		const user = await this.userRepo.create({
-			email,
-			name,
-			passwordHash
-		});
-
-		// Create default preferences
-		await this.prefsRepo.create({
-			userId: user.id,
-			defaultServings: 2
-		});
-
-		return user;
-	}
-
-	async login(email: string, password: string): Promise<AuthResult> {
-		const user = await this.userRepo.findByEmailWithPassword(email);
-
-		if (!user || !user.passwordHash) {
-			throw new Error('Invalid email or password');
-		}
-
-		const validPassword = await verify(user.passwordHash, password);
-		if (!validPassword) {
-			throw new Error('Invalid email or password');
-		}
-
-		const session = await this.createSession(user.id);
-
-		// Return user without passwordHash
-		const { passwordHash: _, ...userWithoutPassword } = user;
-
-		return { user: userWithoutPassword, session };
-	}
 
 	async logout(sessionId: string): Promise<void> {
 		await this.sessionRepo.delete(sessionId);
