@@ -14,9 +14,10 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
 		"db:studio": "drizzle-kit studio",
-		"test": "vitest run",
-		"test:watch": "vitest",
-		"test:coverage": "vitest run --coverage"
+		"test": "vitest run --exclude 'tests/llm/**'",
+		"test:watch": "vitest --exclude 'tests/llm/**'",
+		"test:coverage": "vitest run --coverage --exclude 'tests/llm/**'",
+		"test:llm": "vitest run tests/llm/"
 	},
 	"dependencies": {
 		"@infisical/sdk": "^4.0.6",
@@ -36,7 +37,6 @@
 		"drizzle-orm": "^0.38.3",
 		"lucide-svelte": "^0.562.0",
 		"minio": "^8.0.4",
-		"openai": "^4.77.3",
 		"pg": "^8.13.1",
 		"tailwind-merge": "^3.4.0",
 		"uuid": "^11.0.5",

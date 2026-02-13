@@ -78,7 +78,6 @@ export { NativeReceiptExtractor } from "./NativeReceiptExtractor";
 export { MockOcrService } from "./MockOcrService";
 export { SmartCulinaryIntelligence } from "./SmartCulinaryIntelligence";
 export { SmartProductNormalizer } from "./SmartProductNormalizer";
-export { DalleImageService } from "./DalleImageService";
 export { SmartImageGenerator } from "./SmartImageGenerator";
 export * from "./PgVectorService";
 export * from "./JobQueue";
