@@ -1,11 +1,22 @@
 <script>
   import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
+  import { fade } from "svelte/transition";
 
   let isOnline = $state(false);
+  let showContent = $state(false);
 
   if (browser) {
     isOnline = navigator.onLine;
+
+    // Grace period: Wait 500ms before showing the offline screen.
+    // This prevents the screen from flashing during a slow page load or refresh
+    // where the service worker fallback kicks in momentarily.
+    setTimeout(() => {
+        if (!isOnline) {
+            showContent = true;
+        }
+    }, 500);
 
     // If the user landed here but is actually online (e.g. slow first load),
     // redirect them back home automatically instead of showing the offline page.
@@ -21,6 +32,7 @@
 
     window.addEventListener("offline", () => {
       isOnline = false;
+      showContent = true;
     });
   }
 
@@ -41,7 +53,8 @@
 <div
   class="min-h-screen bg-linear-to-br from-[#FDFBF7] to-[#F5F1E8] flex items-center justify-center px-4"
 >
-  <div class="max-w-md w-full text-center">
+  {#if showContent}
+  <div class="max-w-md w-full text-center" transition:fade={{ duration: 200 }}>
     <!-- Offline Icon -->
     <div class="mb-8">
       <svg
@@ -107,4 +120,5 @@
       </p>
     </div>
   </div>
+  {/if}
 </div>

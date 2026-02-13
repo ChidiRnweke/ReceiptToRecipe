@@ -10,6 +10,7 @@
   import favicon from "$lib/assets/favicon.svg";
   import { pwaInfo } from "virtual:pwa-info";
   import { browser } from "$app/environment";
+  import { invalidate } from "$app/navigation";
 
   let { data, children } = $props();
 
@@ -20,6 +21,15 @@
   $effect(() => {
     if (data.workflowCounts) {
       workflowStore.sync(data.workflowCounts);
+    }
+  });
+
+  // Client-side revalidation: When the app loads from a service worker cache,
+  // the HTML might be stale (e.g., showing logged-out state).
+  // We force a check of the session dependency to ensure UI is accurate.
+  $effect(() => {
+    if (browser && navigator.onLine) {
+      invalidate("app:session");
     }
   });
 
