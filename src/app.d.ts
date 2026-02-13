@@ -1,3 +1,7 @@
+/// <reference types="@sveltejs/kit" />
+/// <reference types="vite-plugin-pwa/info" />
+/// <reference types="vite-plugin-pwa/svelte" />
+
 import type { Session } from '$lib/db/schema';
 import type { UserDao, SessionDao } from '$lib/repositories/daos';
 
