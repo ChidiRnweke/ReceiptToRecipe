@@ -8,13 +8,13 @@
   import { workflowStore } from "$lib/state/workflow.svelte";
   import logo from "$lib/assets/logo.svg";
   import favicon from "$lib/assets/favicon.svg";
-  import { pwaInfo } from 'virtual:pwa-info';
-  import { browser } from '$app/environment';
+  import { pwaInfo } from "virtual:pwa-info";
+  import { browser } from "$app/environment";
 
   let { data, children } = $props();
 
   // Reactive statement for web manifest link
-  let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : '');
+  let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : "");
 
   // Sync state when data changes (e.g. after navigation)
   $effect(() => {
@@ -40,8 +40,12 @@
   />
   <link rel="icon" href={favicon} />
   <meta name="theme-color" content="#2D3748" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta
+    name="apple-mobile-web-app-status-bar-style"
+    content="black-translucent"
+  />
 </svelte:head>
 
 <div class="min-h-screen bg-bg-paper">
@@ -162,7 +166,7 @@
 
 <!-- Load ReloadPrompt dynamically to avoid SSR issues -->
 {#if browser}
-  {#await import('$lib/components/ReloadPrompt.svelte') then { default: ReloadPrompt }}
+  {#await import("$lib/components/ReloadPrompt.svelte") then { default: ReloadPrompt }}
     <ReloadPrompt />
   {/await}
 {/if}
