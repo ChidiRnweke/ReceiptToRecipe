@@ -161,7 +161,7 @@
         </Button>
         <div class="flex items-end justify-between mt-2">
             <div>
-                <h1 class="font-display text-5xl text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)] leading-[0.9]">
+                <h1 class="font-display text-4xl md:text-5xl text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)] leading-[0.9]">
                     Kitchen <span class="marker-highlight">Manifesto</span>
                 </h1>
                 <p class="mt-3 text-ink-light font-serif italic text-lg max-w-2xl">

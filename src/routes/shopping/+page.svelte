@@ -221,7 +221,7 @@
       </div>
     {/if}
 
-    <div class="grid gap-12 lg:grid-cols-12 items-start">
+    <div class="grid gap-6 lg:gap-12 lg:grid-cols-12 items-start">
       <!-- LEFT SIDEBAR: Suggestions & Quick Actions -->
       <div class="lg:col-span-4 space-y-8 order-2 lg:order-1">
         <!-- Smart Suggestions Note -->

@@ -71,7 +71,9 @@
 
       <!-- Desktop Navigation -->
       {#if data.user}
-        <WorkflowNav />
+        <div class="hidden md:block">
+          <WorkflowNav />
+        </div>
       {/if}
 
       <!-- User Menu -->

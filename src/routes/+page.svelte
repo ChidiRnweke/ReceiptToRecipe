@@ -313,14 +313,14 @@
             </p>
             {#if pantryItems.length === 0}
               <h1
-                class="font-display text-4xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
+                class="font-display text-3xl md:text-4xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
               >
                 Start by <span class="marker-highlight">dropping a receipt</span
                 >.
               </h1>
             {:else}
               <h1
-                class="font-display text-4xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
+                class="font-display text-3xl md:text-4xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
               >
                 What are we <span class="marker-highlight">cooking</span> today?
               </h1>
@@ -366,10 +366,10 @@
               href={featuredRecipe
                 ? `/recipes/${featuredRecipe.id}`
                 : "/recipes"}
-              class="group relative flex h-full flex-row overflow-hidden rounded-r-2xl rounded-l-md border border-border bg-bg-paper shadow-[2px_3px_10px_rgba(0,0,0,0.03)] transition-all hover:-translate-y-0.5 hover:shadow-md"
+              class="group relative flex h-full flex-col md:flex-row overflow-hidden rounded-r-2xl rounded-l-md border border-border bg-bg-paper shadow-[2px_3px_10px_rgba(0,0,0,0.03)] transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
               <div
-                class="pointer-events-none absolute bottom-0 left-0 top-0 z-10 w-12 bg-linear-to-r from-border/40 to-transparent"
+                class="pointer-events-none absolute bottom-0 left-0 top-0 z-10 w-12 bg-linear-to-r from-border/40 to-transparent hidden md:block"
               ></div>
 
               <div
@@ -384,7 +384,7 @@
                 ></div>
               </div>
 
-              <div class="relative w-5/12 p-5 pr-2">
+              <div class="relative w-full h-64 md:h-auto md:w-5/12 p-5 pr-2">
                 <div
                   class="relative h-full w-full -rotate-1 transform transition-transform duration-500 group-hover:rotate-0"
                 >
@@ -420,7 +420,7 @@
               </div>
 
               <div
-                class="relative flex w-7/12 flex-col justify-center p-8 pl-6"
+                class="relative flex w-full md:w-7/12 flex-col justify-center p-6 md:p-8 md:pl-6"
               >
                 <div
                   class="mb-3 flex items-center gap-2 font-ui text-[10px] uppercase tracking-widest text-text-muted"
