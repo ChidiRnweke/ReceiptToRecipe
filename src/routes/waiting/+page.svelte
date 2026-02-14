@@ -28,7 +28,7 @@
 
 			<div class="mb-8 w-full border-t border-dashed border-border/60"></div>
 
-			<PinnedNote class="mb-8 max-w-[280px] -rotate-1">
+			<PinnedNote class="mb-8 max-w-70 -rotate-1">
 				<p class="font-hand text-center text-lg leading-snug text-ink/80">
 					"Good things come to those who wait... and marinate."
 				</p>
