@@ -2,7 +2,6 @@
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
 	import {
 		Upload,
 		Image,
@@ -138,7 +137,7 @@
 				/>
 
 				<div
-					class="relative flex min-h-[280px] flex-col items-center justify-center rounded-sm border-2 border-dashed border-border bg-bg-card p-8 transition-colors duration-300 md:min-h-[400px] {dragover
+					class="relative flex min-h-70 flex-col items-center justify-center rounded-sm border-2 border-dashed border-border bg-bg-card p-8 transition-colors duration-300 md:min-h-100 {dragover
 						? 'border-primary-400 bg-primary-50'
 						: ''}"
 				>

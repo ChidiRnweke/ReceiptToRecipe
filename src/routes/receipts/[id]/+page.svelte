@@ -2,9 +2,7 @@
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';
-	import { formatCurrency } from '$lib/utils';
 	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
 	import { Input } from '$lib/components/ui/input';
 	import PushPin from '$lib/components/PushPin.svelte';
 	import WashiTape from '$lib/components/WashiTape.svelte';
@@ -131,7 +129,7 @@
 			<div class="hidden lg:block">
 				<Button
 					href={`/recipes/generate?receiptId=${data.receipt.id}`}
-					class="group btn-accent-filled relative h-12 px-6 shadow-[4px_4px_0px_0px_rgba(120,53,15,1)] transition-all hover:-translate-y-[1px] hover:shadow-[5px_5px_0px_0px_rgba(120,53,15,1)] active:translate-y-[4px] active:shadow-none disabled:opacity-50"
+					class="group btn-accent-filled relative h-12 px-6 shadow-[4px_4px_0px_0px_rgba(120,53,15,1)] transition-all hover:-translate-y-px hover:shadow-[5px_5px_0px_0px_rgba(120,53,15,1)] active:translate-y-1 active:shadow-none disabled:opacity-50"
 				>
 					<ChefHat class="mr-2 h-5 w-5" />
 					Generate Recipes
@@ -158,7 +156,7 @@
 			<div class="flex flex-col gap-12 lg:flex-row lg:items-start">
 				<!-- LEFT COLUMN: The Worksheet Card -->
 				<!-- Background: Warm #FDFBF7 -->
-				<div class="relative order-2 min-h-[800px] flex-1 bg-bg-paper shadow-xl lg:order-1">
+				<div class="relative order-2 min-h-200 flex-1 bg-bg-paper shadow-xl lg:order-1">
 					<!-- Notebook Styling Lines -->
 					<!-- Blue lines with Red Margin -->
 					<div
@@ -212,7 +210,7 @@
 					<div class="relative z-10 pt-4 pb-12">
 						<div class="space-y-0">
 							{#each data.receipt.items as item (item.id)}
-								<div class="group relative flex h-[3rem] items-center hover:bg-blue-50/20">
+								<div class="group relative flex h-12 items-center hover:bg-blue-50/20">
 									<!-- LEFT GUTTER (Width 6rem / 96px) - Contains Qty & Add Button -->
 									<div class="flex w-24 items-center justify-end border-r border-transparent pr-3">
 										<!-- Add Action (Mini) -->

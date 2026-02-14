@@ -59,24 +59,36 @@
 	let newListName = $state('');
 	let expandedLists = $derived<Set<string>>(new Set(lists.slice(0, 1).map((l: any) => l.id)));
 
-	// New item inputs per list
+	// New item inputs per list – kept as raw $state, synced via $derived
 	type NewItemInput = { name: string; quantity: string; unit: string };
 	let newItemInputs = $state<Record<string, NewItemInput>>({});
 
-	// Ensure each list has an input state without mutating inside the template.
-	$effect(() => {
-		const next: Record<string, NewItemInput> = {};
-		let changed = false;
-
+	// Derived map that guarantees every current list has an entry.
+	// Reading this in the template gives Svelte a reactive dependency on both
+	// `lists` and `newItemInputs`, so the inputs stay in sync after adds/deletes.
+	let inputsForLists = $derived.by(() => {
+		let dirty = false;
+		const result: Record<string, NewItemInput> = {};
 		for (const list of lists) {
-			const existing = newItemInputs[list.id];
-			next[list.id] = existing ?? { name: '', quantity: '1', unit: '' };
-			if (!existing) changed = true;
+			if (newItemInputs[list.id]) {
+				result[list.id] = newItemInputs[list.id];
+			} else {
+				result[list.id] = { name: '', quantity: '1', unit: '' };
+				dirty = true;
+			}
 		}
-
-		if (Object.keys(newItemInputs).length !== Object.keys(next).length || changed) {
-			newItemInputs = next;
+		// Side-effect free: we only flag; the effect below does the write.
+		if (dirty) {
+			// Schedule a microtask so we don't write $state inside $derived
+			queueMicrotask(() => {
+				for (const id of Object.keys(result)) {
+					if (!newItemInputs[id]) {
+						newItemInputs[id] = result[id];
+					}
+				}
+			});
 		}
+		return result;
 	});
 
 	function toggleList(listId: string) {
@@ -115,10 +127,7 @@
 		};
 
 		// Clear the input for this list
-		newItemInputs = {
-			...newItemInputs,
-			[listId]: { name: '', quantity: '1', unit: '' }
-		};
+		newItemInputs[listId] = { name: '', quantity: '1', unit: '' };
 
 		workflowStore.incrementShopping();
 
@@ -138,10 +147,7 @@
 		if (pantryWarning.pendingItem) {
 			const listId = pantryWarning.pendingItem.listId;
 			// Clear the input for this list
-			newItemInputs = {
-				...newItemInputs,
-				[listId]: { name: '', quantity: '1', unit: '' }
-			};
+			newItemInputs[listId] = { name: '', quantity: '1', unit: '' };
 		}
 		pantryWarning = {
 			show: false,
@@ -446,89 +452,83 @@
 										<div class="space-y-6 pr-1 pl-1 sm:pl-4">
 											<!-- Add Item Input (Underlined style) -->
 											{#key list.id}
-												{@const input = newItemInputs[list.id] ?? {
-													name: '',
-													quantity: '1',
-													unit: ''
-												}}
-												<form
-													method="POST"
-													action="?/addItem"
-													use:enhance={() => {
-														workflowStore.incrementShopping();
-														return async ({ result }) => {
-															if (result.type === 'success') {
-																const data = result.data as any;
-																if (data?.pantryWarning) {
-																	workflowStore.decrementShopping();
-																	pantryWarning = {
-																		show: true,
-																		message: data.warningMessage,
-																		matchedItem: data.matchedItem,
-																		confidence: data.confidence,
-																		pendingItem: data.pendingItem
-																	};
-																	return;
-																}
-																newItemInputs = {
-																	...newItemInputs,
-																	[list.id]: {
+												{#if inputsForLists[list.id]}
+													<form
+														method="POST"
+														action="?/addItem"
+														use:enhance={() => {
+															workflowStore.incrementShopping();
+															return async ({ result }) => {
+																if (result.type === 'success') {
+																	const data = result.data as any;
+																	if (data?.pantryWarning) {
+																		workflowStore.decrementShopping();
+																		pantryWarning = {
+																			show: true,
+																			message: data.warningMessage,
+																			matchedItem: data.matchedItem,
+																			confidence: data.confidence,
+																			pendingItem: data.pendingItem
+																		};
+																		return;
+																	}
+																	newItemInputs[list.id] = {
 																		name: '',
 																		quantity: '1',
 																		unit: ''
-																	}
-																};
-																await invalidateAll();
-															} else {
-																workflowStore.decrementShopping();
-															}
-														};
-													}}
-													class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-baseline"
-												>
-													<input type="hidden" name="listId" value={list.id} />
+																	};
+																	await invalidateAll();
+																} else {
+																	workflowStore.decrementShopping();
+																}
+															};
+														}}
+														class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-baseline"
+													>
+														<input type="hidden" name="listId" value={list.id} />
 
-													<div class="relative flex-1">
-														<input
-															type="text"
-															name="name"
-															placeholder="Add an item..."
-															bind:value={input.name}
-															class="border-border-muted focus:border-accent-500 placeholder:text-fg-muted placeholder:font-hand w-full border-b border-none bg-transparent px-0 py-1 font-serif text-lg text-ink placeholder:text-xl focus:ring-0"
-														/>
-													</div>
-
-													<div class="flex items-baseline gap-2">
-														<div class="relative w-12">
+														<div class="relative flex-1">
 															<input
 																type="text"
-																name="quantity"
-																placeholder="#"
-																bind:value={input.quantity}
-																class="border-border-muted font-ui focus:border-accent-500 placeholder:text-fg-muted w-full border-b border-none bg-transparent px-0 py-1 text-right text-sm focus:ring-0"
+																name="name"
+																placeholder="Add an item..."
+																bind:value={newItemInputs[list.id].name}
+																class="border-border-muted focus:border-accent-500 placeholder:text-fg-muted placeholder:font-hand w-full border-b border-none bg-transparent px-0 py-1 font-serif text-lg text-ink placeholder:text-xl focus:ring-0"
 															/>
 														</div>
 
-														<div class="relative w-16">
-															<input
-																type="text"
-																name="unit"
-																placeholder="Unit"
-																bind:value={input.unit}
-																class="border-border-muted font-ui focus:border-accent-500 placeholder:text-fg-muted w-full border-b border-none bg-transparent px-0 py-1 text-sm focus:ring-0"
-															/>
-														</div>
+														<div class="flex items-baseline gap-2">
+															<div class="relative w-12">
+																<input
+																	type="text"
+																	name="quantity"
+																	placeholder="#"
+																	bind:value={newItemInputs[list.id].quantity}
+																	class="border-border-muted font-ui focus:border-accent-500 placeholder:text-fg-muted w-full border-b border-none bg-transparent px-0 py-1 text-right text-sm focus:ring-0"
+																/>
+															</div>
 
-														<Button
-															type="submit"
-															variant="ghost"
-															size="icon"
-															class="text-fg-muted hover:text-accent-600 hover:bg-transparent"
-														>
-															<Plus class="h-5 w-5" />
-														</Button>
-													</div>
-												</form>
+															<div class="relative w-16">
+																<input
+																	type="text"
+																	name="unit"
+																	placeholder="Unit"
+																	bind:value={newItemInputs[list.id].unit}
+																	class="border-border-muted font-ui focus:border-accent-500 placeholder:text-fg-muted w-full border-b border-none bg-transparent px-0 py-1 text-sm focus:ring-0"
+																/>
+															</div>
+
+															<Button
+																type="submit"
+																variant="ghost"
+																size="icon"
+																class="text-fg-muted hover:text-accent-600 hover:bg-transparent"
+															>
+																<Plus class="h-5 w-5" />
+															</Button>
+														</div>
+													</form>
+												{/if}
 											{/key}
 
 											<!-- Items List -->
