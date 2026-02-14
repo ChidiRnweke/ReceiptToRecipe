@@ -342,21 +342,11 @@
 	font-family: 'Newsreader', Georgia, serif;
 }
 
-.btn-accent {
-	@apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors;
-	@apply border border-secondary-200 bg-secondary-100 text-secondary-700;
-	@apply hover:bg-secondary-200 active:bg-secondary-300;
-	@apply focus-visible:ring-2 focus-visible:ring-secondary-400 focus-visible:outline-none;
-	font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-}
-
-.btn-accent-filled {
-	@apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors;
-	@apply border border-secondary-500 bg-secondary-500 text-white;
-	@apply hover:bg-secondary-600 active:bg-secondary-700;
-	@apply focus-visible:ring-2 focus-visible:ring-secondary-400 focus-visible:outline-none;
-	font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-}
+/* 
+  DEPRECATED: .btn-accent and .btn-accent-filled
+  These classes have been replaced by the Button component variants.
+  If you need this style, use <Button variant="secondary"> or customize the Button component.
+*/
 
 .marker-highlight {
 	position: relative;

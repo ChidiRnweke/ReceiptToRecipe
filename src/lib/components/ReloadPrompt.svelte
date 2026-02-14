@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { useRegisterSW } from 'virtual:pwa-register/svelte';
 	import { fly } from 'svelte/transition';
+	import { Loader2 } from 'lucide-svelte';
 
 	const { needRefresh, updateServiceWorker, offlineReady } = useRegisterSW({
 		onRegistered(r) {
@@ -12,6 +13,7 @@
 	});
 
 	let show = $derived($offlineReady || $needRefresh);
+	let isUpdating = $state(false);
 
 	function close() {
 		offlineReady.set(false);
@@ -19,7 +21,17 @@
 	}
 
 	async function updateApp() {
-		await updateServiceWorker(true);
+		isUpdating = true;
+		try {
+			await updateServiceWorker(true);
+			// Give the service worker a moment to activate, then reload
+			setTimeout(() => {
+				window.location.reload();
+			}, 500);
+		} catch (error) {
+			console.error('Failed to update service worker:', error);
+			isUpdating = false;
+		}
 	}
 </script>
 
@@ -80,14 +92,21 @@
 						{#if $needRefresh}
 							<button
 								onclick={updateApp}
-								class="rounded-md bg-[#2D3748] px-3 py-1.5 text-sm text-white transition-colors hover:bg-[#1A202C]"
+								disabled={isUpdating}
+								class="flex items-center gap-2 rounded-md bg-[#2D3748] px-3 py-1.5 text-sm text-white transition-colors hover:bg-[#1A202C] disabled:cursor-not-allowed disabled:opacity-50"
 							>
-								Update App
+								{#if isUpdating}
+									<Loader2 class="h-4 w-4 animate-spin" />
+									<span>Updating...</span>
+								{:else}
+									<span>Update App</span>
+								{/if}
 							</button>
 						{/if}
 						<button
 							onclick={close}
-							class="px-3 py-1.5 text-sm text-gray-600 transition-colors hover:text-gray-900"
+							disabled={isUpdating}
+							class="px-3 py-1.5 text-sm text-gray-600 transition-colors hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							Got it
 						</button>

@@ -242,21 +242,23 @@
 									<div
 										class="mt-2 flex w-full items-center justify-end border-none border-border pl-0 md:mt-0 md:w-auto md:border-l md:pl-2"
 									>
-										<button
+										<Button
 											type="button"
-											class="flex h-8 w-8 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-red-50 hover:text-red-600"
+											variant="ghost"
+											size="icon"
 											onclick={(e) => {
 												e.stopPropagation();
 												e.preventDefault();
 												confirmDelete(receipt.id);
 											}}
+											class="hover:bg-red-50 hover:text-red-600"
 										>
 											{#if isDeleting && receiptToDelete === receipt.id}
 												<Loader2 class="h-4 w-4 animate-spin" />
 											{:else}
 												<Trash2 class="h-4 w-4" />
 											{/if}
-										</button>
+										</Button>
 									</div>
 								</div>
 							</a>

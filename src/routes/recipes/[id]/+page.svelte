@@ -24,6 +24,7 @@
 		Receipt,
 		Bookmark
 	} from 'lucide-svelte';
+	import LoadingState from '$lib/components/LoadingState.svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
 	import StockBadge from '$lib/components/StockBadge.svelte';
 	import WashiTape from '$lib/components/WashiTape.svelte';
@@ -159,7 +160,7 @@
 		</div>
 
 		<!-- Hero Image Area (Compact) -->
-		<div class="group relative h-50 w-full overflow-hidden bg-bg-card md:h-75">
+		<div class="group relative h-32 w-full overflow-hidden bg-bg-card md:h-75">
 			{#if data.recipe.imageStatus === 'DONE' && data.recipe.imageUrl}
 				<img
 					src={data.recipe.imageUrl}
@@ -170,12 +171,7 @@
 					class="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent opacity-60"
 				></div>
 			{:else if data.recipe.imageStatus === 'PROCESSING' || data.recipe.imageStatus === 'QUEUED'}
-				<div class="flex h-full w-full items-center justify-center bg-bg-paper-dark">
-					<div class="text-center">
-						<Loader2 class="mx-auto mb-2 h-8 w-8 animate-spin text-text-muted" />
-						<p class="font-display text-lg text-text-secondary">Developing photo...</p>
-					</div>
-				</div>
+				<LoadingState size="lg" text="Developing photo..." class="h-full w-full bg-bg-paper-dark" />
 			{:else}
 				<div
 					class="pattern-grid-lg flex h-full w-full items-center justify-center bg-bg-card text-text-muted/50"
@@ -186,7 +182,7 @@
 
 			<!-- Actions Toolbar (Floating on Image) -->
 			<div
-				class="absolute top-4 right-20 z-30 flex gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+				class="absolute top-4 right-20 z-30 flex gap-2 opacity-100 transition-opacity duration-300 md:opacity-0 md:group-hover:opacity-100"
 			>
 				<Button
 					variant="secondary"
@@ -421,7 +417,7 @@
 					{/if}
 				</div>
 
-				<div class="space-y-10">
+				<div class="space-y-6 md:space-y-10">
 					{#each steps as step, i}
 						<button class="group flex w-full gap-6 text-left" onclick={() => toggleStep(i)}>
 							<div class="flex shrink-0 flex-col items-center gap-1 pt-1">

@@ -22,6 +22,8 @@
 		Save,
 		ImageIcon
 	} from 'lucide-svelte';
+	import LoadingState from '$lib/components/LoadingState.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 
 	let { data } = $props();
 
@@ -126,31 +128,24 @@
 				</div>
 			</div>
 
-			<Button
-				href={`/recipes/generate?receiptId=${data.receipt.id}`}
-				class="group btn-accent-filled relative h-10 px-6 shadow-[4px_4px_0px_0px_rgba(120,53,15,1)] transition-all hover:-translate-y-[1px] hover:shadow-[5px_5px_0px_0px_rgba(120,53,15,1)] active:translate-y-[4px] active:shadow-none disabled:opacity-50"
-			>
-				<ChefHat class="mr-2 h-4 w-4" />
-				Generate Recipes
-			</Button>
+			<div class="fixed right-4 bottom-4 z-40 lg:static">
+				<Button
+					href={`/recipes/generate?receiptId=${data.receipt.id}`}
+					class="group btn-accent-filled relative h-12 px-6 shadow-[4px_4px_0px_0px_rgba(120,53,15,1)] transition-all hover:-translate-y-[1px] hover:shadow-[5px_5px_0px_0px_rgba(120,53,15,1)] active:translate-y-[4px] active:shadow-none disabled:opacity-50"
+				>
+					<ChefHat class="mr-2 h-5 w-5" />
+					Generate Recipes
+				</Button>
+			</div>
 		</div>
 
 		<!-- MAIN CONTENT -->
 		{#if data.receipt.status === 'PROCESSING' || data.receipt.status === 'QUEUED'}
-			<div class="flex flex-col items-center justify-center py-20">
-				<div class="relative mb-6">
-					<div class="flex h-24 w-24 items-center justify-center rounded-2xl bg-white shadow-xl">
-						<Receipt class="h-10 w-10 text-text-muted" />
-					</div>
-					<div
-						class="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-stone-800 shadow-md"
-					>
-						<Loader2 class="h-4 w-4 animate-spin text-stone-50" />
-					</div>
-				</div>
-				<h3 class="font-serif text-2xl font-bold text-text-primary">Reading your receipt...</h3>
-				<p class="mt-2 text-text-secondary">This usually takes about 10-30 seconds.</p>
-			</div>
+			<LoadingState
+				size="lg"
+				text="Reading your receipt... This usually takes about 10-30 seconds."
+				class="py-20"
+			/>
 		{:else if data.receipt.status === 'FAILED'}
 			<div class="mx-auto max-w-lg rounded-xl border-2 border-red-100 bg-red-50 p-8 text-center">
 				<XCircle class="mx-auto h-12 w-12 text-red-400" />
@@ -163,7 +158,7 @@
 			<div class="flex flex-col gap-12 lg:flex-row lg:items-start">
 				<!-- LEFT COLUMN: The Worksheet Card -->
 				<!-- Background: Warm #FDFBF7 -->
-				<div class="relative min-h-[800px] flex-1 bg-bg-paper shadow-xl">
+				<div class="relative order-2 min-h-[800px] flex-1 bg-bg-paper shadow-xl lg:order-1">
 					<!-- Notebook Styling Lines -->
 					<!-- Blue lines with Red Margin -->
 					<div
@@ -251,12 +246,17 @@
 											/>
 											<input type="hidden" name="unit" value={item.unit || ''} />
 
-											<button
+											<Button
 												type="submit"
+												variant="ghost"
+												size="icon"
 												disabled={addingItems[item.id]}
-												class="flex h-5 w-5 items-center justify-center rounded-full text-text-muted transition-all hover:scale-110 hover:text-success-600 disabled:opacity-50"
-												class:text-emerald-500={addedItems[item.id]}
 												title="Add to Shopping List"
+												class="h-5 w-5 rounded-full text-text-muted transition-all hover:scale-110 hover:text-success-600 disabled:opacity-50 {addedItems[
+													item.id
+												]
+													? 'text-emerald-500'
+													: ''}"
 											>
 												{#if addingItems[item.id]}
 													<Loader2 class="h-3 w-3 animate-spin" />
@@ -265,7 +265,7 @@
 												{:else}
 													<Plus class="h-4 w-4" />
 												{/if}
-											</button>
+											</Button>
 										</form>
 
 										<!-- Quantity (Handwritten style) -->
@@ -325,7 +325,7 @@
 				</div>
 
 				<!-- RIGHT COLUMN: Sticky Receipt -->
-				<div class="relative hidden w-96 shrink-0 lg:sticky lg:top-8 lg:block">
+				<div class="relative order-1 w-full lg:sticky lg:top-8 lg:order-2 lg:w-96 lg:shrink-0">
 					<div class="relative w-full rotate-1 transition-transform hover:rotate-0">
 						<!-- Image Container -->
 						<div
@@ -351,12 +351,12 @@
 									></div>
 								</div>
 							{:else}
-								<div
-									class="flex h-full flex-col items-center justify-center bg-bg-paper-dark p-12 text-center text-text-muted"
-								>
-									<ImageIcon class="mb-4 h-12 w-12 opacity-50" />
-									<span class="font-handwriting text-xl">Receipt image missing</span>
-								</div>
+								<EmptyState
+									icon={ImageIcon}
+									title="Receipt image missing"
+									description="The original image could not be loaded."
+									class="border-0 bg-transparent py-12"
+								/>
 							{/if}
 						</div>
 					</div>

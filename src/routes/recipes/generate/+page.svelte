@@ -161,7 +161,7 @@
 					}
 				};
 			}}
-			class="grid items-start gap-8 lg:grid-cols-12"
+			class="grid items-start gap-8 pb-32 lg:grid-cols-12 lg:pb-0"
 		>
 			{#if form?.error}
 				<div
@@ -172,7 +172,7 @@
 			{/if}
 
 			<!-- LEFT COLUMN: The Pantry Inventory (Notepad) -->
-			<div class="lg:col-span-7 xl:col-span-8">
+			<div class="order-2 lg:order-1 lg:col-span-7 xl:col-span-8">
 				<Notepad class="h-full" tapeWidth="w-32" tapeRotate="-rotate-2">
 					<div class="bg-lines min-h-125 p-6 md:p-8">
 						<div
@@ -251,7 +251,7 @@
 			</div>
 
 			<!-- RIGHT COLUMN: The Request Slip & Controls -->
-			<div class="space-y-6 lg:sticky lg:top-8 lg:col-span-5 xl:col-span-4">
+			<div class="order-1 space-y-6 lg:sticky lg:top-8 lg:order-2 lg:col-span-5 xl:col-span-4">
 				<!-- Recipe Settings (Pinned Note) -->
 				<PinnedNote color="yellow" rotate="rotate-1">
 					<div class="space-y-4">
@@ -355,27 +355,32 @@
 
 				<!-- Submit Action -->
 				<div class="pt-4">
-					<Button
-						type="submit"
-						disabled={loading ||
-							(selectedIngredientIds.size === 0 && customIngredients.length === 0)}
-						class="h-14 w-full bg-text-primary font-serif text-lg text-bg-paper shadow-xl transition-all hover:-translate-y-0.5 hover:bg-primary-800"
+					<!-- Mobile Sticky Submit -->
+					<div
+						class="fixed right-0 bottom-0 left-0 z-50 border-t border-border bg-white p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
 					>
-						{#if loading}
-							<Sparkles class="mr-2 h-5 w-5 animate-pulse" />
-							{loadingMessage}
-						{:else}
-							<ChefHat class="mr-2 h-5 w-5" />
-							Invent Recipe
-						{/if}
-					</Button>
-					<p class="font-hand mt-3 text-center text-sm text-ink-muted">
-						{#if selectedIngredientIds.size > 0 || customIngredients.length > 0}
-							Using {selectedIngredientIds.size + customIngredients.length} ingredients
-						{:else}
-							Pick something to start...
-						{/if}
-					</p>
+						<Button
+							type="submit"
+							disabled={loading ||
+								(selectedIngredientIds.size === 0 && customIngredients.length === 0)}
+							class="h-14 w-full bg-text-primary font-serif text-lg text-bg-paper shadow-xl transition-all hover:-translate-y-0.5 hover:bg-primary-800"
+						>
+							{#if loading}
+								<Sparkles class="mr-2 h-5 w-5 animate-pulse" />
+								{loadingMessage}
+							{:else}
+								<ChefHat class="mr-2 h-5 w-5" />
+								Invent Recipe
+							{/if}
+						</Button>
+						<p class="font-hand mt-3 text-center text-sm text-ink-muted">
+							{#if selectedIngredientIds.size > 0 || customIngredients.length > 0}
+								Using {selectedIngredientIds.size + customIngredients.length} ingredients
+							{:else}
+								Pick something to start...
+							{/if}
+						</p>
+					</div>
 				</div>
 			</div>
 		</form>

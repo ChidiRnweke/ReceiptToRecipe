@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { Button } from '$lib/components/ui/button';
 
 	interface Props {
 		children: import('svelte').Snippet;
@@ -68,12 +69,7 @@
 						</p>
 					{/if}
 
-					<button
-						onclick={retry}
-						class="mt-3 rounded-md bg-red-600 px-4 py-2 text-sm text-white transition-colors hover:bg-red-700"
-					>
-						Try Again
-					</button>
+					<Button onclick={retry} variant="destructive" size="sm" class="mt-3">Try Again</Button>
 				</div>
 			</div>
 		</div>

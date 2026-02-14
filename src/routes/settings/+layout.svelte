@@ -15,7 +15,11 @@
 <div class="min-h-screen bg-bg-paper p-6 font-serif text-ink md:p-10">
 	<div class="mx-auto max-w-5xl">
 		<div class="mb-8">
-			<Button href="/" variant="ghost" class="mb-2 pl-0 hover:bg-transparent hover:text-sage-600">
+			<Button
+				href="/"
+				variant="ghost"
+				class="mb-2 hidden pl-0 hover:bg-transparent hover:text-sage-600 md:inline-flex"
+			>
 				<ArrowLeft class="mr-2 h-4 w-4" />
 				Back to Kitchen
 			</Button>
@@ -23,10 +27,27 @@
 			<p class="mt-2 text-ink-light">Customize your culinary experience.</p>
 		</div>
 
-		<div class="flex flex-col gap-8 md:flex-row">
+		<div class="flex flex-col-reverse gap-8 md:flex-row">
 			<!-- Sidebar -->
 			<aside class="w-full shrink-0 md:w-64">
-				<nav class="space-y-1">
+				<!-- Mobile: Horizontal tabs -->
+				<nav class="flex gap-2 overflow-x-auto md:hidden">
+					{#each navItems as item}
+						{@const isActive = $page.url.pathname === item.href}
+						<a
+							href={item.href}
+							class="flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm transition-all
+								{isActive
+								? 'bg-sage-600 font-medium text-white'
+								: 'bg-stone-100 text-ink-light hover:bg-stone-200 hover:text-ink'}"
+						>
+							<item.icon class="h-4 w-4" />
+							{item.label}
+						</a>
+					{/each}
+				</nav>
+				<!-- Desktop: Vertical sidebar -->
+				<nav class="hidden space-y-1 md:block">
 					{#each navItems as item}
 						{@const isActive = $page.url.pathname === item.href}
 						<a

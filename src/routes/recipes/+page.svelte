@@ -10,8 +10,11 @@
 		ShoppingCart,
 		Loader2,
 		AlertTriangle,
-		ShieldAlert
+		ShieldAlert,
+		SlidersHorizontal
 	} from 'lucide-svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
+	import { slide } from 'svelte/transition';
 	import { workflowStore } from '$lib/state/workflow.svelte';
 	import WashiTape from '$lib/components/WashiTape.svelte';
 	import { Checkbox } from '$lib/components/ui/checkbox';
@@ -24,9 +27,11 @@
 	// Dialog state
 	let deleteDialogOpen = $state(false);
 	let recipeToDelete = $state<string | null>(null);
+	let showAllSuggested = $state(false);
 
 	// Filters
 	let hideIncompatible = $state(false);
+	let showFilters = $state(false);
 
 	const suggestedRecipes = $derived(
 		data.recipes.filter(
@@ -75,7 +80,7 @@
 
 	<!-- Main Content -->
 	<main class="relative z-10 min-h-screen bg-white">
-		<div class="mx-auto w-full max-w-6xl px-6 py-8 sm:px-10">
+		<div class="mx-auto w-full max-w-6xl px-6 py-8 pb-24 sm:px-10 md:pb-8">
 			<!-- Header -->
 			<div class="mb-10 flex flex-wrap items-end justify-between gap-4">
 				<div>
@@ -90,7 +95,20 @@
 							{data.recipes.length}
 							{data.recipes.length === 1 ? 'recipe' : 'recipes'} saved
 						</p>
-						<div class="flex items-center gap-2">
+						<!-- Mobile: Collapsible filter -->
+						<div class="md:hidden">
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => (showFilters = !showFilters)}
+								class="flex items-center gap-1 text-xs font-medium text-text-muted"
+							>
+								<SlidersHorizontal class="h-3 w-3" />
+								Filters
+							</Button>
+						</div>
+						<!-- Desktop: Always visible filter -->
+						<div class="hidden items-center gap-2 md:flex">
 							<Checkbox id="hide-incompatible" bind:checked={hideIncompatible} class="h-4 w-4" />
 							<Label
 								for="hide-incompatible"
@@ -98,19 +116,42 @@
 							>
 						</div>
 					</div>
+
+					<!-- Mobile: Expandable filter panel -->
+					{#if showFilters}
+						<div
+							class="mt-3 rounded-lg border border-border bg-white p-3 md:hidden"
+							transition:slide
+						>
+							<div class="flex items-center gap-2">
+								<Checkbox
+									id="hide-incompatible-mobile"
+									bind:checked={hideIncompatible}
+									class="h-4 w-4"
+								/>
+								<Label
+									for="hide-incompatible-mobile"
+									class="cursor-pointer text-sm font-medium text-text-muted"
+									>Hide Incompatible</Label
+								>
+							</div>
+						</div>
+					{/if}
 				</div>
 
-				<Button
-					href="/recipes/generate"
-					class="group relative h-10 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95"
-				>
-					<div class="flex items-center gap-2">
-						<Sparkles
-							class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
-						/>
-						<span class="font-display text-base font-medium text-text-primary">New Recipe</span>
-					</div>
-				</Button>
+				<div class="fixed right-4 bottom-4 z-40 md:static">
+					<Button
+						href="/recipes/generate"
+						class="group relative h-12 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-lg transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95 md:h-10 md:shadow-sm"
+					>
+						<div class="flex items-center gap-2">
+							<Sparkles
+								class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
+							/>
+							<span class="font-display text-base font-medium text-text-primary">New Recipe</span>
+						</div>
+					</Button>
+				</div>
 			</div>
 
 			<!-- Suggested Recipes -->
@@ -128,7 +169,7 @@
 
 					<!-- 3 cards per row for suggested -->
 					<div class="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 lg:gap-10">
-						{#each suggestedRecipes as recipe, i (recipe.id)}
+						{#each showAllSuggested ? suggestedRecipes : suggestedRecipes.slice(0, 3) as recipe, i (recipe.id)}
 							{@const rotations = ['-rotate-2', 'rotate-2', '-rotate-1']}
 							{@const marginTops = ['mt-0', 'mt-6', 'mt-3']}
 							<div class="group {marginTops[i % marginTops.length]}">
@@ -148,10 +189,12 @@
 										}}
 									>
 										<input type="hidden" name="recipeId" value={recipe.id} />
-										<button
+										<Button
 											type="submit"
-											class="btn-accent flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold shadow-sm"
+											variant="secondary"
+											size="sm"
 											disabled={addingToShoppingId === recipe.id}
+											class="gap-1.5 rounded-full"
 										>
 											{#if addingToShoppingId === recipe.id}
 												<Loader2 class="h-3.5 w-3.5 animate-spin" />
@@ -159,7 +202,7 @@
 												<ShoppingCart class="h-3.5 w-3.5" />
 											{/if}
 											Shop Ingredients
-										</button>
+										</Button>
 									</form>
 								</div>
 
@@ -256,6 +299,18 @@
 							</div>
 						{/each}
 					</div>
+					{#if suggestedRecipes.length > 3}
+						<div class="mt-6 text-center md:hidden">
+							<Button
+								variant="link"
+								size="sm"
+								onclick={() => (showAllSuggested = !showAllSuggested)}
+								class="text-sm font-medium"
+							>
+								{showAllSuggested ? 'Show less' : `See all ${suggestedRecipes.length} suggestions`}
+							</Button>
+						</div>
+					{/if}
 				</div>
 			{/if}
 
@@ -291,37 +346,41 @@
 										}}
 									>
 										<input type="hidden" name="recipeId" value={recipe.id} />
-										<button
+										<Button
 											type="submit"
+											variant="secondary"
+											size="icon"
 											disabled={addingToShoppingId === recipe.id}
-											class="btn-accent flex h-8 w-8 items-center justify-center rounded-full"
 											title="Add to shopping list"
+											class="rounded-full"
 										>
 											{#if addingToShoppingId === recipe.id}
 												<Loader2 class="h-4 w-4 animate-spin" />
 											{:else}
 												<ShoppingCart class="h-4 w-4" />
 											{/if}
-										</button>
+										</Button>
 									</form>
 
-									<button
+									<Button
 										type="button"
+										variant="ghost"
+										size="icon"
 										onclick={(e) => {
 											e.stopPropagation();
 											e.preventDefault();
 											confirmDelete(recipe.id);
 										}}
 										disabled={deletingId === recipe.id}
-										class="flex h-8 w-8 items-center justify-center rounded-full bg-bg-card text-text-muted transition-colors hover:bg-danger-500 hover:text-white"
 										title="Delete recipe"
+										class="rounded-full hover:bg-danger-500 hover:text-white"
 									>
 										{#if deletingId === recipe.id}
 											<Loader2 class="h-4 w-4 animate-spin" />
 										{:else}
 											<Trash2 class="h-4 w-4" />
 										{/if}
-									</button>
+									</Button>
 								</div>
 
 								<!-- Photo Frame -->

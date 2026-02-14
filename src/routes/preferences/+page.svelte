@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
+	import IconButton from '$lib/components/ui/icon-button/IconButton.svelte';
+	import ToggleChip from '$lib/components/ToggleChip.svelte';
+	import SubmitButton from '$lib/components/SubmitButton.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
@@ -191,21 +194,11 @@
 
 							<div class="mb-4 flex flex-wrap gap-2">
 								{#each commonAllergies as allergy}
-									<button
-										type="button"
-										onclick={() => toggleItem(allergies, allergy, (v) => (allergies = v))}
-										class="font-ui relative rounded-sm border-2 px-3 py-1.5 text-sm transition-all duration-200
-                                    {allergies.includes(allergy)
-											? '-translate-y-[1px] border-sienna-600 bg-sienna-100 text-sienna-900 shadow-[2px_2px_0_rgba(180,83,9,0.2)]'
-											: 'border-stone-200 bg-white text-text-muted hover:border-stone-400'}"
-									>
-										{#if allergies.includes(allergy)}
-											<div
-												class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-sienna-500"
-											></div>
-										{/if}
-										{allergy}
-									</button>
+									<ToggleChip
+										selected={allergies.includes(allergy)}
+										label={allergy}
+										onToggle={() => toggleItem(allergies, allergy, (v) => (allergies = v))}
+									/>
 								{/each}
 							</div>
 
@@ -217,15 +210,14 @@
 									onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), addAllergy())}
 									class="rounded-none border-0 border-b border-text-muted bg-transparent px-0 py-1 font-serif placeholder:text-text-muted placeholder:italic focus:border-sienna-500 focus:ring-0"
 								/>
-								<Button
+								<IconButton
 									type="button"
 									variant="ghost"
 									size="sm"
+									icon={Plus}
 									onclick={addAllergy}
 									class="text-text-muted hover:text-sienna-600"
-								>
-									<Plus class="h-5 w-5" />
-								</Button>
+								/>
 							</div>
 
 							{#if allergies.length > 0}
@@ -242,12 +234,14 @@
 													class="font-ui inline-flex items-center gap-1 rounded-sm border border-sienna-200 bg-white px-2 py-1 text-xs font-bold text-sienna-800 shadow-sm"
 												>
 													{allergy}
-													<button
+													<IconButton
 														type="button"
+														variant="ghost"
+														size="sm"
+														icon={X}
 														onclick={() => removeItem(allergies, i, (v) => (allergies = v))}
-														class="text-sienna-400 hover:text-sienna-900"
-														><X class="h-3 w-3" /></button
-													>
+														class="h-3 w-3 text-sienna-400 hover:text-sienna-900"
+													/>
 												</span>
 											{/if}
 										{/each}
@@ -266,17 +260,12 @@
 
 							<div class="mb-4 flex flex-wrap gap-2">
 								{#each commonDiets as diet}
-									<button
-										type="button"
-										onclick={() =>
+									<ToggleChip
+										selected={dietaryRestrictions.includes(diet)}
+										label={diet}
+										onToggle={() =>
 											toggleItem(dietaryRestrictions, diet, (v) => (dietaryRestrictions = v))}
-										class="font-ui relative rounded-sm border-2 px-3 py-1.5 text-sm transition-all duration-200
-                                    {dietaryRestrictions.includes(diet)
-											? '-translate-y-[1px] border-sage-600 bg-sage-100 text-sage-900 shadow-[2px_2px_0_rgba(21,128,61,0.2)]'
-											: 'border-stone-200 bg-white text-text-muted hover:border-stone-400'}"
-									>
-										{diet}
-									</button>
+									/>
 								{/each}
 							</div>
 
@@ -289,15 +278,14 @@
 										e.key === 'Enter' && (e.preventDefault(), addDietaryRestriction())}
 									class="rounded-none border-0 border-b border-text-muted bg-transparent px-0 py-1 font-serif placeholder:text-text-muted placeholder:italic focus:border-sage-500 focus:ring-0"
 								/>
-								<Button
+								<IconButton
 									type="button"
 									variant="ghost"
 									size="sm"
+									icon={Plus}
 									onclick={addDietaryRestriction}
 									class="text-text-muted hover:text-sage-600"
-								>
-									<Plus class="h-5 w-5" />
-								</Button>
+								/>
 							</div>
 							<input
 								type="hidden"
@@ -316,17 +304,12 @@
 
 							<div class="mb-4 flex flex-wrap gap-2">
 								{#each commonCuisines as cuisine}
-									<button
-										type="button"
-										onclick={() =>
+									<ToggleChip
+										selected={cuisinePreferences.includes(cuisine)}
+										label={cuisine}
+										onToggle={() =>
 											toggleItem(cuisinePreferences, cuisine, (v) => (cuisinePreferences = v))}
-										class="font-ui relative rounded-sm border-2 px-3 py-1.5 text-sm transition-all duration-200
-                                    {cuisinePreferences.includes(cuisine)
-											? '-translate-y-[1px] border-amber-500 bg-amber-100 text-amber-900 shadow-[2px_2px_0_rgba(217,119,6,0.2)]'
-											: 'border-stone-200 bg-white text-text-muted hover:border-stone-400'}"
-									>
-										{cuisine}
-									</button>
+									/>
 								{/each}
 							</div>
 
@@ -338,33 +321,27 @@
 									onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), addCuisine())}
 									class="rounded-none border-0 border-b border-text-muted bg-transparent px-0 py-1 font-serif placeholder:text-text-muted placeholder:italic focus:border-amber-500 focus:ring-0"
 								/>
-								<Button
+								<IconButton
 									type="button"
 									variant="ghost"
 									size="sm"
+									icon={Plus}
 									onclick={addCuisine}
 									class="text-text-muted hover:text-amber-600"
-								>
-									<Plus class="h-5 w-5" />
-								</Button>
+								/>
 							</div>
 							<input type="hidden" name="cuisinePreferences" value={cuisinePreferences.join(',')} />
 						</section>
 
 						<div class="flex justify-end pt-8">
-							<Button
-								type="submit"
-								size="lg"
-								disabled={loading}
-								class="font-display bg-text-primary px-8 text-lg text-white shadow-md transition-all hover:translate-y-[1px] hover:bg-text-secondary hover:shadow-sm"
+							<SubmitButton
+								{loading}
+								loadingText="Saving..."
+								class="font-display h-auto bg-text-primary px-8 py-3 text-lg text-white shadow-md transition-all hover:translate-y-[1px] hover:bg-text-secondary hover:shadow-sm"
 							>
-								{#if loading}
-									Saving...
-								{:else}
-									<Save class="mr-2 h-4 w-4" />
-									Save Manifesto
-								{/if}
-							</Button>
+								<Save class="mr-2 h-4 w-4" />
+								Save Manifesto
+							</SubmitButton>
 						</div>
 					</div>
 				</Notepad>
@@ -388,14 +365,15 @@
 								class="flex items-center justify-between rounded-sm border border-blue-100 bg-white/50 px-2 py-1"
 							>
 								<span class="font-hand text-lg text-ink">{ingredient}</span>
-								<button
+								<IconButton
 									type="button"
+									variant="ghost"
+									size="sm"
+									icon={X}
 									onclick={() =>
 										removeItem(excludedIngredients, i, (v) => (excludedIngredients = v))}
-									class="text-text-muted hover:text-red-500"
-								>
-									<X class="h-3 w-3" />
-								</button>
+									class="h-3 w-3 text-text-muted hover:text-red-500"
+								/>
 							</div>
 						{/each}
 					</div>
@@ -408,14 +386,14 @@
 							onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), addExcludedIngredient())}
 							class="h-8 border-blue-200 bg-white/80 text-xs focus:border-blue-400"
 						/>
-						<Button
+						<IconButton
 							type="button"
+							variant="ghost"
 							size="sm"
+							icon={Plus}
 							onclick={addExcludedIngredient}
 							class="h-8 w-8 bg-blue-200 p-0 text-blue-800 hover:bg-blue-300"
-						>
-							<Plus class="h-4 w-4" />
-						</Button>
+						/>
 					</div>
 					<input type="hidden" name="excludedIngredients" value={excludedIngredients.join(',')} />
 				</PinnedNote>

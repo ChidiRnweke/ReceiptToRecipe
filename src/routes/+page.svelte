@@ -21,6 +21,7 @@
 	import StockBadge from '$lib/components/StockBadge.svelte';
 	import OnboardingModal from '$lib/components/OnboardingModal.svelte';
 	import LandingPage from '$lib/components/LandingPage.svelte';
+	import MobileSummary from '$lib/components/MobileSummary.svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
 
 	let { data, form } = $props();
@@ -347,7 +348,14 @@
 					</Button>
 				</div>
 
-				<div class="grid items-stretch gap-8 lg:grid-cols-12">
+				<!-- Mobile Summary Section -->
+				<MobileSummary
+					{cartCount}
+					pantryCount={pantryItems.length}
+					completionPercent={data.activeList?.stats?.completionPercent ?? 0}
+				/>
+
+				<div class="order-last grid items-stretch gap-8 lg:order-none lg:grid-cols-12">
 					<div class="lg:col-span-7">
 						<a
 							href={featuredRecipe ? `/recipes/${featuredRecipe.id}` : '/recipes'}
@@ -369,7 +377,7 @@
 								></div>
 							</div>
 
-							<div class="relative h-64 w-full p-5 pr-2 md:h-auto md:w-5/12">
+							<div class="relative h-40 w-full p-5 pr-2 md:h-auto md:w-5/12">
 								<div
 									class="relative h-full w-full -rotate-1 transform transition-transform duration-500 group-hover:rotate-0"
 								>
@@ -518,13 +526,15 @@
 													<Check class="h-3 w-3" />
 												</div>
 											{:else}
-												<button
+												<Button
 													type="submit"
+													variant="ghost"
+													size="icon"
 													disabled={isAdding}
-													class="relative z-20 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors disabled:cursor-not-allowed
+													class="relative z-20 mt-0.5 h-5 w-5 shrink-0 rounded-full border transition-colors hover:bg-transparent disabled:cursor-not-allowed
                             {isAdded
-														? 'border-secondary-200 bg-secondary-100 text-secondary-700 hover:bg-secondary-200'
-														: 'border-border bg-bg-input hover:border-border'}"
+														? 'border-secondary-200 bg-secondary-100 text-secondary-700 hover:bg-secondary-200 hover:text-secondary-700'
+														: 'border-border bg-bg-input hover:border-border hover:text-text-muted'}"
 													title={isAdded ? 'Remove from list' : 'Add to shopping list'}
 												>
 													{#if isAdded}
@@ -534,7 +544,7 @@
 													{:else}
 														<Plus class="h-3 w-3 text-text-muted" />
 													{/if}
-												</button>
+												</Button>
 											{/if}
 
 											<div class="font-ui flex-1 pl-2 text-sm leading-snug">
@@ -581,12 +591,14 @@
 
 								{#if ingredientList.length > 6}
 									<div class="absolute right-0 bottom-4 left-0 z-30 flex justify-center">
-										<button
+										<Button
+											variant="outline"
+											size="sm"
 											onclick={() => (showAllIngredients = !showAllIngredients)}
-											class="rounded-full border border-border bg-bg-input px-4 py-1.5 text-[10px] font-bold tracking-wider text-text-muted uppercase shadow-sm hover:bg-bg-hover hover:text-text-secondary"
+											class="h-auto rounded-full border-border bg-bg-input px-4 py-1.5 text-[10px] font-bold tracking-wider text-text-muted uppercase shadow-sm hover:bg-bg-hover hover:text-text-secondary"
 										>
 											{showAllIngredients ? 'Fold Page' : 'View Full List'}
-										</button>
+										</Button>
 									</div>
 								{/if}
 							</Card.Content>
@@ -594,7 +606,7 @@
 					</div>
 				</div>
 
-				<div class="mt-16">
+				<div class="order-first mt-8 lg:order-none lg:mt-16">
 					<div class="mb-6 flex items-baseline justify-between border-b border-border pb-2">
 						<h2 class="font-display text-2xl text-text-primary">Recent Collections</h2>
 						<a

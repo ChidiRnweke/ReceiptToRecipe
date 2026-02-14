@@ -2,6 +2,7 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { fade } from 'svelte/transition';
+	import { Button } from '$lib/components/ui/button';
 
 	let isOnline = $state(false);
 	let showContent = $state(false);
@@ -95,23 +96,15 @@
 					</div>
 				{/if}
 
-				<button
-					onclick={goHome}
-					class="w-full rounded-lg bg-[#2D3748] px-6 py-3 font-medium text-white
-				       transition-colors duration-200 hover:bg-[#1A202C]
-				       focus:ring-2 focus:ring-[#2D3748] focus:ring-offset-2 focus:outline-none"
-				>
-					Try Again
-				</button>
+				<Button onclick={goHome} class="w-full bg-[#2D3748] hover:bg-[#1A202C]">Try Again</Button>
 
-				<button
+				<Button
+					variant="outline"
 					onclick={goBack}
-					class="w-full rounded-lg border-2 border-[#2D3748] bg-white px-6 py-3 font-medium text-[#2D3748]
-				       transition-colors duration-200 hover:bg-gray-50
-				       focus:ring-2 focus:ring-[#2D3748] focus:ring-offset-2 focus:outline-none"
+					class="w-full border-[#2D3748] text-[#2D3748] hover:bg-gray-50"
 				>
 					Go Back
-				</button>
+				</Button>
 			</div>
 
 			<div class="mt-8 border-t border-gray-200 pt-8">

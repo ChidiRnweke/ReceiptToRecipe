@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
+	import IconButton from '$lib/components/ui/icon-button/IconButton.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
@@ -123,7 +124,13 @@
 						{allergy.allergen}
 						<form method="POST" action="?/removeAllergy" use:enhance class="inline-flex">
 							<input type="hidden" name="allergen" value={allergy.allergen} />
-							<button type="submit" class="ml-1 hover:text-white/80"><X class="h-3 w-3" /></button>
+							<IconButton
+								type="submit"
+								size="sm"
+								variant="ghost"
+								icon={X}
+								class="ml-1 h-3 w-3 hover:text-white/80"
+							/>
 						</form>
 					</Badge>
 				{/each}
@@ -139,12 +146,14 @@
 						{#if !profile.allergies.find((a) => a.allergen.toLowerCase() === ca.toLowerCase())}
 							<form method="POST" action="?/addAllergy" use:enhance class="inline-block">
 								<input type="hidden" name="allergen" value={ca} />
-								<button
+								<Button
 									type="submit"
-									class="rounded-full border border-border px-3 py-1 text-xs transition-colors hover:border-amber-400 hover:bg-amber-50"
+									variant="outline"
+									size="sm"
+									class="h-auto rounded-full px-3 py-1 text-xs transition-colors hover:border-amber-400 hover:bg-amber-50"
 								>
 									+ {ca}
-								</button>
+								</Button>
 							</form>
 						{/if}
 					{/each}
@@ -172,7 +181,7 @@
 								<option value="severe">Severe</option>
 							</select>
 						</div>
-						<Button type="submit" size="icon" variant="outline"><Plus class="h-4 w-4" /></Button>
+						<IconButton type="submit" variant="outline" icon={Plus} />
 					</form>
 				</div>
 			</div>
@@ -206,7 +215,13 @@
 								class="ml-1 inline-flex"
 							>
 								<input type="hidden" name="ingredient" value={pref.ingredientName} />
-								<button class="text-stone-400 hover:text-red-500"><X class="h-3 w-3" /></button>
+								<IconButton
+									type="submit"
+									size="sm"
+									variant="ghost"
+									icon={X}
+									class="h-3 w-3 text-stone-400 hover:text-red-500"
+								/>
 							</form>
 						</span>
 					{/each}
@@ -218,9 +233,7 @@
 						placeholder="Add ingredient..."
 						class="h-8 bg-white/80 text-sm"
 					/>
-					<Button type="submit" size="sm" variant="ghost" class="h-8 w-8 p-0"
-						><Plus class="h-4 w-4" /></Button
-					>
+					<IconButton type="submit" variant="ghost" size="sm" icon={Plus} class="h-8 w-8" />
 				</form>
 			</PinnedNote>
 
@@ -246,7 +259,13 @@
 								class="ml-1 inline-flex"
 							>
 								<input type="hidden" name="ingredient" value={pref.ingredientName} />
-								<button class="text-text-muted hover:text-red-500"><X class="h-3 w-3" /></button>
+								<IconButton
+									type="submit"
+									variant="ghost"
+									size="sm"
+									icon={X}
+									class="h-3 w-3 text-text-muted hover:text-red-500"
+								/>
 							</form>
 						</span>
 					{/each}
@@ -257,9 +276,7 @@
 						<option value="avoid">Avoid</option>
 					</select>
 					<Input name="ingredient" placeholder="Add ingredient..." class="h-8 bg-white text-sm" />
-					<Button type="submit" size="sm" variant="ghost" class="h-8 w-8 p-0"
-						><Plus class="h-4 w-4" /></Button
-					>
+					<IconButton type="submit" variant="ghost" size="sm" icon={Plus} class="h-8 w-8" />
 				</form>
 			</div>
 		</div>
@@ -292,14 +309,14 @@
 								name="preference"
 								value={pref?.preference === 'dislike' ? 'neutral' : 'dislike'}
 							/>
-							<button
+							<IconButton
 								type="submit"
-								class="rounded p-1 hover:bg-bg-hover {pref?.preference === 'dislike'
+								variant="ghost"
+								icon={ThumbsDown}
+								class="hover:bg-bg-hover {pref?.preference === 'dislike'
 									? 'text-red-500'
 									: 'text-text-muted'}"
-							>
-								<ThumbsDown class="h-4 w-4" />
-							</button>
+							/>
 						</form>
 						<form method="POST" action="?/setCuisinePref" use:enhance>
 							<input type="hidden" name="cuisine" value={cuisine} />
@@ -308,14 +325,14 @@
 								name="preference"
 								value={pref?.preference === 'love' ? 'neutral' : 'love'}
 							/>
-							<button
+							<IconButton
 								type="submit"
-								class="rounded p-1 hover:bg-sage-200 {pref?.preference === 'love'
+								variant="ghost"
+								icon={Heart}
+								class="hover:bg-sage-200 {pref?.preference === 'love'
 									? 'fill-red-500 text-red-500'
 									: 'text-text-muted'}"
-							>
-								<Heart class="h-4 w-4" />
-							</button>
+							/>
 						</form>
 					</div>
 				</div>

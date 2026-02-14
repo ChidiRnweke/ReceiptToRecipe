@@ -11,6 +11,7 @@
 	import { pwaInfo } from 'virtual:pwa-info';
 	import { browser } from '$app/environment';
 	import { invalidate } from '$app/navigation';
+	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
 
 	let { data, children } = $props();
 
@@ -122,8 +123,10 @@
 
 				<!-- Mobile Menu Button - Always show if logged in, otherwise hidden -->
 				{#if data.user}
-					<button
-						class="rounded-lg p-2 text-text-secondary hover:bg-bg-paper-dark md:hidden"
+					<Button
+						variant="ghost"
+						size="icon"
+						class="md:hidden"
 						onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
 					>
 						{#if mobileMenuOpen}
@@ -131,26 +134,28 @@
 						{:else}
 							<Menu class="h-5 w-5" />
 						{/if}
-					</button>
+					</Button>
 				{/if}
 			</div>
 		</div>
 
 		<!-- Mobile Navigation -->
 		{#if mobileMenuOpen && data.user}
-			<button
-				type="button"
+			<Button
+				variant="ghost"
 				class="block w-full border-t border-border bg-bg-paper px-4 py-3 text-left md:hidden"
 				onclick={() => (mobileMenuOpen = false)}
 			>
 				<WorkflowNav />
-			</button>
+			</Button>
 		{/if}
 	</header>
 
 	<!-- Main Content -->
 	<main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-		{@render children()}
+		<ErrorBoundary>
+			{@render children()}
+		</ErrorBoundary>
 	</main>
 
 	<!-- Footer -->

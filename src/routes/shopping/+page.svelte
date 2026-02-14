@@ -24,7 +24,6 @@
 	import Notepad from '$lib/components/Notepad.svelte';
 	import PinnedNote from '$lib/components/PinnedNote.svelte';
 	import WashiTape from '$lib/components/WashiTape.svelte';
-	import PushPin from '$lib/components/PushPin.svelte';
 
 	// Pantry warning state
 	let pantryWarning = $state<{
@@ -262,13 +261,15 @@
 											value={suggestion.daysSinceLastPurchase}
 										/>
 
-										<button
+										<Button
 											type="submit"
-											class="text-amber-700 opacity-40 transition-all group-hover:opacity-100 hover:scale-110"
+											variant="ghost"
+											size="icon"
 											title="Add to list"
+											class="text-amber-700 opacity-40 transition-all group-hover:opacity-100 hover:scale-110 hover:bg-transparent"
 										>
 											<Plus class="h-4 w-4" />
-										</button>
+										</Button>
 									</form>
 								</li>
 							{/each}
@@ -281,7 +282,11 @@
 
 					<div class="border-t border-yellow-200/50 pt-2">
 						<form method="POST" action="?/generateRestock" use:enhance={() => {}}>
-							<button type="submit" class="group flex w-full items-center gap-2 text-left">
+							<Button
+								type="submit"
+								variant="ghost"
+								class="group flex w-full items-center justify-start gap-2 p-0 hover:bg-transparent"
+							>
 								<div
 									class="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 transition-colors group-hover:bg-amber-200"
 								>
@@ -291,7 +296,7 @@
 									class="font-hand text-lg text-ink/80 decoration-amber-300 decoration-wavy group-hover:underline"
 									>Generate full restock list</span
 								>
-							</button>
+							</Button>
 						</form>
 					</div>
 				</PinnedNote>
@@ -416,13 +421,15 @@
 													onclick={(e) => e.stopPropagation()}
 												>
 													<input type="hidden" name="listId" value={list.id} />
-													<button
+													<Button
 														type="submit"
-														class="text-fg-muted p-1 transition-colors hover:text-red-500"
+														variant="ghost"
+														size="icon"
+														class="text-fg-muted hover:bg-transparent hover:text-red-500"
 														aria-label="Delete list"
 													>
 														<Trash2 class="h-4 w-4" />
-													</button>
+													</Button>
 												</form>
 											</div>
 
@@ -476,7 +483,7 @@
 															}
 														};
 													}}
-													class="mb-6 flex items-baseline gap-2"
+													class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-baseline"
 												>
 													<input type="hidden" name="listId" value={list.id} />
 
@@ -490,32 +497,36 @@
 														/>
 													</div>
 
-													<div class="relative w-12">
-														<input
-															type="text"
-															name="quantity"
-															placeholder="#"
-															bind:value={input.quantity}
-															class="border-border-muted font-ui focus:border-accent-500 placeholder:text-fg-muted w-full border-b border-none bg-transparent px-0 py-1 text-right text-sm focus:ring-0"
-														/>
-													</div>
+													<div class="flex items-baseline gap-2">
+														<div class="relative w-12">
+															<input
+																type="text"
+																name="quantity"
+																placeholder="#"
+																bind:value={input.quantity}
+																class="border-border-muted font-ui focus:border-accent-500 placeholder:text-fg-muted w-full border-b border-none bg-transparent px-0 py-1 text-right text-sm focus:ring-0"
+															/>
+														</div>
 
-													<div class="relative w-16">
-														<input
-															type="text"
-															name="unit"
-															placeholder="Unit"
-															bind:value={input.unit}
-															class="border-border-muted font-ui focus:border-accent-500 placeholder:text-fg-muted w-full border-b border-none bg-transparent px-0 py-1 text-sm focus:ring-0"
-														/>
-													</div>
+														<div class="relative w-16">
+															<input
+																type="text"
+																name="unit"
+																placeholder="Unit"
+																bind:value={input.unit}
+																class="border-border-muted font-ui focus:border-accent-500 placeholder:text-fg-muted w-full border-b border-none bg-transparent px-0 py-1 text-sm focus:ring-0"
+															/>
+														</div>
 
-													<button
-														type="submit"
-														class="text-fg-muted hover:text-accent-600 p-2 transition-colors"
-													>
-														<Plus class="h-5 w-5" />
-													</button>
+														<Button
+															type="submit"
+															variant="ghost"
+															size="icon"
+															class="text-fg-muted hover:text-accent-600 hover:bg-transparent"
+														>
+															<Plus class="h-5 w-5" />
+														</Button>
+													</div>
 												</form>
 											{/key}
 
@@ -584,9 +595,11 @@
 																		>
 																			<input type="hidden" name="itemId" value={item.id} />
 																			<input type="hidden" name="checked" value={!item.checked} />
-																			<button
+																			<Button
 																				type="submit"
-																				class="relative flex h-5 w-5 items-center justify-center"
+																				variant="ghost"
+																				size="icon"
+																				class="relative h-5 w-5 p-0 hover:bg-transparent"
 																			>
 																				{#if item.checked}
 																					<!-- Hand-drawn checkmark feel -->
@@ -599,7 +612,7 @@
 																						class="border-fg-muted absolute inset-0 rounded-sm border-2 transition-colors hover:border-border"
 																					></div>
 																				{/if}
-																			</button>
+																			</Button>
 																		</form>
 																	</div>
 
@@ -656,12 +669,14 @@
 																			}}
 																		>
 																			<input type="hidden" name="itemId" value={item.id} />
-																			<button
+																			<Button
 																				type="submit"
-																				class="text-fg-muted transition-colors hover:text-red-600"
+																				variant="ghost"
+																				size="icon"
+																				class="text-fg-muted hover:bg-transparent hover:text-red-600"
 																			>
 																				<X class="h-4 w-4" />
-																			</button>
+																			</Button>
 																		</form>
 																	</div>
 																</li>
@@ -692,10 +707,10 @@
 														}}
 													>
 														<input type="hidden" name="listId" value={list.id} />
-														<button type="submit" class="btn-accent">
+														<Button type="submit" variant="secondary">
 															<Check class="mr-2 h-4 w-4" />
 															Checkout
-														</button>
+														</Button>
 													</form>
 												</div>
 											{/if}
