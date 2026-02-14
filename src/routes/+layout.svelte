@@ -131,7 +131,8 @@
           </DropdownMenu.Root>
         {:else}
           <div class="flex items-center gap-2">
-            <Button href="/login">Start here</Button>
+            <Button href="/login" variant="ghost">Log in</Button>
+            <Button href="/signup">Get Started</Button>
           </div>
         {/if}
 

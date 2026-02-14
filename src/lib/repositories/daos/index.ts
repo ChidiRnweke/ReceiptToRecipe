@@ -65,3 +65,8 @@ export type {
 	NewUserCuisinePreferenceDao,
 	TasteProfileDao
 } from './TasteProfileDaos';
+
+export type {
+	WaitlistUserDao,
+	NewWaitlistUserDao
+} from './WaitlistDaos';

@@ -111,7 +111,8 @@
             class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-sage-50"
           >
             {#key currentStep}
-               <svelte:component this={steps[currentStep].icon} class="h-8 w-8 text-sage-600" />
+               {@const Icon = steps[currentStep].icon}
+               <Icon class="h-8 w-8 text-sage-600" />
             {/key}
           </div>
 

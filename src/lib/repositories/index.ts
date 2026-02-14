@@ -10,6 +10,7 @@ export {
 	UserIngredientPreferenceRepository, 
 	UserCuisinePreferenceRepository 
 } from './TasteProfileRepositories';
+export { WaitlistRepository } from './WaitlistRepository';
 
 // Repository Interfaces
 export type { 
@@ -37,6 +38,7 @@ export type {
 	IUserIngredientPreferenceRepository,
 	IUserCuisinePreferenceRepository
 } from './interfaces/ITasteProfileRepositories';
+export type { IWaitlistRepository } from './interfaces/IWaitlistRepository';
 
 // DAOs
 export * from './daos';

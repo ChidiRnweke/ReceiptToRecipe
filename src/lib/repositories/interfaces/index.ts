@@ -28,3 +28,5 @@ export type {
 	IUserIngredientPreferenceRepository,
 	IUserCuisinePreferenceRepository
 } from './ITasteProfileRepositories';
+
+export type { IWaitlistRepository } from './IWaitlistRepository';

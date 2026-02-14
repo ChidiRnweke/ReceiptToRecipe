@@ -57,6 +57,13 @@
       "when": 1770150957790,
       "tag": "0007_sudden_timeslip",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1771063525955,
+      "tag": "0008_cooing_carmella_unuscione",
+      "breakpoints": true
     }
   ]
 }

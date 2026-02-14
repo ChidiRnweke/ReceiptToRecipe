@@ -62,7 +62,7 @@
           class="flex flex-col sm:flex-row items-center justify-center gap-6 pt-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300"
         >
           <Button
-            href="/login"
+            href="/signup"
             size="lg"
             class="h-14 px-10 text-lg bg-primary-600 hover:bg-primary-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all hover:-translate-y-1"
           >
@@ -363,7 +363,7 @@
         </p>
         <div class="pt-6">
           <Button
-            href="/login"
+            href="/signup"
             size="lg"
             class="h-16 px-12 text-xl bg-primary-600 hover:bg-primary-700 text-white rounded-full shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1"
           >

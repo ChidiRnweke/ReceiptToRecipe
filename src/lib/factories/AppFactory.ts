@@ -44,6 +44,7 @@ import {
   UserAllergyRepository,
   UserIngredientPreferenceRepository,
   UserCuisinePreferenceRepository,
+  WaitlistRepository,
   type IUserRepository,
   type ISessionRepository,
   type IUserPreferencesRepository,
@@ -59,6 +60,7 @@ import {
   type IUserAllergyRepository,
   type IUserIngredientPreferenceRepository,
   type IUserCuisinePreferenceRepository,
+  type IWaitlistRepository,
 } from "$repositories";
 
 // Infrastructure Services
@@ -102,6 +104,7 @@ let userIngredientPreferenceRepository: IUserIngredientPreferenceRepository | nu
   null;
 let userCuisinePreferenceRepository: IUserCuisinePreferenceRepository | null =
   null;
+let waitlistRepository: IWaitlistRepository | null = null;
 
 /**
  * Factory for creating and managing service and repository instances
@@ -458,6 +461,13 @@ export class AppFactory {
     return userCuisinePreferenceRepository;
   }
 
+  static getWaitlistRepository(): IWaitlistRepository {
+    if (!waitlistRepository) {
+      waitlistRepository = new WaitlistRepository(getDb());
+    }
+    return waitlistRepository;
+  }
+
   /**
    * Reset all singleton instances (useful for testing)
    */
@@ -501,5 +511,6 @@ export class AppFactory {
     userAllergyRepository = null;
     userIngredientPreferenceRepository = null;
     userCuisinePreferenceRepository = null;
+    waitlistRepository = null;
   }
 }

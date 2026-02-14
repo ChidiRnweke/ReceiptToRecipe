@@ -43,6 +43,13 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Waitlist Users
+export const waitlistUsers = pgTable("waitlist_users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Sessions for mock auth
 export const sessions = pgTable("sessions", {
   id: text("id").primaryKey(),
