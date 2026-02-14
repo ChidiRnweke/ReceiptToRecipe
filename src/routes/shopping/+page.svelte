@@ -338,6 +338,7 @@
 							<div class="flex gap-2">
 								<Input
 									type="text"
+									id="new-list-input"
 									name="name"
 									placeholder="e.g. Sunday Dinner..."
 									bind:value={newListName}

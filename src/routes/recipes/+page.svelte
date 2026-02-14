@@ -139,19 +139,19 @@
 					{/if}
 				</div>
 
-			<div class="hidden md:block">
-				<Button
-					href="/recipes/generate"
-					class="group relative h-10 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95"
-				>
-					<div class="flex items-center gap-2">
-						<Sparkles
-							class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
-						/>
-						<span class="font-display text-base font-medium text-text-primary">New Recipe</span>
-					</div>
-				</Button>
-			</div>
+				<div class="hidden md:block">
+					<Button
+						href="/recipes/generate"
+						class="group relative h-10 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95"
+					>
+						<div class="flex items-center gap-2">
+							<Sparkles
+								class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
+							/>
+							<span class="font-display text-base font-medium text-text-primary">New Recipe</span>
+						</div>
+					</Button>
+				</div>
 			</div>
 
 			<!-- Suggested Recipes -->

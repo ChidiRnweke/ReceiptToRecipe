@@ -249,7 +249,12 @@
 										<h3 class="font-hand text-3xl text-ink">
 											{dragover ? 'Drop it here!' : 'Place receipt here'}
 										</h3>
-										<p class="font-serif text-sm text-text-muted">Click to browse or drag & drop</p>
+										<p class="hidden font-serif text-sm text-text-muted md:block">
+											Click to browse or drag & drop
+										</p>
+										<p class="font-serif text-sm text-text-muted md:hidden">
+											Tap to take a photo or select from library
+										</p>
 									</div>
 								</div>
 							{/if}

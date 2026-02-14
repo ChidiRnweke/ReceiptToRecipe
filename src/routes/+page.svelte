@@ -112,36 +112,6 @@
 		}
 		return name;
 	}
-
-	function getStatusIcon(status: string) {
-		switch (status) {
-			case 'DONE':
-				return CheckCircle;
-			case 'PROCESSING':
-				return Loader2;
-			case 'QUEUED':
-				return Clock;
-			case 'FAILED':
-				return XCircle;
-			default:
-				return Clock;
-		}
-	}
-
-	function getStatusLabel(status: string) {
-		switch (status) {
-			case 'DONE':
-				return 'Ready';
-			case 'PROCESSING':
-				return 'Processing';
-			case 'QUEUED':
-				return 'Queued';
-			case 'FAILED':
-				return 'Failed';
-			default:
-				return status;
-		}
-	}
 </script>
 
 <svelte:head>
@@ -342,7 +312,7 @@
 
 				<!-- Mobile Summary Section -->
 
-				<div class="order-last grid items-stretch gap-8 lg:order-none lg:grid-cols-12">
+				<div class="order-last grid items-stretch gap-8 lg:order-0 lg:grid-cols-12">
 					<div class="lg:col-span-7">
 						<a
 							href={featuredRecipe ? `/recipes/${featuredRecipe.id}` : '/recipes'}
@@ -593,7 +563,7 @@
 					</div>
 				</div>
 
-				<div class="order-first mt-8 lg:order-none lg:mt-16">
+				<div class="order-first mt-8 lg:order-0 lg:mt-16">
 					<div class="mb-6 flex items-baseline justify-between border-b border-border pb-2">
 						<h2 class="font-display text-2xl text-text-primary">Recent Collections</h2>
 						<a

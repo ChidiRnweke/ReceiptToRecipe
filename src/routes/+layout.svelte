@@ -113,15 +113,15 @@
 							</DropdownMenu.Item>
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
-			{:else}
-				<div class="flex items-center gap-2">
-					<Button href="/login" variant="ghost">Log in</Button>
-					<Button href="/signup">Get Started</Button>
-				</div>
-			{/if}
+				{:else}
+					<div class="flex items-center gap-2">
+						<Button href="/login" variant="ghost">Log in</Button>
+						<Button href="/signup">Get Started</Button>
+					</div>
+				{/if}
+			</div>
 		</div>
-	</div>
-</header>
+	</header>
 
 	<!-- Main Content -->
 	<main class="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 md:pb-8 lg:px-8">
