@@ -5,7 +5,7 @@ services:
     container_name: receipt2recipe
     restart: unless-stopped
     expose:
-      - "3000"
+      - '3000'
     environment:
       - ORIGIN=https://receipttorecipe.chidinweke.be
       - BODY_SIZE_LIMIT=10M
@@ -27,13 +27,13 @@ services:
 
     labels:
       caddy: receipttorecipe.chidinweke.be
-      caddy.reverse_proxy: "{{upstreams 3000}}"
+      caddy.reverse_proxy: '{{upstreams 3000}}'
 
   migrate:
     image: ghcr.io/chidirnweke/receipttorecipe:latest
     container_name: receipt2recipe-migrate
-    restart: "no"
-    profiles: ["setup"]
+    restart: 'no'
+    profiles: ['setup']
     command: node scripts/prod-migrate.js
     environment:
       # App Infisical credentials (for reading/writing app secrets)
@@ -63,8 +63,8 @@ services:
   minio-init:
     image: ghcr.io/chidirnweke/receipttorecipe:latest
     container_name: receipt2recipe-minio-init
-    restart: "no"
-    profiles: ["setup"]
+    restart: 'no'
+    profiles: ['setup']
     command: node scripts/prod-minio-init.js
     environment:
       # App Infisical credentials (for reading/writing app secrets)
