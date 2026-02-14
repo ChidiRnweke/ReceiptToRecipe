@@ -161,7 +161,7 @@
 					}
 				};
 			}}
-			class="grid items-start gap-8 pb-32 lg:grid-cols-12 lg:pb-0"
+			class="grid items-start gap-8 pb-48 md:pb-32 lg:grid-cols-12 lg:pb-0"
 		>
 			{#if form?.error}
 				<div
@@ -355,10 +355,10 @@
 
 				<!-- Submit Action -->
 				<div class="pt-4">
-					<!-- Mobile Sticky Submit -->
-					<div
-						class="fixed right-0 bottom-0 left-0 z-50 border-t border-border bg-white p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
-					>
+				<!-- Mobile Sticky Submit (positioned above bottom nav) -->
+				<div
+					class="fixed right-0 bottom-[calc(3.25rem+env(safe-area-inset-bottom,0px))] left-0 z-40 border-t border-border bg-white p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:bottom-0 lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
+				>
 						<Button
 							type="submit"
 							disabled={loading ||

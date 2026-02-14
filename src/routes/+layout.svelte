@@ -4,7 +4,8 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import WorkflowNav from '$lib/components/WorkflowNav.svelte';
-	import { Settings, LogOut, Menu, X } from 'lucide-svelte';
+	import MobileBottomNav from '$lib/components/MobileBottomNav.svelte';
+	import { Settings, LogOut } from 'lucide-svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
 	import logo from '$lib/assets/logo.svg';
 	import favicon from '$lib/assets/favicon.svg';
@@ -33,8 +34,6 @@
 			invalidate('app:session');
 		}
 	});
-
-	let mobileMenuOpen = $state(false);
 </script>
 
 <svelte:head>
@@ -114,52 +113,25 @@
 							</DropdownMenu.Item>
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
-				{:else}
-					<div class="flex items-center gap-2">
-						<Button href="/login" variant="ghost">Log in</Button>
-						<Button href="/signup">Get Started</Button>
-					</div>
-				{/if}
-
-				<!-- Mobile Menu Button - Always show if logged in, otherwise hidden -->
-				{#if data.user}
-					<Button
-						variant="ghost"
-						size="icon"
-						class="md:hidden"
-						onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-					>
-						{#if mobileMenuOpen}
-							<X class="h-5 w-5" />
-						{:else}
-							<Menu class="h-5 w-5" />
-						{/if}
-					</Button>
-				{/if}
-			</div>
+			{:else}
+				<div class="flex items-center gap-2">
+					<Button href="/login" variant="ghost">Log in</Button>
+					<Button href="/signup">Get Started</Button>
+				</div>
+			{/if}
 		</div>
-
-		<!-- Mobile Navigation -->
-		{#if mobileMenuOpen && data.user}
-			<Button
-				variant="ghost"
-				class="block w-full border-t border-border bg-bg-paper px-4 py-3 text-left md:hidden"
-				onclick={() => (mobileMenuOpen = false)}
-			>
-				<WorkflowNav />
-			</Button>
-		{/if}
-	</header>
+	</div>
+</header>
 
 	<!-- Main Content -->
-	<main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+	<main class="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 md:pb-8 lg:px-8">
 		<ErrorBoundary>
 			{@render children()}
 		</ErrorBoundary>
 	</main>
 
-	<!-- Footer -->
-	<footer class="border-t border-border bg-bg-paper-dark">
+	<!-- Footer (hidden on mobile when bottom nav is visible) -->
+	<footer class="hidden border-t border-border bg-bg-paper-dark md:block">
 		<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
 			<p class="text-center text-sm text-text-muted">
 				Receipt2Recipe - Transform your groceries into delicious meals
@@ -167,6 +139,11 @@
 		</div>
 	</footer>
 </div>
+
+<!-- Mobile Bottom Navigation -->
+{#if data.user}
+	<MobileBottomNav />
+{/if}
 
 <!-- Load ReloadPrompt dynamically to avoid SSR issues -->
 {#if browser}

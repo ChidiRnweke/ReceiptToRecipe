@@ -21,17 +21,9 @@
 	import StockBadge from '$lib/components/StockBadge.svelte';
 	import OnboardingModal from '$lib/components/OnboardingModal.svelte';
 	import LandingPage from '$lib/components/LandingPage.svelte';
-	import MobileSummary from '$lib/components/MobileSummary.svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
 
 	let { data, form } = $props();
-
-	type Ingredient = {
-		name: string;
-		quantity?: string;
-		unit?: string;
-		note?: string;
-	};
 
 	// Time-based greeting
 	const hour = new Date().getHours();
@@ -349,11 +341,6 @@
 				</div>
 
 				<!-- Mobile Summary Section -->
-				<MobileSummary
-					{cartCount}
-					pantryCount={pantryItems.length}
-					completionPercent={data.activeList?.stats?.completionPercent ?? 0}
-				/>
 
 				<div class="order-last grid items-stretch gap-8 lg:order-none lg:grid-cols-12">
 					<div class="lg:col-span-7">

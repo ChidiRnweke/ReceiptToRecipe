@@ -128,15 +128,15 @@
 				</div>
 			</div>
 
-			<div class="fixed right-4 bottom-4 z-40 lg:static">
-				<Button
-					href={`/recipes/generate?receiptId=${data.receipt.id}`}
-					class="group btn-accent-filled relative h-12 px-6 shadow-[4px_4px_0px_0px_rgba(120,53,15,1)] transition-all hover:-translate-y-[1px] hover:shadow-[5px_5px_0px_0px_rgba(120,53,15,1)] active:translate-y-[4px] active:shadow-none disabled:opacity-50"
-				>
-					<ChefHat class="mr-2 h-5 w-5" />
-					Generate Recipes
-				</Button>
-			</div>
+		<div class="hidden lg:block">
+			<Button
+				href={`/recipes/generate?receiptId=${data.receipt.id}`}
+				class="group btn-accent-filled relative h-12 px-6 shadow-[4px_4px_0px_0px_rgba(120,53,15,1)] transition-all hover:-translate-y-[1px] hover:shadow-[5px_5px_0px_0px_rgba(120,53,15,1)] active:translate-y-[4px] active:shadow-none disabled:opacity-50"
+			>
+				<ChefHat class="mr-2 h-5 w-5" />
+				Generate Recipes
+			</Button>
+		</div>
 		</div>
 
 		<!-- MAIN CONTENT -->

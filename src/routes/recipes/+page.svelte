@@ -80,7 +80,7 @@
 
 	<!-- Main Content -->
 	<main class="relative z-10 min-h-screen bg-white">
-		<div class="mx-auto w-full max-w-6xl px-6 py-8 pb-24 sm:px-10 md:pb-8">
+		<div class="mx-auto w-full max-w-6xl px-6 py-8 sm:px-10">
 			<!-- Header -->
 			<div class="mb-10 flex flex-wrap items-end justify-between gap-4">
 				<div>
@@ -139,19 +139,19 @@
 					{/if}
 				</div>
 
-				<div class="fixed right-4 bottom-4 z-40 md:static">
-					<Button
-						href="/recipes/generate"
-						class="group relative h-12 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-lg transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95 md:h-10 md:shadow-sm"
-					>
-						<div class="flex items-center gap-2">
-							<Sparkles
-								class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
-							/>
-							<span class="font-display text-base font-medium text-text-primary">New Recipe</span>
-						</div>
-					</Button>
-				</div>
+			<div class="hidden md:block">
+				<Button
+					href="/recipes/generate"
+					class="group relative h-10 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95"
+				>
+					<div class="flex items-center gap-2">
+						<Sparkles
+							class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
+						/>
+						<span class="font-display text-base font-medium text-text-primary">New Recipe</span>
+					</div>
+				</Button>
+			</div>
 			</div>
 
 			<!-- Suggested Recipes -->
