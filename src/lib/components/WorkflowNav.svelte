@@ -34,15 +34,17 @@
 			href={step.href}
 			class="group relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors
 				{navState === 'active'
-					? 'bg-primary-100 text-primary-700'
-					: navState === 'completed'
-						? 'text-text-primary hover:bg-bg-paper-dark'
-						: 'text-text-secondary hover:bg-bg-paper-dark hover:text-text-primary'}"
+				? 'bg-primary-100 text-primary-700'
+				: navState === 'completed'
+					? 'text-text-primary hover:bg-bg-paper-dark'
+					: 'text-text-secondary hover:bg-bg-paper-dark hover:text-text-primary'}"
 		>
 			<span class="relative">
 				<step.icon class="h-4 w-4" />
 				{#if count > 0 && navState !== 'active'}
-					<span class="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-primary-500 text-[8px] font-bold text-white">
+					<span
+						class="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-primary-500 text-[8px] font-bold text-white"
+					>
 						{count > 9 ? '9+' : count}
 					</span>
 				{/if}
@@ -71,7 +73,13 @@
 				: 'text-text-secondary hover:bg-bg-paper-dark hover:text-text-primary'}"
 		>
 			<span class="flex items-center gap-3">
-				<span class="flex h-8 w-8 items-center justify-center rounded-full {navState === 'active' ? 'bg-primary-200' : navState === 'completed' ? 'bg-bg-paper-dark' : 'bg-bg-paper-dark'}">
+				<span
+					class="flex h-8 w-8 items-center justify-center rounded-full {navState === 'active'
+						? 'bg-primary-200'
+						: navState === 'completed'
+							? 'bg-bg-paper-dark'
+							: 'bg-bg-paper-dark'}"
+				>
 					<step.icon class="h-4 w-4" />
 				</span>
 				<span>

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { cn } from "$lib/utils.js";
-	import { AlertDialog as AlertDialogPrimitive } from "bits-ui";
-	import { buttonVariants } from "$lib/components/ui/button";
+	import { cn } from '$lib/utils.js';
+	import { AlertDialog as AlertDialogPrimitive } from 'bits-ui';
+	import { buttonVariants } from '$lib/components/ui/button';
 
 	let {
 		ref = $bindable(null),
@@ -11,10 +11,6 @@
 	}: AlertDialogPrimitive.ActionProps = $props();
 </script>
 
-<AlertDialogPrimitive.Action
-	bind:ref
-	class={cn(buttonVariants(), className)}
-	{...restProps}
->
+<AlertDialogPrimitive.Action bind:ref class={cn(buttonVariants(), className)} {...restProps}>
 	{@render children?.()}
 </AlertDialogPrimitive.Action>

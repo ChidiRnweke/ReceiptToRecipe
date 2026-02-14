@@ -1,8 +1,8 @@
-import type { IJobQueue } from "./interfaces/IJobQueue";
+import type { IJobQueue } from './interfaces/IJobQueue';
 
 type Job = {
-  name?: string;
-  run: () => Promise<unknown>;
+	name?: string;
+	run: () => Promise<unknown>;
 };
 
 /**
@@ -10,48 +10,45 @@ type Job = {
  * Intended for short background tasks like OCR or image generation.
  */
 export class JobQueue implements IJobQueue {
-  private queue: Job[] = [];
-  private running = 0;
+	private queue: Job[] = [];
+	private running = 0;
 
-  constructor(private concurrency: number = 2) {}
+	constructor(private concurrency: number = 2) {}
 
-  add(job: { name?: string; run: () => Promise<void> }): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.queue.push({
-        name: job.name,
-        run: async () => {
-          try {
-            await job.run();
-            resolve();
-          } catch (error) {
-            reject(error);
-            throw error;
-          }
-        },
-      });
+	add(job: { name?: string; run: () => Promise<void> }): Promise<void> {
+		return new Promise((resolve, reject) => {
+			this.queue.push({
+				name: job.name,
+				run: async () => {
+					try {
+						await job.run();
+						resolve();
+					} catch (error) {
+						reject(error);
+						throw error;
+					}
+				}
+			});
 
-      this.process();
-    });
-  }
+			this.process();
+		});
+	}
 
-  private process(): void {
-    if (this.running >= this.concurrency) return;
-    const next = this.queue.shift();
-    if (!next) return;
+	private process(): void {
+		if (this.running >= this.concurrency) return;
+		const next = this.queue.shift();
+		if (!next) return;
 
-    this.running += 1;
+		this.running += 1;
 
-    next
-      .run()
-      .catch((error) => {
-        console.error(
-          `Job failed${next.name ? ` [${next.name}]` : ""}:`,
-          error,
-        );
-      })
-      .finally(() => {
-        this.running -= 1;
-        this.process();
-      });
-  }
+		next
+			.run()
+			.catch((error) => {
+				console.error(`Job failed${next.name ? ` [${next.name}]` : ''}:`, error);
+			})
+			.finally(() => {
+				this.running -= 1;
+				this.process();
+			});
+	}
 }

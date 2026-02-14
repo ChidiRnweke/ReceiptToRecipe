@@ -1,234 +1,258 @@
 <script lang="ts">
-  import { enhance } from "$app/forms";
-  import { goto } from "$app/navigation";
-  import { Button } from "$lib/components/ui/button";
-  import * as Card from "$lib/components/ui/card";
-  import {
-    Upload,
-    Image,
-    X,
-    Sun,
-    Camera,
-    ScanLine,
-    Layers,
-    Sparkles,
-    ArrowLeft,
-    ChefHat,
-    Paperclip,
-  } from "lucide-svelte";
-  import WashiTape from "$lib/components/WashiTape.svelte";
+	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import {
+		Upload,
+		Image,
+		X,
+		Sun,
+		Camera,
+		ScanLine,
+		Layers,
+		Sparkles,
+		ArrowLeft,
+		ChefHat,
+		Paperclip
+	} from 'lucide-svelte';
+	import WashiTape from '$lib/components/WashiTape.svelte';
 
-  let { form } = $props();
-  let loading = $state(false);
-  let dragover = $state(false);
-  let preview = $state<string | null>(null);
-  let fileInput = $state<HTMLInputElement | null>(null);
+	let { form } = $props();
+	let loading = $state(false);
+	let dragover = $state(false);
+	let preview = $state<string | null>(null);
+	let fileInput = $state<HTMLInputElement | null>(null);
 
-  function handleFile(file: File | null) {
-    if (!file) {
-      preview = null;
-      return;
-    }
+	function handleFile(file: File | null) {
+		if (!file) {
+			preview = null;
+			return;
+		}
 
-    if (!file.type.startsWith("image/")) {
-      return;
-    }
+		if (!file.type.startsWith('image/')) {
+			return;
+		}
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      preview = e.target?.result as string;
-    };
-    reader.readAsDataURL(file);
-  }
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			preview = e.target?.result as string;
+		};
+		reader.readAsDataURL(file);
+	}
 
-  function handleDrop(e: DragEvent) {
-    e.preventDefault();
-    dragover = false;
-    const file = e.dataTransfer?.files[0];
-    if (file && fileInput) {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      fileInput.files = dt.files;
-      handleFile(file);
-    }
-  }
+	function handleDrop(e: DragEvent) {
+		e.preventDefault();
+		dragover = false;
+		const file = e.dataTransfer?.files[0];
+		if (file && fileInput) {
+			const dt = new DataTransfer();
+			dt.items.add(file);
+			fileInput.files = dt.files;
+			handleFile(file);
+		}
+	}
 
-  function handleFileChange(e: Event) {
-    const input = e.target as HTMLInputElement;
-    handleFile(input.files?.[0] ?? null);
-  }
+	function handleFileChange(e: Event) {
+		const input = e.target as HTMLInputElement;
+		handleFile(input.files?.[0] ?? null);
+	}
 
-  function clearPreview() {
-    preview = null;
-    if (fileInput) {
-      fileInput.value = "";
-    }
-  }
+	function clearPreview() {
+		preview = null;
+		if (fileInput) {
+			fileInput.value = '';
+		}
+	}
 </script>
 
 <svelte:head>
-  <title>Upload Receipt - Receipt2Recipe</title>
+	<title>Upload Receipt - Receipt2Recipe</title>
 </svelte:head>
 
-<div class="min-h-screen bg-bg-paper p-6 md:p-10 relative overflow-x-hidden">
-  <!-- Desk Texture (Subtle Noise) -->
-  <div class="pointer-events-none absolute inset-0 opacity-[0.03]" style="background-image: url('https://www.transparenttextures.com/patterns/cardboard-flat.png')"></div>
+<div class="relative min-h-screen overflow-x-hidden bg-bg-paper p-6 md:p-10">
+	<!-- Desk Texture (Subtle Noise) -->
+	<div
+		class="pointer-events-none absolute inset-0 opacity-[0.03]"
+		style="background-image: url('https://www.transparenttextures.com/patterns/cardboard-flat.png')"
+	></div>
 
-  <div class="mx-auto max-w-3xl relative z-10">
-    <div class="mb-8 flex items-center justify-between">
-       <Button href="/receipts" variant="ghost" class="font-serif text-text-muted hover:text-text-primary pl-0 hover:bg-transparent">
-            <ArrowLeft class="mr-2 h-4 w-4" />
-            Back to Ledger
-       </Button>
-    </div>
+	<div class="relative z-10 mx-auto max-w-3xl">
+		<div class="mb-8 flex items-center justify-between">
+			<Button
+				href="/receipts"
+				variant="ghost"
+				class="pl-0 font-serif text-text-muted hover:bg-transparent hover:text-text-primary"
+			>
+				<ArrowLeft class="mr-2 h-4 w-4" />
+				Back to Ledger
+			</Button>
+		</div>
 
-    <div class="text-center mb-10">
-        <h1 class="font-display text-4xl text-ink mb-2">The Inbox</h1>
-        <p class="font-serif text-ink-light italic">Drop your receipts here for processing.</p>
-    </div>
+		<div class="mb-10 text-center">
+			<h1 class="font-display mb-2 text-4xl text-ink">The Inbox</h1>
+			<p class="font-serif text-ink-light italic">Drop your receipts here for processing.</p>
+		</div>
 
-    <!-- Main Drop Zone Container -->
-    <div class="relative bg-white p-2 rounded-sm shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] border border-border rotate-1 transition-transform duration-300 hover:rotate-0">
-        <!-- Washi Tape Decor -->
-        <WashiTape color="sage" class="absolute -top-3 left-1/2 -translate-x-1/2 w-32 shadow-sm z-20" />
+		<!-- Main Drop Zone Container -->
+		<div
+			class="relative rotate-1 rounded-sm border border-border bg-white p-2 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] transition-transform duration-300 hover:rotate-0"
+		>
+			<!-- Washi Tape Decor -->
+			<WashiTape
+				color="sage"
+				class="absolute -top-3 left-1/2 z-20 w-32 -translate-x-1/2 shadow-sm"
+			/>
 
-        <div class="border-2 border-dashed border-border bg-bg-card rounded-sm p-8 min-h-[400px] flex flex-col items-center justify-center relative transition-colors duration-300 {dragover ? 'bg-primary-50 border-primary-400' : ''}">
-            
-            <form
-                method="POST"
-                enctype="multipart/form-data"
-                use:enhance={() => {
-                loading = true;
-                return async ({ result }) => {
-                    loading = false;
-                    if (result.type === "redirect") {
-                    goto(result.location);
-                    }
-                };
-                }}
-                class="w-full h-full flex flex-col items-center justify-center"
-            >
-                {#if form?.error}
-                    <div class="absolute top-4 left-4 right-4 bg-sienna-50 border border-sienna-200 text-sienna-800 p-3 text-center font-serif text-sm rotate-1 shadow-sm">
-                        <Paperclip class="h-4 w-4 inline mr-2" />
-                        {form.error}
-                    </div>
-                {/if}
+			<div
+				class="relative flex min-h-[400px] flex-col items-center justify-center rounded-sm border-2 border-dashed border-border bg-bg-card p-8 transition-colors duration-300 {dragover
+					? 'border-primary-400 bg-primary-50'
+					: ''}"
+			>
+				<form
+					method="POST"
+					enctype="multipart/form-data"
+					use:enhance={() => {
+						loading = true;
+						return async ({ result }) => {
+							loading = false;
+							if (result.type === 'redirect') {
+								goto(result.location);
+							}
+						};
+					}}
+					class="flex h-full w-full flex-col items-center justify-center"
+				>
+					{#if form?.error}
+						<div
+							class="absolute top-4 right-4 left-4 rotate-1 border border-sienna-200 bg-sienna-50 p-3 text-center font-serif text-sm text-sienna-800 shadow-sm"
+						>
+							<Paperclip class="mr-2 inline h-4 w-4" />
+							{form.error}
+						</div>
+					{/if}
 
-                <input
-                    bind:this={fileInput}
-                    id="receipt-upload"
-                    type="file"
-                    name="receipt"
-                    accept="image/*"
-                    class="hidden"
-                    onchange={handleFileChange}
-                    required
-                />
+					<input
+						bind:this={fileInput}
+						id="receipt-upload"
+						type="file"
+						name="receipt"
+						accept="image/*"
+						class="hidden"
+						onchange={handleFileChange}
+						required
+					/>
 
-                <div
-                    role="button"
-                    tabindex="0"
-                    class="w-full h-full flex flex-col items-center justify-center outline-none"
-                    ondragover={(e) => {
-                        e.preventDefault();
-                        dragover = true;
-                    }}
-                    ondragleave={() => (dragover = false)}
-                    ondrop={handleDrop}
-                    onkeydown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            fileInput?.click();
-                        }
-                    }}
-                    onclick={() => !preview && fileInput?.click()}
-                >
-                    {#if preview}
-                        <div class="relative w-full max-w-sm mx-auto transform -rotate-2 transition-transform hover:rotate-0 duration-500">
-                             <div class="bg-white p-3 shadow-lg border border-border/50 pb-12">
-                                <img
-                                    src={preview}
-                                    alt="Receipt preview"
-                                    class="w-full h-auto filter contrast-125 grayscale-[0.1]"
-                                />
-                                <div class="absolute bottom-4 right-4 font-hand text-text-muted text-xl">
-                                    Receipt #{Math.floor(Math.random() * 1000)}
-                                </div>
-                             </div>
-                             
-                             <button
-                                type="button"
-                                onclick={(e) => {
-                                    e.stopPropagation();
-                                    clearPreview();
-                                }}
-                                class="absolute -top-3 -right-3 bg-white rounded-full p-2 shadow-md hover:bg-red-50 text-text-muted hover:text-red-500 transition-colors z-30"
-                             >
-                                <X class="h-4 w-4" />
-                             </button>
-                        </div>
+					<div
+						role="button"
+						tabindex="0"
+						class="flex h-full w-full flex-col items-center justify-center outline-none"
+						ondragover={(e) => {
+							e.preventDefault();
+							dragover = true;
+						}}
+						ondragleave={() => (dragover = false)}
+						ondrop={handleDrop}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								fileInput?.click();
+							}
+						}}
+						onclick={() => !preview && fileInput?.click()}
+					>
+						{#if preview}
+							<div
+								class="relative mx-auto w-full max-w-sm -rotate-2 transform transition-transform duration-500 hover:rotate-0"
+							>
+								<div class="border border-border/50 bg-white p-3 pb-12 shadow-lg">
+									<img
+										src={preview}
+										alt="Receipt preview"
+										class="h-auto w-full contrast-125 grayscale-[0.1] filter"
+									/>
+									<div class="font-hand absolute right-4 bottom-4 text-xl text-text-muted">
+										Receipt #{Math.floor(Math.random() * 1000)}
+									</div>
+								</div>
 
-                        <div class="mt-8 flex flex-col items-center gap-3">
-                             <Button type="submit" disabled={loading} size="lg" class="font-display text-lg px-8 bg-text-primary text-white hover:bg-text-secondary shadow-md">
-                                {#if loading}
-                                    <ScanLine class="mr-2 h-4 w-4 animate-pulse" />
-                                    Scanning...
-                                {:else}
-                                    Process Receipt
-                                {/if}
-                            </Button>
-                            <p class="font-serif text-xs text-text-muted italic">
-                                We'll extract ingredients and add them to your kitchen.
-                            </p>
-                        </div>
-                    {:else}
-                        <div class="flex flex-col items-center gap-6 pointer-events-none">
-                            <div class="h-24 w-24 rounded-full bg-bg-hover flex items-center justify-center border border-border shadow-inner">
-                                <Upload class="h-10 w-10 text-text-muted" />
-                            </div>
-                            <div class="text-center space-y-2">
-                                <h3 class="font-hand text-3xl text-ink">
-                                    {dragover ? "Drop it here!" : "Place receipt here"}
-                                </h3>
-                                <p class="font-serif text-text-muted text-sm">
-                                    Click to browse or drag & drop
-                                </p>
-                            </div>
-                        </div>
-                    {/if}
-                </div>
-            </form>
-        </div>
-    </div>
+								<button
+									type="button"
+									onclick={(e) => {
+										e.stopPropagation();
+										clearPreview();
+									}}
+									class="absolute -top-3 -right-3 z-30 rounded-full bg-white p-2 text-text-muted shadow-md transition-colors hover:bg-red-50 hover:text-red-500"
+								>
+									<X class="h-4 w-4" />
+								</button>
+							</div>
 
-    <!-- Tips Note (Sticky Note Style) -->
-    <div class="mt-12 mx-auto max-w-2xl transform rotate-1">
-        <div class="bg-yellow-50 border border-yellow-200 p-6 shadow-sm relative">
-            <div class="absolute -top-3 left-1/2 -translate-x-1/2">
-                <WashiTape color="yellow" width="w-24" />
-            </div>
-            
-            <h3 class="font-ui text-xs uppercase tracking-widest text-text-muted text-center mb-6 mt-2">
-                Scanning Guidelines
-            </h3>
+							<div class="mt-8 flex flex-col items-center gap-3">
+								<Button
+									type="submit"
+									disabled={loading}
+									size="lg"
+									class="font-display bg-text-primary px-8 text-lg text-white shadow-md hover:bg-text-secondary"
+								>
+									{#if loading}
+										<ScanLine class="mr-2 h-4 w-4 animate-pulse" />
+										Scanning...
+									{:else}
+										Process Receipt
+									{/if}
+								</Button>
+								<p class="font-serif text-xs text-text-muted italic">
+									We'll extract ingredients and add them to your kitchen.
+								</p>
+							</div>
+						{:else}
+							<div class="pointer-events-none flex flex-col items-center gap-6">
+								<div
+									class="flex h-24 w-24 items-center justify-center rounded-full border border-border bg-bg-hover shadow-inner"
+								>
+									<Upload class="h-10 w-10 text-text-muted" />
+								</div>
+								<div class="space-y-2 text-center">
+									<h3 class="font-hand text-3xl text-ink">
+										{dragover ? 'Drop it here!' : 'Place receipt here'}
+									</h3>
+									<p class="font-serif text-sm text-text-muted">Click to browse or drag & drop</p>
+								</div>
+							</div>
+						{/if}
+					</div>
+				</form>
+			</div>
+		</div>
 
-            <div class="grid grid-cols-2 gap-6">
-                <div class="flex items-start gap-3">
-                    <Sun class="h-5 w-5 text-amber-500 mt-0.5" />
-                    <div>
-                        <p class="font-bold text-ink text-sm font-serif">Lighting</p>
-                        <p class="text-xs text-ink-light font-serif">Ensure scanned items are well-lit.</p>
-                    </div>
-                </div>
-                <div class="flex items-start gap-3">
-                    <Layers class="h-5 w-5 text-amber-500 mt-0.5" />
-                    <div>
-                        <p class="font-bold text-ink text-sm font-serif">Flat</p>
-                        <p class="text-xs text-ink-light font-serif">Flatten wrinkles for better OCR.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-  </div>
+		<!-- Tips Note (Sticky Note Style) -->
+		<div class="mx-auto mt-12 max-w-2xl rotate-1 transform">
+			<div class="relative border border-yellow-200 bg-yellow-50 p-6 shadow-sm">
+				<div class="absolute -top-3 left-1/2 -translate-x-1/2">
+					<WashiTape color="yellow" width="w-24" />
+				</div>
+
+				<h3 class="font-ui mt-2 mb-6 text-center text-xs tracking-widest text-text-muted uppercase">
+					Scanning Guidelines
+				</h3>
+
+				<div class="grid grid-cols-2 gap-6">
+					<div class="flex items-start gap-3">
+						<Sun class="mt-0.5 h-5 w-5 text-amber-500" />
+						<div>
+							<p class="font-serif text-sm font-bold text-ink">Lighting</p>
+							<p class="font-serif text-xs text-ink-light">Ensure scanned items are well-lit.</p>
+						</div>
+					</div>
+					<div class="flex items-start gap-3">
+						<Layers class="mt-0.5 h-5 w-5 text-amber-500" />
+						<div>
+							<p class="font-serif text-sm font-bold text-ink">Flat</p>
+							<p class="font-serif text-xs text-ink-light">Flatten wrinkles for better OCR.</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
 </div>

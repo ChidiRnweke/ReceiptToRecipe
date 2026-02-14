@@ -1,64 +1,64 @@
 export interface ShoppingListDao {
-  id: string;
-  userId: string;
-  name: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+	id: string;
+	userId: string;
+	name: string;
+	isActive: boolean;
+	createdAt: Date;
+	updatedAt: Date;
 }
 
 export interface NewShoppingListDao {
-  userId: string;
-  name: string;
-  isActive?: boolean;
+	userId: string;
+	name: string;
+	isActive?: boolean;
 }
 
 export interface UpdateShoppingListDao {
-  name?: string;
-  isActive?: boolean;
+	name?: string;
+	isActive?: boolean;
 }
 
 export interface ShoppingListItemDao {
-  id: string;
-  shoppingListId: string;
-  name: string;
-  quantity: string | null;
-  unit: string | null;
-  checked: boolean;
-  fromRecipeId: string | null;
-  notes: string | null;
-  orderIndex: number;
-  createdAt: Date;
+	id: string;
+	shoppingListId: string;
+	name: string;
+	quantity: string | null;
+	unit: string | null;
+	checked: boolean;
+	fromRecipeId: string | null;
+	notes: string | null;
+	orderIndex: number;
+	createdAt: Date;
 }
 
 export interface NewShoppingListItemDao {
-  shoppingListId: string;
-  name: string;
-  quantity?: string | null;
-  unit?: string | null;
-  checked?: boolean;
-  fromRecipeId?: string | null;
-  notes?: string | null;
-  orderIndex?: number;
+	shoppingListId: string;
+	name: string;
+	quantity?: string | null;
+	unit?: string | null;
+	checked?: boolean;
+	fromRecipeId?: string | null;
+	notes?: string | null;
+	orderIndex?: number;
 }
 
 export interface UpdateShoppingListItemDao {
-  name?: string;
-  quantity?: string | null;
-  unit?: string | null;
-  checked?: boolean;
-  notes?: string | null;
-  orderIndex?: number;
+	name?: string;
+	quantity?: string | null;
+	unit?: string | null;
+	checked?: boolean;
+	notes?: string | null;
+	orderIndex?: number;
 }
 
 export interface ShoppingListWithItemsDao extends ShoppingListDao {
-  items: ShoppingListItemDao[];
+	items: ShoppingListItemDao[];
 }
 
 export interface AddItemInputDao {
-  name: string;
-  quantity?: string;
-  unit?: string;
-  fromRecipeId?: string;
-  notes?: string;
+	name: string;
+	quantity?: string;
+	unit?: string;
+	fromRecipeId?: string;
+	notes?: string;
 }

@@ -1,32 +1,29 @@
 export type {
-  IUserRepository,
-  ISessionRepository,
-  IUserPreferencesRepository,
-} from "./IUserRepositories";
+	IUserRepository,
+	ISessionRepository,
+	IUserPreferencesRepository
+} from './IUserRepositories';
+
+export type { IReceiptRepository, IReceiptItemRepository } from './IReceiptRepositories';
 
 export type {
-  IReceiptRepository,
-  IReceiptItemRepository,
-} from "./IReceiptRepositories";
+	IRecipeRepository,
+	IRecipeIngredientRepository,
+	ISavedRecipeRepository
+} from './IRecipeRepositories';
 
 export type {
-  IRecipeRepository,
-  IRecipeIngredientRepository,
-  ISavedRecipeRepository,
-} from "./IRecipeRepositories";
+	IShoppingListRepository,
+	IShoppingListItemRepository
+} from './IShoppingListRepositories';
+
+export type { IPurchaseHistoryRepository } from './IPurchaseHistoryRepository';
 
 export type {
-  IShoppingListRepository,
-  IShoppingListItemRepository,
-} from "./IShoppingListRepositories";
+	IUserDietaryProfileRepository,
+	IUserAllergyRepository,
+	IUserIngredientPreferenceRepository,
+	IUserCuisinePreferenceRepository
+} from './ITasteProfileRepositories';
 
-export type { IPurchaseHistoryRepository } from "./IPurchaseHistoryRepository";
-
-export type {
-  IUserDietaryProfileRepository,
-  IUserAllergyRepository,
-  IUserIngredientPreferenceRepository,
-  IUserCuisinePreferenceRepository,
-} from "./ITasteProfileRepositories";
-
-export type { IWaitlistRepository } from "./IWaitlistRepository";
+export type { IWaitlistRepository } from './IWaitlistRepository';
