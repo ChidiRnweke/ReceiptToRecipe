@@ -19,7 +19,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     const counts = await recipeRepo.countByReceiptIds(receiptIds);
 
     recipeCounts = Object.fromEntries(
-      counts.map((c) => [c.receiptId, c.count])
+      counts.map((c) => [c.receiptId, c.count]),
     );
   }
 

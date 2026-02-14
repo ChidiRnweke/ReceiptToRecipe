@@ -29,10 +29,11 @@ export class PantryController {
 
       if (confidence > 0.2) {
         // Find the latest receipt item for this product to get category/unit details
-        const detail = await this.receiptItemRepository.findLatestByNormalizedName(
-          userId,
-          record.itemName,
-        );
+        const detail =
+          await this.receiptItemRepository.findLatestByNormalizedName(
+            userId,
+            record.itemName,
+          );
 
         // Recalculate confidence with category if available
         const finalConfidence = detail?.category

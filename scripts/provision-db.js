@@ -88,11 +88,13 @@ async function createSecretOnly(
       projectId,
       includeImports: true,
     });
-    
+
     const exists = secrets.secrets.some((s) => s.secretKey === secretKey);
 
     if (exists) {
-      console.log(`Secret '${secretKey}' already exists. Preserving existing value.`);
+      console.log(
+        `Secret '${secretKey}' already exists. Preserving existing value.`,
+      );
       return;
     }
 
@@ -104,7 +106,9 @@ async function createSecretOnly(
     });
     console.log(`Created default secret '${secretKey}' in Infisical`);
   } catch (err) {
-    console.warn(`Warning: Could not set default for '${secretKey}': ${err.message}`);
+    console.warn(
+      `Warning: Could not set default for '${secretKey}': ${err.message}`,
+    );
   }
 }
 
@@ -268,9 +272,7 @@ export async function provisionDatabase() {
     console.log(
       `Granting privileges on database '${dbName}' to user '${dbUser}'...`,
     );
-    await adminClient.query(
-      `ALTER DATABASE "${dbName}" OWNER TO "${dbUser}"`,
-    );
+    await adminClient.query(`ALTER DATABASE "${dbName}" OWNER TO "${dbUser}"`);
     await adminClient.query(
       `GRANT ALL PRIVILEGES ON DATABASE "${dbName}" TO "${dbUser}"`,
     );
@@ -306,7 +308,7 @@ export async function provisionDatabase() {
 
     // Store credentials in app Infisical project
     console.log("Storing database credentials in app Infisical project...");
-    
+
     // For CREDENTIALS (DATABASE_URL): We MUST overwrite because we just generated a new password
     await updateOrCreateSecret(
       appInfisical,

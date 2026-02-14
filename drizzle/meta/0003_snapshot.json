@@ -124,12 +124,8 @@
           "name": "purchase_history_user_id_users_id_fk",
           "tableFrom": "purchase_history",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -214,12 +210,8 @@
           "name": "receipt_items_receipt_id_receipts_id_fk",
           "tableFrom": "receipt_items",
           "tableTo": "receipts",
-          "columnsFrom": [
-            "receipt_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["receipt_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -312,12 +304,8 @@
           "name": "receipts_user_id_users_id_fk",
           "tableFrom": "receipts",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -397,12 +385,8 @@
           "name": "recipe_ingredients_recipe_id_recipes_id_fk",
           "tableFrom": "recipe_ingredients",
           "tableTo": "recipes",
-          "columnsFrom": [
-            "recipe_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["recipe_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -535,12 +519,8 @@
           "name": "recipes_user_id_users_id_fk",
           "tableFrom": "recipes",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -548,12 +528,8 @@
           "name": "recipes_source_receipt_id_receipts_id_fk",
           "tableFrom": "recipes",
           "tableTo": "receipts",
-          "columnsFrom": [
-            "source_receipt_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["source_receipt_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -601,12 +577,8 @@
           "name": "saved_recipes_user_id_users_id_fk",
           "tableFrom": "saved_recipes",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -614,12 +586,8 @@
           "name": "saved_recipes_recipe_id_recipes_id_fk",
           "tableFrom": "saved_recipes",
           "tableTo": "recipes",
-          "columnsFrom": [
-            "recipe_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["recipe_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -659,12 +627,8 @@
           "name": "sessions_user_id_users_id_fk",
           "tableFrom": "sessions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -750,12 +714,8 @@
           "name": "shopping_list_items_shopping_list_id_shopping_lists_id_fk",
           "tableFrom": "shopping_list_items",
           "tableTo": "shopping_lists",
-          "columnsFrom": [
-            "shopping_list_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["shopping_list_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -763,12 +723,8 @@
           "name": "shopping_list_items_from_recipe_id_recipes_id_fk",
           "tableFrom": "shopping_list_items",
           "tableTo": "recipes",
-          "columnsFrom": [
-            "from_recipe_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["from_recipe_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -830,12 +786,8 @@
           "name": "shopping_lists_user_id_users_id_fk",
           "tableFrom": "shopping_lists",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -925,12 +877,8 @@
           "name": "user_preferences_user_id_users_id_fk",
           "tableFrom": "user_preferences",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -940,9 +888,7 @@
         "user_preferences_user_id_unique": {
           "name": "user_preferences_user_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
+          "columns": ["user_id"]
         }
       },
       "policies": {},
@@ -1006,9 +952,7 @@
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -1020,30 +964,17 @@
     "public.processing_status": {
       "name": "processing_status",
       "schema": "public",
-      "values": [
-        "QUEUED",
-        "PROCESSING",
-        "DONE",
-        "FAILED"
-      ]
+      "values": ["QUEUED", "PROCESSING", "DONE", "FAILED"]
     },
     "public.recipe_source": {
       "name": "recipe_source",
       "schema": "public",
-      "values": [
-        "GENERATED",
-        "RAG",
-        "USER"
-      ]
+      "values": ["GENERATED", "RAG", "USER"]
     },
     "public.unit_type": {
       "name": "unit_type",
       "schema": "public",
-      "values": [
-        "WEIGHT",
-        "VOLUME",
-        "COUNT"
-      ]
+      "values": ["WEIGHT", "VOLUME", "COUNT"]
     }
   },
   "schemas": {},

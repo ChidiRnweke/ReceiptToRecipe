@@ -253,9 +253,7 @@ export class ShoppingListController {
             (1000 * 60 * 60 * 24),
         );
         const newFrequency = existing.avgFrequencyDays
-          ? Math.round(
-              (existing.avgFrequencyDays + daysSinceLastPurchase) / 2,
-            )
+          ? Math.round((existing.avgFrequencyDays + daysSinceLastPurchase) / 2)
           : daysSinceLastPurchase > 0
             ? daysSinceLastPurchase
             : existing.avgFrequencyDays;

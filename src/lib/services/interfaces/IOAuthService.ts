@@ -37,7 +37,7 @@ export interface IOAuthService {
   // Exchange authorization code for tokens (server-side only)
   exchangeCodeForTokens(
     code: string,
-    codeVerifier: string
+    codeVerifier: string,
   ): Promise<Auth0Tokens>;
 
   // Get user info from Auth0
@@ -51,7 +51,7 @@ export interface IOAuthService {
 
   // Validate session by ID
   validateSession(
-    sessionId: string
+    sessionId: string,
   ): Promise<{ user: UserDao; session: SessionDao } | null>;
 
   // Logout - delete session

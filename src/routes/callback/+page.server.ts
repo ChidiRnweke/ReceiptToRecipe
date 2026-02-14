@@ -1,49 +1,62 @@
-import { redirect, error } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-import { AppFactory } from '$lib/factories';
-import { getPKCECookie, deletePKCECookie, setSessionCookie } from '$lib/services';
+import { redirect, error } from "@sveltejs/kit";
+import type { PageServerLoad } from "./$types";
+import { AppFactory } from "$lib/factories";
+import {
+  getPKCECookie,
+  deletePKCECookie,
+  setSessionCookie,
+} from "$lib/services";
 
 export const load: PageServerLoad = async ({ url, cookies }) => {
-	const code = url.searchParams.get('code');
-	const state = url.searchParams.get('state');
-	const errorParam = url.searchParams.get('error');
-	const errorDescription = url.searchParams.get('error_description');
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const errorParam = url.searchParams.get("error");
+  const errorDescription = url.searchParams.get("error_description");
 
-	// Check for OAuth errors
-	if (errorParam) {
-		throw error(400, `OAuth error: ${errorParam} - ${errorDescription || 'Unknown error'}`);
-	}
+  // Check for OAuth errors
+  if (errorParam) {
+    throw error(
+      400,
+      `OAuth error: ${errorParam} - ${errorDescription || "Unknown error"}`,
+    );
+  }
 
-	if (!code || !state) {
-		throw error(400, 'Missing authorization code or state parameter');
-	}
+  if (!code || !state) {
+    throw error(400, "Missing authorization code or state parameter");
+  }
 
-	// Retrieve PKCE data from cookie
-	const pkceData = getPKCECookie(cookies, state);
-	if (!pkceData) {
-		throw error(400, 'Invalid or expired session. Please try logging in again.');
-	}
+  // Retrieve PKCE data from cookie
+  const pkceData = getPKCECookie(cookies, state);
+  if (!pkceData) {
+    throw error(
+      400,
+      "Invalid or expired session. Please try logging in again.",
+    );
+  }
 
-	// Verify state matches
-	if (pkceData.state !== state) {
-		throw error(400, 'State mismatch. Possible CSRF attack.');
-	}
+  // Verify state matches
+  if (pkceData.state !== state) {
+    throw error(400, "State mismatch. Possible CSRF attack.");
+  }
 
-	// Clean up PKCE cookie
-	deletePKCECookie(cookies, state);
+  // Clean up PKCE cookie
+  deletePKCECookie(cookies, state);
 
-	try {
-		// Complete the OAuth flow
-		const oauthService = AppFactory.getOAuthService();
-		const { user, session } = await oauthService.completeOAuthFlow(code, pkceData.codeVerifier);
+  try {
+    // Complete the OAuth flow
+    const oauthService = AppFactory.getOAuthService();
+    const { user, session } = await oauthService.completeOAuthFlow(
+      code,
+      pkceData.codeVerifier,
+    );
 
-		// Set session cookie
-		setSessionCookie(cookies, session.id);
-	} catch (err) {
-		console.error('OAuth callback error:', err);
-		throw error(500, 'Failed to complete authentication. Please try again.');
-	}
+    // Set session cookie
+    setSessionCookie(cookies, session.id);
+  } catch (err) {
+    console.error("OAuth callback error:", err);
+    throw error(500, "Failed to complete authentication. Please try again.");
+  }
 
-	// Redirect to home
-	throw redirect(302, '/');
+  // Redirect to home
+  throw redirect(302, "/");
 };

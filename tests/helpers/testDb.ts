@@ -1,9 +1,12 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import pg from 'pg';
-import { sql } from 'drizzle-orm';
-import * as schema from '../../src/lib/db/schema';
+import {
+  PostgreSqlContainer,
+  type StartedPostgreSqlContainer,
+} from "@testcontainers/postgresql";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import pg from "pg";
+import { sql } from "drizzle-orm";
+import * as schema from "../../src/lib/db/schema";
 
 const { Pool } = pg;
 
@@ -16,10 +19,10 @@ export async function setupTestDb() {
 
   // Start PostgreSQL container with pgvector
   // Using a specific version to ensure compatibility
-  container = await new PostgreSqlContainer('pgvector/pgvector:pg16')
-    .withDatabase('test_r2r')
-    .withUsername('test')
-    .withPassword('test')
+  container = await new PostgreSqlContainer("pgvector/pgvector:pg16")
+    .withDatabase("test_r2r")
+    .withUsername("test")
+    .withPassword("test")
     .start();
 
   pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -29,13 +32,14 @@ export async function setupTestDb() {
   await db.execute(sql`CREATE EXTENSION IF NOT EXISTS vector`);
 
   // Run migrations
-  await migrate(db, { migrationsFolder: './drizzle' });
+  await migrate(db, { migrationsFolder: "./drizzle" });
 
   return db;
 }
 
 export function getTestDb() {
-  if (!db) throw new Error('Test DB not initialized. Call setupTestDb() first.');
+  if (!db)
+    throw new Error("Test DB not initialized. Call setupTestDb() first.");
   return db;
 }
 

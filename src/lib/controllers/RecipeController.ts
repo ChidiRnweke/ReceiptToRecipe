@@ -65,7 +65,8 @@ export class RecipeController {
     } = input;
 
     // Get user preferences
-    const preferences = await this.userPreferencesRepository.findByUserId(userId);
+    const preferences =
+      await this.userPreferencesRepository.findByUserId(userId);
 
     // Get taste profile
     const tasteProfile =
@@ -76,11 +77,12 @@ export class RecipeController {
 
     if (ingredientIds?.length) {
       const items = await Promise.all(
-        ingredientIds.map(id => this.receiptItemRepository.findById(id))
+        ingredientIds.map((id) => this.receiptItemRepository.findById(id)),
       );
       ingredients.push(
-        ...items.filter((item): item is NonNullable<typeof item> => item !== null)
-          .map(item => item.normalizedName)
+        ...items
+          .filter((item): item is NonNullable<typeof item> => item !== null)
+          .map((item) => item.normalizedName),
       );
     }
 
@@ -163,27 +165,28 @@ export class RecipeController {
 
     // Save ingredients
     if (generated.ingredients.length > 0) {
-      const ingredientValues: NewRecipeIngredientDao[] = generated.ingredients.map(
-        (
-          ing: {
-            name: string;
-            quantity: number | string;
-            unit: string;
-            optional?: boolean;
-            notes?: string;
-          },
-          index: number,
-        ) => ({
-          recipeId: recipe.id,
-          name: ing.name,
-          quantity: ing.quantity.toString(),
-          unit: ing.unit,
-          unitType: this.inferUnitType(ing.unit),
-          optional: ing.optional || false,
-          notes: ing.notes,
-          orderIndex: index,
-        }),
-      );
+      const ingredientValues: NewRecipeIngredientDao[] =
+        generated.ingredients.map(
+          (
+            ing: {
+              name: string;
+              quantity: number | string;
+              unit: string;
+              optional?: boolean;
+              notes?: string;
+            },
+            index: number,
+          ) => ({
+            recipeId: recipe.id,
+            name: ing.name,
+            quantity: ing.quantity.toString(),
+            unit: ing.unit,
+            unitType: this.inferUnitType(ing.unit),
+            optional: ing.optional || false,
+            notes: ing.notes,
+            orderIndex: index,
+          }),
+        );
 
       await this.recipeIngredientRepository.createMany(ingredientValues);
     }
@@ -199,7 +202,9 @@ export class RecipeController {
     generated: LlmGeneratedRecipe,
   ): Promise<void> {
     try {
-      await this.recipeRepository.update(recipeId, { imageStatus: "PROCESSING" });
+      await this.recipeRepository.update(recipeId, {
+        imageStatus: "PROCESSING",
+      });
 
       const ingredientNames = generated.ingredients
         .slice(0, 5)
@@ -253,7 +258,8 @@ export class RecipeController {
     recipeId: string,
     userId?: string,
   ): Promise<RecipeWithIngredients | null> {
-    const recipe = await this.recipeRepository.findByIdWithIngredients(recipeId);
+    const recipe =
+      await this.recipeRepository.findByIdWithIngredients(recipeId);
 
     if (!recipe) return null;
 
@@ -296,7 +302,10 @@ export class RecipeController {
   /**
    * Get all recipes for a user
    */
-  async getUserRecipes(userId: string, limit: number = 20): Promise<RecipeDao[]> {
+  async getUserRecipes(
+    userId: string,
+    limit: number = 20,
+  ): Promise<RecipeDao[]> {
     return this.recipeRepository.findByUserId(userId, limit);
   }
 
@@ -314,7 +323,10 @@ export class RecipeController {
    * Save/favorite a recipe
    */
   async saveRecipe(userId: string, recipeId: string): Promise<void> {
-    const existing = await this.savedRecipeRepository.findByUserAndRecipe(userId, recipeId);
+    const existing = await this.savedRecipeRepository.findByUserAndRecipe(
+      userId,
+      recipeId,
+    );
     if (!existing) {
       await this.savedRecipeRepository.create({ userId, recipeId });
     }
@@ -334,7 +346,7 @@ export class RecipeController {
     const saved = await this.savedRecipeRepository.findByUserId(userId);
     if (saved.length === 0) return [];
 
-    const recipeIds = saved.map(s => s.recipeId);
+    const recipeIds = saved.map((s) => s.recipeId);
     return this.recipeRepository.findByIds(recipeIds);
   }
 
@@ -425,8 +437,8 @@ export class RecipeController {
 
       // Insert new ingredients
       if (updates.ingredients.length > 0) {
-        const ingredientValues: NewRecipeIngredientDao[] = updates.ingredients.map(
-          (ing, index) => ({
+        const ingredientValues: NewRecipeIngredientDao[] =
+          updates.ingredients.map((ing, index) => ({
             recipeId,
             name: ing.name,
             quantity: ing.quantity.toString(),
@@ -435,8 +447,7 @@ export class RecipeController {
             optional: ing.optional || false,
             notes: ing.notes,
             orderIndex: index,
-          }),
-        );
+          }));
 
         await this.recipeIngredientRepository.createMany(ingredientValues);
       }

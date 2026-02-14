@@ -20,9 +20,12 @@
     <div class="container mx-auto px-4 relative z-10">
       <div class="max-w-4xl mx-auto text-center space-y-10">
         <!-- Badge -->
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary-100 border border-secondary-200 text-secondary-800 text-xs font-bold uppercase tracking-wider mb-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-           <span class="w-2 h-2 rounded-full bg-secondary-500 animate-pulse"></span>
-           Closed Beta
+        <div
+          class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary-100 border border-secondary-200 text-secondary-800 text-xs font-bold uppercase tracking-wider mb-4 animate-in fade-in slide-in-from-bottom-4 duration-700"
+        >
+          <span class="w-2 h-2 rounded-full bg-secondary-500 animate-pulse"
+          ></span>
+          Closed Beta
         </div>
 
         <!-- Headline -->
@@ -83,7 +86,7 @@
 
     <!-- Background decorations (Pinned Notes) -->
     <div
-      class="absolute top-1/2 left-4 md:left-20 -translate-y-1/2 hidden lg:block rotate-[-6deg] hover:rotate-[-3deg] transition-transform duration-500 cursor-help"
+      class="absolute top-1/2 left-4 md:left-20 -translate-y-1/2 hidden lg:block -rotate-6 hover:rotate-[-3deg] transition-transform duration-500 cursor-help"
     >
       <PinnedNote color="red" rotate="-rotate-2">
         <div class="w-48 text-center p-2">
@@ -358,8 +361,8 @@
           Ready to empty your <br /> fridge?
         </h2>
         <p class="font-hand text-2xl text-primary-800 max-w-xl mx-auto">
-          Join the waiting list of home cooks who've simplified their meal planning
-          with Receipt2Recipe.
+          Join the waiting list of home cooks who've simplified their meal
+          planning with Receipt2Recipe.
         </p>
         <div class="pt-6">
           <Button

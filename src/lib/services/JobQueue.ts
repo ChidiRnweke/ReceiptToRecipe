@@ -1,4 +1,4 @@
-import type { IJobQueue } from './interfaces/IJobQueue';
+import type { IJobQueue } from "./interfaces/IJobQueue";
 
 type Job = {
   name?: string;
@@ -27,7 +27,7 @@ export class JobQueue implements IJobQueue {
             reject(error);
             throw error;
           }
-        }
+        },
       });
 
       this.process();
@@ -44,7 +44,10 @@ export class JobQueue implements IJobQueue {
     next
       .run()
       .catch((error) => {
-        console.error(`Job failed${next.name ? ` [${next.name}]` : ''}:`, error);
+        console.error(
+          `Job failed${next.name ? ` [${next.name}]` : ""}:`,
+          error,
+        );
       })
       .finally(() => {
         this.running -= 1;

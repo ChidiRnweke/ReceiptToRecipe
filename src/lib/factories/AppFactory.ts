@@ -26,8 +26,16 @@ import {
   type IPantryService,
   type ITasteProfileService,
   type IDashboardService,
+  type INotificationService,
 } from "$services";
-import { RecipeController, PreferencesController, ReceiptController, PantryController, ShoppingListController } from "$controllers";
+import { AppriseNotificationService, MockNotificationService } from "$services";
+import {
+  RecipeController,
+  PreferencesController,
+  ReceiptController,
+  PantryController,
+  ShoppingListController,
+} from "$controllers";
 import {
   UserRepository,
   SessionRepository,
@@ -105,6 +113,7 @@ let userIngredientPreferenceRepository: IUserIngredientPreferenceRepository | nu
 let userCuisinePreferenceRepository: IUserCuisinePreferenceRepository | null =
   null;
 let waitlistRepository: IWaitlistRepository | null = null;
+let notificationService: INotificationService | null = null;
 
 /**
  * Factory for creating and managing service and repository instances
@@ -468,6 +477,18 @@ export class AppFactory {
     return waitlistRepository;
   }
 
+  static getNotificationService(): INotificationService {
+    if (!notificationService) {
+      const endpoint = ConfigService.get("NOTIFICATION_ENDPOINT");
+      if (endpoint) {
+        notificationService = new AppriseNotificationService();
+      } else {
+        notificationService = new MockNotificationService();
+      }
+    }
+    return notificationService;
+  }
+
   /**
    * Reset all singleton instances (useful for testing)
    */
@@ -512,5 +533,6 @@ export class AppFactory {
     userIngredientPreferenceRepository = null;
     userCuisinePreferenceRepository = null;
     waitlistRepository = null;
+    notificationService = null;
   }
 }

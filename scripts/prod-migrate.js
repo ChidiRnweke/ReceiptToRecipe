@@ -9,8 +9,8 @@ const { Pool } = pg;
 
 async function run() {
   // Initialize OpenTelemetry
-  initTelemetry('receipt2recipe-migrate');
-  
+  initTelemetry("receipt2recipe-migrate");
+
   console.log("Starting migration script...");
 
   // Step 1: Provision database if needed
@@ -75,7 +75,7 @@ async function run() {
   } finally {
     await pool.end();
   }
-  
+
   // Shutdown telemetry before exiting
   await shutdownTelemetry();
 }

@@ -5,8 +5,8 @@ import { initTelemetry, shutdownTelemetry } from "./otel-instrumentation.js";
 
 async function run() {
   // Initialize OpenTelemetry
-  initTelemetry('receipt2recipe-minio-init');
-  
+  initTelemetry("receipt2recipe-minio-init");
+
   console.log("Starting MinIO init script...");
 
   // Step 1: Provision MinIO if needed
@@ -100,7 +100,7 @@ async function run() {
     await shutdownTelemetry();
     process.exit(1);
   }
-  
+
   // Shutdown telemetry before exiting
   await shutdownTelemetry();
 }

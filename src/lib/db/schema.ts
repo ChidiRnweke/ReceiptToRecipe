@@ -244,47 +244,59 @@ export const userDietaryProfiles = pgTable("user_dietary_profiles", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const userAllergies = pgTable("user_allergies", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  allergen: text("allergen").notNull(),
-  severity: text("severity").default("avoid"), // 'avoid', 'severe'
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (t) => ({
-  uniqueUserAllergen: {
-    columns: [t.userId, t.allergen],
-  }
-}));
+export const userAllergies = pgTable(
+  "user_allergies",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    allergen: text("allergen").notNull(),
+    severity: text("severity").default("avoid"), // 'avoid', 'severe'
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueUserAllergen: {
+      columns: [t.userId, t.allergen],
+    },
+  }),
+);
 
-export const userIngredientPreferences = pgTable("user_ingredient_preferences", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  ingredientName: text("ingredient_name").notNull(),
-  preference: text("preference").notNull(), // 'love', 'like', 'neutral', 'dislike', 'avoid'
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (t) => ({
-  uniqueUserIngredient: {
-    columns: [t.userId, t.ingredientName],
-  }
-}));
+export const userIngredientPreferences = pgTable(
+  "user_ingredient_preferences",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    ingredientName: text("ingredient_name").notNull(),
+    preference: text("preference").notNull(), // 'love', 'like', 'neutral', 'dislike', 'avoid'
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueUserIngredient: {
+      columns: [t.userId, t.ingredientName],
+    },
+  }),
+);
 
-export const userCuisinePreferences = pgTable("user_cuisine_preferences", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  cuisineType: text("cuisine_type").notNull(),
-  preference: text("preference").notNull(), // 'love', 'like', 'neutral', 'dislike'
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (t) => ({
-  uniqueUserCuisine: {
-    columns: [t.userId, t.cuisineType],
-  }
-}));
+export const userCuisinePreferences = pgTable(
+  "user_cuisine_preferences",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    cuisineType: text("cuisine_type").notNull(),
+    preference: text("preference").notNull(), // 'love', 'like', 'neutral', 'dislike'
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueUserCuisine: {
+      columns: [t.userId, t.cuisineType],
+    },
+  }),
+);
 
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -307,12 +319,15 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   savedRecipes: many(savedRecipes),
 }));
 
-export const userDietaryProfilesRelations = relations(userDietaryProfiles, ({ one }) => ({
-  user: one(users, {
-    fields: [userDietaryProfiles.userId],
-    references: [users.id],
+export const userDietaryProfilesRelations = relations(
+  userDietaryProfiles,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userDietaryProfiles.userId],
+      references: [users.id],
+    }),
   }),
-}));
+);
 
 export const userAllergiesRelations = relations(userAllergies, ({ one }) => ({
   user: one(users, {
@@ -321,19 +336,25 @@ export const userAllergiesRelations = relations(userAllergies, ({ one }) => ({
   }),
 }));
 
-export const userIngredientPreferencesRelations = relations(userIngredientPreferences, ({ one }) => ({
-  user: one(users, {
-    fields: [userIngredientPreferences.userId],
-    references: [users.id],
+export const userIngredientPreferencesRelations = relations(
+  userIngredientPreferences,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userIngredientPreferences.userId],
+      references: [users.id],
+    }),
   }),
-}));
+);
 
-export const userCuisinePreferencesRelations = relations(userCuisinePreferences, ({ one }) => ({
-  user: one(users, {
-    fields: [userCuisinePreferences.userId],
-    references: [users.id],
+export const userCuisinePreferencesRelations = relations(
+  userCuisinePreferences,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userCuisinePreferences.userId],
+      references: [users.id],
+    }),
   }),
-}));
+);
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, {
@@ -469,7 +490,10 @@ export type UserDietaryProfile = typeof userDietaryProfiles.$inferSelect;
 export type NewUserDietaryProfile = typeof userDietaryProfiles.$inferInsert;
 export type UserAllergy = typeof userAllergies.$inferSelect;
 export type NewUserAllergy = typeof userAllergies.$inferInsert;
-export type UserIngredientPreference = typeof userIngredientPreferences.$inferSelect;
-export type NewUserIngredientPreference = typeof userIngredientPreferences.$inferInsert;
+export type UserIngredientPreference =
+  typeof userIngredientPreferences.$inferSelect;
+export type NewUserIngredientPreference =
+  typeof userIngredientPreferences.$inferInsert;
 export type UserCuisinePreference = typeof userCuisinePreferences.$inferSelect;
-export type NewUserCuisinePreference = typeof userCuisinePreferences.$inferInsert;
+export type NewUserCuisinePreference =
+  typeof userCuisinePreferences.$inferInsert;

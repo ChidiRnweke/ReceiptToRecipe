@@ -11,9 +11,7 @@ export interface UpdatePreferencesInput {
 }
 
 export class PreferencesController {
-  constructor(
-    private userPreferencesRepository: IUserPreferencesRepository,
-  ) {}
+  constructor(private userPreferencesRepository: IUserPreferencesRepository) {}
 
   /**
    * Get user preferences
@@ -45,7 +43,10 @@ export class PreferencesController {
   /**
    * Add an allergy
    */
-  async addAllergy(userId: string, allergy: string): Promise<UserPreferencesDao> {
+  async addAllergy(
+    userId: string,
+    allergy: string,
+  ): Promise<UserPreferencesDao> {
     const prefs = await this.getPreferences(userId);
     const allergies = prefs?.allergies || [];
 

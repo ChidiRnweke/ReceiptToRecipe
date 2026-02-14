@@ -1,22 +1,22 @@
-import { fail, redirect, isRedirect } from '@sveltejs/kit';
-import type { Actions, PageServerLoad } from './$types';
-import { AppFactory } from '$lib/factories';
-import { z } from 'zod';
+import { fail, redirect, isRedirect } from "@sveltejs/kit";
+import type { Actions, PageServerLoad } from "./$types";
+import { AppFactory } from "$lib/factories";
+import { z } from "zod";
 
 const schema = z.object({
-  email: z.string().email({ message: "Invalid email address" })
+  email: z.string().email({ message: "Invalid email address" }),
 });
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (locals.user) {
-    throw redirect(303, '/');
+    throw redirect(303, "/");
   }
 };
 
 export const actions: Actions = {
   default: async ({ request }) => {
     const formData = await request.formData();
-    const email = formData.get('email');
+    const email = formData.get("email");
 
     const result = schema.safeParse({ email });
 
@@ -25,7 +25,7 @@ export const actions: Actions = {
         email,
         errors: result.error.flatten().fieldErrors,
         userExists: false,
-        message: undefined
+        message: undefined,
       });
     }
 
@@ -40,13 +40,13 @@ export const actions: Actions = {
           email,
           userExists: true,
           message: "You already have an account. Please log in.",
-          errors: undefined
+          errors: undefined,
         });
       }
 
       // Check for existing waitlist user
       const exists = await waitlistRepo.exists(result.data.email);
-      
+
       if (exists) {
         // We don't want to reveal if an email is already registered for security/privacy,
         // so we'll just redirect to success as if it worked.
@@ -56,18 +56,22 @@ export const actions: Actions = {
       }
 
       await waitlistRepo.create({ email: result.data.email });
+
+      // Send notification about new waitlist signup
+      const notificationService = AppFactory.getNotificationService();
+      await notificationService.sendWaitlistSignup(result.data.email);
     } catch (error) {
       if (isRedirect(error)) throw error; // Re-throw redirects
-      
-      console.error('Waitlist error:', error);
+
+      console.error("Waitlist error:", error);
       return fail(500, {
         email,
-        message: 'Something went wrong. Please try again later.',
+        message: "Something went wrong. Please try again later.",
         userExists: false,
-        errors: undefined
+        errors: undefined,
       });
     }
 
-    throw redirect(303, '/signup/success');
-  }
+    throw redirect(303, "/signup/success");
+  },
 };

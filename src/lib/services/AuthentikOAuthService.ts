@@ -63,7 +63,7 @@ export class AuthentikOAuthService implements IOAuthService {
       clientSecret: string;
       callbackUrl: string;
       slug?: string;
-    }
+    },
   ) {
     this.domain = config.domain;
     this.clientId = config.clientId;
@@ -96,7 +96,10 @@ export class AuthentikOAuthService implements IOAuthService {
     };
   }
 
-  async getAuthorizationUrl(state: string, codeChallenge: string): Promise<string> {
+  async getAuthorizationUrl(
+    state: string,
+    codeChallenge: string,
+  ): Promise<string> {
     const params = new URLSearchParams({
       response_type: "code",
       client_id: this.clientId,
@@ -112,7 +115,7 @@ export class AuthentikOAuthService implements IOAuthService {
 
   async exchangeCodeForTokens(
     code: string,
-    codeVerifier: string
+    codeVerifier: string,
   ): Promise<Auth0Tokens> {
     const params = new URLSearchParams({
       grant_type: "authorization_code",
@@ -157,7 +160,7 @@ export class AuthentikOAuthService implements IOAuthService {
   async findOrCreateUser(userInfo: Auth0UserInfo): Promise<UserDao> {
     // Authentik returns 'sub' as usual
     const existingByProviderId = await this.userRepo.findByAuthProviderId(
-      userInfo.sub
+      userInfo.sub,
     );
     if (existingByProviderId) {
       return existingByProviderId;
@@ -166,7 +169,10 @@ export class AuthentikOAuthService implements IOAuthService {
     // Try to find by email
     const existingByEmail = await this.userRepo.findByEmail(userInfo.email);
     if (existingByEmail) {
-      await this.userRepo.updateAuthProviderId(existingByEmail.id, userInfo.sub);
+      await this.userRepo.updateAuthProviderId(
+        existingByEmail.id,
+        userInfo.sub,
+      );
       return existingByEmail;
     }
 
@@ -200,7 +206,7 @@ export class AuthentikOAuthService implements IOAuthService {
   }
 
   async validateSession(
-    sessionId: string
+    sessionId: string,
   ): Promise<{ user: UserDao; session: SessionDao } | null> {
     const result = await this.sessionRepo.findByIdWithUser(sessionId);
 
@@ -231,7 +237,7 @@ export class AuthentikOAuthService implements IOAuthService {
 
   async completeOAuthFlow(
     code: string,
-    codeVerifier: string
+    codeVerifier: string,
   ): Promise<OAuthResult> {
     const tokens = await this.exchangeCodeForTokens(code, codeVerifier);
     const userInfo = await this.getUserInfo(tokens.access_token);
@@ -244,7 +250,7 @@ export class AuthentikOAuthService implements IOAuthService {
 // Helper to get PKCE data from cookie
 export function getPKCECookie(
   cookies: { get: (name: string) => string | undefined },
-  state: string
+  state: string,
 ): { codeVerifier: string; state: string } | null {
   const data = cookies.get(`oauth_${state}`);
   if (!data) return null;
@@ -258,7 +264,7 @@ export function getPKCECookie(
 export function setPKCECookie(
   cookies: Cookies,
   state: string,
-  codeVerifier: string
+  codeVerifier: string,
 ): void {
   cookies.set(`oauth_${state}`, JSON.stringify({ codeVerifier, state }), {
     path: "/",
