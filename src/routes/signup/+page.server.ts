@@ -23,7 +23,9 @@ export const actions: Actions = {
     if (!result.success) {
       return fail(400, {
         email,
-        errors: result.error.flatten().fieldErrors
+        errors: result.error.flatten().fieldErrors,
+        userExists: false,
+        message: undefined
       });
     }
 
@@ -37,7 +39,8 @@ export const actions: Actions = {
         return fail(400, {
           email,
           userExists: true,
-          message: "You already have an account. Please log in."
+          message: "You already have an account. Please log in.",
+          errors: undefined
         });
       }
 
@@ -59,7 +62,9 @@ export const actions: Actions = {
       console.error('Waitlist error:', error);
       return fail(500, {
         email,
-        message: 'Something went wrong. Please try again later.'
+        message: 'Something went wrong. Please try again later.',
+        userExists: false,
+        errors: undefined
       });
     }
 
