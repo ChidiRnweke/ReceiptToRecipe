@@ -112,7 +112,7 @@
 				</Button>
 				<div class="flex flex-col">
 					<h1
-						class="font-display text-4xl leading-[1.1] text-text-primary drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
+						class="font-display text-2xl leading-[1.1] text-text-primary drop-shadow-[0_1px_0_rgba(255,255,255,0.8)] sm:text-3xl lg:text-4xl"
 					>
 						Chef's Prep <span class="marker-highlight">Worksheet</span>
 					</h1>
@@ -169,12 +169,13 @@
 					></div>
 
 					<!-- Red Margin Line: Placed with spacing from count -->
+					<!-- Hidden on mobile (< lg), visible on desktop -->
 					<div
-						class="pointer-events-none absolute top-0 bottom-0 left-28 z-0 border-r border-red-300/60"
+						class="pointer-events-none absolute top-0 bottom-0 left-28 z-0 hidden border-r border-red-300/60 lg:block"
 					></div>
 
 					<!-- Header Section (Pinned) -->
-					<div class="relative z-10 px-8 pt-8 pb-0">
+					<div class="relative z-10 px-4 pt-8 pb-0 sm:px-8">
 						<div class="absolute -top-3 left-[50%] z-20 -translate-x-1/2 drop-shadow-md">
 							<PushPin color="red" />
 						</div>
@@ -182,7 +183,9 @@
 						<!-- Minimal Header -->
 						<div class="flex items-end justify-between border-b-2 border-stone-800 pb-6">
 							<div>
-								<h2 class="mt-4 font-serif text-4xl leading-none font-bold text-text-primary">
+								<h2
+									class="mt-4 font-serif text-2xl leading-none font-bold text-text-primary sm:text-3xl lg:text-4xl"
+								>
 									{data.receipt.storeName || 'Unknown Store'}
 								</h2>
 								<div class="font-handwriting mt-2 text-sm text-text-muted">
@@ -211,8 +214,11 @@
 						<div class="space-y-0">
 							{#each data.receipt.items as item (item.id)}
 								<div class="group relative flex h-12 items-center hover:bg-blue-50/20">
-									<!-- LEFT GUTTER (Width 6rem / 96px) - Contains Qty & Add Button -->
-									<div class="flex w-24 items-center justify-end border-r border-transparent pr-3">
+									<!-- LEFT GUTTER - Contains Qty & Add Button -->
+									<!-- Smaller on mobile (w-16), wider on desktop (w-24) -->
+									<div
+										class="flex w-16 items-center justify-end border-r border-transparent pr-2 sm:w-20 lg:w-24 lg:pr-3"
+									>
 										<!-- Add Action (Mini) -->
 										<form
 											method="POST"
@@ -267,7 +273,10 @@
 										</form>
 
 										<!-- Quantity (Handwritten style) -->
-										<div class="font-handwriting w-10 text-right text-lg text-text-secondary">
+										<!-- Smaller on mobile, standard on desktop -->
+										<div
+											class="font-handwriting w-8 text-right text-base text-text-secondary sm:w-10 sm:text-lg"
+										>
 											{#if isEditing}
 												<Input
 													value={formatQuantity(item.quantity) === '-'
@@ -284,7 +293,8 @@
 									</div>
 
 									<!-- RIGHT CONTENT (After Red Margin) - Normalized Name Only -->
-									<div class="flex-1 pr-8 pl-8">
+									<!-- Reduced padding on mobile, standard on desktop -->
+									<div class="flex-1 pr-4 pl-3 sm:pr-6 sm:pl-4 lg:pr-8 lg:pl-8">
 										{#if isEditing}
 											<Input
 												value={item.normalizedName || item.rawName}
@@ -293,7 +303,7 @@
 										{:else}
 											<div class="flex flex-col">
 												<span
-													class="font-serif text-xl leading-none font-medium tracking-normal text-text-primary"
+													class="font-serif text-base leading-none font-medium tracking-normal text-text-primary sm:text-lg lg:text-xl"
 												>
 													{item.normalizedName || item.rawName}
 												</span>
@@ -316,7 +326,7 @@
 						</div>
 
 						<!-- Footer Note -->
-						<div class="mt-12 flex justify-center px-8">
+						<div class="mt-12 flex justify-center px-4 sm:px-8">
 							<div class="font-handwriting rotate-1 text-sm text-text-muted">Verified by Chef</div>
 						</div>
 					</div>
