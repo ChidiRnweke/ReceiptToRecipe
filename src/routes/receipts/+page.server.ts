@@ -8,20 +8,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	const receiptController = AppFactory.getReceiptController();
-	const receipts = await receiptController.getUserReceipts(locals.user.id);
 
-	// Stream recipe counts - not critical for initial render
-	const receiptIds = receipts.map((r) => r.id);
-	const recipeCountsPromise =
-		receiptIds.length > 0
-			? AppFactory.getRecipeRepository()
-					.countByReceiptIds(receiptIds)
-					.then((counts) => Object.fromEntries(counts.map((c) => [c.receiptId, c.count])))
-			: Promise.resolve({});
+	// Stream receipts and recipe counts - page renders immediately with skeleton
+	const receiptsPromise = receiptController.getUserReceipts(locals.user.id);
+
+	const recipeCountsPromise = receiptsPromise.then((receipts) => {
+		const receiptIds = receipts.map((r) => r.id);
+		if (receiptIds.length === 0) return {};
+		return AppFactory.getRecipeRepository()
+			.countByReceiptIds(receiptIds)
+			.then((counts) => Object.fromEntries(counts.map((c) => [c.receiptId, c.count])));
+	});
 
 	return {
-		receipts,
+		// Stream both receipts and recipe counts
 		streamed: {
+			receipts: receiptsPromise,
 			recipeCounts: recipeCountsPromise
 		}
 	};

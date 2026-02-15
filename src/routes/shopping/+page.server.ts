@@ -11,30 +11,47 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const shoppingListController = AppFactory.getShoppingListController();
 	const pantryController = AppFactory.getPantryController();
 
-	// Critical data - load immediately
-	const [activeList, lists] = await Promise.all([
-		shoppingListController.getActiveList(locals.user.id),
-		shoppingListController.getUserLists(locals.user.id)
-	]);
+	const activeListPromise = shoppingListController.getActiveList(locals.user.id);
+	const userListsPromise = shoppingListController.getUserLists(locals.user.id);
 
-	// Collect all recipe IDs from shopping list items
-	const recipeIds = new Set<string>();
-	for (const list of lists) {
-		for (const item of list.items || []) {
-			if (item.fromRecipeId) {
-				recipeIds.add(item.fromRecipeId);
-			}
+	// Process other lists once we have both (to exclude active list)
+	const otherListsPromise = Promise.all([activeListPromise, userListsPromise]).then(
+		([activeList, lists]) => {
+			return lists.filter((list) => list.id !== activeList?.id);
 		}
-	}
+	);
 
-	// Non-critical data - stream as promises
+	// Build recipe map from all lists
+	const recipeMapPromise = Promise.all([activeListPromise, userListsPromise]).then(
+		async ([activeList, lists]) => {
+			const recipeIds = new Set<string>();
+
+			// From active list
+			activeList?.items?.forEach((item) => {
+				if (item.fromRecipeId) recipeIds.add(item.fromRecipeId);
+			});
+
+			// From other lists
+			lists.forEach((list) => {
+				list.items?.forEach((item) => {
+					if (item.fromRecipeId) recipeIds.add(item.fromRecipeId);
+				});
+			});
+
+			if (recipeIds.size === 0) return {};
+
+			const recipeRepo = AppFactory.getRecipeRepository();
+			const recipeList = await recipeRepo.findByIds(Array.from(recipeIds));
+			return Object.fromEntries(recipeList.map((r) => [r.id, { id: r.id, title: r.title }]));
+		}
+	);
+
+	// Non-critical data
 	const recipeRepo = AppFactory.getRecipeRepository();
 	const recipeCountPromise = recipeRepo.countByUserId(locals.user.id);
-
 	const suggestionsPromise = shoppingListController.getSmartSuggestions(locals.user.id);
 
 	const pantryPromise = pantryController.getUserPantry(locals.user.id).then((pantry) => {
-		// Build pantry lookup map for quick duplicate checks
 		const pantryLookup: Record<
 			string,
 			{ confidence: number; lastPurchased: Date; daysSincePurchase: number }
@@ -51,21 +68,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 		return { pantry, pantryLookup };
 	});
 
-	// Load recipe info for source attribution
-	const recipeMapPromise =
-		recipeIds.size > 0
-			? recipeRepo
-					.findByIds(Array.from(recipeIds))
-					.then((recipeList) =>
-						Object.fromEntries(recipeList.map((r) => [r.id, { id: r.id, title: r.title }]))
-					)
-			: Promise.resolve({});
-
 	return {
-		activeList,
-		lists,
-		// Stream non-critical data
+		// Everything is streamed now
 		streamed: {
+			activeList: activeListPromise,
+			lists: otherListsPromise,
 			suggestions: suggestionsPromise,
 			recipeMap: recipeMapPromise,
 			recipeCount: recipeCountPromise,

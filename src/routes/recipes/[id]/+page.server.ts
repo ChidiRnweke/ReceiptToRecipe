@@ -4,86 +4,101 @@ import { AppFactory } from '$lib/factories';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const recipeController = AppFactory.getRecipeController();
-
 	const viewerId = locals.user?.id;
-	const recipe = await recipeController.getRecipe(params.id, viewerId);
 
-	if (!recipe) {
-		throw error(404, 'Recipe not found');
-	}
+	// Stream everything - page shows skeleton immediately
+	const recipeDataPromise = (async () => {
+		const recipe = await recipeController.getRecipe(params.id, viewerId);
 
-	// Critical data - load immediately
-	const isSaved = viewerId ? await recipeController.isSaved(viewerId, recipe.id) : false;
-	const isOwner = viewerId === recipe.userId;
-
-	// Load source receipt if available (fast, do immediately)
-	let sourceReceipt = null;
-	if (recipe.sourceReceiptId) {
-		const receiptRepo = AppFactory.getReceiptRepository();
-		const receipt = await receiptRepo.findById(recipe.sourceReceiptId);
-		if (receipt) {
-			sourceReceipt = {
-				id: receipt.id,
-				storeName: receipt.storeName,
-				purchaseDate: receipt.purchaseDate,
-				createdAt: receipt.createdAt
-			};
+		if (!recipe) {
+			throw error(404, 'Recipe not found');
 		}
-	}
+
+		// Load related data in parallel
+		const [isSaved, isOwner] = await Promise.all([
+			viewerId ? recipeController.isSaved(viewerId, recipe.id) : false,
+			viewerId === recipe.userId
+				? Promise.resolve(true)
+				: Promise.resolve(viewerId === recipe.userId)
+		]);
+
+		// Load source receipt if available
+		let sourceReceipt = null;
+		if (recipe.sourceReceiptId) {
+			const receiptRepo = AppFactory.getReceiptRepository();
+			const receipt = await receiptRepo.findById(recipe.sourceReceiptId);
+			if (receipt) {
+				sourceReceipt = {
+					id: receipt.id,
+					storeName: receipt.storeName,
+					purchaseDate: receipt.purchaseDate,
+					createdAt: receipt.createdAt
+				};
+			}
+		}
+
+		return {
+			recipe,
+			isSaved,
+			isOwner,
+			sourceReceipt
+		};
+	})();
 
 	// Non-critical data - stream as promises
 	const pantryController = AppFactory.getPantryController();
 	const pantryMatchesPromise = viewerId
-		? pantryController.getUserPantry(viewerId).then((pantry) => {
-				const matches: Record<string, number> = {};
-				recipe.ingredients.forEach((ing) => {
-					const ingName = ing.name.toLowerCase();
-					const match = pantry.find((p) => {
-						const pName = p.itemName.toLowerCase();
-						return pName.includes(ingName) || ingName.includes(pName);
+		? recipeDataPromise.then(({ recipe }) => {
+				return pantryController.getUserPantry(viewerId).then((pantry) => {
+					const matches: Record<string, number> = {};
+					recipe.ingredients.forEach((ing) => {
+						const ingName = ing.name.toLowerCase();
+						const match = pantry.find((p) => {
+							const pName = p.itemName.toLowerCase();
+							return pName.includes(ingName) || ingName.includes(pName);
+						});
+						if (match) {
+							matches[ing.name] = match.stockConfidence;
+						}
 					});
-					if (match) {
-						matches[ing.name] = match.stockConfidence;
-					}
+					return matches;
 				});
-				return matches;
 			})
 		: Promise.resolve({});
 
 	// AI suggestions - expensive operation, definitely stream this
-	const suggestionsPromise = (async () => {
-		try {
-			const llmService = AppFactory.getCulinaryIntelligence();
-			const recipeForAi = {
-				title: recipe.title,
-				description: recipe.description || '',
-				instructions: recipe.instructions,
-				servings: recipe.servings,
-				prepTime: recipe.prepTime || 0,
-				cookTime: recipe.cookTime || 0,
-				cuisineType: recipe.cuisineType || undefined,
-				ingredients: recipe.ingredients.map((i: any) => ({
-					name: i.name,
-					quantity: typeof i.quantity === 'string' ? parseFloat(i.quantity) : i.quantity,
-					unit: i.unit,
-					optional: i.optional || false,
-					notes: i.notes || undefined
-				}))
-			};
-			return await llmService.suggestModifications(recipeForAi);
-		} catch (err) {
-			console.warn('Failed to generate recipe suggestions:', err);
-			return [];
-		}
-	})();
+	const suggestionsPromise = recipeDataPromise.then(({ recipe }) => {
+		return (async () => {
+			try {
+				const llmService = AppFactory.getCulinaryIntelligence();
+				const recipeForAi = {
+					title: recipe.title,
+					description: recipe.description || '',
+					instructions: recipe.instructions,
+					servings: recipe.servings,
+					prepTime: recipe.prepTime || 0,
+					cookTime: recipe.cookTime || 0,
+					cuisineType: recipe.cuisineType || undefined,
+					ingredients: recipe.ingredients.map((i: any) => ({
+						name: i.name,
+						quantity: typeof i.quantity === 'string' ? parseFloat(i.quantity) : i.quantity,
+						unit: i.unit,
+						optional: i.optional || false,
+						notes: i.notes || undefined
+					}))
+				};
+				return await llmService.suggestModifications(recipeForAi);
+			} catch (err) {
+				console.warn('Failed to generate recipe suggestions:', err);
+				return [];
+			}
+		})();
+	});
 
 	return {
-		recipe,
-		isSaved,
-		isOwner,
-		sourceReceipt,
-		// Stream non-critical data
+		// Stream everything - page shows skeleton immediately
 		streamed: {
+			recipeData: recipeDataPromise,
 			pantryMatches: pantryMatchesPromise,
 			suggestions: suggestionsPromise
 		}

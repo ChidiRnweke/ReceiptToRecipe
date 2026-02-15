@@ -59,7 +59,37 @@
 	let pantry = $state<any[]>([]);
 	let pantryLookup = $state<Record<string, any>>({});
 
+	// Subscribe to streamed lists (active and non-active lists)
+	let streamedLists = $state<any[]>([]);
+	let activeList = $state<any>(null);
+	let listsLoading = $state(true);
+	let activeListLoading = $state(true);
+
 	$effect(() => {
+		if (data.streamed?.activeList) {
+			activeListLoading = true;
+			data.streamed.activeList
+				.then((list) => {
+					activeList = list;
+					activeListLoading = false;
+				})
+				.catch(() => {
+					activeList = null;
+					activeListLoading = false;
+				});
+		}
+		if (data.streamed?.lists) {
+			listsLoading = true;
+			data.streamed.lists
+				.then((l) => {
+					streamedLists = l;
+					listsLoading = false;
+				})
+				.catch(() => {
+					streamedLists = [];
+					listsLoading = false;
+				});
+		}
 		if (data.streamed?.suggestions) {
 			data.streamed.suggestions
 				.then((s) => {
@@ -100,8 +130,14 @@
 		}
 	});
 
-	// Use $derived for state but allow overrides for optimistic UI
-	let lists = $derived(data.lists ?? []);
+	// Combine active list with streamed lists
+	let lists = $derived.by(() => {
+		const allLists = [];
+		if (activeList) {
+			allLists.push(activeList);
+		}
+		return [...allLists, ...streamedLists];
+	});
 
 	let loading = $state(false);
 	let newListName = $state('');
@@ -308,7 +344,7 @@
 											};
 										}}
 									>
-										<input type="hidden" name="listId" value={data.activeList?.id} />
+										<input type="hidden" name="listId" value={activeList?.id} />
 										<input type="hidden" name="itemName" value={suggestion.itemName} />
 										<input
 											type="hidden"
@@ -428,7 +464,7 @@
 			<div class="order-1 lg:order-2 lg:col-span-8">
 				<Notepad class="min-h-150 w-full shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)]">
 					<div class="px-2 py-2 sm:px-4">
-						{#if lists.length === 0}
+						{#if lists.length === 0 && !listsLoading && !activeListLoading}
 							<div class="flex flex-col items-center justify-center py-20 text-center opacity-60">
 								<ShoppingCart class="text-fg-muted mb-4 h-16 w-16" />
 								<h3 class="font-hand text-3xl text-ink">Your list is empty</h3>
@@ -779,6 +815,31 @@
 									{/if}
 								</div>
 							{/each}
+
+							<!-- Skeleton loading for additional lists -->
+							{#if listsLoading || activeListLoading}
+								{#each Array(3) as _, i}
+									<div class="mb-8 animate-pulse">
+										<div
+											class="mb-4 flex items-center justify-between border-b-2 border-border pb-2"
+										>
+											<div class="flex items-end gap-3">
+												<div class="h-8 w-48 rounded bg-gray-200"></div>
+												<div class="mb-1 h-4 w-16 rounded bg-gray-200"></div>
+											</div>
+											<div class="h-4 w-4 rounded bg-gray-200"></div>
+										</div>
+										<div class="space-y-3 pl-4">
+											{#each Array(4) as _}
+												<div class="flex items-center gap-3">
+													<div class="h-5 w-5 rounded bg-gray-200"></div>
+													<div class="h-4 flex-1 rounded bg-gray-200"></div>
+												</div>
+											{/each}
+										</div>
+									</div>
+								{/each}
+							{/if}
 						{/if}
 					</div>
 

@@ -34,8 +34,23 @@
 	let addingToShoppingId = $state<string | null>(null);
 
 	// Subscribe to streamed data
+	let receipts = $state<any[]>([]);
 	let recipeCounts = $state<Record<string, number>>({});
+	let receiptsLoading = $state(true);
+
 	$effect(() => {
+		if (data.streamed?.receipts) {
+			receiptsLoading = true;
+			data.streamed.receipts
+				.then((r) => {
+					receipts = r;
+					receiptsLoading = false;
+				})
+				.catch(() => {
+					receipts = [];
+					receiptsLoading = false;
+				});
+		}
 		if (data.streamed?.recipeCounts) {
 			data.streamed.recipeCounts
 				.then((counts) => {
@@ -140,7 +155,29 @@
 				</div>
 			</div>
 
-			{#if data.receipts.length === 0}
+			<!-- Skeleton loading state -->
+			{#if receiptsLoading}
+				<Notepad class="w-full border border-amber-100/50 bg-amber-50/50" showTape={false}>
+					<div class="flex flex-col">
+						{#each Array(5) as _}
+							<div class="animate-pulse border-b border-dashed border-border bg-white px-6 py-5">
+								<div class="flex flex-col gap-4 md:flex-row md:items-center">
+									<div class="flex items-center gap-3 md:w-1/3">
+										<div class="h-10 w-10 rounded-lg bg-gray-200"></div>
+										<div class="flex-1 space-y-2">
+											<div class="h-5 w-32 rounded bg-gray-200"></div>
+											<div class="h-3 w-20 rounded bg-gray-200"></div>
+										</div>
+									</div>
+									<div class="h-8 w-24 rounded bg-gray-200 md:w-32"></div>
+									<div class="flex-1"></div>
+									<div class="h-8 w-32 rounded bg-gray-200"></div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</Notepad>
+			{:else if receipts.length === 0}
 				<div class="flex flex-col items-center justify-center py-24 text-center">
 					<Receipt class="mb-6 h-16 w-16 text-sage-200" />
 					<h3 class="font-serif text-2xl text-ink">Your ledger is empty</h3>
@@ -151,7 +188,7 @@
 			{:else}
 				<Notepad class="w-full border border-amber-100/50 bg-amber-50/50" showTape={false}>
 					<div class="flex flex-col">
-						{#each data.receipts as receipt}
+						{#each receipts as receipt}
 							<!-- 
                     Row Structure
                 -->
