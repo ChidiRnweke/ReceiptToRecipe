@@ -57,8 +57,32 @@
 
 	let loading = $state(false);
 	let newListName = $state('');
-	let expandedLists = $derived<Set<string>>(new Set(lists.slice(0, 1).map((l: any) => l.id)));
+	
+	// Track user's manual toggle state for each list
+	let manualToggles = $state<Map<string, boolean>>(new Map());
 
+	// Compute expanded lists reactively based on current lists and user toggles
+	let expandedLists = $derived.by(() => {
+		const expanded = new Set<string>();
+
+		// Determine which lists should be expanded
+		for (const list of lists) {
+			const listId = (list as any).id;
+			const manualToggle = manualToggles.get(listId);
+			
+			if (manualToggle !== undefined) {
+				// User has manually toggled this list
+				if (manualToggle) {
+					expanded.add(listId);
+				}
+			} else if (expanded.size === 0 && list === lists[0]) {
+				// Default: expand the first list if nothing else is expanded
+				expanded.add(listId);
+			}
+		}
+
+		return expanded;
+	});
 	// New item inputs per list
 	type NewItemInput = { name: string; quantity: string; unit: string };
 	let newItemInputs = $state<Record<string, NewItemInput>>({});
@@ -75,12 +99,8 @@
 	}
 
 	function toggleList(listId: string) {
-		if (expandedLists.has(listId)) {
-			expandedLists.delete(listId);
-		} else {
-			expandedLists.add(listId);
-		}
-		expandedLists = new Set(expandedLists);
+		const isCurrentlyExpanded = expandedLists.has(listId);
+		manualToggles.set(listId, !isCurrentlyExpanded);
 	}
 
 	function getCompletionPercentage(items: any[]) {
