@@ -14,7 +14,8 @@ export interface MinioConfig {
 export class MinioStorageService implements IStorageService {
 	private client: Client;
 	private bucket: string;
-	private publicBaseUrl: string;
+	/** Internal URL for server-to-MinIO communication */
+	private internalBaseUrl: string;
 
 	constructor(config: MinioConfig) {
 		this.client = new Client({
@@ -26,7 +27,7 @@ export class MinioStorageService implements IStorageService {
 		});
 		this.bucket = config.bucket;
 		const protocol = config.useSSL ? 'https' : 'http';
-		this.publicBaseUrl = `${protocol}://${config.endPoint}:${config.port}/${config.bucket}`;
+		this.internalBaseUrl = `${protocol}://${config.endPoint}:${config.port}/${config.bucket}`;
 	}
 
 	async upload(
@@ -80,8 +81,38 @@ export class MinioStorageService implements IStorageService {
 		return await this.client.presignedGetObject(this.bucket, key, expiresIn);
 	}
 
+	/**
+	 * Returns a proxy URL that goes through the SvelteKit server.
+	 * This avoids exposing the internal MinIO hostname to browsers.
+	 */
 	getPublicUrl(key: string): string {
-		return `${this.publicBaseUrl}/${key}`;
+		return `/api/images/${key}`;
+	}
+
+	/**
+	 * Returns the internal MinIO URL for server-to-server communication
+	 * (e.g. passing to external APIs like Mistral OCR).
+	 */
+	getInternalUrl(key: string): string {
+		return `${this.internalBaseUrl}/${key}`;
+	}
+
+	/**
+	 * Get the raw object as a readable stream (used by the image proxy route).
+	 */
+	async getObject(key: string): Promise<import('stream').Readable> {
+		return await this.client.getObject(this.bucket, key);
+	}
+
+	/**
+	 * Get object metadata (content-type, size, etc.).
+	 */
+	async getObjectStat(key: string): Promise<{ contentType?: string; size: number }> {
+		const stat = await this.client.statObject(this.bucket, key);
+		return {
+			contentType: stat.metaData['content-type'],
+			size: stat.size
+		};
 	}
 
 	async delete(key: string): Promise<void> {

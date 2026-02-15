@@ -46,7 +46,8 @@ export class ReceiptController {
 
 		// Upload image to storage
 		const buffer = Buffer.from(await file.arrayBuffer());
-		const uploadResult = await this.storageService.upload(buffer, file.name, file.type, 'receipts');
+		const mimeType = file.type;
+		const uploadResult = await this.storageService.upload(buffer, file.name, mimeType, 'receipts');
 
 		// Create receipt record with QUEUED status
 		const receipt = await this.receiptRepository.create({
@@ -55,9 +56,10 @@ export class ReceiptController {
 			status: 'QUEUED'
 		});
 
-		// Background OCR processing
+		// Background OCR processing - pass the original buffer so OCR
+		// doesn't need to fetch from an internal/proxy URL
 		const task = () =>
-			this.processReceiptOcr(receipt.id, uploadResult.url).catch((error) => {
+			this.processReceiptOcr(receipt.id, buffer, mimeType).catch((error) => {
 				console.error(`OCR processing failed for receipt ${receipt.id}:`, error);
 			});
 
@@ -74,17 +76,23 @@ export class ReceiptController {
 	}
 
 	/**
-	 * Background OCR processing
+	 * Background OCR processing.
+	 * Uses the raw image buffer directly so OCR doesn't need to fetch
+	 * from an internal MinIO URL or a proxy URL.
 	 */
-	private async processReceiptOcr(receiptId: string, imageUrl: string): Promise<void> {
+	private async processReceiptOcr(
+		receiptId: string,
+		imageBuffer: Buffer,
+		mimeType: string
+	): Promise<void> {
 		try {
 			// Update status to PROCESSING
 			await this.receiptRepository.update(receiptId, {
 				status: 'PROCESSING'
 			});
 
-			// Extract data via OCR
-			const ocrData = await this.receiptExtractor.extractReceipt(imageUrl);
+			// Extract data via OCR using the buffer directly
+			const ocrData = await this.receiptExtractor.extractReceiptFromBuffer(imageBuffer, mimeType);
 			console.log('OCR Data:', ocrData);
 
 			// Normalize and save items

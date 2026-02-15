@@ -269,9 +269,8 @@ describe('ReceiptController', () => {
 		it('should handle OCR failure and set status to FAILED', async () => {
 			// Make the extractor throw
 			receiptExtractor.setMock('mock://receipts/receipt.jpg', null as any);
-			// Override extractReceipt to throw
-			const originalExtract = receiptExtractor.extractReceipt.bind(receiptExtractor);
-			receiptExtractor.extractReceipt = async (url: string) => {
+			// Override extractReceiptFromBuffer to throw (controller now passes buffer directly)
+			receiptExtractor.extractReceiptFromBuffer = async () => {
 				throw new Error('OCR service unavailable');
 			};
 

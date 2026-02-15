@@ -11,7 +11,10 @@ export default defineConfig({
 			srcDir: 'src',
 			mode: 'production',
 			strategies: 'generateSW',
-			registerType: 'prompt', // User-controlled updates
+			// Auto-update ensures the new SW activates immediately.
+			// In standalone PWA mode (no tab close), 'prompt' would leave the
+			// old SW running indefinitely. Auto-update avoids stale cache issues.
+			registerType: 'autoUpdate',
 			manifest: {
 				name: 'ReceiptToRecipe',
 				short_name: 'R2R',
@@ -39,6 +42,9 @@ export default defineConfig({
 					'client/**/*.{js,css,ico,png,svg,webp,webmanifest}',
 					'prerendered/**/*.html'
 				],
+				// Exclude user-uploaded images from precache (they bloat the SW
+				// install and are deployment-specific)
+				globIgnores: ['**/uploads/**'],
 				// Network-first for all navigation requests
 				runtimeCaching: [
 					{
@@ -46,9 +52,6 @@ export default defineConfig({
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'ssr-pages',
-							// No networkTimeoutSeconds on first navigation — prevents
-							// falsely showing the offline page while the browser is still
-							// fetching on a slow connection or first install.
 							expiration: {
 								maxEntries: 100,
 								maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
@@ -59,29 +62,40 @@ export default defineConfig({
 						}
 					},
 					{
-						urlPattern: /\/(recipes|receipts|shopping|settings)\/.*/,
-						handler: 'NetworkFirst',
-						options: {
-							cacheName: 'app-pages',
-							// Removing networkTimeoutSeconds ensures we don't serve stale
-							// cached pages (which might have wrong auth state) while online.
-							expiration: {
-								maxEntries: 50,
-								maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
-							}
-						}
-					},
-					{
 						urlPattern: /\/__data\.json$/,
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'page-data',
-							// No timeout for data requests prevents showing stale/conflicting
-							// data (e.g. logged-out header on logged-in page) on slow connections.
-							// The user will see a loading state instead.
 							expiration: {
 								maxEntries: 100,
 								maxAgeSeconds: 24 * 60 * 60 // 1 day
+							}
+						}
+					},
+					{
+						// Cache Google Fonts CSS
+						urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/,
+						handler: 'StaleWhileRevalidate',
+						options: {
+							cacheName: 'google-fonts-stylesheets',
+							expiration: {
+								maxEntries: 10,
+								maxAgeSeconds: 60 * 24 * 60 * 60 // 60 days
+							}
+						}
+					},
+					{
+						// Cache Google Fonts woff2 files
+						urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/,
+						handler: 'CacheFirst',
+						options: {
+							cacheName: 'google-fonts-webfonts',
+							expiration: {
+								maxEntries: 30,
+								maxAgeSeconds: 365 * 24 * 60 * 60 // 1 year
+							},
+							cacheableResponse: {
+								statuses: [0, 200]
 							}
 						}
 					},
@@ -97,11 +111,14 @@ export default defineConfig({
 						}
 					}
 				],
-				navigateFallback: '/offline',
-				navigateFallbackDenylist: [/^\/login/, /^\/callback/, /^\/logout/, /^\/api/],
-				// Only apply navigateFallback to same-origin app routes
-				navigateFallbackAllowlist: [/^\/$/, /^\/(recipes|receipts|shopping|preferences|offline)/],
-				skipWaiting: false,
+				// Do NOT use navigateFallback. With SvelteKit SSR, the
+				// NavigationRoute it creates takes priority over our NetworkFirst
+				// handler and serves the offline page even when the network is
+				// available -- causing the blank/unstyled page flash on refresh.
+				// Instead, the NetworkFirst handler will naturally fall back to
+				// cached pages when offline.
+				navigateFallback: null,
+				skipWaiting: true,
 				clientsClaim: true
 			}
 		})

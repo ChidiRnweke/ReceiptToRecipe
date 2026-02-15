@@ -121,7 +121,22 @@ export class AppFactory {
 	// Infrastructure Services
 	static getStorageService(): IStorageService {
 		if (!storageService) {
-			storageService = new FileSystemStorageService();
+			const endpoint = ConfigService.get('MINIO_ENDPOINT');
+			const accessKey = ConfigService.get('MINIO_ACCESS_KEY');
+			const secretKey = ConfigService.get('MINIO_SECRET_KEY');
+
+			if (endpoint && accessKey && secretKey) {
+				storageService = new MinioStorageService({
+					endPoint: endpoint,
+					port: parseInt(ConfigService.get('MINIO_PORT') || '9000'),
+					useSSL: ConfigService.get('MINIO_USE_SSL') === 'true',
+					accessKey,
+					secretKey,
+					bucket: ConfigService.get('MINIO_BUCKET') || 'r2r-images'
+				});
+			} else {
+				storageService = new FileSystemStorageService();
+			}
 		}
 		return storageService;
 	}
