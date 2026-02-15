@@ -129,10 +129,14 @@
 			<div class="hidden lg:block">
 				<Button
 					href={`/recipes/generate?receiptId=${data.receipt.id}`}
-					class="group btn-accent-filled relative h-12 px-6 shadow-[4px_4px_0px_0px_rgba(120,53,15,1)] transition-all hover:-translate-y-px hover:shadow-[5px_5px_0px_0px_rgba(120,53,15,1)] active:translate-y-1 active:shadow-none disabled:opacity-50"
+					class="group relative h-11 overflow-hidden rounded-lg border border-sage-300 bg-white px-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95 disabled:opacity-50"
 				>
-					<ChefHat class="mr-2 h-5 w-5" />
-					Generate Recipes
+					<div class="flex items-center gap-2">
+						<ChefHat
+							class="h-4 w-4 text-sage-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-sage-700"
+						/>
+						<span class="font-display text-base font-medium text-ink">Generate Recipes</span>
+					</div>
 				</Button>
 			</div>
 		</div>
@@ -156,7 +160,9 @@
 			<div class="flex flex-col gap-12 lg:flex-row lg:items-start">
 				<!-- LEFT COLUMN: The Worksheet Card -->
 				<!-- Background: Warm #FDFBF7 -->
-				<div class="relative order-2 min-h-200 flex-1 bg-bg-paper shadow-xl lg:order-1">
+				<div
+					class="relative order-2 min-h-200 flex-1 overflow-hidden rounded-3xl border border-amber-100/50 bg-amber-50/50 shadow-sm lg:order-1"
+				>
 					<!-- Notebook Styling Lines -->
 					<!-- Blue lines with Red Margin -->
 					<div
@@ -176,10 +182,6 @@
 
 					<!-- Header Section (Pinned) -->
 					<div class="relative z-10 px-6 pt-8 pb-0 sm:px-8">
-						<div class="absolute -top-3 left-[50%] z-20 -translate-x-1/2 drop-shadow-md">
-							<PushPin color="red" />
-						</div>
-
 						<!-- Minimal Header -->
 						<div class="flex items-end justify-between border-b-2 border-stone-800 pb-6">
 							<div>
@@ -335,20 +337,19 @@
 				<!-- RIGHT COLUMN: Sticky Receipt -->
 				<div class="relative order-1 w-full lg:sticky lg:top-8 lg:order-2 lg:w-96 lg:shrink-0">
 					<div class="relative w-full rotate-1 transition-transform hover:rotate-0">
+						<!-- Pin -->
+						<div class="absolute -top-3 left-1/2 z-20 -translate-x-1/2 drop-shadow-md">
+							<PushPin color="red" />
+						</div>
+
 						<!-- Image Container -->
 						<div
 							class="flex flex-col overflow-hidden rounded-sm bg-white p-4 pb-8 shadow-xl ring-1 ring-black/5"
 						>
 							{#if data.receipt.imageUrl}
 								<div class="relative overflow-hidden rounded-sm bg-bg-paper-dark">
-									<!-- Washi Tape -->
-									<WashiTape
-										color="yellow"
-										width="w-20"
-										class="absolute -top-2 right-1/2 z-20 translate-x-1/2 rotate-2 shadow-sm"
-									/>
 									<img
-										src={`/uploads/receipts/${data.receipt.imageUrl.split('/').pop()}`}
+										src={data.receipt.imageUrl}
 										alt="Original Receipt"
 										class="mx-auto h-auto w-full opacity-95 mix-blend-multiply brightness-105 contrast-105"
 									/>
