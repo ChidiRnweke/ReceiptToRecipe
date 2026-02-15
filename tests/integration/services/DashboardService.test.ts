@@ -10,7 +10,8 @@ import {
 	MockShoppingListRepository,
 	MockShoppingListItemRepository,
 	MockPurchaseHistoryRepository,
-	MockPantryService
+	MockPantryService,
+	MockCupboardItemRepository
 } from '../../mocks';
 
 describe('DashboardService', () => {
@@ -26,6 +27,7 @@ describe('DashboardService', () => {
 	let shoppingListItemRepo: MockShoppingListItemRepository;
 	let purchaseHistoryRepo: MockPurchaseHistoryRepository;
 	let pantryService: MockPantryService;
+	let cupboardItemRepo: MockCupboardItemRepository;
 
 	let shoppingListController: ShoppingListController;
 
@@ -41,6 +43,7 @@ describe('DashboardService', () => {
 		shoppingListItemRepo = new MockShoppingListItemRepository();
 		purchaseHistoryRepo = new MockPurchaseHistoryRepository();
 		pantryService = new MockPantryService();
+		cupboardItemRepo = new MockCupboardItemRepository();
 
 		// Wire repos
 		receiptRepo.setItemRepository(receiptItemRepo);
@@ -64,7 +67,8 @@ describe('DashboardService', () => {
 			pantryService,
 			purchaseHistoryRepo,
 			receiptItemRepo,
-			shoppingListController
+			shoppingListController,
+			cupboardItemRepo
 		);
 	});
 

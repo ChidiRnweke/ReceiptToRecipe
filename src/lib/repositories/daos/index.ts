@@ -67,3 +67,9 @@ export type {
 } from './TasteProfileDaos';
 
 export type { WaitlistUserDao, NewWaitlistUserDao } from './WaitlistDaos';
+
+export type {
+	CupboardItemDao,
+	NewCupboardItemDao,
+	UpdateCupboardItemDao
+} from './CupboardItemDaos';

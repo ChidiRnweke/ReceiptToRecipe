@@ -25,6 +25,7 @@ export {
 
 export { MockUserPreferencesRepository } from './MockUserPreferencesRepository';
 export { MockPurchaseHistoryRepository } from './MockPurchaseHistoryRepository';
+export { MockCupboardItemRepository } from './MockCupboardItemRepository';
 
 export {
 	MockUserDietaryProfileRepository,

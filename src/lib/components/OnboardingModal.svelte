@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Upload, Store, ChefHat, ShoppingCart, ArrowRight, X } from 'lucide-svelte';
+	import { Upload, Warehouse, ChefHat, ShoppingCart, ArrowRight, X } from 'lucide-svelte';
 	import { browser } from '$app/environment';
 
 	type Props = {
@@ -31,11 +31,11 @@
 			cta: "This tells us what's in your kitchen."
 		},
 		{
-			icon: Store,
-			title: 'Build Your Kitchen',
+			icon: Warehouse,
+			title: 'Stock Your Cupboard',
 			description:
-				'Your scanned items become your virtual kitchen. We track what you have and estimate when things run low.',
-			cta: 'Smart stock tracking, no manual entry.'
+				'Your scanned items fill your cupboard. We track what you have, estimate when things run low, and show you why we think so.',
+			cta: 'You can always correct us if we get it wrong.'
 		},
 		{
 			icon: ChefHat,

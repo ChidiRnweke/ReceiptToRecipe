@@ -48,6 +48,7 @@ import {
 	ShoppingListRepository,
 	ShoppingListItemRepository,
 	PurchaseHistoryRepository,
+	CupboardItemRepository,
 	UserDietaryProfileRepository,
 	UserAllergyRepository,
 	UserIngredientPreferenceRepository,
@@ -64,6 +65,7 @@ import {
 	type IShoppingListRepository,
 	type IShoppingListItemRepository,
 	type IPurchaseHistoryRepository,
+	type ICupboardItemRepository,
 	type IUserDietaryProfileRepository,
 	type IUserAllergyRepository,
 	type IUserIngredientPreferenceRepository,
@@ -106,6 +108,7 @@ let savedRecipeRepository: ISavedRecipeRepository | null = null;
 let shoppingListRepository: IShoppingListRepository | null = null;
 let shoppingListItemRepository: IShoppingListItemRepository | null = null;
 let purchaseHistoryRepository: IPurchaseHistoryRepository | null = null;
+let cupboardItemRepository: ICupboardItemRepository | null = null;
 let userDietaryProfileRepository: IUserDietaryProfileRepository | null = null;
 let userAllergyRepository: IUserAllergyRepository | null = null;
 let userIngredientPreferenceRepository: IUserIngredientPreferenceRepository | null = null;
@@ -295,7 +298,8 @@ export class AppFactory {
 				AppFactory.getPantryService(),
 				AppFactory.getPurchaseHistoryRepository(),
 				AppFactory.getReceiptItemRepository(),
-				AppFactory.getShoppingListController()
+				AppFactory.getShoppingListController(),
+				AppFactory.getCupboardItemRepository()
 			);
 		}
 		return dashboardService;
@@ -349,7 +353,10 @@ export class AppFactory {
 			pantryController = new PantryController(
 				AppFactory.getPantryService(),
 				AppFactory.getPurchaseHistoryRepository(),
-				AppFactory.getReceiptItemRepository()
+				AppFactory.getReceiptItemRepository(),
+				AppFactory.getCupboardItemRepository(),
+				AppFactory.getShoppingListRepository(),
+				AppFactory.getShoppingListItemRepository()
 			);
 		}
 		return pantryController;
@@ -446,6 +453,13 @@ export class AppFactory {
 		return purchaseHistoryRepository;
 	}
 
+	static getCupboardItemRepository(): ICupboardItemRepository {
+		if (!cupboardItemRepository) {
+			cupboardItemRepository = new CupboardItemRepository(getDb());
+		}
+		return cupboardItemRepository;
+	}
+
 	static getUserDietaryProfileRepository(): IUserDietaryProfileRepository {
 		if (!userDietaryProfileRepository) {
 			userDietaryProfileRepository = new UserDietaryProfileRepository(getDb());
@@ -532,6 +546,7 @@ export class AppFactory {
 		shoppingListRepository = null;
 		shoppingListItemRepository = null;
 		purchaseHistoryRepository = null;
+		cupboardItemRepository = null;
 		userDietaryProfileRepository = null;
 		userAllergyRepository = null;
 		userIngredientPreferenceRepository = null;

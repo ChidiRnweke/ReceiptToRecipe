@@ -12,6 +12,7 @@ import type {
 	IShoppingListRepository,
 	IPurchaseHistoryRepository,
 	IReceiptItemRepository,
+	ICupboardItemRepository,
 	ReceiptDao,
 	RecipeWithIngredientsDao
 } from '$repositories';
@@ -29,7 +30,8 @@ export class DashboardService implements IDashboardService {
 		private pantryService: IPantryService,
 		private purchaseHistoryRepo: IPurchaseHistoryRepository,
 		private receiptItemRepo: IReceiptItemRepository,
-		private shoppingListController: ShoppingListController
+		private shoppingListController: ShoppingListController,
+		private cupboardItemRepo: ICupboardItemRepository
 	) {}
 
 	async getDashboardData(userId: string): Promise<DashboardData> {
@@ -58,7 +60,8 @@ export class DashboardService implements IDashboardService {
 		const pantryController = new PantryController(
 			this.pantryService,
 			this.purchaseHistoryRepo,
-			this.receiptItemRepo
+			this.receiptItemRepo,
+			this.cupboardItemRepo
 		);
 		const pantry: PantryItem[] = await pantryController.getUserPantry(userId);
 

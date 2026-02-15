@@ -1,11 +1,25 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { Receipt, ChefHat, ShoppingCart, Home, Upload, Sparkles, ListPlus } from 'lucide-svelte';
+	import {
+		Receipt,
+		ChefHat,
+		ShoppingCart,
+		Warehouse,
+		Upload,
+		Sparkles,
+		ListPlus,
+		Plus
+	} from 'lucide-svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
 
 	const tabs = [
-		{ href: '/', label: 'Home', icon: Home, exact: true },
 		{ href: '/receipts', label: 'Receipts', icon: Receipt, countKey: 'receipts' as const },
+		{
+			href: '/cupboard',
+			label: 'Cupboard',
+			icon: Warehouse,
+			countKey: 'cupboardItems' as const
+		},
 		{ href: '/recipes', label: 'Recipes', icon: ChefHat, countKey: 'recipes' as const },
 		{
 			href: '/shopping',
@@ -15,8 +29,7 @@
 		}
 	];
 
-	function isActive(href: string, exact: boolean = false) {
-		if (exact) return $page.url.pathname === href;
+	function isActive(href: string) {
 		return $page.url.pathname.startsWith(href);
 	}
 
@@ -24,7 +37,7 @@
 	const pageCta = $derived.by(() => {
 		const path = $page.url.pathname;
 
-		if (path === '/receipts' || path === '/') {
+		if (path === '/' || path === '/receipts') {
 			return { type: 'link', href: '/receipts/upload', label: 'Upload', icon: Upload };
 		}
 		if (path.startsWith('/receipts/') && path !== '/receipts/upload') {
@@ -34,6 +47,9 @@
 				label: 'Cook',
 				icon: ChefHat
 			};
+		}
+		if (path === '/cupboard') {
+			return { type: 'submit', formId: 'cupboard-add-form', label: 'Add', icon: Plus };
 		}
 		if (path === '/recipes') {
 			return { type: 'link', href: '/recipes/generate', label: 'New', icon: Sparkles };
@@ -56,7 +72,7 @@
 >
 	<div class="flex items-stretch">
 		{#each tabs as tab, i}
-			{@const active = isActive(tab.href, tab.exact)}
+			{@const active = isActive(tab.href)}
 			{@const count = tab.countKey ? workflowStore[tab.countKey] : 0}
 
 			<!-- Insert CTA button in the middle (after 2nd tab) -->

@@ -255,15 +255,21 @@
 						<div
 							class="mb-4 rotate-1 rounded-xl border border-sand/60 bg-bg-card p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]"
 						>
-							<div
-								class="mb-2 flex items-center gap-2 border-b border-sand/40 pb-2 text-xs tracking-wider text-text-muted uppercase"
+							<a
+								href="/cupboard"
+								class="mb-2 flex items-center justify-between border-b border-sand/40 pb-2"
 							>
-								<Store class="h-3 w-3" /> Your Kitchen
-							</div>
+								<span
+									class="flex items-center gap-2 text-xs tracking-wider text-text-muted uppercase"
+								>
+									<Store class="h-3 w-3" /> Cupboard
+								</span>
+								<span class="text-[10px] text-primary-600 hover:underline">View all</span>
+							</a>
 							<ul
 								class="max-h-40 space-y-2 overflow-y-auto [-ms-overflow-style:'none'] [scrollbar-width:'none'] [&::-webkit-scrollbar]:hidden"
 							>
-								{#each pantryList as item}
+								{#each pantryList.slice(0, 5) as item}
 									<li class="flex items-center justify-between text-sm text-text-secondary">
 										<span class="truncate">{item.itemName}</span>
 										{#if item.stockConfidence}
@@ -275,6 +281,14 @@
 									</li>
 								{/each}
 							</ul>
+							{#if pantryList.length > 5}
+								<a
+									href="/cupboard"
+									class="mt-2 block text-center text-[11px] text-primary-600 hover:underline"
+								>
+									+{pantryList.length - 5} more items
+								</a>
+							{/if}
 						</div>
 					{/if}
 				</div>

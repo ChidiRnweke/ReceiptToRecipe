@@ -1,4 +1,9 @@
-import type { IPantryService, PantryItem } from '../../src/lib/services/interfaces/IPantryService';
+import type {
+	IPantryService,
+	PantryItem,
+	ConfidenceFactors,
+	StockOverrides
+} from '../../src/lib/services/interfaces/IPantryService';
 import {
 	calculateStockConfidencePure,
 	calculateDepletionDatePure,
@@ -22,6 +27,67 @@ export class MockPantryService implements IPantryService {
 		);
 		const estimatedLifespan = avgFrequencyDays || this.getShelfLife(category);
 		return calculateStockConfidencePure(daysSincePurchase, estimatedLifespan, quantity || 1);
+	}
+
+	calculateStockConfidenceWithOverrides(
+		lastPurchased: Date,
+		avgFrequencyDays: number | null,
+		category: string | null,
+		quantity: number = 1,
+		overrides: StockOverrides = {}
+	): { confidence: number; factors: ConfidenceFactors } {
+		const now = new Date();
+
+		// Determine effective date (user override takes priority)
+		const effectiveDate = overrides.userOverrideDate ?? lastPurchased;
+		const daysSincePurchase = Math.floor(
+			(now.getTime() - effectiveDate.getTime()) / (1000 * 60 * 60 * 24)
+		);
+
+		// Determine effective lifespan and its source
+		let effectiveLifespanDays: number;
+		let lifespanSource: ConfidenceFactors['lifespanSource'];
+
+		if (overrides.userShelfLifeDays != null) {
+			effectiveLifespanDays = overrides.userShelfLifeDays;
+			lifespanSource = 'user_override';
+		} else if (avgFrequencyDays != null) {
+			effectiveLifespanDays = avgFrequencyDays;
+			lifespanSource = 'purchase_frequency';
+		} else if (category) {
+			effectiveLifespanDays = this.getShelfLife(category);
+			lifespanSource = 'category_default';
+		} else {
+			effectiveLifespanDays = this.getShelfLife(null);
+			lifespanSource = 'global_default';
+		}
+
+		// Determine effective quantity
+		const effectiveQuantity = overrides.userQuantityOverride ?? quantity;
+
+		// Calculate confidence
+		const confidence =
+			daysSincePurchase <= 0
+				? 1.0
+				: calculateStockConfidencePure(daysSincePurchase, effectiveLifespanDays, effectiveQuantity);
+
+		// Calculate quantity boost for transparency
+		const quantityBoost = effectiveQuantity > 1 ? Math.log(effectiveQuantity) * 0.1 : 0;
+		const baseConfidence =
+			daysSincePurchase <= 0
+				? 1.0
+				: Math.max(0, Math.min(1, 1.0 - daysSincePurchase / effectiveLifespanDays));
+
+		const factors: ConfidenceFactors = {
+			effectiveDate,
+			effectiveLifespanDays,
+			lifespanSource,
+			effectiveQuantity,
+			quantityBoost,
+			baseConfidence
+		};
+
+		return { confidence, factors };
 	}
 
 	calculateDepletionDate(

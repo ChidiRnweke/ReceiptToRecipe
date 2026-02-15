@@ -40,6 +40,10 @@ export class MockPurchaseHistoryRepository implements IPurchaseHistoryRepository
 			avgQuantity: history.avgQuantity ?? null,
 			avgFrequencyDays: history.avgFrequencyDays ?? null,
 			estimatedDepleteDate: history.estimatedDepleteDate ?? null,
+			userOverrideDate: null,
+			userShelfLifeDays: null,
+			userQuantityOverride: null,
+			isDepleted: false,
 			createdAt: now,
 			updatedAt: now
 		};
@@ -88,6 +92,37 @@ export class MockPurchaseHistoryRepository implements IPurchaseHistoryRepository
 				return bOverdue - aOverdue;
 			})
 			.slice(0, limit);
+	}
+
+	async markDepleted(id: string): Promise<PurchaseHistoryDao> {
+		const existing = this.store.get(id);
+		if (!existing) throw new Error('Purchase history not found');
+
+		const updated: PurchaseHistoryDao = {
+			...existing,
+			isDepleted: true,
+			updatedAt: new Date()
+		};
+		this.store.set(id, updated);
+		return updated;
+	}
+
+	async clearDepleted(id: string): Promise<PurchaseHistoryDao> {
+		const existing = this.store.get(id);
+		if (!existing) throw new Error('Purchase history not found');
+
+		const updated: PurchaseHistoryDao = {
+			...existing,
+			isDepleted: false,
+			userOverrideDate: null,
+			updatedAt: new Date()
+		};
+		this.store.set(id, updated);
+		return updated;
+	}
+
+	async countActiveByUserId(userId: string): Promise<number> {
+		return [...this.store.values()].filter((h) => h.userId === userId && !h.isDepleted).length;
 	}
 
 	// Test helpers

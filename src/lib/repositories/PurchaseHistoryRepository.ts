@@ -101,6 +101,40 @@ export class PurchaseHistoryRepository implements IPurchaseHistoryRepository {
 			.slice(0, limit);
 	}
 
+	async markDepleted(id: string): Promise<PurchaseHistoryDao> {
+		const [updated] = await this.db
+			.update(schema.purchaseHistory)
+			.set({
+				isDepleted: true,
+				updatedAt: new Date()
+			})
+			.where(eq(schema.purchaseHistory.id, id))
+			.returning();
+		return this.toDao(updated);
+	}
+
+	async clearDepleted(id: string): Promise<PurchaseHistoryDao> {
+		const [updated] = await this.db
+			.update(schema.purchaseHistory)
+			.set({
+				isDepleted: false,
+				updatedAt: new Date()
+			})
+			.where(eq(schema.purchaseHistory.id, id))
+			.returning();
+		return this.toDao(updated);
+	}
+
+	async countActiveByUserId(userId: string): Promise<number> {
+		const result = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(schema.purchaseHistory)
+			.where(
+				and(eq(schema.purchaseHistory.userId, userId), eq(schema.purchaseHistory.isDepleted, false))
+			);
+		return result[0]?.count ?? 0;
+	}
+
 	private toDao(history: typeof schema.purchaseHistory.$inferSelect): PurchaseHistoryDao {
 		return {
 			id: history.id,
@@ -111,6 +145,10 @@ export class PurchaseHistoryRepository implements IPurchaseHistoryRepository {
 			avgQuantity: history.avgQuantity,
 			avgFrequencyDays: history.avgFrequencyDays,
 			estimatedDepleteDate: history.estimatedDepleteDate,
+			userOverrideDate: history.userOverrideDate,
+			userShelfLifeDays: history.userShelfLifeDays,
+			userQuantityOverride: history.userQuantityOverride,
+			isDepleted: history.isDepleted,
 			createdAt: history.createdAt,
 			updatedAt: history.updatedAt
 		};

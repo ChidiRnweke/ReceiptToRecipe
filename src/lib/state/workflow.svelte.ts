@@ -1,11 +1,18 @@
 export class WorkflowState {
 	receipts = $state(0);
+	cupboardItems = $state(0);
 	recipes = $state(0);
 	shoppingItems = $state(0);
 
 	constructor(
-		initial: { receipts: number; recipes: number; shoppingItems: number } = {
+		initial: {
+			receipts: number;
+			cupboardItems: number;
+			recipes: number;
+			shoppingItems: number;
+		} = {
 			receipts: 0,
+			cupboardItems: 0,
 			recipes: 0,
 			shoppingItems: 0
 		}
@@ -15,9 +22,15 @@ export class WorkflowState {
 		}
 	}
 
-	sync(counts: { receipts: number; recipes: number; shoppingItems: number }) {
+	sync(counts: {
+		receipts: number;
+		cupboardItems: number;
+		recipes: number;
+		shoppingItems: number;
+	}) {
 		if (!counts) return;
 		this.receipts = counts.receipts;
+		this.cupboardItems = counts.cupboardItems;
 		this.recipes = counts.recipes;
 		this.shoppingItems = counts.shoppingItems;
 	}

@@ -7,6 +7,10 @@ export interface PurchaseHistoryDao {
 	avgQuantity: string | null;
 	avgFrequencyDays: number | null;
 	estimatedDepleteDate: Date | null;
+	userOverrideDate: Date | null;
+	userShelfLifeDays: number | null;
+	userQuantityOverride: string | null;
+	isDepleted: boolean;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -27,6 +31,10 @@ export interface UpdatePurchaseHistoryDao {
 	avgQuantity?: string | null;
 	avgFrequencyDays?: number | null;
 	estimatedDepleteDate?: Date | null;
+	userOverrideDate?: Date | null;
+	userShelfLifeDays?: number | null;
+	userQuantityOverride?: string | null;
+	isDepleted?: boolean;
 }
 
 export interface SmartSuggestionDao {

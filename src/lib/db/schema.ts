@@ -192,6 +192,29 @@ export const purchaseHistory = pgTable('purchase_history', {
 	avgQuantity: decimal('avg_quantity', { precision: 10, scale: 3 }),
 	avgFrequencyDays: integer('avg_frequency_days'),
 	estimatedDepleteDate: timestamp('estimated_deplete_date'),
+	// User override fields for cupboard
+	userOverrideDate: timestamp('user_override_date'), // When user confirmed "I still have this"
+	userShelfLifeDays: integer('user_shelf_life_days'), // Custom shelf life override
+	userQuantityOverride: decimal('user_quantity_override', { precision: 10, scale: 3 }), // Corrected quantity
+	isDepleted: boolean('is_depleted').notNull().default(false), // User marked as "used up"
+	createdAt: timestamp('created_at').notNull().defaultNow(),
+	updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Cupboard Items (manually added by user, not from receipts)
+export const cupboardItems = pgTable('cupboard_items', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	userId: uuid('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	itemName: text('item_name').notNull(),
+	quantity: decimal('quantity', { precision: 10, scale: 3 }),
+	unit: text('unit'),
+	category: text('category'),
+	addedDate: timestamp('added_date').notNull().defaultNow(), // Acts as "purchase date" for confidence
+	shelfLifeDays: integer('shelf_life_days'), // User-specified, null = system default
+	isDepleted: boolean('is_depleted').notNull().default(false),
+	notes: text('notes'),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
@@ -312,6 +335,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 	recipes: many(recipes),
 	shoppingLists: many(shoppingLists),
 	purchaseHistory: many(purchaseHistory),
+	cupboardItems: many(cupboardItems),
 	savedRecipes: many(savedRecipes)
 }));
 
@@ -423,6 +447,13 @@ export const purchaseHistoryRelations = relations(purchaseHistory, ({ one }) => 
 	})
 }));
 
+export const cupboardItemsRelations = relations(cupboardItems, ({ one }) => ({
+	user: one(users, {
+		fields: [cupboardItems.userId],
+		references: [users.id]
+	})
+}));
+
 export const savedRecipesRelations = relations(savedRecipes, ({ one }) => ({
 	user: one(users, {
 		fields: [savedRecipes.userId],
@@ -455,6 +486,8 @@ export type ShoppingListItem = typeof shoppingListItems.$inferSelect;
 export type NewShoppingListItem = typeof shoppingListItems.$inferInsert;
 export type PurchaseHistory = typeof purchaseHistory.$inferSelect;
 export type NewPurchaseHistory = typeof purchaseHistory.$inferInsert;
+export type CupboardItem = typeof cupboardItems.$inferSelect;
+export type NewCupboardItem = typeof cupboardItems.$inferInsert;
 export type CategoryShelfLife = typeof categoryShelfLife.$inferSelect;
 export type NewCategoryShelfLife = typeof categoryShelfLife.$inferInsert;
 export type CookbookEmbedding = typeof cookbookEmbeddings.$inferSelect;

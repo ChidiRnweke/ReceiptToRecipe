@@ -4,6 +4,7 @@ import {
 	calculateDepletionDatePure,
 	getShelfLifePure
 } from '../../../src/lib/services/pantryCalculations';
+import { PantryService } from '../../../src/lib/services/PantryService';
 
 describe('pantryCalculations', () => {
 	describe('calculateStockConfidencePure', () => {
@@ -209,6 +210,206 @@ describe('pantryCalculations', () => {
 			it('should return 14 for xyz', () => {
 				expect(getShelfLifePure('xyz')).toBe(14);
 			});
+		});
+	});
+});
+
+describe('PantryService.calculateStockConfidenceWithOverrides', () => {
+	const service = new PantryService();
+
+	// Helper to create a date N days ago
+	function daysAgo(n: number): Date {
+		const d = new Date();
+		d.setDate(d.getDate() - n);
+		return d;
+	}
+
+	describe('without overrides (baseline)', () => {
+		it('should return full confidence for item purchased today', () => {
+			const { confidence, factors } = service.calculateStockConfidenceWithOverrides(
+				new Date(),
+				null,
+				null,
+				1
+			);
+			expect(confidence).toBe(1.0);
+			expect(factors.lifespanSource).toBe('global_default');
+		});
+
+		it('should use avgFrequencyDays when available', () => {
+			const { confidence, factors } = service.calculateStockConfidenceWithOverrides(
+				daysAgo(5),
+				10,
+				null,
+				1
+			);
+			// 1 - 5/10 = 0.5
+			expect(confidence).toBeCloseTo(0.5, 1);
+			expect(factors.lifespanSource).toBe('purchase_frequency');
+			expect(factors.effectiveLifespanDays).toBe(10);
+		});
+
+		it('should fall back to category shelf life when no frequency', () => {
+			const { confidence, factors } = service.calculateStockConfidenceWithOverrides(
+				daysAgo(3),
+				null,
+				'dairy',
+				1
+			);
+			// dairy = 10 days, 1 - 3/10 = 0.7
+			expect(confidence).toBeCloseTo(0.7, 1);
+			expect(factors.lifespanSource).toBe('category_default');
+			expect(factors.effectiveLifespanDays).toBe(10);
+		});
+
+		it('should fall back to global default when no frequency or category', () => {
+			const { confidence, factors } = service.calculateStockConfidenceWithOverrides(
+				daysAgo(7),
+				null,
+				null,
+				1
+			);
+			// global default = 14 days, 1 - 7/14 = 0.5
+			expect(confidence).toBeCloseTo(0.5, 1);
+			expect(factors.lifespanSource).toBe('global_default');
+			expect(factors.effectiveLifespanDays).toBe(14);
+		});
+	});
+
+	describe('with user override date', () => {
+		it('should use override date instead of purchase date', () => {
+			// Purchased 10 days ago, but user confirmed 2 days ago
+			const { confidence, factors } = service.calculateStockConfidenceWithOverrides(
+				daysAgo(10),
+				14,
+				null,
+				1,
+				{ userOverrideDate: daysAgo(2) }
+			);
+			// Uses override date: 1 - 2/14 ≈ 0.857
+			expect(confidence).toBeCloseTo(0.857, 2);
+			expect(factors.effectiveDate).toEqual(daysAgo(2));
+		});
+
+		it('should give full confidence when override date is today', () => {
+			const { confidence } = service.calculateStockConfidenceWithOverrides(
+				daysAgo(30),
+				14,
+				null,
+				1,
+				{ userOverrideDate: new Date() }
+			);
+			expect(confidence).toBe(1.0);
+		});
+	});
+
+	describe('with user shelf life override', () => {
+		it('should use override shelf life instead of category default', () => {
+			// Category says 7 days (produce), but user says 21 days
+			const { confidence, factors } = service.calculateStockConfidenceWithOverrides(
+				daysAgo(7),
+				null,
+				'produce',
+				1,
+				{ userShelfLifeDays: 21 }
+			);
+			// 1 - 7/21 = 0.667
+			expect(confidence).toBeCloseTo(0.667, 2);
+			expect(factors.lifespanSource).toBe('user_override');
+			expect(factors.effectiveLifespanDays).toBe(21);
+		});
+
+		it('should use override shelf life instead of purchase frequency', () => {
+			const { confidence, factors } = service.calculateStockConfidenceWithOverrides(
+				daysAgo(5),
+				10,
+				'produce',
+				1,
+				{ userShelfLifeDays: 30 }
+			);
+			// 1 - 5/30 = 0.833
+			expect(confidence).toBeCloseTo(0.833, 2);
+			expect(factors.lifespanSource).toBe('user_override');
+		});
+	});
+
+	describe('with user quantity override', () => {
+		it('should use override quantity for confidence boost', () => {
+			const { confidence: withOverride, factors } = service.calculateStockConfidenceWithOverrides(
+				daysAgo(7),
+				14,
+				null,
+				1,
+				{
+					userQuantityOverride: 5
+				}
+			);
+
+			const { confidence: withoutOverride } = service.calculateStockConfidenceWithOverrides(
+				daysAgo(7),
+				14,
+				null,
+				1,
+				{}
+			);
+
+			// Override quantity of 5 should boost confidence vs default 1
+			expect(withOverride).toBeGreaterThan(withoutOverride);
+			expect(factors.effectiveQuantity).toBe(5);
+			expect(factors.quantityBoost).toBeCloseTo(Math.log(5) * 0.1, 4);
+		});
+	});
+
+	describe('with combined overrides', () => {
+		it('should apply all overrides together', () => {
+			const { confidence, factors } = service.calculateStockConfidenceWithOverrides(
+				daysAgo(30), // original purchase was 30 days ago
+				7, // frequency says 7 days
+				'produce', // category says 7 days
+				1, // original quantity
+				{
+					userOverrideDate: daysAgo(2), // confirmed 2 days ago
+					userShelfLifeDays: 14, // user says lasts 14 days
+					userQuantityOverride: 3 // user says they have 3
+				}
+			);
+
+			// effective date = 2 days ago, lifespan = 14, quantity = 3
+			// base = 1 - 2/14 = 0.857
+			// boost = log(3) * 0.1 = 0.1099
+			// total = min(1, 0.857 + 0.1099) = 0.967
+			expect(confidence).toBeCloseTo(0.967, 2);
+			expect(factors.lifespanSource).toBe('user_override');
+			expect(factors.effectiveLifespanDays).toBe(14);
+			expect(factors.effectiveQuantity).toBe(3);
+			expect(factors.baseConfidence).toBeCloseTo(0.857, 2);
+		});
+	});
+
+	describe('confidence factors transparency', () => {
+		it('should include all required factor fields', () => {
+			const { factors } = service.calculateStockConfidenceWithOverrides(daysAgo(5), 10, 'dairy', 2);
+
+			expect(factors).toHaveProperty('effectiveDate');
+			expect(factors).toHaveProperty('effectiveLifespanDays');
+			expect(factors).toHaveProperty('lifespanSource');
+			expect(factors).toHaveProperty('effectiveQuantity');
+			expect(factors).toHaveProperty('quantityBoost');
+			expect(factors).toHaveProperty('baseConfidence');
+		});
+
+		it('should calculate baseConfidence without quantity boost', () => {
+			const { factors } = service.calculateStockConfidenceWithOverrides(daysAgo(5), 10, null, 3);
+
+			// baseConfidence should be raw linear decay without boost
+			expect(factors.baseConfidence).toBeCloseTo(0.5, 1);
+			// quantityBoost should be separate
+			expect(factors.quantityBoost).toBeCloseTo(Math.log(3) * 0.1, 4);
+		});
+
+		it('should have zero quantity boost for quantity of 1', () => {
+			const { factors } = service.calculateStockConfidenceWithOverrides(daysAgo(5), 10, null, 1);
+			expect(factors.quantityBoost).toBe(0);
 		});
 	});
 });

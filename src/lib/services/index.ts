@@ -43,6 +43,8 @@ export type {
 	AllergySeverity,
 	IPantryService,
 	PantryItem,
+	ConfidenceFactors,
+	StockOverrides,
 	IDashboardService,
 	DashboardData,
 	DashboardMetrics,

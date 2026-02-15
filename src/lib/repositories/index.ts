@@ -8,6 +8,7 @@ export {
 } from './RecipeRepositories';
 export { ShoppingListRepository, ShoppingListItemRepository } from './ShoppingListRepositories';
 export { PurchaseHistoryRepository } from './PurchaseHistoryRepository';
+export { CupboardItemRepository } from './CupboardItemRepository';
 export {
 	UserDietaryProfileRepository,
 	UserAllergyRepository,
@@ -33,6 +34,7 @@ export type {
 	IShoppingListItemRepository
 } from './interfaces/IShoppingListRepositories';
 export type { IPurchaseHistoryRepository } from './interfaces/IPurchaseHistoryRepository';
+export type { ICupboardItemRepository } from './interfaces/ICupboardItemRepository';
 export type {
 	IUserDietaryProfileRepository,
 	IUserAllergyRepository,

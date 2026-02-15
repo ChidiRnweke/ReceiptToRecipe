@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { AppFactory } from '$lib/factories';
-import type { PantryItem } from '$lib/services/PantryService';
+import type { PantryItem } from '$lib/services/interfaces/IPantryService';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {

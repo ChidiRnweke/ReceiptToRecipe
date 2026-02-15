@@ -12,4 +12,7 @@ export interface IPurchaseHistoryRepository {
 	create(history: NewPurchaseHistoryDao): Promise<PurchaseHistoryDao>;
 	update(id: string, history: UpdatePurchaseHistoryDao): Promise<PurchaseHistoryDao>;
 	findSuggestions(userId: string, limit: number): Promise<SmartSuggestionDao[]>;
+	markDepleted(id: string): Promise<PurchaseHistoryDao>;
+	clearDepleted(id: string): Promise<PurchaseHistoryDao>;
+	countActiveByUserId(userId: string): Promise<number>;
 }

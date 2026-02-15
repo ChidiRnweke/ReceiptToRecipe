@@ -48,6 +48,7 @@ export async function cleanTables() {
     recipe_ingredients, saved_recipes, recipes,
     receipt_items, receipts,
     purchase_history, category_shelf_life,
+    cupboard_items,
     cookbook_embeddings,
     user_allergies, user_ingredient_preferences, 
     user_cuisine_preferences, user_dietary_profiles,

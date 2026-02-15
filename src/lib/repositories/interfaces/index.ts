@@ -18,6 +18,7 @@ export type {
 } from './IShoppingListRepositories';
 
 export type { IPurchaseHistoryRepository } from './IPurchaseHistoryRepository';
+export type { ICupboardItemRepository } from './ICupboardItemRepository';
 
 export type {
 	IUserDietaryProfileRepository,

@@ -1,10 +1,16 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { Receipt, ChefHat, ShoppingCart, ChevronRight } from 'lucide-svelte';
+	import { Receipt, ChefHat, ShoppingCart, ChevronRight, Warehouse } from 'lucide-svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
 
 	const steps = [
 		{ href: '/receipts', label: 'Receipts', icon: Receipt, countKey: 'receipts' as const },
+		{
+			href: '/cupboard',
+			label: 'Cupboard',
+			icon: Warehouse,
+			countKey: 'cupboardItems' as const
+		},
 		{ href: '/recipes', label: 'Recipes', icon: ChefHat, countKey: 'recipes' as const },
 		{ href: '/shopping', label: 'Shopping', icon: ShoppingCart, countKey: 'shoppingItems' as const }
 	];

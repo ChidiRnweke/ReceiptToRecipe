@@ -180,9 +180,17 @@
 							class="mb-6 flex items-baseline justify-between border-b-2 border-dashed border-border pb-4"
 						>
 							<h2 class="font-display text-2xl text-ink">Kitchen Inventory</h2>
-							<span class="font-ui text-xs tracking-widest text-text-muted uppercase">
-								{selectedIngredientIds.size} Selected
-							</span>
+							<div class="flex items-center gap-3">
+								<a
+									href="/cupboard"
+									class="font-ui text-[10px] tracking-wide text-primary-600 uppercase hover:underline"
+								>
+									Manage cupboard
+								</a>
+								<span class="font-ui text-xs tracking-widest text-text-muted uppercase">
+									{selectedIngredientIds.size} Selected
+								</span>
+							</div>
 						</div>
 
 						{#if data.pantry && data.pantry.length > 0}

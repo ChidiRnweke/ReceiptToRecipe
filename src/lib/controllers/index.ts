@@ -15,5 +15,10 @@ export {
 	type SmartSuggestion,
 	type AddItemInput
 } from './ShoppingListController';
-export { PantryController } from './PantryController';
+export {
+	PantryController,
+	type CupboardStats,
+	type AddManualItemInput,
+	type UpdateItemInput
+} from './PantryController';
 export { TasteProfileController } from './TasteProfileController';

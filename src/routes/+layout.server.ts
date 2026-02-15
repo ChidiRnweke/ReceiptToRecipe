@@ -16,10 +16,12 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 	// Fetch counts for the workflow nav using repositories
 	const receiptRepo = AppFactory.getReceiptRepository();
 	const recipeRepo = AppFactory.getRecipeRepository();
+	const pantryController = AppFactory.getPantryController();
 
-	const [receiptCount, recipeCount] = await Promise.all([
+	const [receiptCount, recipeCount, cupboardCount] = await Promise.all([
 		receiptRepo.countByUserId(userId),
-		recipeRepo.countByUserId(userId)
+		recipeRepo.countByUserId(userId),
+		pantryController.getCupboardCount(userId)
 	]);
 
 	const listController = AppFactory.getShoppingListController();
@@ -35,6 +37,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 		user: locals.user,
 		workflowCounts: {
 			receipts: receiptCount,
+			cupboardItems: cupboardCount,
 			recipes: recipeCount,
 			shoppingItems
 		}
