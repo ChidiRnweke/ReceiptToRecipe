@@ -11,16 +11,23 @@ export class MockProductNormalizer implements IProductNormalizer {
 	private defaultInfo: NormalizedProductInfo = {
 		normalizedName: 'Unknown Product',
 		productGroup: 'Other',
-		category: 'other'
+		category: 'other',
+		isFoodItem: true
 	};
 
 	async normalizeProduct(rawName: string): Promise<NormalizedProductInfo> {
-		return (
-			this.mocks.get(rawName) || {
-				...this.defaultInfo,
-				normalizedName: rawName
-			}
-		);
+		const mockData = this.mocks.get(rawName);
+		if (mockData) {
+			// Ensure isFoodItem is always set, defaulting to true if not provided
+			return {
+				...mockData,
+				isFoodItem: mockData.isFoodItem !== undefined ? mockData.isFoodItem : true
+			};
+		}
+		return {
+			...this.defaultInfo,
+			normalizedName: rawName
+		};
 	}
 
 	// Test helpers

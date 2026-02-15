@@ -8,6 +8,7 @@ For each product, you should determine:
 1. normalizedName: A clean, standard name for the product (e.g., "Coca Cola 33cl" -> "Cola", "Lays Chips Paprika" -> "Potato Chips"). Remove brand names unless they are essential to the product identity.
 2. productGroup: A broad grouping for the product (e.g., "Soft Drinks", "Snacks", "Vegetables").
 3. category: A high-level category (e.g., "beverages", "pantry", "produce", "dairy", "meat").
+4. isFoodItem: A boolean indicating if this is a food or beverage item. Set to true for anything edible/drinkable (food, beverages, snacks, etc.). Set to false for non-food items like household supplies, cleaning products, toiletries, personal care items, medicine, etc.
 
 Always respond with valid JSON matching the requested format.`;
 
@@ -27,7 +28,8 @@ Respond with JSON:
 {
   "normalizedName": "string",
   "productGroup": "string",
-  "category": "string"
+  "category": "string",
+  "isFoodItem": boolean
 }`;
 
 		try {
@@ -72,11 +74,12 @@ Respond with JSON:
 			return JSON.parse(responseText) as NormalizedProductInfo;
 		} catch (error) {
 			console.error('Error normalizing product:', error);
-			// Fallback
+			// Fallback - assume it's a food item to be safe
 			return {
 				normalizedName: rawName,
 				productGroup: 'Other',
-				category: 'other'
+				category: 'other',
+				isFoodItem: true
 			};
 		}
 	}
