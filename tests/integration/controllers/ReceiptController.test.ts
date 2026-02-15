@@ -130,6 +130,22 @@ describe('ReceiptController', () => {
 			expect(stored!.totalAmount).toBe('42.50');
 		});
 
+		it('should use buffer for OCR extraction instead of URL', async () => {
+			const extractFromBufferSpy = vi.spyOn(receiptExtractor, 'extractReceiptFromBuffer');
+			const extractFromUrlSpy = vi.spyOn(receiptExtractor, 'extractReceipt');
+
+			receiptExtractor.setDefaultData({ items: [] });
+
+			const file = createFakeFile('receipt.jpg');
+			await controller.uploadReceipt({ userId, file });
+			await flushMicrotasks();
+
+			// Should use the buffer method
+			expect(extractFromBufferSpy).toHaveBeenCalled();
+			// Should NOT use the URL method
+			expect(extractFromUrlSpy).not.toHaveBeenCalled();
+		});
+
 		it('should normalize OCR items and create receipt items', async () => {
 			productNormalizer.setMock('Whole Milk 1L', {
 				normalizedName: 'whole milk',
