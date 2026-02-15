@@ -57,7 +57,7 @@
 
 	let loading = $state(false);
 	let newListName = $state('');
-	let expandedLists = $derived<Set<string>>(new Set(lists.slice(0, 1).map((l: any) => l.id)));
+	let expandedLists = $state<Set<string>>(new Set(lists.slice(0, 1).map((l: any) => l.id)));
 
 	// New item inputs per list
 	type NewItemInput = { name: string; quantity: string; unit: string };
