@@ -134,7 +134,8 @@ describe('ReceiptController', () => {
 			productNormalizer.setMock('Whole Milk 1L', {
 				normalizedName: 'whole milk',
 				productGroup: 'Dairy',
-				category: 'dairy'
+				category: 'dairy',
+				isFoodItem: true
 			});
 
 			receiptExtractor.setDefaultData({
