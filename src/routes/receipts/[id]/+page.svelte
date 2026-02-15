@@ -183,7 +183,9 @@
 						<!-- Minimal Header -->
 						<div class="flex items-end justify-between border-b-2 border-stone-800 pb-6">
 							<div>
-								<h2 class="mt-4 font-serif text-2xl leading-none font-bold text-text-primary sm:text-3xl lg:text-4xl">
+								<h2
+									class="mt-4 font-serif text-2xl leading-none font-bold text-text-primary sm:text-3xl lg:text-4xl"
+								>
 									{data.receipt.storeName || 'Unknown Store'}
 								</h2>
 								<div class="font-handwriting mt-2 text-sm text-text-muted">
@@ -214,7 +216,9 @@
 								<div class="group relative flex h-12 items-center hover:bg-blue-50/20">
 									<!-- LEFT GUTTER - Contains Qty & Add Button -->
 									<!-- Smaller on mobile (w-16), wider on desktop (w-24) -->
-									<div class="flex w-16 items-center justify-end border-r border-transparent pr-2 sm:w-20 lg:w-24 lg:pr-3">
+									<div
+										class="flex w-16 items-center justify-end border-r border-transparent pr-2 sm:w-20 lg:w-24 lg:pr-3"
+									>
 										<!-- Add Action (Mini) -->
 										<form
 											method="POST"
@@ -270,7 +274,9 @@
 
 										<!-- Quantity (Handwritten style) -->
 										<!-- Smaller on mobile, standard on desktop -->
-										<div class="font-handwriting w-8 text-right text-base text-text-secondary sm:w-10 sm:text-lg">
+										<div
+											class="font-handwriting w-8 text-right text-base text-text-secondary sm:w-10 sm:text-lg"
+										>
 											{#if isEditing}
 												<Input
 													value={formatQuantity(item.quantity) === '-'
