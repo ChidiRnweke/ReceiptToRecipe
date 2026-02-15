@@ -122,7 +122,7 @@ export class ReceiptController {
 			throw new Error('Receipt not found');
 		}
 
-		const normalizedItems: NewReceiptItemDao[] = await Promise.all(
+		const allNormalizedItems: (NewReceiptItemDao & { isFoodItem: boolean })[] = await Promise.all(
 			(ocrData.items || []).map(async (item) => {
 				const nameStr = typeof item.name === 'string' ? item.name : String(item.name || '');
 				const rawName = nameStr.trim() || 'Unknown Item';
@@ -144,18 +144,22 @@ export class ReceiptController {
 							? item.price.replace(/[^0-9.]/g, '')
 							: undefined,
 					category: productInfo.category || 'other',
-					productGroup: productInfo.productGroup
+					productGroup: productInfo.productGroup,
+					isFoodItem: productInfo.isFoodItem
 				};
 			})
 		);
 
-		if (normalizedItems.length > 0) {
-			await this.receiptItemRepository.createMany(normalizedItems);
+		// Filter out non-food items
+		const foodItems = allNormalizedItems.filter((item) => item.isFoodItem);
+
+		if (foodItems.length > 0) {
+			await this.receiptItemRepository.createMany(foodItems);
 
 			// Update purchase history
 			const parsedDate = ocrData.purchaseDate ? new Date(ocrData.purchaseDate) : new Date();
 			const finalDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
-			await this.updatePurchaseHistory(receipt.userId, normalizedItems, finalDate);
+			await this.updatePurchaseHistory(receipt.userId, foodItems, finalDate);
 		}
 	}
 

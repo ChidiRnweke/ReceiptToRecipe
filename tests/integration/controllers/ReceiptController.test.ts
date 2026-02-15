@@ -388,6 +388,151 @@ describe('ReceiptController', () => {
 			expect(stored!.status).toBe('DONE');
 			expect(receiptItemRepo.getAllStored()).toHaveLength(1);
 		});
+
+		it('should filter out non-food items', async () => {
+			// Set up mocks for food and non-food items
+			productNormalizer.setMock('Milk', {
+				normalizedName: 'Milk',
+				productGroup: 'Dairy',
+				category: 'dairy',
+				isFoodItem: true
+			});
+
+			productNormalizer.setMock('Dish Soap', {
+				normalizedName: 'Dish Soap',
+				productGroup: 'Cleaning',
+				category: 'household',
+				isFoodItem: false
+			});
+
+			receiptExtractor.setDefaultData({
+				items: [
+					{ name: 'Milk', quantity: '1', price: '$3.99' },
+					{ name: 'Dish Soap', quantity: '1', price: '$2.99' }
+				]
+			});
+
+			const file = createFakeFile('receipt.jpg');
+			await controller.uploadReceipt({ userId, file });
+			await flushMicrotasks();
+
+			// Only Milk should be saved, Dish Soap should be filtered out
+			const items = receiptItemRepo.getAllStored();
+			expect(items).toHaveLength(1);
+			expect(items[0].normalizedName).toBe('Milk');
+			expect(items[0].category).toBe('dairy');
+		});
+
+		it('should filter out all items when all are non-food', async () => {
+			// Set up mocks for non-food items
+			productNormalizer.setMock('Toilet Paper', {
+				normalizedName: 'Toilet Paper',
+				productGroup: 'Paper Products',
+				category: 'household',
+				isFoodItem: false
+			});
+
+			productNormalizer.setMock('Shampoo', {
+				normalizedName: 'Shampoo',
+				productGroup: 'Personal Care',
+				category: 'toiletries',
+				isFoodItem: false
+			});
+
+			receiptExtractor.setDefaultData({
+				items: [
+					{ name: 'Toilet Paper', quantity: '1', price: '$5.99' },
+					{ name: 'Shampoo', quantity: '1', price: '$4.99' }
+				]
+			});
+
+			const file = createFakeFile('receipt.jpg');
+			await controller.uploadReceipt({ userId, file });
+			await flushMicrotasks();
+
+			// No items should be saved
+			const items = receiptItemRepo.getAllStored();
+			expect(items).toHaveLength(0);
+
+			// Receipt should still be marked as DONE
+			const stored = receiptRepo.getStored((await receiptRepo.findByUserId(userId, 1))[0].id);
+			expect(stored!.status).toBe('DONE');
+		});
+
+		it('should save all items when all are food items', async () => {
+			// Set up mocks for food items
+			productNormalizer.setMock('Bread', {
+				normalizedName: 'Bread',
+				productGroup: 'Bakery',
+				category: 'bakery',
+				isFoodItem: true
+			});
+
+			productNormalizer.setMock('Butter', {
+				normalizedName: 'Butter',
+				productGroup: 'Dairy',
+				category: 'dairy',
+				isFoodItem: true
+			});
+
+			productNormalizer.setMock('Eggs', {
+				normalizedName: 'Eggs',
+				productGroup: 'Dairy',
+				category: 'dairy',
+				isFoodItem: true
+			});
+
+			receiptExtractor.setDefaultData({
+				items: [
+					{ name: 'Bread', quantity: '1', price: '$2.99' },
+					{ name: 'Butter', quantity: '1', price: '$3.99' },
+					{ name: 'Eggs', quantity: '12', price: '$4.99' }
+				]
+			});
+
+			const file = createFakeFile('receipt.jpg');
+			await controller.uploadReceipt({ userId, file });
+			await flushMicrotasks();
+
+			// All items should be saved
+			const items = receiptItemRepo.getAllStored();
+			expect(items).toHaveLength(3);
+			expect(items.map((i) => i.normalizedName).sort()).toEqual(['Bread', 'Butter', 'Eggs']);
+		});
+
+		it('should not create purchase history for filtered non-food items', async () => {
+			// Set up mocks
+			productNormalizer.setMock('Apples', {
+				normalizedName: 'Apples',
+				productGroup: 'Produce',
+				category: 'produce',
+				isFoodItem: true
+			});
+
+			productNormalizer.setMock('Laundry Detergent', {
+				normalizedName: 'Laundry Detergent',
+				productGroup: 'Cleaning',
+				category: 'household',
+				isFoodItem: false
+			});
+
+			receiptExtractor.setDefaultData({
+				purchaseDate: '2025-06-01',
+				items: [
+					{ name: 'Apples', quantity: '5', price: '$3.99' },
+					{ name: 'Laundry Detergent', quantity: '1', price: '$12.99' }
+				]
+			});
+
+			const file = createFakeFile('receipt.jpg');
+			await controller.uploadReceipt({ userId, file });
+			await flushMicrotasks();
+
+			// Only Apples should be in purchase history
+			const history = purchaseHistoryRepo.getAll();
+			expect(history).toHaveLength(1);
+			expect(history[0].itemName).toBe('Apples');
+		});
 	});
 
 	// ---------- getReceipt ----------
