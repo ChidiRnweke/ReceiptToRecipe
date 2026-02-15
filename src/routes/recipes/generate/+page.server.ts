@@ -11,13 +11,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const preferencesController = AppFactory.getPreferencesController();
 	const preferences = await preferencesController.getPreferences(locals.user.id);
 
-	// Get user pantry items
+	// Get user pantry items (streamed)
 	const pantryController = AppFactory.getPantryController();
-	const pantry = await pantryController.getUserPantry(locals.user.id);
+	const pantryPromise = pantryController.getUserPantry(locals.user.id);
 
 	return {
 		preferences,
-		pantry
+		streamed: {
+			pantry: pantryPromise
+		}
 	};
 };
 

@@ -8,6 +8,7 @@
 	import PinnedNote from '$lib/components/PinnedNote.svelte';
 	import StockBadge from '$lib/components/StockBadge.svelte';
 	import WashiTape from '$lib/components/WashiTape.svelte';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 	import {
 		ChefHat,
 		Plus,
@@ -27,6 +28,7 @@
 	let selectedIngredientIds = $state<Set<string>>(new Set());
 	let loadingMessage = $state('Consulting Chef...');
 	let messageInterval: ReturnType<typeof setInterval> | null = null;
+	let pantryInitialized = $state(false);
 
 	// Initialize servings from preferences
 	let servings = $derived(data.preferences?.defaultServings ?? 2);
@@ -43,33 +45,6 @@
 		'Almost ready to serve...',
 		'Final garnish going on...'
 	];
-
-	// Group pantry items by category
-	const pantryByCategory = $derived.by(() => {
-		const groups: Record<string, any[]> = {};
-		for (const item of data.pantry || []) {
-			const category = item.category || 'Kitchen Staples';
-			const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
-
-			if (!groups[displayCategory]) {
-				groups[displayCategory] = [];
-			}
-			groups[displayCategory].push(item);
-		}
-		return groups;
-	});
-
-	// Pre-select high confidence items
-	$effect(() => {
-		if (data.pantry) {
-			const highConfidence = data.pantry.filter((i: any) => i.stockConfidence > 0.6);
-			const newSet = new Set<string>();
-			highConfidence.forEach((i: any) => {
-				if (i.id) newSet.add(i.id);
-			});
-			selectedIngredientIds = newSet;
-		}
-	});
 
 	// Rotate loading messages
 	$effect(() => {
@@ -113,6 +88,31 @@
 			selectedIngredientIds.add(itemId);
 		}
 		selectedIngredientIds = new Set(selectedIngredientIds);
+	}
+
+	function groupPantry(pantryItems: any[]) {
+		const groups: Record<string, any[]> = {};
+		for (const item of pantryItems || []) {
+			const category = item.category || 'Kitchen Staples';
+			const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
+
+			if (!groups[displayCategory]) {
+				groups[displayCategory] = [];
+			}
+			groups[displayCategory].push(item);
+		}
+		return groups;
+	}
+
+	function initPantry(pantryItems: any[]) {
+		if (pantryInitialized) return;
+		const highConfidence = pantryItems.filter((i: any) => i.stockConfidence > 0.6);
+		const newSet = new Set<string>();
+		highConfidence.forEach((i: any) => {
+			if (i.id) newSet.add(i.id);
+		});
+		selectedIngredientIds = newSet;
+		pantryInitialized = true;
 	}
 </script>
 
@@ -193,68 +193,88 @@
 							</div>
 						</div>
 
-						{#if data.pantry && data.pantry.length > 0}
-							<div class="space-y-8">
-								{#each Object.entries(pantryByCategory) as [category, items]}
-									<div class="relative">
-										<h3 class="mb-3 font-serif text-lg text-ink-light italic">
-											{category}
-										</h3>
+						{#await data.streamed.pantry}
+							<div class="space-y-6">
+								{#each Array(3) as _}
+									<div class="space-y-3">
+										<Skeleton class="h-6 w-32 bg-stone-200/50" />
 										<div class="flex flex-wrap gap-2">
-											{#each items as item}
-												{#if item.id}
-													<button
-														type="button"
-														onclick={() => togglePantryItem(item.id)}
-														class="group relative flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all duration-200
-                            {selectedIngredientIds.has(item.id)
-															? 'border-sage-400 bg-sage-50 text-sage-900 shadow-sm'
-															: 'border-border bg-white text-text-secondary hover:border-primary-300 hover:shadow-sm'}"
-													>
-														<div
-															class="flex h-4 w-4 items-center justify-center rounded-full border transition-colors
-                              {selectedIngredientIds.has(item.id)
-																? 'border-sage-500 bg-sage-500 text-white'
-																: 'border-border group-hover:border-primary-400'}"
-														>
-															{#if selectedIngredientIds.has(item.id)}
-																<span class="text-[10px]">✓</span>
-															{/if}
-														</div>
-														<span class={selectedIngredientIds.has(item.id) ? 'font-medium' : ''}
-															>{item.itemName}</span
-														>
-														{#if item.stockConfidence}
-															<StockBadge
-																confidence={item.stockConfidence}
-																className="scale-75 opacity-70"
-															/>
-														{/if}
-													</button>
-												{/if}
+											{#each Array(4) as _}
+												<Skeleton class="h-9 w-24 rounded-lg bg-stone-200/50" />
 											{/each}
 										</div>
 									</div>
 								{/each}
 							</div>
-							<input
-								type="hidden"
-								name="ingredientIds"
-								value={Array.from(selectedIngredientIds).join(',')}
-							/>
-						{:else}
-							<div class="flex flex-col items-center justify-center py-12 text-center">
-								<Receipt class="mb-4 h-12 w-12 text-text-muted" />
-								<p class="font-serif text-lg text-ink-light">The kitchen is looking a bit bare.</p>
-								<Button
-									href="/receipts/upload"
-									variant="link"
-									class="font-hand text-xl text-sage-600"
-								>
-									Upload a receipt to stock up ->
-								</Button>
-							</div>
-						{/if}
+						{:then pantry}
+							{@const _ = initPantry(pantry)}
+							{@const pantryByCategory = groupPantry(pantry)}
+
+							{#if pantry && pantry.length > 0}
+								<div class="space-y-8">
+									{#each Object.entries(pantryByCategory) as [category, items]}
+										<div class="relative">
+											<h3 class="mb-3 font-serif text-lg text-ink-light italic">
+												{category}
+											</h3>
+											<div class="flex flex-wrap gap-2">
+												{#each items as item}
+													{#if item.id}
+														<button
+															type="button"
+															onclick={() => togglePantryItem(item.id)}
+															class="group relative flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all duration-200
+                            {selectedIngredientIds.has(item.id)
+																? 'border-sage-400 bg-sage-50 text-sage-900 shadow-sm'
+																: 'border-border bg-white text-text-secondary hover:border-primary-300 hover:shadow-sm'}"
+														>
+															<div
+																class="flex h-4 w-4 items-center justify-center rounded-full border transition-colors
+                              {selectedIngredientIds.has(item.id)
+																	? 'border-sage-500 bg-sage-500 text-white'
+																	: 'border-border group-hover:border-primary-400'}"
+															>
+																{#if selectedIngredientIds.has(item.id)}
+																	<span class="text-[10px]">✓</span>
+																{/if}
+															</div>
+															<span class={selectedIngredientIds.has(item.id) ? 'font-medium' : ''}
+																>{item.itemName}</span
+															>
+															{#if item.stockConfidence}
+																<StockBadge
+																	confidence={item.stockConfidence}
+																	className="scale-75 opacity-70"
+																/>
+															{/if}
+														</button>
+													{/if}
+												{/each}
+											</div>
+										</div>
+									{/each}
+								</div>
+								<input
+									type="hidden"
+									name="ingredientIds"
+									value={Array.from(selectedIngredientIds).join(',')}
+								/>
+							{:else}
+								<div class="flex flex-col items-center justify-center py-12 text-center">
+									<Receipt class="mb-4 h-12 w-12 text-text-muted" />
+									<p class="font-serif text-lg text-ink-light">
+										The kitchen is looking a bit bare.
+									</p>
+									<Button
+										href="/receipts/upload"
+										variant="link"
+										class="font-hand text-xl text-sage-600"
+									>
+										Upload a receipt to stock up ->
+									</Button>
+								</div>
+							{/if}
+						{/await}
 					</div>
 				</Notepad>
 			</div>

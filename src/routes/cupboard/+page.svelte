@@ -1,52 +1,104 @@
 <script lang="ts">
 	import type { PantryItem } from '$services';
+	import type { ReceiptWithItemsDao } from '$repositories';
+	import { enhance } from '$app/forms';
+	import { Button } from '$lib/components/ui/button';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import {
+		Warehouse,
+		Upload,
+		ChefHat,
+		ShoppingCart,
+		Plus,
+		X,
+		History,
+		Lightbulb,
+		Filter,
+		ChevronRight,
+		Calendar,
+		Store,
+		CheckCircle2,
+		AlertCircle
+	} from 'lucide-svelte';
+	import { fade, scale, slide } from 'svelte/transition';
 	import Notepad from '$lib/components/Notepad.svelte';
-	import WashiTape from '$lib/components/WashiTape.svelte';
 	import PinnedNote from '$lib/components/PinnedNote.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CupboardItem from '$lib/components/CupboardItem.svelte';
-	import CupboardStats from '$lib/components/CupboardStats.svelte';
 	import CupboardFilters from '$lib/components/CupboardFilters.svelte';
 	import AddItemForm from '$lib/components/AddItemForm.svelte';
-	import { Warehouse, Upload, ChefHat, Clock, ShoppingCart } from 'lucide-svelte';
+	import CupboardSkeleton from '$lib/components/skeletons/CupboardSkeleton.svelte';
+	import { workflowStore } from '$lib/state/workflow.svelte';
 
 	let { data } = $props();
 
-	// Filter & sort state
+	// State
+	let showAddModal = $state(false);
+	let showExpiredModal = $state(false);
+	let expandedReceiptId = $state<string | null>(null);
+
+	// Filter & Sort State
 	let activeFilter = $state('all');
 	let searchQuery = $state('');
 	let sortBy = $state('confidence');
 	let activeCategory = $state('all');
 
-	// Derive filtered + sorted items
-	const filteredItems = $derived.by(() => {
-		let items = data.items as PantryItem[];
+	// Time-based greeting
+	let greeting = $state('Good evening');
+	$effect(() => {
+		const hour = new Date().getHours();
+		greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+	});
 
-		// Status filter
+	// Random tip
+	const tips = [
+		'Store grains in airtight containers to keep them fresh.',
+		'Keep spices away from heat and light.',
+		'Practice FIFO: First In, First Out.',
+		'Check expiry dates regularly.',
+		'Group similar items together for easier finding.'
+	];
+	let randomTip = $state(tips[0]);
+	$effect(() => {
+		randomTip = tips[Math.floor(Math.random() * tips.length)];
+	});
+
+	function checkStockStatus(
+		items: PantryItem[],
+		receiptItemName: string
+	): 'in-stock' | 'low' | 'out' {
+		const match = items.find((i) => i.itemName.toLowerCase() === receiptItemName.toLowerCase());
+		if (!match) return 'out';
+		if (match.stockConfidence > 0.4) return 'in-stock';
+		return 'low';
+	}
+
+	// Filter Logic (Client-side)
+	function filterItems(items: PantryItem[]) {
+		let result = items;
+
 		if (activeFilter === 'in-stock') {
-			items = items.filter((i) => i.stockConfidence > 0.7);
+			result = result.filter((i) => i.stockConfidence > 0.7);
 		} else if (activeFilter === 'running-low') {
-			items = items.filter((i) => i.stockConfidence > 0.4 && i.stockConfidence <= 0.7);
+			result = result.filter((i) => i.stockConfidence > 0.4 && i.stockConfidence <= 0.7);
 		} else if (activeFilter === 'restock') {
-			items = items.filter((i) => i.stockConfidence <= 0.4);
+			result = result.filter((i) => i.stockConfidence <= 0.4);
 		}
 
-		// Category filter
 		if (activeCategory !== 'all') {
-			items = items.filter((i) => i.category?.toLowerCase() === activeCategory.toLowerCase());
+			result = result.filter((i) => i.category?.toLowerCase() === activeCategory.toLowerCase());
 		}
 
-		// Search filter
 		if (searchQuery.trim()) {
 			const q = searchQuery.toLowerCase();
-			items = items.filter((i) => i.itemName.toLowerCase().includes(q));
+			result = result.filter((i) => i.itemName.toLowerCase().includes(q));
 		}
 
-		// Sort
 		if (sortBy === 'name') {
-			items = [...items].sort((a, b) => a.itemName.localeCompare(b.itemName));
+			result = [...result].sort((a, b) => a.itemName.localeCompare(b.itemName));
 		} else if (sortBy === 'expires') {
-			items = [...items].sort((a, b) => {
+			result = [...result].sort((a, b) => {
 				const aLeft = a.confidenceFactors
 					? a.confidenceFactors.effectiveLifespanDays - a.daysSincePurchase
 					: 0;
@@ -56,214 +108,355 @@
 				return aLeft - bLeft;
 			});
 		} else if (sortBy === 'recent') {
-			items = [...items].sort((a, b) => b.lastPurchased.getTime() - a.lastPurchased.getTime());
+			result = [...result].sort((a, b) => b.lastPurchased.getTime() - a.lastPurchased.getTime());
 		}
-		// Default: confidence (already sorted from server)
 
-		return items;
-	});
+		return result;
+	}
 
-	// Group by category
-	const groupedItems = $derived.by(() => {
+	function groupItems(items: PantryItem[]) {
 		const groups = new Map<string, PantryItem[]>();
-		for (const item of filteredItems) {
+		for (const item of items) {
 			const cat = item.category || 'Other';
 			const existing = groups.get(cat) || [];
 			existing.push(item);
 			groups.set(cat, existing);
 		}
 		return groups;
-	});
-
-	const hasItems = $derived((data.items as PantryItem[]).length > 0);
-	const expiredItems = $derived(data.expiredItems as PantryItem[]);
-	const hasExpired = $derived(expiredItems.length > 0);
-	const hasAnything = $derived(hasItems || hasExpired);
+	}
 </script>
 
 <svelte:head>
-	<title>Cupboard | ReceiptToRecipe</title>
+	<title>Cupboard | Receipt2Recipe</title>
 </svelte:head>
 
-<div class="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
-	<!-- Header -->
-	<div class="mb-6">
-		<div class="flex items-center gap-3">
-			<Warehouse class="h-6 w-6 text-primary-600" />
-			<h1 class="font-display text-2xl font-bold text-text-primary sm:text-3xl">Your Cupboard</h1>
+<div
+	class="paper-card relative flex min-h-screen gap-0 rounded-4xl border border-sand bg-bg-paper shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)]"
+>
+	<!-- Background Pattern -->
+	<div
+		class="pointer-events-none absolute inset-0 rounded-4xl bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
+	></div>
+
+	<!-- Sidebar -->
+	<aside
+		class="hidden w-[320px] shrink-0 flex-col gap-6 rounded-tl-4xl rounded-bl-4xl border-r border-sand bg-bg-paper-dark/80 px-6 py-8 backdrop-blur-sm lg:flex"
+	>
+		<div class="space-y-1">
+			<div class="flex items-center gap-2 text-xs tracking-[0.18em] text-ink-muted uppercase">
+				<span>{greeting}, {data.user?.name?.split(' ')[0] || 'chef'}</span>
+			</div>
+			<h2 class="font-display text-2xl text-ink">Your Kitchen</h2>
 		</div>
-		<p class="font-hand mt-1 text-sm text-text-muted">Everything we think you have, and why</p>
-	</div>
 
-	{#if hasAnything}
-		<div class="flex flex-col gap-6 lg:flex-row">
-			<!-- Main content -->
-			<div class="flex-1 space-y-6">
-				{#if hasItems}
-					<Notepad>
-						<div class="space-y-5 p-4 sm:p-6">
-							<!-- Add item form -->
-							<div class="border-b border-sand/40 pb-4">
-								<AddItemForm existingItems={data.existingItemNames} />
+		<PinnedNote>
+			<div class="flex items-start gap-3">
+				<div class="mt-0.5 text-amber-600">
+					<Lightbulb class="h-4 w-4" />
+				</div>
+				<p class="font-hand text-sm leading-snug text-ink/80">{randomTip}</p>
+			</div>
+		</PinnedNote>
+
+		{#await Promise.all([data.streamed.recentReceipts, data.streamed.items])}
+			<div class="space-y-3">
+				<h3 class="font-ui text-xs tracking-wider text-ink-muted uppercase">Recent Receipts</h3>
+				<div class="space-y-2">
+					{#each Array(3) as _}
+						<div class="rounded-lg border border-sand/60 bg-bg-card p-3">
+							<Skeleton class="mb-2 h-4 w-3/4 bg-sand/20" />
+							<Skeleton class="h-3 w-1/2 bg-sand/20" />
+						</div>
+					{/each}
+				</div>
+			</div>
+		{:then [recentReceipts, items]}
+			{#if recentReceipts.length > 0}
+				<div class="space-y-3">
+					<h3 class="font-ui text-xs tracking-wider text-ink-muted uppercase">Recent Receipts</h3>
+					<div class="space-y-2">
+						{#each recentReceipts as receipt (receipt.id)}
+							<div
+								class="overflow-hidden rounded-lg border border-sand/60 bg-bg-card transition-all hover:border-sand hover:shadow-sm"
+							>
+								<button
+									class="flex w-full items-center justify-between p-3 text-left"
+									onclick={() =>
+										(expandedReceiptId = expandedReceiptId === receipt.id ? null : receipt.id)}
+								>
+									<div>
+										<div class="flex items-center gap-2 text-sm font-medium text-ink">
+											<Store class="h-3.5 w-3.5 text-primary" />
+											<span class="max-w-[140px] truncate"
+												>{receipt.storeName || 'Unknown Store'}</span
+											>
+										</div>
+										<div class="mt-0.5 flex items-center gap-2 text-[10px] text-ink-muted">
+											<Calendar class="h-3 w-3" />
+											<span>
+												{new Date(receipt.purchaseDate || receipt.createdAt).toLocaleDateString(
+													'en-GB',
+													{ day: 'numeric', month: 'short' }
+												)}
+											</span>
+											<span>•</span>
+											<span>{receipt.items?.length || 0} items</span>
+										</div>
+									</div>
+									<ChevronRight
+										class="h-4 w-4 text-ink-muted transition-transform {expandedReceiptId ===
+										receipt.id
+											? 'rotate-90'
+											: ''}"
+									/>
+								</button>
+
+								{#if expandedReceiptId === receipt.id}
+									<div
+										transition:slide={{ duration: 200 }}
+										class="border-t border-sand/40 bg-bg-paper"
+									>
+										<ul class="space-y-1 p-2">
+											{#each receipt.items || [] as item}
+												{@const status = checkStockStatus(items, item.normalizedName)}
+												<li class="flex items-center justify-between rounded px-2 py-1.5 text-xs">
+													<span class="truncate pr-2 text-ink-light">{item.rawName}</span>
+													{#if status === 'in-stock'}
+														<CheckCircle2 class="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+													{:else if status === 'low'}
+														<AlertCircle class="h-3.5 w-3.5 shrink-0 text-amber-500" />
+													{:else}
+														<div
+															class="bg-sand-400 h-1.5 w-1.5 shrink-0 rounded-full"
+															title="Used up"
+														></div>
+													{/if}
+												</li>
+											{/each}
+										</ul>
+										<div class="border-t border-sand/40 bg-bg-paper-dark/30 p-2 text-center">
+											<a
+												href="/receipts/{receipt.id}"
+												class="text-[10px] font-medium tracking-wide text-primary uppercase hover:text-primary/80 hover:underline"
+											>
+												View Receipt Detail →
+											</a>
+										</div>
+									</div>
+								{/if}
 							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+		{/await}
 
-							<!-- Filters -->
+		{#await data.streamed.expiredItems then expiredItems}
+			{#if expiredItems.length > 0}
+				<div
+					class="mt-auto rounded-xl border border-dashed border-destructive/30 bg-destructive/5 p-4"
+				>
+					<div class="mb-2 flex items-center gap-2 text-sm font-medium text-destructive">
+						<History class="h-4 w-4" />
+						<span>Recent History</span>
+					</div>
+					<p class="mb-3 text-xs leading-relaxed text-destructive/80">
+						{expiredItems.length} item{expiredItems.length > 1 ? 's' : ''} recently expired or used up.
+					</p>
+					<Button
+						variant="outline"
+						size="sm"
+						class="w-full border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+						onclick={() => (showExpiredModal = true)}
+					>
+						Review Items
+					</Button>
+				</div>
+			{/if}
+		{/await}
+
+		<div class="mt-4 space-y-2">
+			<Button
+				variant="ghost"
+				class="w-full justify-start gap-2 text-ink-muted hover:text-ink"
+				href="/shopping"
+			>
+				<ShoppingCart class="h-4 w-4" />
+				Shopping List ({workflowStore.shoppingItems})
+			</Button>
+		</div>
+	</aside>
+
+	<!-- Main Content -->
+	<main
+		class="relative z-10 flex flex-1 flex-col overflow-hidden rounded-4xl bg-white lg:rounded-l-none lg:rounded-r-4xl"
+	>
+		<div class="flex-1 overflow-y-auto p-4 sm:p-8">
+			<div class="mx-auto w-full max-w-5xl space-y-8">
+				<!-- Header (Always Visible) -->
+				<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+					<div>
+						<h1 class="font-display text-3xl text-ink sm:text-4xl">
+							Your <span class="marker-highlight">Cupboard</span>
+							{#await data.streamed.items}
+								<span class="animate-pulse text-2xl font-normal text-ink-muted">(...)</span>
+							{:then items}
+								{@const filtered = filterItems(items)}
+								<span class="text-2xl font-normal text-ink-muted">({filtered.length})</span>
+							{/await}
+						</h1>
+						<p class="mt-1 text-ink-light">Manage your stock and ingredients.</p>
+					</div>
+					<div class="flex gap-2">
+						{#await data.streamed.expiredItems then expiredItems}
+							{#if expiredItems && expiredItems.length > 0}
+								<Button
+									variant="outline"
+									size="icon"
+									class="border-destructive/30 text-destructive lg:hidden"
+									onclick={() => (showExpiredModal = true)}
+								>
+									<History class="h-4 w-4" />
+								</Button>
+							{/if}
+						{/await}
+						<Button onclick={() => (showAddModal = true)} class="gap-2 shadow-sm">
+							<Plus class="h-4 w-4" />
+							<span class="hidden sm:inline">Add Item</span>
+							<span class="sm:hidden">Add</span>
+						</Button>
+					</div>
+				</div>
+
+				{#await data.streamed.items}
+					<div class="mt-8">
+						<CupboardSkeleton />
+					</div>
+				{:then items}
+					{@const filtered = filterItems(items)}
+					{@const grouped = groupItems(filtered)}
+					{@const hasItems = items.length > 0}
+
+					<!-- Filters (Inline) -->
+					{#if hasItems}
+						<div class="rounded-xl border border-sand/40 bg-bg-paper p-4 shadow-sm">
 							<CupboardFilters
 								{activeFilter}
 								{searchQuery}
 								{sortBy}
-								categories={data.categories}
 								{activeCategory}
+								categories={[...new Set(items.map((i) => i.category).filter(Boolean))] as string[]}
 								onfilterchange={(f) => (activeFilter = f)}
 								onsearchchange={(q) => (searchQuery = q)}
 								onsortchange={(s) => (sortBy = s)}
 								oncategorychange={(c) => (activeCategory = c)}
 							/>
+						</div>
+					{/if}
 
-							<!-- Item count -->
-							<div class="flex items-center justify-between">
-								<span class="font-ui text-xs text-text-muted">
-									{filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''}
-									{activeFilter !== 'all' || searchQuery || activeCategory !== 'all'
-										? `(filtered from ${(data.items as PantryItem[]).length})`
-										: ''}
-								</span>
-							</div>
-
-							<!-- Items grouped by category -->
-							{#if filteredItems.length > 0}
-								<div class="space-y-4">
-									{#each [...groupedItems.entries()] as [category, items]}
-										<div>
-											<!-- Category header -->
-											<div class="mb-2 flex items-center gap-2 border-b border-sand/30 pb-1">
-												<span class="font-ui text-[11px] tracking-wider text-text-muted uppercase">
-													{category}
-												</span>
-												<span class="text-[10px] text-text-muted/60">
-													({items.length})
-												</span>
-											</div>
-
-											<!-- Items in category -->
-											<div class="space-y-2">
-												{#each items as item (item.id)}
-													<CupboardItem {item} />
-												{/each}
-											</div>
+					<!-- Content Grid -->
+					{#if hasItems}
+						{#if filtered.length > 0}
+							<div class="space-y-8">
+								{#each [...grouped.entries()] as [category, groupItems]}
+									<section>
+										<h3
+											class="font-ui mb-3 flex items-center gap-2 text-xs tracking-widest text-ink-muted uppercase"
+										>
+											{category}
+											<span class="rounded-full bg-sand/30 px-2 py-0.5 text-[10px] font-bold"
+												>{groupItems.length}</span
+											>
+										</h3>
+										<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+											{#each groupItems as item (item.id)}
+												<CupboardItem {item} />
+											{/each}
 										</div>
-									{/each}
+									</section>
+								{/each}
+							</div>
+						{:else}
+							<div class="flex flex-col items-center justify-center py-16 text-center">
+								<div class="mb-4 rounded-full bg-sand/20 p-4">
+									<Filter class="h-8 w-8 text-ink-muted" />
 								</div>
-							{:else}
-								<div class="py-8 text-center">
-									<p class="font-body text-sm text-text-muted">No items match your filters.</p>
-								</div>
-							{/if}
+								<p class="font-display text-lg text-ink">No items found</p>
+								<Button
+									variant="link"
+									onclick={() => {
+										activeFilter = 'all';
+										searchQuery = '';
+										activeCategory = 'all';
+									}}
+									class="mt-2 text-sage-600"
+								>
+									Clear filters
+								</Button>
+							</div>
+						{/if}
+					{:else}
+						<div class="mt-12">
+							<EmptyState
+								icon={Warehouse}
+								title="Your Cupboard is Empty"
+								description="Scan a receipt to get started, or add items manually."
+								action={{ label: 'Scan Receipt', href: '/receipts/upload' }}
+							/>
 						</div>
-					</Notepad>
-				{:else}
-					<!-- No active items but there are expired ones — show the add form -->
-					<Notepad>
-						<div class="p-4 sm:p-6">
-							<AddItemForm existingItems={data.existingItemNames} />
-						</div>
-					</Notepad>
-				{/if}
+					{/if}
+				{/await}
+			</div>
+		</div>
+	</main>
 
-				<!-- Recently expired section -->
-				{#if hasExpired}
-					<div class="rounded-xl border border-dashed border-rose-200/60 bg-rose-50/30 p-4 sm:p-6">
-						<div class="mb-4 flex items-center gap-2">
-							<Clock class="h-4 w-4 text-rose-400" />
-							<h2 class="font-display text-sm font-semibold text-rose-700">Recently Expired</h2>
-							<span
-								class="font-ui rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-medium text-rose-600"
-							>
-								{expiredItems.length}
-							</span>
-						</div>
-						<p class="font-body mb-4 text-xs leading-relaxed text-rose-600/80">
-							These items have likely been used up. Rescue them if you still have them, or add them
-							to your shopping list.
-						</p>
-						<div class="space-y-2">
+	<!-- Add Item Modal -->
+	<AlertDialog.Root bind:open={showAddModal}>
+		<AlertDialog.Content class="max-w-md overflow-hidden bg-bg-paper p-0">
+			<AlertDialog.Header class="border-b border-sand/40 bg-white p-4">
+				<AlertDialog.Title class="font-display text-lg text-ink">Add Item</AlertDialog.Title>
+			</AlertDialog.Header>
+			<div class="bg-white p-6">
+				{#await data.streamed.existingItemNames then existingItems}
+					<AddItemForm {existingItems} />
+				{/await}
+			</div>
+			<AlertDialog.Footer class="border-t border-sand/40 bg-white p-4 sm:justify-between">
+				<AlertDialog.Cancel>Close</AlertDialog.Cancel>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
+
+	<!-- Expired Items Modal -->
+	<AlertDialog.Root bind:open={showExpiredModal}>
+		<AlertDialog.Content class="flex h-[80vh] max-w-2xl flex-col bg-bg-paper p-0">
+			<AlertDialog.Header class="shrink-0 border-b border-sand/40 bg-white p-4">
+				<AlertDialog.Title class="font-display flex items-center gap-2 text-lg text-ink">
+					<History class="h-5 w-5 text-destructive" />
+					Recently Expired
+				</AlertDialog.Title>
+				<AlertDialog.Description>
+					Rescue items you still have or dismiss them.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<div class="flex-1 overflow-y-auto bg-bg-paper/30 p-4 sm:p-6">
+				{#await data.streamed.expiredItems then expiredItems}
+					{#if expiredItems.length > 0}
+						<div class="space-y-3">
 							{#each expiredItems as item (item.id)}
 								<CupboardItem {item} mode="expired" />
 							{/each}
 						</div>
-					</div>
-				{/if}
+					{:else}
+						<div class="py-12 text-center text-ink-muted">
+							<p>No recently expired items.</p>
+						</div>
+					{/if}
+				{/await}
 			</div>
-
-			<!-- Sidebar -->
-			<aside class="w-full shrink-0 lg:w-72">
-				<div class="sticky top-8 space-y-4">
-					<!-- Stats card -->
-					<div class="rounded-xl border border-sand/60 bg-bg-card p-4 shadow-sm">
-						<div class="mb-3 flex items-center gap-2">
-							<WashiTape color="sage" />
-							<h2 class="font-ui text-xs tracking-wider text-text-muted uppercase">
-								Cupboard Health
-							</h2>
-						</div>
-						<CupboardStats stats={data.stats} />
-						{#if data.stats.lastStocked}
-							<p class="font-ui mt-3 text-[11px] text-text-muted">
-								Last stocked: {data.stats.lastStocked.toLocaleDateString('en-GB', {
-									day: 'numeric',
-									month: 'short'
-								})}
-							</p>
-						{/if}
-					</div>
-
-					<!-- Quick actions -->
-					<PinnedNote color="yellow">
-						<div class="space-y-2">
-							<h3 class="font-hand text-sm font-medium text-text-primary">Quick Actions</h3>
-							<a
-								href="/receipts/upload"
-								class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-hover"
-							>
-								<Upload class="h-4 w-4" />
-								Scan a receipt
-							</a>
-							<a
-								href="/recipes/generate"
-								class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-hover"
-							>
-								<ChefHat class="h-4 w-4" />
-								Cook with what you have
-							</a>
-							<a
-								href="/shopping"
-								class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-hover"
-							>
-								<ShoppingCart class="h-4 w-4" />
-								View shopping list
-							</a>
-						</div>
-					</PinnedNote>
-				</div>
-			</aside>
-		</div>
-	{:else}
-		<!-- Empty state -->
-		<EmptyState
-			icon={Warehouse}
-			title="Your Cupboard is Empty"
-			description="Scan a receipt to start stocking your cupboard, or add items manually."
-			action={{ label: 'Scan a Receipt', href: '/receipts/upload' }}
-		/>
-
-		<!-- Also show the add form even when empty -->
-		<div class="mx-auto mt-8 max-w-md">
-			<Notepad>
-				<div class="p-4">
-					<p class="font-hand mb-3 text-sm text-text-muted">Or add something manually:</p>
-					<AddItemForm existingItems={data.existingItemNames} />
-				</div>
-			</Notepad>
-		</div>
-	{/if}
+			<AlertDialog.Footer class="shrink-0 border-t border-sand/40 bg-white p-4">
+				<AlertDialog.Cancel>Close</AlertDialog.Cancel>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 </div>

@@ -59,29 +59,97 @@
 	<title>Cookbook - Receipt2Recipe</title>
 </svelte:head>
 
-{#await data.streamed.recipesData}
-	<!-- Loading State with Skeleton -->
+<div
+	class="paper-card relative min-h-screen overflow-hidden rounded-4xl border border-sand bg-bg-paper shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)]"
+>
+	<!-- Radial gradient background -->
 	<div
-		class="paper-card relative min-h-screen overflow-hidden rounded-4xl border border-sand bg-bg-paper shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)]"
-	>
-		<div
-			class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
-		></div>
+		class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
+	></div>
 
-		<main class="relative z-10 min-h-screen bg-white">
-			<div class="mx-auto w-full max-w-6xl px-6 py-8 sm:px-10">
-				<!-- Header Skeleton -->
-				<div class="mb-10 flex flex-wrap items-end justify-between gap-4">
-					<div class="w-full max-w-lg">
-						<Skeleton class="mb-2 h-5 w-48" />
-						<Skeleton class="mb-4 h-10 w-64" />
-						<div class="flex items-center gap-4">
-							<Skeleton class="h-4 w-32" />
+	<!-- Main Content -->
+	<main class="relative z-10 min-h-screen bg-white">
+		<div class="mx-auto w-full max-w-6xl px-6 py-8 sm:px-10">
+			<!-- Header -->
+			<div class="mb-10 flex flex-wrap items-end justify-between gap-4">
+				<div>
+					<p class="font-hand mb-1 text-lg text-text-secondary">Your culinary collection</p>
+					<h1
+						class="font-display text-4xl leading-[1.1] text-text-primary drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
+					>
+						Recipe <span class="marker-highlight">Scrapbook</span>
+					</h1>
+					<div class="mt-2 flex items-center gap-4">
+						{#await data.streamed.recipesData}
+							<Skeleton class="h-3 w-28" />
+						{:then recipesData}
+							<p class="font-ui text-xs tracking-widest text-text-muted uppercase">
+								{recipesData.recipes.length}
+								{recipesData.recipes.length === 1 ? 'recipe' : 'recipes'} saved
+							</p>
+						{:catch}
+							<p class="font-ui text-xs tracking-widest text-text-muted uppercase">0 recipes</p>
+						{/await}
+						<!-- Mobile: Collapsible filter -->
+						<div class="md:hidden">
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => (showFilters = !showFilters)}
+								class="flex items-center gap-1 text-xs font-medium text-text-muted"
+							>
+								<SlidersHorizontal class="h-3 w-3" />
+								Filters
+							</Button>
+						</div>
+						<!-- Desktop: Always visible filter -->
+						<div class="hidden items-center gap-2 md:flex">
+							<Checkbox id="hide-incompatible" bind:checked={hideIncompatible} class="h-4 w-4" />
+							<Label
+								for="hide-incompatible"
+								class="cursor-pointer text-xs font-medium text-text-muted">Hide Incompatible</Label
+							>
 						</div>
 					</div>
-					<Skeleton class="h-10 w-32 rounded-lg" />
+
+					<!-- Mobile: Expandable filter panel -->
+					{#if showFilters}
+						<div
+							class="mt-3 rounded-lg border border-border bg-white p-3 md:hidden"
+							transition:slide
+						>
+							<div class="flex items-center gap-2">
+								<Checkbox
+									id="hide-incompatible-mobile"
+									bind:checked={hideIncompatible}
+									class="h-4 w-4"
+								/>
+								<Label
+									for="hide-incompatible-mobile"
+									class="cursor-pointer text-sm font-medium text-text-muted"
+									>Hide Incompatible</Label
+								>
+							</div>
+						</div>
+					{/if}
 				</div>
 
+				<div class="hidden md:block">
+					<Button
+						href="/recipes/generate"
+						class="group relative h-10 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95"
+					>
+						<div class="flex items-center gap-2">
+							<Sparkles
+								class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
+							/>
+							<span class="font-display text-base font-medium text-text-primary">New Recipe</span>
+						</div>
+					</Button>
+				</div>
+			</div>
+
+			{#await data.streamed.recipesData}
 				<!-- Recipe Cards Skeleton Grid -->
 				<div class="mb-8 flex items-baseline justify-between border-b border-border pb-3">
 					<Skeleton class="h-8 w-48" />
@@ -102,103 +170,15 @@
 						</div>
 					{/each}
 				</div>
-			</div>
-		</main>
-	</div>
-{:then recipesData}
-	{@const recipes = recipesData.recipes}
-	{@const receiptCount = recipesData.receiptCount}
-	{@const suggestedRecipes = recipes.filter(
-		(r: any) => r.isSuggested && (!hideIncompatible || (r.compatibility?.compatible ?? true))
-	)}
-	{@const otherRecipes = recipes.filter(
-		(r: any) => !r.isSuggested && (!hideIncompatible || (r.compatibility?.compatible ?? true))
-	)}
-
-	<div
-		class="paper-card relative min-h-screen overflow-hidden rounded-4xl border border-sand bg-bg-paper shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)]"
-	>
-		<!-- Radial gradient background -->
-		<div
-			class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
-		></div>
-
-		<!-- Main Content -->
-		<main class="relative z-10 min-h-screen bg-white">
-			<div class="mx-auto w-full max-w-6xl px-6 py-8 sm:px-10">
-				<!-- Header -->
-				<div class="mb-10 flex flex-wrap items-end justify-between gap-4">
-					<div>
-						<p class="font-hand mb-1 text-lg text-text-secondary">Your culinary collection</p>
-						<h1
-							class="font-display text-4xl leading-[1.1] text-text-primary drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
-						>
-							Recipe <span class="marker-highlight">Scrapbook</span>
-						</h1>
-						<div class="mt-2 flex items-center gap-4">
-							<p class="font-ui text-xs tracking-widest text-text-muted uppercase">
-								{recipes.length}
-								{recipes.length === 1 ? 'recipe' : 'recipes'} saved
-							</p>
-							<!-- Mobile: Collapsible filter -->
-							<div class="md:hidden">
-								<Button
-									variant="ghost"
-									size="sm"
-									onclick={() => (showFilters = !showFilters)}
-									class="flex items-center gap-1 text-xs font-medium text-text-muted"
-								>
-									<SlidersHorizontal class="h-3 w-3" />
-									Filters
-								</Button>
-							</div>
-							<!-- Desktop: Always visible filter -->
-							<div class="hidden items-center gap-2 md:flex">
-								<Checkbox id="hide-incompatible" bind:checked={hideIncompatible} class="h-4 w-4" />
-								<Label
-									for="hide-incompatible"
-									class="cursor-pointer text-xs font-medium text-text-muted"
-									>Hide Incompatible</Label
-								>
-							</div>
-						</div>
-
-						<!-- Mobile: Expandable filter panel -->
-						{#if showFilters}
-							<div
-								class="mt-3 rounded-lg border border-border bg-white p-3 md:hidden"
-								transition:slide
-							>
-								<div class="flex items-center gap-2">
-									<Checkbox
-										id="hide-incompatible-mobile"
-										bind:checked={hideIncompatible}
-										class="h-4 w-4"
-									/>
-									<Label
-										for="hide-incompatible-mobile"
-										class="cursor-pointer text-sm font-medium text-text-muted"
-										>Hide Incompatible</Label
-									>
-								</div>
-							</div>
-						{/if}
-					</div>
-
-					<div class="hidden md:block">
-						<Button
-							href="/recipes/generate"
-							class="group relative h-10 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95"
-						>
-							<div class="flex items-center gap-2">
-								<Sparkles
-									class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
-								/>
-								<span class="font-display text-base font-medium text-text-primary">New Recipe</span>
-							</div>
-						</Button>
-					</div>
-				</div>
+			{:then recipesData}
+				{@const recipes = recipesData.recipes}
+				{@const receiptCount = recipesData.receiptCount}
+				{@const suggestedRecipes = recipes.filter(
+					(r: any) => r.isSuggested && (!hideIncompatible || (r.compatibility?.compatible ?? true))
+				)}
+				{@const otherRecipes = recipes.filter(
+					(r: any) => !r.isSuggested && (!hideIncompatible || (r.compatibility?.compatible ?? true))
+				)}
 
 				<!-- Suggested Recipes -->
 				{#if suggestedRecipes.length > 0}
@@ -529,46 +509,45 @@
 						</Button>
 					</div>
 				{/if}
-			</div>
-		</main>
-
-		<AlertDialog.Root bind:open={deleteDialogOpen}>
-			<AlertDialog.Content>
-				<AlertDialog.Header>
-					<AlertDialog.Title>Are you sure?</AlertDialog.Title>
-					<AlertDialog.Description>
-						This will permanently delete this recipe from your cookbook. This action cannot be
-						undone.
-					</AlertDialog.Description>
-				</AlertDialog.Header>
-				<AlertDialog.Footer>
-					<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-					<form
-						method="POST"
-						action="?/delete"
-						use:enhance={() => {
-							deleteDialogOpen = false;
-							if (recipeToDelete) deletingId = recipeToDelete;
-							return async ({ update }) => {
-								deletingId = null;
-								await update();
-							};
-						}}
-						class="inline-block"
-					>
-						<input type="hidden" name="recipeId" value={recipeToDelete} />
-						<AlertDialog.Action type="submit" class="btn-danger">Delete</AlertDialog.Action>
-					</form>
-				</AlertDialog.Footer>
-			</AlertDialog.Content>
-		</AlertDialog.Root>
-	</div>
-{:catch error}
-	<!-- Error State -->
-	<div class="flex min-h-screen items-center justify-center">
-		<div class="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
-			<p class="text-red-600">Failed to load recipes</p>
-			<p class="mt-2 text-sm text-red-500">{error.message}</p>
+			{:catch error}
+				<!-- Error State -->
+				<div class="flex min-h-[40vh] items-center justify-center">
+					<div class="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+						<p class="text-red-600">Failed to load recipes</p>
+						<p class="mt-2 text-sm text-red-500">{error.message}</p>
+					</div>
+				</div>
+			{/await}
 		</div>
-	</div>
-{/await}
+	</main>
+
+	<AlertDialog.Root bind:open={deleteDialogOpen}>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Are you sure?</AlertDialog.Title>
+				<AlertDialog.Description>
+					This will permanently delete this recipe from your cookbook. This action cannot be undone.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+				<form
+					method="POST"
+					action="?/delete"
+					use:enhance={() => {
+						deleteDialogOpen = false;
+						if (recipeToDelete) deletingId = recipeToDelete;
+						return async ({ update }) => {
+							deletingId = null;
+							await update();
+						};
+					}}
+					class="inline-block"
+				>
+					<input type="hidden" name="recipeId" value={recipeToDelete} />
+					<AlertDialog.Action type="submit" class="btn-danger">Delete</AlertDialog.Action>
+				</form>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
+</div>

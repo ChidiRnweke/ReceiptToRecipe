@@ -6,27 +6,23 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/login');
 
 	const pantryController = AppFactory.getPantryController();
+	const receiptRepo = AppFactory.getReceiptRepository();
 
-	const [items, expiredItems, stats] = await Promise.all([
-		pantryController.getUserPantry(locals.user.id),
-		pantryController.getExpiredItems(locals.user.id),
-		pantryController.getCupboardStats(locals.user.id)
-	]);
-
-	// Extract unique categories for filter dropdown
-	const categories = [...new Set(items.map((i) => i.category).filter(Boolean))] as string[];
-
-	// Get all item names from purchase history for autocomplete
 	const purchaseHistoryRepo = AppFactory.getPurchaseHistoryRepository();
-	const allHistory = await purchaseHistoryRepo.findByUserId(locals.user.id);
-	const existingItemNames = [...new Set(allHistory.map((h) => h.itemName))];
+
+	// Fetch data promises
+	const itemsPromise = pantryController.getUserPantry(locals.user.id);
+	const expiredItemsPromise = pantryController.getExpiredItems(locals.user.id);
+	const recentReceiptsPromise = receiptRepo.findByUserIdWithItems(locals.user.id, 5);
+	const allHistoryPromise = purchaseHistoryRepo.findByUserId(locals.user.id);
 
 	return {
-		items,
-		expiredItems,
-		stats,
-		categories,
-		existingItemNames
+		streamed: {
+			items: itemsPromise,
+			expiredItems: expiredItemsPromise,
+			recentReceipts: recentReceiptsPromise,
+			existingItemNames: allHistoryPromise.then((h) => [...new Set(h.map((i) => i.itemName))])
+		}
 	};
 };
 

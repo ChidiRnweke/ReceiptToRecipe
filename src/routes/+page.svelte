@@ -20,7 +20,6 @@
 	import StockBadge from '$lib/components/StockBadge.svelte';
 	import OnboardingModal from '$lib/components/OnboardingModal.svelte';
 	import LandingPage from '$lib/components/LandingPage.svelte';
-	import DashboardSkeleton from '$lib/components/skeletons/DashboardSkeleton.svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
 
 	let { data, form } = $props();
@@ -77,160 +76,94 @@
 </svelte:head>
 
 {#if data.user}
-	{#await data.streamed.dashboardData}
-		<!-- Show skeleton while loading -->
+	<!-- Main Layout Frame - Renders Immediately -->
+	<div
+		class="paper-card relative flex min-h-screen gap-0 rounded-4xl border border-sand bg-bg-paper shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)]"
+	>
 		<div
-			class="paper-card relative flex min-h-screen gap-0 rounded-4xl border border-sand bg-bg-paper shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)]"
+			class="pointer-events-none absolute inset-0 rounded-4xl bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
+		></div>
+
+		<!-- Sidebar -->
+		<aside
+			class="hidden h-full w-[320px] shrink-0 rounded-tl-4xl rounded-bl-4xl border-r border-sand bg-bg-paper-dark/80 px-6 py-6 backdrop-blur-sm lg:block"
 		>
-			<DashboardSkeleton />
-		</div>
-	{:then dashboardData}
-		{@const recentRecipes = dashboardData.recentRecipes ?? []}
-		{@const recentReceipts = dashboardData.recentReceipts ?? []}
-		{@const pantryItems = dashboardData.pantry ?? []}
-		{@const activeList = dashboardData.activeList}
-		{@const suggestions = dashboardData.suggestions ?? []}
-		{@const metrics = dashboardData.metrics}
-		{@const featuredRecipe = recentRecipes[0]}
-		{@const recipeFeed = recentRecipes}
-		{@const serverShoppingNames = new Set(activeList?.items?.map((i: any) => i.name) ?? [])}
-		{@const shoppingListNames = (() => {
-			const merged = new Set(serverShoppingNames);
-			for (const name of pendingAdds) merged.add(name);
-			for (const name of pendingRemoves) merged.delete(name);
-			return merged;
-		})()}
-		{@const ingredientList = (() => {
-			if (
-				featuredRecipe &&
-				'ingredients' in featuredRecipe &&
-				Array.isArray(featuredRecipe.ingredients) &&
-				featuredRecipe.ingredients.length > 0
-			) {
-				return featuredRecipe.ingredients.map((ing: any) => {
-					const pantryMatch = pantryItems.find(
-						(p: any) =>
-							p.itemName.toLowerCase().includes(ing.name.toLowerCase()) ||
-							ing.name.toLowerCase().includes(p.itemName.toLowerCase())
-					);
-					return {
-						name: ing.name,
-						quantity: ing.quantity,
-						unit: ing.unit,
-						note: ing.notes || (ing.optional ? 'optional' : undefined),
-						pantryMatch
-					};
-				});
-			}
-			return [
-				{
-					name: 'Generate a recipe to see ingredients',
-					note: 'Ingredients will appear here'
-				}
-			];
-		})()}
-		{@const pantryList = pantryItems}
-		{@const shoppingPreview = suggestions}
-		{@const cartCount = workflowStore.shoppingItems}
-		{@const visibleIngredients = showAllIngredients ? ingredientList : ingredientList.slice(0, 6)}
-		{@const ingredientStates = visibleIngredients.map((ingredient: any) => {
-			const ingredientDisplay = formatIngredientDisplay(ingredient);
-			const isAdded = shoppingListNames.has(ingredientDisplay);
-			const isAdding = addingIngredient === ingredientDisplay;
-			const inPantry = !!ingredient.pantryMatch && ingredient.pantryMatch.stockConfidence > 0.3;
-			return {
-				display: ingredientDisplay,
-				isAdded,
-				isAdding,
-				inPantry,
-				className: `group relative flex w-full items-start gap-4 px-4 py-3 text-left transition-colors duration-200 ${
-					isAdded ? 'bg-secondary-50/40' : inPantry ? 'bg-success-50/40' : 'hover:bg-info-50/30'
-				}`
-			};
-		})}
+			<div class="flex h-full flex-col gap-6">
+				<div class="space-y-6">
+					<!-- Greeting -->
+					<div class="flex items-center gap-2 text-xs tracking-[0.18em] text-ink-muted uppercase">
+						<span>{greeting}, {data.user.name?.split(' ')[0] || 'chef'}</span>
+					</div>
 
-		<!-- Onboarding Modal for new users -->
-		<OnboardingModal receiptCount={metrics?.receipts ?? 0} recipeCount={metrics?.recipes ?? 0} />
-
-		<div
-			class="paper-card relative flex min-h-screen gap-0 rounded-4xl border border-sand bg-bg-paper shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)]"
-		>
-			<div
-				class="pointer-events-none absolute inset-0 rounded-4xl bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
-			></div>
-
-			<aside
-				class="hidden h-full w-[320px] shrink-0 rounded-tl-4xl rounded-bl-4xl border-r border-sand bg-bg-paper-dark/80 px-6 py-6 backdrop-blur-sm lg:block"
-			>
-				<div class="flex h-full flex-col gap-6">
-					<div class="space-y-6">
-						<div class="flex items-center gap-2 text-xs tracking-[0.18em] text-ink-muted uppercase">
-							<span>{greeting}, {data.user.name?.split(' ')[0] || 'chef'}</span>
-						</div>
-
-						<PinnedNote>
-							<div class="flex items-start gap-3">
-								<div class="mt-0.5 text-amber-600">
-									<Lightbulb class="h-4 w-4" />
-								</div>
-								<div>
-									<p class="font-hand text-sm leading-snug text-ink/80">
-										{randomTip}
-									</p>
-								</div>
+					<!-- Random Tip -->
+					<PinnedNote>
+						<div class="flex items-start gap-3">
+							<div class="mt-0.5 text-amber-600">
+								<Lightbulb class="h-4 w-4" />
 							</div>
-						</PinnedNote>
+							<div>
+								<p class="font-hand text-sm leading-snug text-ink/80">
+									{randomTip}
+								</p>
+							</div>
+						</div>
+					</PinnedNote>
 
-						<Notepad>
-							<div class="border-b border-dashed border-border p-5">
-								<div class="mb-3 flex items-center justify-between">
-									<div class="flex items-center gap-3">
-										<h3 class="font-display text-lg text-ink">Scan & Sort</h3>
-
-										<div
-											class="mt-1 flex flex-col gap-px opacity-40 mix-blend-multiply select-none"
-											aria-hidden="true"
-										>
-											<div
-												class="h-3 w-8"
-												style="background: linear-gradient(to right, #000 1px, transparent 1px, transparent 3px, #000 3px, #000 4px, transparent 4px, transparent 6px, #000 6px, #000 9px, transparent 9px, transparent 10px, #000 10px, #000 12px, transparent 12px, transparent 14px, #000 14px, #000 15px, transparent 15px, transparent 18px, #000 18px);"
-											></div>
-											<div
-												class="font-ui text-center text-[5px] leading-none tracking-widest text-black/60"
-											>
-												8401
-											</div>
-										</div>
-									</div>
+					<Notepad>
+						<div class="border-b border-dashed border-border p-5">
+							<div class="mb-3 flex items-center justify-between">
+								<div class="flex items-center gap-3">
+									<h3 class="font-display text-lg text-ink">Scan & Sort</h3>
 
 									<div
-										class="flex h-8 w-8 items-center justify-center rounded-lg bg-sage-50 text-sage-600"
+										class="mt-1 flex flex-col gap-px opacity-40 mix-blend-multiply select-none"
+										aria-hidden="true"
 									>
-										<Upload class="h-4 w-4" />
+										<div
+											class="h-3 w-8"
+											style="background: linear-gradient(to right, #000 1px, transparent 1px, transparent 3px, #000 3px, #000 4px, transparent 4px, transparent 6px, #000 6px, #000 9px, transparent 9px, transparent 10px, #000 10px, #000 12px, transparent 12px, transparent 14px, #000 14px, #000 15px, transparent 15px, transparent 18px, #000 18px);"
+										></div>
+										<div
+											class="font-ui text-center text-[5px] leading-none tracking-widest text-black/60"
+										>
+											8401
+										</div>
 									</div>
 								</div>
 
-								<div class="grid grid-cols-1 gap-2">
-									<Button
-										href="/receipts/upload"
-										size="sm"
-										class="w-full bg-sage-600 text-white shadow-sm hover:bg-sage-500"
-									>
-										Drop receipt
-									</Button>
+								<div
+									class="flex h-8 w-8 items-center justify-center rounded-lg bg-sage-50 text-sage-600"
+								>
+									<Upload class="h-4 w-4" />
 								</div>
 							</div>
 
-							<div class="p-2">
-								<a
-									href="/shopping"
-									class="flex w-full items-center justify-between rounded-lg p-3 text-left transition-colors hover:bg-bg-hover"
+							<div class="grid grid-cols-1 gap-2">
+								<Button
+									href="/receipts/upload"
+									size="sm"
+									class="w-full bg-sage-600 text-white shadow-sm hover:bg-sage-500"
 								>
-									<div>
-										<p class="text-[10px] tracking-wider text-ink-muted uppercase">Shopping List</p>
-										<p class="font-display text-xl text-ink">
-											{cartCount} items
-										</p>
+									Drop receipt
+								</Button>
+							</div>
+						</div>
+
+						<div class="p-2">
+							<a
+								href="/shopping"
+								class="flex w-full items-center justify-between rounded-lg p-3 text-left transition-colors hover:bg-bg-hover"
+							>
+								<div>
+									<p class="text-[10px] tracking-wider text-ink-muted uppercase">Shopping List</p>
+									<p class="font-display text-xl text-ink">
+										{workflowStore.shoppingItems} items
+									</p>
+									<!-- Progress Bar (Depends on activeList stats) -->
+									{#await data.streamed.dashboardData}
+										<div class="mt-2 h-1.5 w-16 animate-pulse rounded-full bg-border/50"></div>
+									{:then dashboardData}
+										{@const activeList = dashboardData.activeList}
 										{#if activeList?.stats}
 											<div class="mt-1 flex items-center gap-2">
 												<div class="h-1.5 w-16 rounded-full bg-border">
@@ -244,13 +177,35 @@
 												</span>
 											</div>
 										{/if}
-									</div>
-									<ShoppingCart class="h-5 w-5 text-sage-600" />
-								</a>
-							</div>
-						</Notepad>
-					</div>
+									{/await}
+								</div>
+								<ShoppingCart class="h-5 w-5 text-sage-600" />
+							</a>
+						</div>
+					</Notepad>
+				</div>
 
+				<!-- Pantry Preview -->
+				{#await data.streamed.dashboardData}
+					<!-- Pantry Skeleton -->
+					<div class="mb-4 rotate-1 rounded-xl border border-sand/60 bg-bg-card p-4 shadow-sm">
+						<div
+							class="mb-2 flex items-center gap-2 border-b border-sand/40 pb-2 text-xs tracking-wider text-text-muted uppercase"
+						>
+							<Store class="h-3 w-3" />
+							<span>Cupboard</span>
+						</div>
+						<div class="space-y-2">
+							{#each Array(4) as _}
+								<div class="flex items-center justify-between">
+									<Skeleton class="h-3 w-24 bg-sand/20" />
+									<Skeleton class="h-3 w-8 bg-sand/20" />
+								</div>
+							{/each}
+						</div>
+					</div>
+				{:then dashboardData}
+					{@const pantryList = dashboardData.pantry ?? []}
 					{#if pantryList.length > 0}
 						<div
 							class="mb-4 rotate-1 rounded-xl border border-sand/60 bg-bg-card p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]"
@@ -291,65 +246,184 @@
 							{/if}
 						</div>
 					{/if}
-				</div>
-			</aside>
+				{/await}
+			</div>
+		</aside>
 
-			<main
-				class="relative z-10 flex flex-1 flex-col rounded-4xl bg-white lg:rounded-l-none lg:rounded-r-4xl"
-			>
-				<div class="mx-auto w-full max-w-5xl px-6 py-6 sm:px-10">
-					<div class="mb-8 flex flex-wrap items-end justify-between gap-4">
-						<div>
-							<p class="font-hand mb-1 text-lg text-ink-light">
-								{mealSuggestion}
-							</p>
-							{#if pantryItems.length === 0}
-								<h1
-									class="font-display text-3xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)] md:text-4xl"
-								>
-									Start by <span class="marker-highlight">dropping a receipt</span>.
-								</h1>
-							{:else}
-								<h1
-									class="font-display text-3xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)] md:text-4xl"
-								>
-									What are we <span class="marker-highlight">cooking</span> today?
-								</h1>
-							{/if}
-							<div
-								class="font-ui mt-4 flex items-center gap-2 text-[10px] tracking-widest text-text-muted uppercase"
+		<!-- Main Content -->
+		<main
+			class="relative z-10 flex flex-1 flex-col rounded-4xl bg-white lg:rounded-l-none lg:rounded-r-4xl"
+		>
+			<div class="mx-auto w-full max-w-5xl px-6 py-6 sm:px-10">
+				<!-- Header -->
+				<div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+					<div>
+						<p class="font-hand mb-1 text-lg text-ink-light">
+							{mealSuggestion}
+						</p>
+						{#if workflowStore.cupboardItems === 0}
+							<h1
+								class="font-display text-3xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)] md:text-4xl"
 							>
-								<span
-									class={pantryItems.length === 0
-										? 'border-b-2 border-primary-200 font-bold text-primary-600'
-										: ''}>1. Scan</span
-								>
-								<span class="text-border">→</span>
-								<span
-									class={pantryItems.length > 0
-										? 'border-b-2 border-primary-200 font-bold text-primary-600'
-										: ''}>2. Stock</span
-								>
-								<span class="text-border">→</span>
-								<span>3. Cook</span>
-								<span class="text-border">→</span>
-								<span>4. Shop</span>
+								Start by <span class="marker-highlight">dropping a receipt</span>.
+							</h1>
+						{:else}
+							<h1
+								class="font-display text-3xl leading-[1.1] text-ink drop-shadow-[0_1px_0_rgba(255,255,255,0.8)] md:text-4xl"
+							>
+								What are we <span class="marker-highlight">cooking</span> today?
+							</h1>
+						{/if}
+						<div
+							class="font-ui mt-4 flex items-center gap-2 text-[10px] tracking-widest text-text-muted uppercase"
+						>
+							<span
+								class={workflowStore.cupboardItems === 0
+									? 'border-b-2 border-primary-200 font-bold text-primary-600'
+									: ''}>1. Scan</span
+							>
+							<span class="text-border">→</span>
+							<span
+								class={workflowStore.cupboardItems > 0
+									? 'border-b-2 border-primary-200 font-bold text-primary-600'
+									: ''}>2. Stock</span
+							>
+							<span class="text-border">→</span>
+							<span>3. Cook</span>
+							<span class="text-border">→</span>
+							<span>4. Shop</span>
+						</div>
+					</div>
+					<Button
+						href="/recipes/generate"
+						class="group relative h-10 overflow-hidden rounded-lg border border-primary-300 bg-bg-input px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-paper-dark hover:shadow-md active:scale-95"
+					>
+						<div class="flex items-center gap-2">
+							<Sparkles
+								class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
+							/>
+							<span class="font-display text-base font-medium text-text-primary"
+								>Generate New Recipe</span
+							>
+						</div>
+					</Button>
+				</div>
+
+				<!-- Main Content Skeletons/Real Data -->
+				{#await data.streamed.dashboardData}
+					<div class="grid items-stretch gap-8 lg:grid-cols-12">
+						<!-- Recipe Card Skeleton -->
+						<div class="lg:col-span-7">
+							<div
+								class="group relative flex h-full flex-col overflow-hidden rounded-l-md rounded-r-2xl border border-border bg-bg-paper shadow-sm md:flex-row"
+							>
+								<div class="relative h-40 w-full p-5 pr-2 md:h-auto md:w-5/12">
+									<Skeleton class="h-full w-full rounded-lg bg-stone-200/50" />
+								</div>
+								<div class="relative flex w-full flex-col justify-center p-6 md:w-7/12 md:p-8">
+									<Skeleton class="mb-3 h-3 w-32 bg-stone-200/50" />
+									<Skeleton class="mb-4 h-8 w-48 bg-stone-200/50" />
+									<div class="flex gap-4">
+										<Skeleton class="h-4 w-24 bg-stone-200/50" />
+										<Skeleton class="h-4 w-20 bg-stone-200/50" />
+									</div>
+									<Skeleton class="mt-4 h-12 w-full bg-stone-200/50" />
+								</div>
 							</div>
 						</div>
-						<Button
-							href="/recipes/generate"
-							class="group relative h-10 overflow-hidden rounded-lg border border-primary-300 bg-bg-input px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-paper-dark hover:shadow-md active:scale-95"
-						>
-							<div class="flex items-center gap-2">
-								<Sparkles
-									class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
-								/>
-								<span class="font-display text-base font-medium text-text-primary"
-									>Generate New Recipe</span
+
+						<!-- Mise en place Skeleton -->
+						<div class="lg:col-span-5">
+							<div
+								class="relative mx-auto flex h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-bg-card shadow-sm"
+							>
+								<div
+									class="flex shrink-0 items-center justify-between border-b border-border bg-bg-elevated px-6 py-4"
 								>
+									<Skeleton class="h-3 w-24 bg-stone-200/50" />
+									<div class="flex gap-1">
+										<Skeleton class="h-1.5 w-1.5 rounded-full bg-stone-200/50" />
+										<Skeleton class="h-1.5 w-1.5 rounded-full bg-stone-200/50" />
+										<Skeleton class="h-1.5 w-1.5 rounded-full bg-stone-200/50" />
+									</div>
+								</div>
+								<div class="relative flex-1 p-4">
+									{#each Array(6) as _, i}
+										<div class="flex items-center gap-3 py-3">
+											<Skeleton class="h-5 w-5 rounded-full bg-stone-200/50" />
+											<Skeleton class="h-4 flex-1 bg-stone-200/50" />
+										</div>
+									{/each}
+								</div>
 							</div>
-						</Button>
+						</div>
 					</div>
+				{:then dashboardData}
+					{@const recentRecipes = dashboardData.recentRecipes ?? []}
+					{@const pantryItems = dashboardData.pantry ?? []}
+					{@const activeList = dashboardData.activeList}
+					{@const suggestions = dashboardData.suggestions ?? []}
+					{@const featuredRecipe = recentRecipes[0]}
+					{@const recipeFeed = recentRecipes}
+					{@const serverShoppingNames = new Set(activeList?.items?.map((i: any) => i.name) ?? [])}
+					{@const shoppingListNames = (() => {
+						const merged = new Set(serverShoppingNames);
+						for (const name of pendingAdds) merged.add(name);
+						for (const name of pendingRemoves) merged.delete(name);
+						return merged;
+					})()}
+					{@const ingredientList = (() => {
+						if (
+							featuredRecipe &&
+							'ingredients' in featuredRecipe &&
+							Array.isArray(featuredRecipe.ingredients) &&
+							featuredRecipe.ingredients.length > 0
+						) {
+							return featuredRecipe.ingredients.map((ing: any) => {
+								const pantryMatch = pantryItems.find(
+									(p: any) =>
+										p.itemName.toLowerCase().includes(ing.name.toLowerCase()) ||
+										ing.name.toLowerCase().includes(p.itemName.toLowerCase())
+								);
+								return {
+									name: ing.name,
+									quantity: ing.quantity,
+									unit: ing.unit,
+									note: ing.notes || (ing.optional ? 'optional' : undefined),
+									pantryMatch
+								};
+							});
+						}
+						return [
+							{
+								name: 'Generate a recipe to see ingredients',
+								note: 'Ingredients will appear here'
+							}
+						];
+					})()}
+					{@const visibleIngredients = showAllIngredients
+						? ingredientList
+						: ingredientList.slice(0, 6)}
+					{@const ingredientStates = visibleIngredients.map((ingredient: any) => {
+						const ingredientDisplay = formatIngredientDisplay(ingredient);
+						const isAdded = shoppingListNames.has(ingredientDisplay);
+						const isAdding = addingIngredient === ingredientDisplay;
+						const inPantry =
+							!!ingredient.pantryMatch && ingredient.pantryMatch.stockConfidence > 0.3;
+						return {
+							display: ingredientDisplay,
+							isAdded,
+							isAdding,
+							inPantry,
+							className: `group relative flex w-full items-start gap-4 px-4 py-3 text-left transition-colors duration-200 ${
+								isAdded
+									? 'bg-secondary-50/40'
+									: inPantry
+										? 'bg-success-50/40'
+										: 'hover:bg-info-50/30'
+							}`
+						};
+					})}
 
 					<div class="order-last grid items-stretch gap-8 lg:order-0 lg:grid-cols-12">
 						<div class="lg:col-span-7">
@@ -720,17 +794,12 @@
 							{/if}
 						</div>
 					</div>
-				</div>
-			</main>
-		</div>
-	{:catch error}
-		<!-- Error state -->
-		<div class="flex min-h-screen items-center justify-center">
-			<div class="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
-				<p class="text-red-600">Failed to load dashboard data</p>
-				<p class="mt-2 text-sm text-red-500">{error.message}</p>
+				{/await}
 			</div>
-		</div>
+		</main>
+	</div>
+	{#await data.streamed.dashboardData catch error}
+		<!-- Error toast or fallback -->
 	{/await}
 {:else}
 	<LandingPage />

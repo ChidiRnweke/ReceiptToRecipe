@@ -43,66 +43,72 @@
 </script>
 
 <div
-	class="group rounded-lg border border-sand/40 bg-bg-card transition-all hover:border-sand/70 hover:shadow-sm"
+	class="group rounded-lg border border-border bg-bg-card transition-all hover:border-sand hover:shadow-sm"
 >
 	<!-- Main row -->
 	<button
 		type="button"
-		class="flex w-full items-center gap-3 p-3 text-left"
+		class="flex w-full flex-col gap-3 p-4 text-left"
 		onclick={() => (expanded = !expanded)}
 	>
-		<!-- Source icon -->
-		<span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-bg-paper-dark">
-			{#if item.source === 'receipt'}
-				<Receipt class="h-3 w-3 text-text-muted" />
-			{:else}
-				<Pencil class="h-3 w-3 text-text-muted" />
-			{/if}
-		</span>
+		<div class="flex w-full items-start gap-3">
+			<!-- Source icon -->
+			<span
+				class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bg-paper-dark text-ink-muted"
+			>
+				{#if item.source === 'receipt'}
+					<Receipt class="h-4 w-4" />
+				{:else}
+					<Pencil class="h-4 w-4" />
+				{/if}
+			</span>
 
-		<!-- Item info -->
-		<div class="min-w-0 flex-1">
-			<div class="flex items-center gap-2">
-				<span class="font-body truncate text-sm font-medium text-text-primary">
-					{item.itemName}
-				</span>
-				<StockBadge confidence={item.stockConfidence} className="shrink-0" />
-			</div>
-			<div class="font-ui mt-0.5 flex items-center gap-2 text-[11px] text-text-muted">
-				{#if item.quantity && item.quantity !== '1'}
-					<span>{item.quantity} {item.unit}</span>
-					<span class="text-sand">·</span>
-				{/if}
-				<span>{daysSinceLabel}</span>
-				{#if daysLeftLabel}
-					<span class="text-sand">·</span>
-					<span
-						class={daysLeftLabel === 'Expired'
-							? 'text-rose-500'
-							: item.stockConfidence <= 0.4
-								? 'text-amber-600'
-								: 'text-text-muted'}
-					>
-						{daysLeftLabel}
+			<!-- Item info -->
+			<div class="min-w-0 flex-1">
+				<div class="flex items-start justify-between gap-2">
+					<span class="line-clamp-2 text-sm leading-tight font-medium text-ink">
+						{item.itemName}
 					</span>
-				{/if}
+					<!-- Expand chevron -->
+					<span class="shrink-0 text-ink-muted transition-transform" class:rotate-180={expanded}>
+						<ChevronDown class="h-4 w-4" />
+					</span>
+				</div>
+
+				<div class="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+					<div class="flex items-center gap-2 text-[11px] text-ink-muted">
+						{#if item.quantity && item.quantity !== '1'}
+							<span class="font-medium text-ink-light">{item.quantity} {item.unit}</span>
+							<span class="text-border">|</span>
+						{/if}
+						<span>{daysSinceLabel}</span>
+						{#if daysLeftLabel}
+							<span class="text-border">|</span>
+							<span
+								class={daysLeftLabel === 'Expired'
+									? 'font-medium text-destructive'
+									: item.stockConfidence <= 0.4
+										? 'font-medium text-warning-600'
+										: 'text-ink-muted'}
+							>
+								{daysLeftLabel}
+							</span>
+						{/if}
+					</div>
+					<StockBadge confidence={item.stockConfidence} className="scale-90 origin-right" />
+				</div>
 			</div>
 		</div>
 
-		<!-- Confidence bar (compact) -->
-		<div class="hidden w-16 sm:block">
+		<!-- Confidence bar (full width) -->
+		<div class="w-full px-1">
 			<ConfidenceBar confidence={item.stockConfidence} />
 		</div>
-
-		<!-- Expand chevron -->
-		<span class="text-text-muted transition-transform" class:rotate-180={expanded}>
-			<ChevronDown class="h-4 w-4" />
-		</span>
 	</button>
 
 	<!-- Expanded detail panel -->
 	{#if expanded}
-		<div transition:slide={{ duration: 200 }} class="border-t border-sand/30 px-3 pt-2 pb-3">
+		<div transition:slide={{ duration: 200 }} class="border-t border-sand/30 px-4 pt-3 pb-4">
 			<!-- Confidence detail -->
 			{#if item.confidenceFactors}
 				<ConfidenceDetail
@@ -115,7 +121,7 @@
 			{/if}
 
 			<!-- Action buttons -->
-			<div class="mt-3 flex flex-wrap gap-2">
+			<div class="mt-4 flex flex-wrap gap-2">
 				{#if mode === 'expired'}
 					<!-- Rescue: confirm still in stock -->
 					<form
@@ -134,7 +140,7 @@
 						<button
 							type="submit"
 							disabled={isActioning}
-							class="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+							class="border-success-200 text-success-700 flex items-center gap-1.5 rounded-lg border bg-success-50 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-success-100"
 						>
 							<Check class="h-3.5 w-3.5" />
 							I still have this
@@ -158,7 +164,7 @@
 						<button
 							type="submit"
 							disabled={isActioning}
-							class="flex items-center gap-1.5 rounded-lg border border-sand/60 bg-bg-card px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-bg-hover"
+							class="flex items-center gap-1.5 rounded-lg border border-border bg-bg-paper px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:bg-bg-hover hover:text-ink"
 						>
 							<PackageMinus class="h-3.5 w-3.5" />
 							Dismiss
@@ -182,7 +188,7 @@
 						<button
 							type="submit"
 							disabled={isActioning}
-							class="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 transition-colors hover:bg-rose-100"
+							class="flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
 						>
 							<PackageMinus class="h-3.5 w-3.5" />
 							I used this up
@@ -206,7 +212,7 @@
 						<button
 							type="submit"
 							disabled={isActioning}
-							class="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+							class="border-success-200 text-success-700 flex items-center gap-1.5 rounded-lg border bg-success-50 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-success-100"
 						>
 							<Check class="h-3.5 w-3.5" />
 							I still have this
@@ -230,7 +236,7 @@
 							<button
 								type="submit"
 								disabled={isActioning}
-								class="flex items-center gap-1.5 rounded-lg border border-sand/60 bg-bg-card px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+								class="flex items-center gap-1.5 rounded-lg border border-border bg-bg-paper px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
 							>
 								<Trash2 class="h-3.5 w-3.5" />
 								Remove
@@ -242,7 +248,7 @@
 				<!-- Add to shopping list (both modes) -->
 				{#if addedToList}
 					<span
-						class="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700"
+						class="border-success-200 text-success-700 flex items-center gap-1.5 rounded-lg border bg-success-50 px-3 py-1.5 text-xs font-medium"
 					>
 						<Check class="h-3.5 w-3.5" />
 						Added to list
@@ -269,7 +275,7 @@
 						<button
 							type="submit"
 							disabled={isActioning}
-							class="flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 transition-colors hover:bg-sky-100"
+							class="border-info-200 text-info-700 flex items-center gap-1.5 rounded-lg border bg-info-50 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-info-100"
 						>
 							<ShoppingCart class="h-3.5 w-3.5" />
 							Add to list
