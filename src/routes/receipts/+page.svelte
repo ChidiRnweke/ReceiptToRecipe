@@ -146,11 +146,11 @@
 							>
 								<a
 									href="/receipts/{receipt.id}"
-									class="absolute inset-0 z-0"
+									class="absolute inset-0 z-20"
 									aria-label="View receipt"
 								></a>
 								<div
-									class="relative z-0 flex flex-col items-start gap-4 px-6 py-5 md:flex-row md:items-center md:gap-6"
+									class="pointer-events-none relative flex flex-col items-start gap-4 px-6 py-5 md:flex-row md:items-center md:gap-6"
 								>
 									<!-- Notebook Margin Line -->
 									<div class="absolute top-0 bottom-0 left-6 w-px bg-red-300/40"></div>
@@ -207,7 +207,7 @@
 											<!-- Generate Button (Editorial Style) -->
 											<Button
 												href="/recipes/generate?receipt={receipt.id}"
-												class="group relative z-10 h-8 shrink-0 overflow-hidden rounded-md border border-sage-300 bg-white px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95"
+												class="group pointer-events-auto relative z-20 h-8 shrink-0 overflow-hidden rounded-md border border-sage-300 bg-white px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95"
 												onclick={(e: MouseEvent) => e.stopPropagation()}
 											>
 												<div class="flex items-center gap-2">
@@ -255,7 +255,7 @@
 												e.preventDefault();
 												confirmDelete(receipt.id);
 											}}
-											class="relative z-10 hover:bg-red-50 hover:text-red-600"
+											class="pointer-events-auto relative z-20 hover:bg-red-50 hover:text-red-600"
 										>
 											{#if isDeleting && receiptToDelete === receipt.id}
 												<Loader2 class="h-4 w-4 animate-spin" />
