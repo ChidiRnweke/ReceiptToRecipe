@@ -97,7 +97,7 @@
 	<title>{data.receipt.storeName || 'Receipt'} - Receipt2Recipe</title>
 </svelte:head>
 
-<div class="min-h-screen bg-bg-paper p-4 font-sans md:p-8">
+<div class="min-h-screen bg-bg-paper p-6 font-sans md:p-8">
 	<div class="mx-auto max-w-7xl">
 		<!-- Header with Typewriter Action -->
 		<div class="mb-8 flex items-center justify-between">
@@ -175,7 +175,7 @@
 					></div>
 
 					<!-- Header Section (Pinned) -->
-					<div class="relative z-10 px-4 pt-8 pb-0 sm:px-8">
+					<div class="relative z-10 px-6 pt-8 pb-0 sm:px-8">
 						<div class="absolute -top-3 left-[50%] z-20 -translate-x-1/2 drop-shadow-md">
 							<PushPin color="red" />
 						</div>
@@ -213,11 +213,11 @@
 					<div class="relative z-10 pt-4 pb-12">
 						<div class="space-y-0">
 							{#each data.receipt.items as item (item.id)}
-								<div class="group relative flex h-12 items-center hover:bg-blue-50/20">
+								<div class="group relative flex min-h-12 items-center py-2 hover:bg-blue-50/20">
 									<!-- LEFT GUTTER - Contains Qty & Add Button -->
 									<!-- Smaller on mobile (w-16), wider on desktop (w-24) -->
 									<div
-										class="flex w-16 items-center justify-end border-r border-transparent pr-2 sm:w-20 lg:w-24 lg:pr-3"
+										class="flex w-24 items-center justify-end border-r border-transparent pr-4 pl-2 sm:w-24 lg:w-24 lg:pr-3"
 									>
 										<!-- Add Action (Mini) -->
 										<form
@@ -294,21 +294,21 @@
 
 									<!-- RIGHT CONTENT (After Red Margin) - Normalized Name Only -->
 									<!-- Reduced padding on mobile, standard on desktop -->
-									<div class="flex-1 pr-4 pl-3 sm:pr-6 sm:pl-4 lg:pr-8 lg:pl-8">
+									<div class="flex-1 pr-6 pl-6 sm:pr-6 sm:pl-6 lg:pr-8 lg:pl-8">
 										{#if isEditing}
 											<Input
 												value={item.normalizedName || item.rawName}
 												class="h-8 border-transparent bg-transparent px-0 font-serif text-lg text-text-primary focus-visible:ring-0"
 											/>
 										{:else}
-											<div class="flex flex-col">
+											<div class="flex flex-col py-1">
 												<span
-													class="font-serif text-base leading-none font-medium tracking-normal text-text-primary sm:text-lg lg:text-xl"
+													class="font-serif text-base leading-snug font-medium tracking-normal text-text-primary sm:text-lg lg:text-xl"
 												>
 													{item.normalizedName || item.rawName}
 												</span>
 												{#if item.normalizedName && item.normalizedName !== item.rawName}
-													<span class="font-ui mt-1 truncate text-xs text-text-muted">
+													<span class="font-ui mt-1 text-xs text-text-muted">
 														{item.rawName}
 													</span>
 												{/if}

@@ -74,7 +74,7 @@
 	<title>Receipts - Ledger</title>
 </svelte:head>
 
-<div class="-mx-4 flex min-h-[calc(100vh-4rem)] md:-mx-8">
+<div class="flex min-h-[calc(100vh-4rem)]">
 	<!-- Ledger Main Content -->
 	<main class="relative flex-1 overflow-y-auto bg-bg-paper p-6 md:p-10">
 		<!-- Desk Texture Overlay -->
