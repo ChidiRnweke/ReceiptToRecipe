@@ -30,6 +30,20 @@
 	let addedItems = $state<Record<string, boolean>>({});
 	let isEditing = $state(false);
 
+	// Subscribe to streamed data
+	let generatedRecipes = $state<any[]>([]);
+	$effect(() => {
+		if (data.streamed?.generatedRecipes) {
+			data.streamed.generatedRecipes
+				.then((recipes) => {
+					generatedRecipes = recipes;
+				})
+				.catch(() => {
+					generatedRecipes = [];
+				});
+		}
+	});
+
 	onMount(() => {
 		if (data.receipt.status === 'QUEUED' || data.receipt.status === 'PROCESSING') {
 			pollingInterval = setInterval(async () => {

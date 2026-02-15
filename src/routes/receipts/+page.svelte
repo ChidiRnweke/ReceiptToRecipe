@@ -33,6 +33,20 @@
 	let { data } = $props();
 	let addingToShoppingId = $state<string | null>(null);
 
+	// Subscribe to streamed data
+	let recipeCounts = $state<Record<string, number>>({});
+	$effect(() => {
+		if (data.streamed?.recipeCounts) {
+			data.streamed.recipeCounts
+				.then((counts) => {
+					recipeCounts = counts;
+				})
+				.catch(() => {
+					recipeCounts = {};
+				});
+		}
+	});
+
 	// Dialog state
 	let deleteDialogOpen = $state(false);
 	let receiptToDelete = $state<string | null>(null);

@@ -12,30 +12,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		throw error(404, 'Recipe not found');
 	}
 
+	// Critical data - load immediately
 	const isSaved = viewerId ? await recipeController.isSaved(viewerId, recipe.id) : false;
 	const isOwner = viewerId === recipe.userId;
 
-	// Load pantry for matching
-	let pantryMatches: Record<string, number> = {};
-	if (viewerId) {
-		const pantryController = AppFactory.getPantryController();
-		const pantry = await pantryController.getUserPantry(viewerId);
-
-		recipe.ingredients.forEach((ing) => {
-			const ingName = ing.name.toLowerCase();
-			// Find the best match in pantry
-			const match = pantry.find((p) => {
-				const pName = p.itemName.toLowerCase();
-				return pName.includes(ingName) || ingName.includes(pName);
-			});
-
-			if (match) {
-				pantryMatches[ing.name] = match.stockConfidence;
-			}
-		});
-	}
-
-	// Load source receipt if available
+	// Load source receipt if available (fast, do immediately)
 	let sourceReceipt = null;
 	if (recipe.sourceReceiptId) {
 		const receiptRepo = AppFactory.getReceiptRepository();
@@ -50,40 +31,62 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		}
 	}
 
-	// Generate AI suggestions for modifications
-	let suggestions: string[] = [];
-	try {
-		const llmService = AppFactory.getCulinaryIntelligence();
-		// Map DB recipe to GeneratedRecipe interface for the AI service
-		const recipeForAi = {
-			title: recipe.title,
-			description: recipe.description || '',
-			instructions: recipe.instructions,
-			servings: recipe.servings,
-			prepTime: recipe.prepTime || 0,
-			cookTime: recipe.cookTime || 0,
-			cuisineType: recipe.cuisineType || undefined,
-			ingredients: recipe.ingredients.map((i: any) => ({
-				name: i.name,
-				quantity: typeof i.quantity === 'string' ? parseFloat(i.quantity) : i.quantity,
-				unit: i.unit,
-				optional: i.optional || false,
-				notes: i.notes || undefined
-			}))
-		};
-		suggestions = await llmService.suggestModifications(recipeForAi);
-	} catch (err) {
-		console.warn('Failed to generate recipe suggestions:', err);
-		// Keep empty on error
-	}
+	// Non-critical data - stream as promises
+	const pantryController = AppFactory.getPantryController();
+	const pantryMatchesPromise = viewerId
+		? pantryController.getUserPantry(viewerId).then((pantry) => {
+				const matches: Record<string, number> = {};
+				recipe.ingredients.forEach((ing) => {
+					const ingName = ing.name.toLowerCase();
+					const match = pantry.find((p) => {
+						const pName = p.itemName.toLowerCase();
+						return pName.includes(ingName) || ingName.includes(pName);
+					});
+					if (match) {
+						matches[ing.name] = match.stockConfidence;
+					}
+				});
+				return matches;
+			})
+		: Promise.resolve({});
+
+	// AI suggestions - expensive operation, definitely stream this
+	const suggestionsPromise = (async () => {
+		try {
+			const llmService = AppFactory.getCulinaryIntelligence();
+			const recipeForAi = {
+				title: recipe.title,
+				description: recipe.description || '',
+				instructions: recipe.instructions,
+				servings: recipe.servings,
+				prepTime: recipe.prepTime || 0,
+				cookTime: recipe.cookTime || 0,
+				cuisineType: recipe.cuisineType || undefined,
+				ingredients: recipe.ingredients.map((i: any) => ({
+					name: i.name,
+					quantity: typeof i.quantity === 'string' ? parseFloat(i.quantity) : i.quantity,
+					unit: i.unit,
+					optional: i.optional || false,
+					notes: i.notes || undefined
+				}))
+			};
+			return await llmService.suggestModifications(recipeForAi);
+		} catch (err) {
+			console.warn('Failed to generate recipe suggestions:', err);
+			return [];
+		}
+	})();
 
 	return {
 		recipe,
 		isSaved,
 		isOwner,
 		sourceReceipt,
-		pantryMatches,
-		suggestions
+		// Stream non-critical data
+		streamed: {
+			pantryMatches: pantryMatchesPromise,
+			suggestions: suggestionsPromise
+		}
 	};
 };
 

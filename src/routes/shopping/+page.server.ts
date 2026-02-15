@@ -11,11 +11,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const shoppingListController = AppFactory.getShoppingListController();
 	const pantryController = AppFactory.getPantryController();
 
-	const [activeList, lists, suggestions, pantry] = await Promise.all([
+	// Critical data - load immediately
+	const [activeList, lists] = await Promise.all([
 		shoppingListController.getActiveList(locals.user.id),
-		shoppingListController.getUserLists(locals.user.id),
-		shoppingListController.getSmartSuggestions(locals.user.id),
-		pantryController.getUserPantry(locals.user.id)
+		shoppingListController.getUserLists(locals.user.id)
 	]);
 
 	// Collect all recipe IDs from shopping list items
@@ -28,41 +27,50 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 	}
 
-	// Load recipe info for source attribution
-	let recipeMap: Record<string, { id: string; title: string }> = {};
-	if (recipeIds.size > 0) {
-		const recipeRepo = AppFactory.getRecipeRepository();
-		const recipeList = await recipeRepo.findByIds(Array.from(recipeIds));
-		recipeMap = Object.fromEntries(recipeList.map((r) => [r.id, { id: r.id, title: r.title }]));
-	}
-
-	// Get counts for empty state guidance
+	// Non-critical data - stream as promises
 	const recipeRepo = AppFactory.getRecipeRepository();
-	const recipeCount = await recipeRepo.countByUserId(locals.user.id);
+	const recipeCountPromise = recipeRepo.countByUserId(locals.user.id);
 
-	// Build pantry lookup map for quick duplicate checks (items with >70% confidence)
-	const pantryLookup: Record<
-		string,
-		{ confidence: number; lastPurchased: Date; daysSincePurchase: number }
-	> = {};
-	for (const item of pantry) {
-		if (item.stockConfidence >= 0.7) {
-			pantryLookup[item.itemName.toLowerCase()] = {
-				confidence: item.stockConfidence,
-				lastPurchased: item.lastPurchased,
-				daysSincePurchase: item.daysSincePurchase
-			};
+	const suggestionsPromise = shoppingListController.getSmartSuggestions(locals.user.id);
+
+	const pantryPromise = pantryController.getUserPantry(locals.user.id).then((pantry) => {
+		// Build pantry lookup map for quick duplicate checks
+		const pantryLookup: Record<
+			string,
+			{ confidence: number; lastPurchased: Date; daysSincePurchase: number }
+		> = {};
+		for (const item of pantry) {
+			if (item.stockConfidence >= 0.7) {
+				pantryLookup[item.itemName.toLowerCase()] = {
+					confidence: item.stockConfidence,
+					lastPurchased: item.lastPurchased,
+					daysSincePurchase: item.daysSincePurchase
+				};
+			}
 		}
-	}
+		return { pantry, pantryLookup };
+	});
+
+	// Load recipe info for source attribution
+	const recipeMapPromise =
+		recipeIds.size > 0
+			? recipeRepo
+					.findByIds(Array.from(recipeIds))
+					.then((recipeList) =>
+						Object.fromEntries(recipeList.map((r) => [r.id, { id: r.id, title: r.title }]))
+					)
+			: Promise.resolve({});
 
 	return {
 		activeList,
 		lists,
-		suggestions,
-		recipeMap,
-		recipeCount,
-		pantry,
-		pantryLookup
+		// Stream non-critical data
+		streamed: {
+			suggestions: suggestionsPromise,
+			recipeMap: recipeMapPromise,
+			recipeCount: recipeCountPromise,
+			pantryData: pantryPromise
+		}
 	};
 };
 

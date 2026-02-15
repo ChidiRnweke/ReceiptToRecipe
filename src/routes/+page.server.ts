@@ -9,11 +9,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const userId = locals.user.id;
 	const dashboardService = AppFactory.getDashboardService();
-	const dashboardData = await dashboardService.getDashboardData(userId);
+
+	// Stream non-critical data - don't await, return promises
+	const dashboardDataPromise = dashboardService.getDashboardData(userId);
 
 	return {
 		user: locals.user,
-		...dashboardData
+		// Return the promise directly for streaming
+		streamed: {
+			dashboardData: dashboardDataPromise
+		}
 	};
 };
 

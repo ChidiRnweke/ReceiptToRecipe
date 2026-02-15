@@ -9,70 +9,69 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	const recipeController = AppFactory.getRecipeController();
-	const recipes = await recipeController.getUserRecipesWithIngredients(locals.user.id);
-
-	// Get pantry
 	const pantryController = AppFactory.getPantryController();
-	const pantry = await pantryController.getUserPantry(locals.user.id);
+	const receiptRepo = AppFactory.getReceiptRepository();
 
-	// Get Taste Profile
-	const tasteProfileController = new TasteProfileController(AppFactory.getTasteProfileService());
-	// Optimization: We could fetch profile once and pass it to a sync helper, but checkCompatibility is async.
-	// For many recipes, we should do this efficiently.
-	// Ideally checkRecipeCompatibility in service should take a profile object, but it fetches it.
-	// Let's iterate.
+	// Start all async operations in parallel, don't await yet
+	const recipesPromise = recipeController.getUserRecipesWithIngredients(locals.user.id);
+	const pantryPromise = pantryController.getUserPantry(locals.user.id);
+	const receiptCountPromise = receiptRepo.countByUserId(locals.user.id);
 
-	// Create a map of pantry normalized names for fast lookup
-	const pantrySet = new Set(pantry.map((i) => i.itemName.toLowerCase()));
+	// Return promises for streaming - page shell renders immediately
+	return {
+		streamed: {
+			recipesData: Promise.all([recipesPromise, pantryPromise]).then(async ([recipes, pantry]) => {
+				const tasteProfileController = new TasteProfileController(
+					AppFactory.getTasteProfileService()
+				);
+				const pantrySet = new Set(pantry.map((i) => i.itemName.toLowerCase()));
 
-	// Augment recipes with suggestion data
-	const augmentedRecipes = await Promise.all(
-		recipes.map(async (recipe) => {
-			let matchCount = 0;
-			const totalIngredients = recipe.ingredients.length;
+				// Augment recipes with suggestion data
+				const augmentedRecipes = await Promise.all(
+					recipes.map(async (recipe) => {
+						let matchCount = 0;
+						const totalIngredients = recipe.ingredients.length;
+						const missingIngredients = [];
 
-			const missingIngredients = [];
+						for (const ing of recipe.ingredients) {
+							const ingName = ing.name.toLowerCase();
+							const isMatch = Array.from(pantrySet).some(
+								(pItem) => pItem.includes(ingName) || ingName.includes(pItem)
+							);
 
-			for (const ing of recipe.ingredients) {
-				const ingName = ing.name.toLowerCase();
-				const isMatch = Array.from(pantrySet).some(
-					(pItem) => pItem.includes(ingName) || ingName.includes(pItem)
+							if (isMatch) {
+								matchCount++;
+							} else {
+								missingIngredients.push(ing.name);
+							}
+						}
+
+						const matchPercentage = totalIngredients > 0 ? matchCount / totalIngredients : 0;
+
+						// Check compatibility
+						const compatibility = await tasteProfileController.checkCompatibility(
+							locals.user!.id,
+							recipe.id
+						);
+
+						return {
+							...recipe,
+							matchCount,
+							totalIngredients,
+							matchPercentage,
+							missingIngredients,
+							compatibility,
+							isSuggested: matchPercentage >= 0.7
+						};
+					})
 				);
 
-				if (isMatch) {
-					matchCount++;
-				} else {
-					missingIngredients.push(ing.name);
-				}
-			}
-
-			const matchPercentage = totalIngredients > 0 ? matchCount / totalIngredients : 0;
-
-			// Check compatibility
-			const compatibility = await tasteProfileController.checkCompatibility(
-				locals.user!.id,
-				recipe.id
-			);
-
-			return {
-				...recipe,
-				matchCount,
-				totalIngredients,
-				matchPercentage,
-				missingIngredients,
-				compatibility,
-				isSuggested: matchPercentage >= 0.7
-			};
-		})
-	);
-
-	// Get receipt count for empty state guidance
-	const receiptRepo = AppFactory.getReceiptRepository();
-	const receiptCount = await receiptRepo.countByUserId(locals.user.id);
-
-	return {
-		recipes: augmentedRecipes,
-		receiptCount
+				return {
+					recipes: augmentedRecipes,
+					receiptCount: await receiptCountPromise
+				};
+			})
+		}
 	};
 };
 

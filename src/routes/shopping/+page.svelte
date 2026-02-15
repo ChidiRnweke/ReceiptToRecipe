@@ -46,11 +46,59 @@
 	});
 
 	function getRecipeInfo(recipeId: string | null) {
-		if (!recipeId || !data.recipeMap) return null;
-		return data.recipeMap[recipeId] || null;
+		if (!recipeId || !recipeMap) return null;
+		return recipeMap[recipeId] || null;
 	}
 
 	let { data, form } = $props();
+
+	// Subscribe to streamed data
+	let suggestions = $state<any[]>([]);
+	let recipeMap = $state<Record<string, { id: string; title: string }>>({});
+	let recipeCount = $state(0);
+	let pantry = $state<any[]>([]);
+	let pantryLookup = $state<Record<string, any>>({});
+
+	$effect(() => {
+		if (data.streamed?.suggestions) {
+			data.streamed.suggestions
+				.then((s) => {
+					suggestions = s;
+				})
+				.catch(() => {
+					suggestions = [];
+				});
+		}
+		if (data.streamed?.recipeMap) {
+			data.streamed.recipeMap
+				.then((rm) => {
+					recipeMap = rm;
+				})
+				.catch(() => {
+					recipeMap = {};
+				});
+		}
+		if (data.streamed?.recipeCount) {
+			data.streamed.recipeCount
+				.then((rc) => {
+					recipeCount = rc;
+				})
+				.catch(() => {
+					recipeCount = 0;
+				});
+		}
+		if (data.streamed?.pantryData) {
+			data.streamed.pantryData
+				.then((pd) => {
+					pantry = pd.pantry;
+					pantryLookup = pd.pantryLookup;
+				})
+				.catch(() => {
+					pantry = [];
+					pantryLookup = {};
+				});
+		}
+	});
 
 	// Use $derived for state but allow overrides for optimistic UI
 	let lists = $derived(data.lists ?? []);
@@ -241,9 +289,9 @@
 						Based on what you usually buy, you might be on these essentials:
 					</p>
 
-					{#if data.suggestions && data.suggestions.length > 0}
+					{#if suggestions && suggestions.length > 0}
 						<ul class="mb-4 space-y-1">
-							{#each data.suggestions.slice(0, 5) as suggestion}
+							{#each suggestions.slice(0, 5) as suggestion}
 								<li class="group flex items-center justify-between">
 									<span class="font-hand text-lg text-ink/90">{suggestion.itemName}</span>
 									<form

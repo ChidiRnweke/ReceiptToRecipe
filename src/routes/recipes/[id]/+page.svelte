@@ -50,9 +50,34 @@
 			.filter((s) => s.length > 0)
 	);
 
-	// Calculate missing ingredients
+	// Calculate missing ingredients (will be updated when streamed data arrives)
+	let pantryMatches = $state<Record<string, number>>({});
+	let suggestions = $state<string[]>([]);
+
+	// Subscribe to streamed data
+	$effect(() => {
+		if (data.streamed?.pantryMatches) {
+			data.streamed.pantryMatches
+				.then((matches) => {
+					pantryMatches = matches;
+				})
+				.catch(() => {
+					pantryMatches = {};
+				});
+		}
+		if (data.streamed?.suggestions) {
+			data.streamed.suggestions
+				.then((sugg) => {
+					suggestions = sugg;
+				})
+				.catch(() => {
+					suggestions = [];
+				});
+		}
+	});
+
 	const pantrySet = $derived(
-		new Set(Object.keys(data.pantryMatches || {}).map((i: string) => i.toLowerCase()))
+		new Set(Object.keys(pantryMatches).map((i: string) => i.toLowerCase()))
 	);
 	const missingCount = $derived(
 		data.recipe.ingredients.filter((i: any) => !pantrySet.has(i.name.toLowerCase())).length
@@ -391,7 +416,7 @@
 							ingredients={data.recipe.ingredients}
 							instructions={data.recipe.instructions}
 							isOwner={data.isOwner}
-							suggestions={data.suggestions}
+							{suggestions}
 							onAdjust={() => invalidateAll()}
 						/>
 					</div>

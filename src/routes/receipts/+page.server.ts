@@ -10,20 +10,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const receiptController = AppFactory.getReceiptController();
 	const receipts = await receiptController.getUserReceipts(locals.user.id);
 
-	// Get recipe counts for each receipt
+	// Stream recipe counts - not critical for initial render
 	const receiptIds = receipts.map((r) => r.id);
-	let recipeCounts: Record<string, number> = {};
-
-	if (receiptIds.length > 0) {
-		const recipeRepo = AppFactory.getRecipeRepository();
-		const counts = await recipeRepo.countByReceiptIds(receiptIds);
-
-		recipeCounts = Object.fromEntries(counts.map((c) => [c.receiptId, c.count]));
-	}
+	const recipeCountsPromise =
+		receiptIds.length > 0
+			? AppFactory.getRecipeRepository()
+					.countByReceiptIds(receiptIds)
+					.then((counts) => Object.fromEntries(counts.map((c) => [c.receiptId, c.count])))
+			: Promise.resolve({});
 
 	return {
 		receipts,
-		recipeCounts
+		streamed: {
+			recipeCounts: recipeCountsPromise
+		}
 	};
 };
 

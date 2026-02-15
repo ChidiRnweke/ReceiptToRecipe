@@ -14,13 +14,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		throw error(404, 'Receipt not found');
 	}
 
-	// Get recipes generated from this receipt
-	const recipeRepo = AppFactory.getRecipeRepository();
-	const generatedRecipes = await recipeRepo.findByReceiptId(params.id);
+	// Stream generated recipes - not critical for initial render
+	const generatedRecipesPromise = AppFactory.getRecipeRepository().findByReceiptId(params.id);
 
 	return {
 		receipt,
-		generatedRecipes
+		streamed: {
+			generatedRecipes: generatedRecipesPromise
+		}
 	};
 };
 
