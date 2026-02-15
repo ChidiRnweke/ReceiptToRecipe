@@ -57,8 +57,34 @@
 
 	let loading = $state(false);
 	let newListName = $state('');
-	let expandedLists = $state<Set<string>>(new Set(lists.slice(0, 1).map((l: any) => l.id)));
+	let expandedLists = $state<Set<string>>(new Set());
 
+	// Keep expandedLists in sync with lists: remove stale IDs and ensure
+	// at least one list is expanded when there are any lists.
+	$effect(() => {
+		const validIds = new Set(lists.map((l: any) => l.id));
+
+		// Filter out any IDs that no longer exist in lists
+		const filtered = new Set(
+			Array.from(expandedLists).filter((id) => validIds.has(id))
+		);
+
+		// If we have lists but nothing expanded, expand the first list by default
+		if (lists.length > 0 && filtered.size === 0) {
+			const firstId = (lists[0] as any).id;
+			if (firstId) {
+				filtered.add(firstId);
+			}
+		}
+
+		// Only assign if something actually changed to avoid unnecessary churn
+		if (
+			filtered.size !== expandedLists.size ||
+			Array.from(filtered).some((id) => !expandedLists.has(id))
+		) {
+			expandedLists = new Set(filtered);
+		}
+	});
 	// New item inputs per list
 	type NewItemInput = { name: string; quantity: string; unit: string };
 	let newItemInputs = $state<Record<string, NewItemInput>>({});
