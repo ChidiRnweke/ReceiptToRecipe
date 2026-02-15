@@ -141,12 +141,16 @@
 							<!-- 
                     Row Structure
                 -->
-							<a
-								href="/receipts/{receipt.id}"
+							<div
 								class="group relative block border-b border-dashed border-border bg-white transition-colors duration-200 last:border-0 hover:bg-[#fffdf5]"
 							>
+								<a
+									href="/receipts/{receipt.id}"
+									class="absolute inset-0 z-0"
+									aria-label="View receipt"
+								></a>
 								<div
-									class="flex flex-col items-start gap-4 px-6 py-5 md:flex-row md:items-center md:gap-6"
+									class="relative z-0 flex flex-col items-start gap-4 px-6 py-5 md:flex-row md:items-center md:gap-6"
 								>
 									<!-- Notebook Margin Line -->
 									<div class="absolute top-0 bottom-0 left-6 w-px bg-red-300/40"></div>
@@ -251,7 +255,7 @@
 												e.preventDefault();
 												confirmDelete(receipt.id);
 											}}
-											class="hover:bg-red-50 hover:text-red-600"
+											class="relative z-10 hover:bg-red-50 hover:text-red-600"
 										>
 											{#if isDeleting && receiptToDelete === receipt.id}
 												<Loader2 class="h-4 w-4 animate-spin" />
@@ -261,7 +265,7 @@
 										</Button>
 									</div>
 								</div>
-							</a>
+							</div>
 						{/each}
 					</div>
 				</Notepad>

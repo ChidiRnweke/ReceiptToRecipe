@@ -57,11 +57,10 @@
 
 	let loading = $state(false);
 	let newListName = $state('');
-	
+
 	// Track user's manual toggle state for each list
 	let manualToggles = $state<Map<string, boolean>>(new Map());
 
-	// Compute expanded lists reactively based on current lists and user toggles
 	let expandedLists = $derived.by(() => {
 		const expanded = new Set<string>();
 
@@ -69,14 +68,13 @@
 		for (const list of lists) {
 			const listId = (list as any).id;
 			const manualToggle = manualToggles.get(listId);
-			
+
 			if (manualToggle !== undefined) {
 				// User has manually toggled this list
 				if (manualToggle) {
 					expanded.add(listId);
 				}
 			} else if (expanded.size === 0 && list === lists[0]) {
-				// Default: expand the first list if nothing else is expanded
 				expanded.add(listId);
 			}
 		}
@@ -87,20 +85,31 @@
 	type NewItemInput = { name: string; quantity: string; unit: string };
 	let newItemInputs = $state<Record<string, NewItemInput>>({});
 
-	// Helper to get or lazily create the input state for a given list.
-	// This avoids the race condition where the old $derived + queueMicrotask approach
-	// left newItemInputs[list.id] undefined on first render, causing
-	// "Cannot read properties of undefined (reading 'name')" when bind:value ran.
-	function getInput(listId: string): NewItemInput {
-		if (!newItemInputs[listId]) {
-			newItemInputs[listId] = { name: '', quantity: '1', unit: '' };
+	// Initialize all list inputs when lists change
+	$effect(() => {
+		const updates: Record<string, NewItemInput> = {};
+		let changed = false;
+		for (const list of lists) {
+			if (!newItemInputs[list.id]) {
+				updates[list.id] = { name: '', quantity: '1', unit: '' };
+				changed = true;
+			}
 		}
-		return newItemInputs[listId];
+		if (changed) {
+			newItemInputs = { ...newItemInputs, ...updates };
+		}
+	});
+
+	// Check if input is ready (for conditional rendering)
+	function hasInput(listId: string): boolean {
+		return listId in newItemInputs;
 	}
 
 	function toggleList(listId: string) {
 		const isCurrentlyExpanded = expandedLists.has(listId);
-		manualToggles.set(listId, !isCurrentlyExpanded);
+		const newToggles = new Map(manualToggles);
+		newToggles.set(listId, !isCurrentlyExpanded);
+		manualToggles = newToggles;
 	}
 
 	function getCompletionPercentage(items: any[]) {
@@ -455,82 +464,83 @@
 										<div class="space-y-6 pr-1 pl-1 sm:pl-4">
 											<!-- Add Item Input (Underlined style) -->
 											{#key list.id}
-												{@const input = getInput(list.id)}
-												<form
-													method="POST"
-													action="?/addItem"
-													use:enhance={() => {
-														workflowStore.incrementShopping();
-														return async ({ result }) => {
-															if (result.type === 'success') {
-																const data = result.data as any;
-																if (data?.pantryWarning) {
-																	workflowStore.decrementShopping();
-																	pantryWarning = {
-																		show: true,
-																		message: data.warningMessage,
-																		matchedItem: data.matchedItem,
-																		confidence: data.confidence,
-																		pendingItem: data.pendingItem
+												{#if hasInput(list.id)}
+													<form
+														method="POST"
+														action="?/addItem"
+														use:enhance={() => {
+															workflowStore.incrementShopping();
+															return async ({ result }) => {
+																if (result.type === 'success') {
+																	const data = result.data as any;
+																	if (data?.pantryWarning) {
+																		workflowStore.decrementShopping();
+																		pantryWarning = {
+																			show: true,
+																			message: data.warningMessage,
+																			matchedItem: data.matchedItem,
+																			confidence: data.confidence,
+																			pendingItem: data.pendingItem
+																		};
+																		return;
+																	}
+																	newItemInputs[list.id] = {
+																		name: '',
+																		quantity: '1',
+																		unit: ''
 																	};
-																	return;
+																	await invalidateAll();
+																} else {
+																	workflowStore.decrementShopping();
 																}
-																newItemInputs[list.id] = {
-																	name: '',
-																	quantity: '1',
-																	unit: ''
-																};
-																await invalidateAll();
-															} else {
-																workflowStore.decrementShopping();
-															}
-														};
-													}}
-													class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-baseline"
-												>
-													<input type="hidden" name="listId" value={list.id} />
+															};
+														}}
+														class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-baseline"
+													>
+														<input type="hidden" name="listId" value={list.id} />
 
-													<div class="relative flex-1">
-														<input
-															type="text"
-															name="name"
-															placeholder="Add an item..."
-															bind:value={input.name}
-															class="border-border-muted focus:border-accent-500 placeholder:text-fg-muted placeholder:font-hand w-full border-b border-none bg-transparent px-0 py-1 font-serif text-lg text-ink placeholder:text-xl focus:ring-0"
-														/>
-													</div>
-
-													<div class="flex items-baseline gap-2">
-														<div class="relative w-12">
+														<div class="relative flex-1">
 															<input
 																type="text"
-																name="quantity"
-																placeholder="#"
-																bind:value={input.quantity}
-																class="border-border-muted font-ui focus:border-accent-500 placeholder:text-fg-muted w-full border-b border-none bg-transparent px-0 py-1 text-right text-sm focus:ring-0"
+																name="name"
+																placeholder="Add an item..."
+																bind:value={newItemInputs[list.id].name}
+																class="border-border-muted focus:border-accent-500 placeholder:text-fg-muted placeholder:font-hand w-full border-b border-none bg-transparent px-0 py-1 font-serif text-lg text-ink placeholder:text-xl focus:ring-0"
 															/>
 														</div>
 
-														<div class="relative w-16">
-															<input
-																type="text"
-																name="unit"
-																placeholder="Unit"
-																bind:value={input.unit}
-																class="border-border-muted font-ui focus:border-accent-500 placeholder:text-fg-muted w-full border-b border-none bg-transparent px-0 py-1 text-sm focus:ring-0"
-															/>
-														</div>
+														<div class="flex items-baseline gap-2">
+															<div class="relative w-12">
+																<input
+																	type="text"
+																	name="quantity"
+																	placeholder="#"
+																	bind:value={newItemInputs[list.id].quantity}
+																	class="border-border-muted font-ui focus:border-accent-500 placeholder:text-fg-muted w-full border-b border-none bg-transparent px-0 py-1 text-right text-sm focus:ring-0"
+																/>
+															</div>
 
-														<Button
-															type="submit"
-															variant="ghost"
-															size="icon"
-															class="text-fg-muted hover:text-accent-600 hover:bg-transparent"
-														>
-															<Plus class="h-5 w-5" />
-														</Button>
-													</div>
-												</form>
+															<div class="relative w-16">
+																<input
+																	type="text"
+																	name="unit"
+																	placeholder="Unit"
+																	bind:value={newItemInputs[list.id].unit}
+																	class="border-border-muted font-ui focus:border-accent-500 placeholder:text-fg-muted w-full border-b border-none bg-transparent px-0 py-1 text-sm focus:ring-0"
+																/>
+															</div>
+
+															<Button
+																type="submit"
+																variant="ghost"
+																size="icon"
+																class="text-fg-muted hover:text-accent-600 hover:bg-transparent"
+															>
+																<Plus class="h-5 w-5" />
+															</Button>
+														</div>
+													</form>
+												{/if}
 											{/key}
 
 											<!-- Items List -->

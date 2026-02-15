@@ -25,19 +25,22 @@
 
 	let { data, form } = $props();
 
-	// Time-based greeting
-	const hour = new Date().getHours();
-	const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+	// Time-based greeting (computed client-side to avoid server/client timezone mismatch)
+	let greeting = $state('Good evening');
+	let mealSuggestion = $state("What's cooking for dinner tonight?");
 
-	// Friendly prompts
-	const mealSuggestion =
-		hour < 11
-			? 'Planning breakfast or prepping for dinner?'
-			: hour < 15
-				? "Time to think about lunch or tonight's dinner!"
-				: hour < 19
-					? "What's cooking for dinner tonight?"
-					: 'Late night snack ideas, anyone?';
+	$effect(() => {
+		const hour = new Date().getHours();
+		greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+		mealSuggestion =
+			hour < 11
+				? 'Planning breakfast or prepping for dinner?'
+				: hour < 15
+					? "Time to think about lunch or tonight's dinner!"
+					: hour < 19
+						? "What's cooking for dinner tonight?"
+						: 'Late night snack ideas, anyone?';
+	});
 
 	const tips = [
 		'Salt your pasta water until it tastes like the sea.',
@@ -46,7 +49,11 @@
 		'A squeeze of lemon brightens almost any dish.',
 		'Room temperature eggs blend better in baking.'
 	];
-	const randomTip = tips[Math.floor(Math.random() * tips.length)];
+	// Use first tip as stable default (avoids server/client hydration mismatch from Math.random)
+	let randomTip = $state(tips[0]);
+	$effect(() => {
+		randomTip = tips[Math.floor(Math.random() * tips.length)];
+	});
 
 	const featuredRecipe = $derived(data.recentRecipes?.[0]);
 	const recipeFeed = $derived(data.recentRecipes ?? []);
@@ -54,7 +61,22 @@
 
 	// Use $derived for state but allow overrides
 	let pantryItems = $derived(data.pantry ?? []);
-	let shoppingListNames = $derived(new Set(data.activeList?.items?.map((i: any) => i.name) ?? []));
+
+	// Optimistic shopping list: track pending adds/removes separately from server state
+	let pendingAdds = $state<Set<string>>(new Set());
+	let pendingRemoves = $state<Set<string>>(new Set());
+
+	const serverShoppingNames = $derived(
+		new Set(data.activeList?.items?.map((i: any) => i.name) ?? [])
+	);
+
+	// Merge server state with optimistic overrides (pure derived, no mutation)
+	const shoppingListNames = $derived.by(() => {
+		const merged = new Set(serverShoppingNames);
+		for (const name of pendingAdds) merged.add(name);
+		for (const name of pendingRemoves) merged.delete(name);
+		return merged;
+	});
 
 	// Ingredients Logic - use actual recipe ingredients when available
 	const ingredientList = $derived.by<any[]>(() => {
@@ -100,6 +122,24 @@
 	const cartCount = $derived(workflowStore.shoppingItems);
 	const visibleIngredients = $derived.by(() =>
 		showAllIngredients ? ingredientList : ingredientList.slice(0, 6)
+	);
+
+	const ingredientStates = $derived(
+		visibleIngredients.map((ingredient) => {
+			const ingredientDisplay = formatIngredientDisplay(ingredient);
+			const isAdded = shoppingListNames.has(ingredientDisplay);
+			const isAdding = addingIngredient === ingredientDisplay;
+			const inPantry = !!ingredient.pantryMatch && ingredient.pantryMatch.stockConfidence > 0.3;
+			return {
+				display: ingredientDisplay,
+				isAdded,
+				isAdding,
+				inPantry,
+				className: `group relative flex w-full items-start gap-4 px-4 py-3 text-left transition-colors duration-200 ${
+					isAdded ? 'bg-secondary-50/40' : inPantry ? 'bg-success-50/40' : 'hover:bg-info-50/30'
+				}`
+			};
+		})
 	);
 
 	function formatIngredientDisplay(ing: any): string {
@@ -428,49 +468,63 @@
 								<div
 									class={`relative z-10 h-full max-h-80 space-y-0 overflow-y-auto pt-2 [-ms-overflow-style:'none'] [scrollbar-width:'none'] [&::-webkit-scrollbar]:hidden`}
 								>
-									{#each visibleIngredients as ingredient}
-										{@const itemName = ingredient.name}
-										{@const ingredientDisplay = formatIngredientDisplay(ingredient)}
-										{@const isAdded = shoppingListNames.has(ingredientDisplay)}
-										{@const isAdding = addingIngredient === ingredientDisplay}
-										{@const inPantry =
-											!!ingredient.pantryMatch && ingredient.pantryMatch.stockConfidence > 0.3}
+									{#each visibleIngredients as ingredient, i}
+										{@const state = ingredientStates[i]}
+										{@const inPantry = state.inPantry}
 
 										<form
 											method="POST"
 											action="?/toggleIngredient"
 											use:enhance={() => {
-												addingIngredient = ingredientDisplay;
-												// Optimistic update
-												const newSet = new Set(shoppingListNames);
-												if (isAdded) {
-													newSet.delete(ingredientDisplay);
+												addingIngredient = state.display;
+												// Optimistic update via pending sets (reassign for reactivity)
+												if (state.isAdded) {
+													const removes = new Set(pendingRemoves);
+													removes.add(state.display);
+													pendingRemoves = removes;
+													const adds = new Set(pendingAdds);
+													adds.delete(state.display);
+													pendingAdds = adds;
 													workflowStore.decrementShopping();
 												} else {
-													newSet.add(ingredientDisplay);
+													const adds = new Set(pendingAdds);
+													adds.add(state.display);
+													pendingAdds = adds;
+													const removes = new Set(pendingRemoves);
+													removes.delete(state.display);
+													pendingRemoves = removes;
 													workflowStore.incrementShopping();
 												}
-												shoppingListNames = newSet;
 
 												return async ({ result }) => {
 													addingIngredient = null;
-													if (result.type !== 'success') {
-														// Rollback on error
-														const revertSet = new Set(shoppingListNames);
-														if (isAdded) {
-															revertSet.add(ingredientDisplay);
+													if (result.type === 'success') {
+														// Server confirmed — clear pending overrides
+														const adds = new Set(pendingAdds);
+														adds.delete(state.display);
+														pendingAdds = adds;
+														const removes = new Set(pendingRemoves);
+														removes.delete(state.display);
+														pendingRemoves = removes;
+													} else {
+														// Rollback: undo optimistic change
+														if (state.isAdded) {
+															const removes = new Set(pendingRemoves);
+															removes.delete(state.display);
+															pendingRemoves = removes;
 															workflowStore.incrementShopping();
 														} else {
-															revertSet.delete(ingredientDisplay);
+															const adds = new Set(pendingAdds);
+															adds.delete(state.display);
+															pendingAdds = adds;
 															workflowStore.decrementShopping();
 														}
-														shoppingListNames = revertSet;
 													}
 												};
 											}}
-											class={`group relative flex w-full items-start gap-4 px-4 py-3 text-left transition-colors duration-200 ${isAdded ? 'bg-secondary-50/40' : inPantry ? 'bg-success-50/40' : 'hover:bg-info-50/30'}`}
+											class={state.className}
 										>
-											<input type="hidden" name="ingredientName" value={ingredientDisplay} />
+											<input type="hidden" name="ingredientName" value={state.display} />
 											<div
 												class="border-info-200/30 absolute right-0 bottom-0 left-0 border-b"
 											></div>
@@ -487,16 +541,16 @@
 													type="submit"
 													variant="ghost"
 													size="icon"
-													disabled={isAdding}
+													disabled={state.isAdding}
 													class="relative z-20 mt-0.5 h-5 w-5 shrink-0 rounded-full border transition-colors hover:bg-transparent disabled:cursor-not-allowed
-                            {isAdded
+                            {state.isAdded
 														? 'border-secondary-200 bg-secondary-100 text-secondary-700 hover:bg-secondary-200 hover:text-secondary-700'
 														: 'border-border bg-bg-input hover:border-border hover:text-text-muted'}"
-													title={isAdded ? 'Remove from list' : 'Add to shopping list'}
+													title={state.isAdded ? 'Remove from list' : 'Add to shopping list'}
 												>
-													{#if isAdded}
+													{#if state.isAdded}
 														<Check class="h-3 w-3" />
-													{:else if isAdding}
+													{:else if state.isAdding}
 														<Loader2 class="h-3 w-3 animate-spin text-sage-500" />
 													{:else}
 														<Plus class="h-3 w-3 text-text-muted" />
@@ -507,9 +561,9 @@
 											<div class="font-ui flex-1 pl-2 text-sm leading-snug">
 												<div class="flex items-center justify-between">
 													<p
-														class={`transition-all ${isAdded ? 'text-secondary-800/70 line-through decoration-secondary-300' : inPantry ? 'text-success-800/70 decoration-success-300 line-through' : 'text-text-secondary'}`}
+														class={`transition-all ${state.isAdded ? 'text-secondary-800/70 line-through decoration-secondary-300' : inPantry ? 'text-success-800/70 decoration-success-300 line-through' : 'text-text-secondary'}`}
 													>
-														{ingredientDisplay}
+														{state.display}
 													</p>
 													{#if inPantry && ingredient.pantryMatch?.stockConfidence}
 														<StockBadge confidence={ingredient.pantryMatch.stockConfidence} />
