@@ -57,33 +57,31 @@
 
 	let loading = $state(false);
 	let newListName = $state('');
-	let expandedLists = $state<Set<string>>(new Set());
+	
+	// Track user's manual toggle state for each list
+	let manualToggles = $state<Map<string, boolean>>(new Map());
 
-	// Keep expandedLists in sync with lists: remove stale IDs and ensure
-	// at least one list is expanded when there are any lists.
-	$effect(() => {
-		const validIds = new Set(lists.map((l: any) => l.id));
+	// Compute expanded lists reactively based on current lists and user toggles
+	let expandedLists = $derived.by(() => {
+		const expanded = new Set<string>();
 
-		// Filter out any IDs that no longer exist in lists
-		const filtered = new Set(
-			Array.from(expandedLists).filter((id) => validIds.has(id))
-		);
-
-		// If we have lists but nothing expanded, expand the first list by default
-		if (lists.length > 0 && filtered.size === 0) {
-			const firstId = (lists[0] as any).id;
-			if (firstId) {
-				filtered.add(firstId);
+		// Determine which lists should be expanded
+		for (const list of lists) {
+			const listId = (list as any).id;
+			const manualToggle = manualToggles.get(listId);
+			
+			if (manualToggle !== undefined) {
+				// User has manually toggled this list
+				if (manualToggle) {
+					expanded.add(listId);
+				}
+			} else if (expanded.size === 0 && list === lists[0]) {
+				// Default: expand the first list if nothing else is expanded
+				expanded.add(listId);
 			}
 		}
 
-		// Only assign if something actually changed to avoid unnecessary churn
-		if (
-			filtered.size !== expandedLists.size ||
-			Array.from(filtered).some((id) => !expandedLists.has(id))
-		) {
-			expandedLists = new Set(filtered);
-		}
+		return expanded;
 	});
 	// New item inputs per list
 	type NewItemInput = { name: string; quantity: string; unit: string };
@@ -101,12 +99,8 @@
 	}
 
 	function toggleList(listId: string) {
-		if (expandedLists.has(listId)) {
-			expandedLists.delete(listId);
-		} else {
-			expandedLists.add(listId);
-		}
-		expandedLists = new Set(expandedLists);
+		const isCurrentlyExpanded = expandedLists.has(listId);
+		manualToggles.set(listId, !isCurrentlyExpanded);
 	}
 
 	function getCompletionPercentage(items: any[]) {
