@@ -98,16 +98,12 @@ export class ReceiptController {
 			// Normalize and save items
 			await this.saveReceiptData(receiptId, ocrData);
 
-			// Safely parse date
-			const parsedDate = ocrData.purchaseDate ? new Date(ocrData.purchaseDate) : new Date();
-			const finalDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
-
 			// Update status to DONE
 			await this.receiptRepository.update(receiptId, {
 				status: 'DONE',
 				rawOcrData: ocrData as unknown as Record<string, unknown>,
 				storeName: ocrData.storeName,
-				purchaseDate: finalDate,
+				purchaseDate: new Date(),
 				totalAmount: ocrData.total?.replace(/[^0-9.]/g, '') || undefined,
 				currency: ocrData.currency || 'USD'
 			});
@@ -164,10 +160,8 @@ export class ReceiptController {
 		if (foodItems.length > 0) {
 			await this.receiptItemRepository.createMany(foodItems);
 
-			// Update purchase history
-			const parsedDate = ocrData.purchaseDate ? new Date(ocrData.purchaseDate) : new Date();
-			const finalDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
-			await this.updatePurchaseHistory(receipt.userId, foodItems, finalDate);
+			// Update purchase history - always use today's date (OCR dates are unreliable)
+			await this.updatePurchaseHistory(receipt.userId, foodItems, new Date());
 		}
 	}
 
