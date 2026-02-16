@@ -48,14 +48,22 @@ export class MockPantryService implements IPantryService {
 		let effectiveLifespanDays: number;
 		let lifespanSource: ConfidenceFactors['lifespanSource'];
 
+		const categoryShelfLife = this.getShelfLife(category);
+
 		if (overrides.userShelfLifeDays != null) {
 			effectiveLifespanDays = overrides.userShelfLifeDays;
 			lifespanSource = 'user_override';
 		} else if (avgFrequencyDays != null) {
-			effectiveLifespanDays = avgFrequencyDays;
-			lifespanSource = 'purchase_frequency';
+			const maxReasonableLifespan = categoryShelfLife * 3;
+			if (avgFrequencyDays <= maxReasonableLifespan) {
+				effectiveLifespanDays = avgFrequencyDays;
+				lifespanSource = 'purchase_frequency';
+			} else {
+				effectiveLifespanDays = categoryShelfLife;
+				lifespanSource = 'category_default';
+			}
 		} else if (category) {
-			effectiveLifespanDays = this.getShelfLife(category);
+			effectiveLifespanDays = categoryShelfLife;
 			lifespanSource = 'category_default';
 		} else {
 			effectiveLifespanDays = this.getShelfLife(null);
