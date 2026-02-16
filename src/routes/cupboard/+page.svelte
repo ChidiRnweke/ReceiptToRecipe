@@ -37,6 +37,7 @@
 	let showAddModal = $state(false);
 	let showExpiredModal = $state(false);
 	let expandedReceiptId = $state<string | null>(null);
+	let expandedItemId = $state<string | null>(null);
 
 	// Filter & Sort State
 	let activeFilter = $state('all');
@@ -368,9 +369,19 @@
 												>{groupItems.length}</span
 											>
 										</h3>
-										<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+										<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
 											{#each groupItems as item (item.id)}
-												<CupboardItem {item} />
+												<div
+													class={expandedItemId === item.id ? 'sm:col-span-2 lg:col-span-3' : ''}
+												>
+													<CupboardItem
+														{item}
+														expanded={expandedItemId === item.id}
+														ontoggle={() =>
+															(expandedItemId =
+																expandedItemId === item.id ? null : (item.id ?? null))}
+													/>
+												</div>
 											{/each}
 										</div>
 									</section>
@@ -444,7 +455,13 @@
 					{#if expiredItems.length > 0}
 						<div class="space-y-3">
 							{#each expiredItems as item (item.id)}
-								<CupboardItem {item} mode="expired" />
+								<CupboardItem
+									{item}
+									mode="expired"
+									expanded={expandedItemId === item.id}
+									ontoggle={() =>
+										(expandedItemId = expandedItemId === item.id ? null : (item.id ?? null))}
+								/>
 							{/each}
 						</div>
 					{:else}

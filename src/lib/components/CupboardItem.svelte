@@ -16,11 +16,29 @@
 	} from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
 
-	let { item, mode = 'active' } = $props<{ item: PantryItem; mode?: 'active' | 'expired' }>();
-
-	let expanded = $state(false);
+	let {
+		item,
+		mode = 'active',
+		expanded = false,
+		ontoggle
+	} = $props<{
+		item: PantryItem;
+		mode?: 'active' | 'expired';
+		expanded?: boolean;
+		ontoggle?: () => void;
+	}>();
 	let isActioning = $state(false);
 	let addedToList = $state(false);
+
+	function formatQuantity(qty: string): string {
+		const num = parseFloat(qty);
+		if (isNaN(num)) return qty;
+		// Show whole number if close to integer, otherwise 1 decimal
+		if (Math.abs(num - Math.round(num)) < 0.05) return Math.round(num).toString();
+		return num.toFixed(1);
+	}
+
+	const displayQuantity = $derived(formatQuantity(item.quantity));
 
 	const daysSinceLabel = $derived(
 		item.daysSincePurchase === 0
@@ -49,7 +67,7 @@
 	<button
 		type="button"
 		class="flex w-full flex-col gap-3 p-4 text-left"
-		onclick={() => (expanded = !expanded)}
+		onclick={() => ontoggle?.()}
 	>
 		<div class="flex w-full items-start gap-3">
 			<!-- Source icon -->
@@ -77,8 +95,8 @@
 
 				<div class="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
 					<div class="flex items-center gap-2 text-[11px] text-ink-muted">
-						{#if item.quantity && item.quantity !== '1'}
-							<span class="font-medium text-ink-light">{item.quantity} {item.unit}</span>
+						{#if item.quantity && displayQuantity !== '1'}
+							<span class="font-medium text-ink-light">{displayQuantity} {item.unit}</span>
 							<span class="text-border">|</span>
 						{/if}
 						<span>{daysSinceLabel}</span>
