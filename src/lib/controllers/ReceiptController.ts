@@ -221,7 +221,8 @@ export class ReceiptController {
 					purchaseCount: existing.purchaseCount + 1,
 					avgFrequencyDays: newFrequency,
 					avgQuantity: newAvgQty,
-					estimatedDepleteDate: finalDepleteDate
+					estimatedDepleteDate: finalDepleteDate,
+					isDepleted: false
 				});
 			} else {
 				await this.purchaseHistoryRepository.create({

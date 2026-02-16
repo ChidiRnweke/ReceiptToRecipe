@@ -163,18 +163,14 @@ export class PantryController {
 	}
 
 	/**
-	 * Get recently expired items — confidence has decayed to ≤0.2 but the item
-	 * isn't ancient (purchased within the last 60 days). These are shown in a
-	 * separate "Recently Expired" section so users can rescue or dismiss them.
+	 * Get expired items — confidence has decayed to ≤0.2.
+	 * These are shown in a separate "Expired" section so users can rescue
+	 * (confirm still in stock) or dismiss them (mark as used up).
 	 */
 	async getExpiredItems(userId: string): Promise<PantryItem[]> {
 		const allItems = await this.buildAllItems(userId);
-		const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000;
 		return allItems
-			.filter(
-				(item) =>
-					item.stockConfidence <= 0.2 && Date.now() - item.lastPurchased.getTime() < sixtyDaysMs
-			)
+			.filter((item) => item.stockConfidence <= 0.2)
 			.sort((a, b) => b.lastPurchased.getTime() - a.lastPurchased.getTime());
 	}
 
