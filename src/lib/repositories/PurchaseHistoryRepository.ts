@@ -65,6 +65,10 @@ export class PurchaseHistoryRepository implements IPurchaseHistoryRepository {
 		return this.toDao(updated);
 	}
 
+	async delete(id: string): Promise<void> {
+		await this.db.delete(schema.purchaseHistory).where(eq(schema.purchaseHistory.id, id));
+	}
+
 	async findSuggestions(userId: string, limit: number): Promise<SmartSuggestionDao[]> {
 		const now = new Date();
 

@@ -64,6 +64,10 @@ export class MockPurchaseHistoryRepository implements IPurchaseHistoryRepository
 		return updated;
 	}
 
+	async delete(id: string): Promise<void> {
+		this.store.delete(id);
+	}
+
 	async findSuggestions(userId: string, limit: number): Promise<SmartSuggestionDao[]> {
 		const history = await this.findByUserId(userId);
 		const now = new Date();

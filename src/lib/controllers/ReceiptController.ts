@@ -278,10 +278,15 @@ export class ReceiptController {
 	 * Delete a receipt
 	 */
 	async deleteReceipt(receiptId: string, userId: string): Promise<void> {
-		const receipt = await this.receiptRepository.findById(receiptId);
+		const receipt = await this.receiptRepository.findByIdWithItems(receiptId);
 
 		if (!receipt || receipt.userId !== userId) {
 			throw new Error('Receipt not found');
+		}
+
+		// Clean up purchase history for each item on this receipt
+		for (const item of receipt.items) {
+			await this.removePurchaseHistoryForItem(userId, item.normalizedName);
 		}
 
 		// Delete from storage
@@ -290,7 +295,7 @@ export class ReceiptController {
 			await this.storageService.delete(key).catch(console.error);
 		}
 
-		// Delete from database (cascade will handle items)
+		// Delete from database (cascade will handle receipt_items)
 		await this.receiptRepository.delete(receiptId);
 	}
 
@@ -384,7 +389,32 @@ export class ReceiptController {
 			throw new Error('Item not found');
 		}
 
+		// Clean up purchase history for this item
+		await this.removePurchaseHistoryForItem(userId, existingItem.normalizedName);
+
 		await this.receiptItemRepository.delete(itemId);
+	}
+
+	/**
+	 * Remove or decrement purchase history when a receipt/item is deleted.
+	 * If the item was only purchased once, delete the history record entirely.
+	 * If purchased multiple times, decrement the purchase count.
+	 */
+	private async removePurchaseHistoryForItem(
+		userId: string,
+		normalizedName: string
+	): Promise<void> {
+		const history = await this.purchaseHistoryRepository.findByUserAndItem(userId, normalizedName);
+
+		if (!history) return;
+
+		if (history.purchaseCount <= 1) {
+			await this.purchaseHistoryRepository.delete(history.id);
+		} else {
+			await this.purchaseHistoryRepository.update(history.id, {
+				purchaseCount: history.purchaseCount - 1
+			});
+		}
 	}
 
 	async getRecipeCountsByReceiptIds(receiptIds: string[]): Promise<Record<string, number>> {
