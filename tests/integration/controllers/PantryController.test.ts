@@ -1023,8 +1023,9 @@ describe('PantryController', () => {
 			expect(expired[0].stockConfidence).toBeLessThanOrEqual(0.2);
 		});
 
-		it('should not return ancient items (over 60 days old)', async () => {
-			// Item purchased 365 days ago — ancient, should not appear
+		it('should return ancient items (over 60 days old) so users can dismiss them', async () => {
+			// Item purchased 365 days ago — should still appear in expired list
+			// so users can explicitly dismiss it
 			await purchaseHistoryRepo.create({
 				userId,
 				itemName: 'ancient eggs',
@@ -1035,7 +1036,8 @@ describe('PantryController', () => {
 			});
 
 			const expired = await controller.getExpiredItems(userId);
-			expect(expired).toEqual([]);
+			expect(expired).toHaveLength(1);
+			expect(expired[0].itemName).toBe('ancient eggs');
 		});
 
 		it('should not return items above 0.2 confidence', async () => {

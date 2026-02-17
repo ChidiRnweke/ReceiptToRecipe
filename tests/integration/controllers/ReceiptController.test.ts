@@ -221,7 +221,7 @@ describe('ReceiptController', () => {
 
 		it('should update existing purchase history with averaged frequency', async () => {
 			// Seed existing purchase history: last purchase was 10 days ago
-			const tenDaysAgo = new Date('2025-05-20');
+			const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
 			await purchaseHistoryRepo.create({
 				userId,
 				itemName: 'Milk',
@@ -232,7 +232,7 @@ describe('ReceiptController', () => {
 			});
 
 			receiptExtractor.setDefaultData({
-				purchaseDate: '2025-05-30',
+				purchaseDate: '2025-05-30', // OCR date is ignored; today's date is used
 				items: [{ name: 'Milk', quantity: '2' }]
 			});
 
@@ -247,24 +247,25 @@ describe('ReceiptController', () => {
 			expect(history[0].avgFrequencyDays).toBe(12);
 			// Average quantity: (1 + 2) / 2 = 1.5
 			expect(history[0].avgQuantity).toBe('1.5');
-			// lastPurchased should be updated to the newer date
-			expect(history[0].lastPurchased.getTime()).toBe(new Date('2025-05-30').getTime());
+			// lastPurchased should be updated to today (ignoring OCR date)
+			const daysSinceUpdate = Math.abs(history[0].lastPurchased.getTime() - Date.now());
+			expect(daysSinceUpdate).toBeLessThan(5000); // Within 5 seconds of now
 		});
 
-		it('should not update lastPurchased when processing an older receipt', async () => {
-			// Existing history with a more recent purchase
-			const recentDate = new Date('2025-06-15');
+		it('should always update lastPurchased to today when scanning a receipt', async () => {
+			// Existing history with an older purchase
+			const olderDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 			await purchaseHistoryRepo.create({
 				userId,
 				itemName: 'Eggs',
-				lastPurchased: recentDate,
+				lastPurchased: olderDate,
 				purchaseCount: 2,
 				avgQuantity: '12',
 				avgFrequencyDays: 7,
-				estimatedDepleteDate: new Date('2025-06-22')
+				estimatedDepleteDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
 			});
 
-			// Processing an older receipt
+			// Receipt date is ignored; today's date is always used
 			receiptExtractor.setDefaultData({
 				purchaseDate: '2025-06-01',
 				items: [{ name: 'Eggs', quantity: '12' }]
@@ -276,10 +277,9 @@ describe('ReceiptController', () => {
 
 			const history = purchaseHistoryRepo.getAll();
 			expect(history).toHaveLength(1);
-			// lastPurchased should remain the more recent date
-			expect(history[0].lastPurchased.getTime()).toBe(recentDate.getTime());
-			// estimatedDepleteDate should also remain unchanged
-			expect(history[0].estimatedDepleteDate!.getTime()).toBe(new Date('2025-06-22').getTime());
+			// lastPurchased should be updated to today
+			const daysSinceUpdate = Math.abs(history[0].lastPurchased.getTime() - Date.now());
+			expect(daysSinceUpdate).toBeLessThan(5000); // Within 5 seconds of now
 		});
 
 		it('should handle OCR failure and set status to FAILED', async () => {
