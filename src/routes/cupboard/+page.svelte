@@ -1,32 +1,33 @@
 <script lang="ts">
 	import type { PantryItem } from '$services';
-	import type { ReceiptWithItemsDao } from '$repositories';
-	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import {
 		Warehouse,
-		Upload,
-		ChefHat,
 		ShoppingCart,
 		Plus,
-		X,
 		History,
 		Lightbulb,
 		Filter,
 		ChevronRight,
+		ChevronDown,
 		Calendar,
 		Store,
 		CheckCircle2,
-		AlertCircle
+		AlertCircle,
+		LeafyGreen,
+		Clock,
+		AlertTriangle
 	} from 'lucide-svelte';
-	import { fade, scale, slide } from 'svelte/transition';
+	import { slide } from 'svelte/transition';
 	import Notepad from '$lib/components/Notepad.svelte';
 	import PinnedNote from '$lib/components/PinnedNote.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CupboardItem from '$lib/components/CupboardItem.svelte';
 	import CupboardFilters from '$lib/components/CupboardFilters.svelte';
+	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
+	import CupboardItemDetail from '$lib/components/CupboardItemDetail.svelte';
 	import AddItemForm from '$lib/components/AddItemForm.svelte';
 	import CupboardSkeleton from '$lib/components/skeletons/CupboardSkeleton.svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
@@ -37,13 +38,36 @@
 	let showAddModal = $state(false);
 	let showExpiredModal = $state(false);
 	let expandedReceiptId = $state<string | null>(null);
-	let expandedItemId = $state<string | null>(null);
 
-	// Filter & Sort State
-	let activeFilter = $state('all');
+	// Item detail modal state
+	let selectedItem = $state<PantryItem | null>(null);
+	let selectedItemMode = $state<'active' | 'expired'>('active');
+	let showItemDetail = $state(false);
+
+	function openItemDetail(item: PantryItem, mode: 'active' | 'expired' = 'active') {
+		selectedItem = item;
+		selectedItemMode = mode;
+		showItemDetail = true;
+	}
+
+	// Listen for mobile bottom nav CTA event
+	$effect(() => {
+		const handler = () => (showAddModal = true);
+		window.addEventListener('cupboard-add-item', handler);
+		return () => window.removeEventListener('cupboard-add-item', handler);
+	});
+
+	// Filter & Sort State (no more activeFilter — the lanes ARE the filter)
 	let searchQuery = $state('');
 	let sortBy = $state('confidence');
 	let activeCategory = $state('all');
+
+	// Mobile accordion state — 'useSoon' open by default (most actionable)
+	let openLane = $state<string | null>('useSoon');
+
+	function toggleLane(lane: string) {
+		openLane = openLane === lane ? null : lane;
+	}
 
 	// Time-based greeting
 	let greeting = $state('Good evening');
@@ -75,17 +99,9 @@
 		return 'low';
 	}
 
-	// Filter Logic (Client-side)
+	// Filter logic (search + category only — status is handled by lanes)
 	function filterItems(items: PantryItem[]) {
 		let result = items;
-
-		if (activeFilter === 'in-stock') {
-			result = result.filter((i) => i.stockConfidence > 0.7);
-		} else if (activeFilter === 'running-low') {
-			result = result.filter((i) => i.stockConfidence > 0.4 && i.stockConfidence <= 0.7);
-		} else if (activeFilter === 'restock') {
-			result = result.filter((i) => i.stockConfidence <= 0.4);
-		}
 
 		if (activeCategory !== 'all') {
 			result = result.filter((i) => i.category?.toLowerCase() === activeCategory.toLowerCase());
@@ -115,7 +131,23 @@
 		return result;
 	}
 
-	function groupItems(items: PantryItem[]) {
+	// Group by status into 3 Kanban lanes
+	function groupByStatus(items: PantryItem[]) {
+		const fresh: PantryItem[] = [];
+		const useSoon: PantryItem[] = [];
+		const runningLow: PantryItem[] = [];
+
+		for (const item of items) {
+			if (item.stockConfidence > 0.7) fresh.push(item);
+			else if (item.stockConfidence > 0.4) useSoon.push(item);
+			else runningLow.push(item);
+		}
+
+		return { fresh, useSoon, runningLow };
+	}
+
+	// Sub-group items by category within a lane
+	function subGroupByCategory(items: PantryItem[]) {
 		const groups = new Map<string, PantryItem[]>();
 		for (const item of items) {
 			const cat = item.category || 'Other';
@@ -124,6 +156,49 @@
 			groups.set(cat, existing);
 		}
 		return groups;
+	}
+
+	// Lane config
+	const lanes = [
+		{
+			key: 'fresh',
+			title: 'Fresh & Stocked',
+			tapeColor: 'teal' as const,
+			tapeRotate: '-rotate-1',
+			emptyText: 'Nothing here right now'
+		},
+		{
+			key: 'useSoon',
+			title: 'Use Soon',
+			tapeColor: 'yellow' as const,
+			tapeRotate: 'rotate-1',
+			emptyText: 'All clear — nothing urgent'
+		},
+		{
+			key: 'runningLow',
+			title: 'Running Low',
+			tapeColor: 'white' as const,
+			tapeRotate: '-rotate-1',
+			emptyText: 'Cupboard is well stocked!'
+		}
+	] as const;
+
+	function getLaneIcon(key: string) {
+		if (key === 'fresh') return LeafyGreen;
+		if (key === 'useSoon') return Clock;
+		return AlertTriangle;
+	}
+
+	function getLaneColor(key: string) {
+		if (key === 'fresh') return 'text-emerald-600';
+		if (key === 'useSoon') return 'text-amber-600';
+		return 'text-rose-500';
+	}
+
+	function getLaneBadgeColor(key: string) {
+		if (key === 'fresh') return 'bg-emerald-100 text-emerald-700';
+		if (key === 'useSoon') return 'bg-amber-100 text-amber-700';
+		return 'bg-rose-100 text-rose-700';
 	}
 </script>
 
@@ -292,9 +367,9 @@
 	<main
 		class="relative z-10 flex flex-1 flex-col overflow-hidden rounded-4xl bg-white lg:rounded-l-none lg:rounded-r-4xl"
 	>
-		<div class="flex-1 overflow-y-auto p-4 sm:p-8">
-			<div class="mx-auto w-full max-w-5xl space-y-8">
-				<!-- Header (Always Visible) -->
+		<div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+			<div class="mx-auto w-full max-w-6xl space-y-6">
+				<!-- Header -->
 				<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 					<div>
 						<h1 class="font-display text-3xl text-ink sm:text-4xl">
@@ -335,56 +410,144 @@
 					</div>
 				{:then items}
 					{@const filtered = filterItems(items)}
-					{@const grouped = groupItems(filtered)}
+					{@const statusGroups = groupByStatus(filtered)}
 					{@const hasItems = items.length > 0}
 
-					<!-- Filters (Inline) -->
+					<!-- Filters -->
 					{#if hasItems}
-						<div class="rounded-xl border border-sand/40 bg-bg-paper p-4 shadow-sm">
-							<CupboardFilters
-								{activeFilter}
-								{searchQuery}
-								{sortBy}
-								{activeCategory}
-								categories={[...new Set(items.map((i) => i.category).filter(Boolean))] as string[]}
-								onfilterchange={(f) => (activeFilter = f)}
-								onsearchchange={(q) => (searchQuery = q)}
-								onsortchange={(s) => (sortBy = s)}
-								oncategorychange={(c) => (activeCategory = c)}
-							/>
-						</div>
+						<CupboardFilters
+							{searchQuery}
+							{sortBy}
+							{activeCategory}
+							categories={[...new Set(items.map((i) => i.category).filter(Boolean))] as string[]}
+							onsearchchange={(q) => (searchQuery = q)}
+							onsortchange={(s) => (sortBy = s)}
+							oncategorychange={(c) => (activeCategory = c)}
+						/>
 					{/if}
 
-					<!-- Content Grid -->
+					<!-- Kanban Board -->
 					{#if hasItems}
 						{#if filtered.length > 0}
-							<div class="space-y-8">
-								{#each [...grouped.entries()] as [category, groupItems]}
-									<section>
-										<h3
-											class="font-ui mb-3 flex items-center gap-2 text-xs tracking-widest text-ink-muted uppercase"
-										>
-											{category}
-											<span class="rounded-full bg-sand/30 px-2 py-0.5 text-[10px] font-bold"
-												>{groupItems.length}</span
-											>
-										</h3>
-										<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-											{#each groupItems as item (item.id)}
-												<div
-													class={expandedItemId === item.id ? 'sm:col-span-2 lg:col-span-3' : ''}
-												>
-													<CupboardItem
-														{item}
-														expanded={expandedItemId === item.id}
-														ontoggle={() =>
-															(expandedItemId =
-																expandedItemId === item.id ? null : (item.id ?? null))}
-													/>
+							<!-- Desktop: 3-column notepads -->
+							<div class="hidden gap-4 md:grid md:grid-cols-3">
+								{#each lanes as lane}
+									{@const laneItems = statusGroups[lane.key as keyof typeof statusGroups]}
+									{@const categoryGroups = subGroupByCategory(laneItems)}
+									{@const LaneIcon = getLaneIcon(lane.key)}
+
+									<div class="flex flex-col">
+										<Notepad tapeWidth="w-20" tapeRotate={lane.tapeRotate} class="bg-stone-200/30">
+											<div class="min-h-[280px] p-3">
+												<!-- Lane header -->
+												<div class="mb-3 flex items-center gap-2 border-b border-sand/40 pb-3">
+													<LaneIcon class="h-4 w-4 {getLaneColor(lane.key)}" />
+													<h3 class="font-hand text-lg text-ink">{lane.title}</h3>
+													<span
+														class="ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold {getLaneBadgeColor(
+															lane.key
+														)}"
+													>
+														{laneItems.length}
+													</span>
 												</div>
-											{/each}
-										</div>
-									</section>
+
+												<!-- Lane content -->
+												{#if laneItems.length > 0}
+													<div class="space-y-4">
+														{#each [...categoryGroups.entries()] as [category, catItems]}
+															<div>
+																<!-- Category sub-header -->
+																<div
+																	class="mb-1 flex items-center gap-1.5 px-2 text-[10px] font-medium tracking-wider text-ink-muted/60 uppercase"
+																>
+																	<CategoryIcon {category} class="h-3 w-3" />
+																	<span>{category}</span>
+																</div>
+																<!-- Items -->
+																<div class="divide-y divide-sand/20">
+																	{#each catItems as item (item.id)}
+																		<CupboardItem {item} onclick={() => openItemDetail(item)} />
+																	{/each}
+																</div>
+															</div>
+														{/each}
+													</div>
+												{:else}
+													<div class="flex flex-col items-center py-8 text-center">
+														<p class="font-hand text-sm text-ink-muted/50">
+															{lane.emptyText}
+														</p>
+													</div>
+												{/if}
+											</div>
+										</Notepad>
+									</div>
+								{/each}
+							</div>
+
+							<!-- Mobile: Collapsible accordion sections -->
+							<div class="space-y-3 md:hidden">
+								{#each lanes as lane}
+									{@const laneItems = statusGroups[lane.key as keyof typeof statusGroups]}
+									{@const categoryGroups = subGroupByCategory(laneItems)}
+									{@const LaneIcon = getLaneIcon(lane.key)}
+									{@const isOpen = openLane === lane.key}
+
+									<div class="overflow-hidden rounded-xl border border-sand/50 bg-white shadow-sm">
+										<!-- Accordion header -->
+										<button
+											type="button"
+											class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-bg-paper/50"
+											onclick={() => toggleLane(lane.key)}
+										>
+											<LaneIcon class="h-4 w-4 shrink-0 {getLaneColor(lane.key)}" />
+											<span class="font-hand flex-1 text-lg text-ink">{lane.title}</span>
+											<span
+												class="rounded-full px-2 py-0.5 text-[10px] font-bold {getLaneBadgeColor(
+													lane.key
+												)}"
+											>
+												{laneItems.length}
+											</span>
+											<ChevronDown
+												class="h-4 w-4 text-ink-muted transition-transform {isOpen
+													? 'rotate-180'
+													: ''}"
+											/>
+										</button>
+
+										<!-- Accordion content -->
+										{#if isOpen}
+											<div transition:slide={{ duration: 200 }} class="border-t border-sand/30">
+												{#if laneItems.length > 0}
+													<div class="space-y-3 px-2 pt-2 pb-3">
+														{#each [...categoryGroups.entries()] as [category, catItems]}
+															<div>
+																<div
+																	class="mb-1 flex items-center gap-1.5 px-2 text-[10px] font-medium tracking-wider text-ink-muted/60 uppercase"
+																>
+																	<CategoryIcon {category} class="h-3 w-3" />
+																	<span>{category}</span>
+																</div>
+																<div class="divide-y divide-sand/20">
+																	{#each catItems as item (item.id)}
+																		<CupboardItem {item} onclick={() => openItemDetail(item)} />
+																	{/each}
+																</div>
+															</div>
+														{/each}
+													</div>
+												{:else}
+													<div class="px-4 py-6 text-center">
+														<p class="font-hand text-sm text-ink-muted/50">
+															{lane.emptyText}
+														</p>
+													</div>
+												{/if}
+											</div>
+										{/if}
+									</div>
 								{/each}
 							</div>
 						{:else}
@@ -396,7 +559,6 @@
 								<Button
 									variant="link"
 									onclick={() => {
-										activeFilter = 'all';
 										searchQuery = '';
 										activeCategory = 'all';
 									}}
@@ -423,7 +585,10 @@
 
 	<!-- Add Item Modal -->
 	<AlertDialog.Root bind:open={showAddModal}>
-		<AlertDialog.Content class="max-w-md overflow-hidden bg-bg-paper p-0">
+		<AlertDialog.Content
+			class="max-w-md overflow-hidden bg-bg-paper p-0"
+			interactOutsideBehavior="close"
+		>
 			<AlertDialog.Header class="border-b border-sand/40 bg-white p-4">
 				<AlertDialog.Title class="font-display text-lg text-ink">Add Item</AlertDialog.Title>
 			</AlertDialog.Header>
@@ -440,7 +605,10 @@
 
 	<!-- Expired Items Modal -->
 	<AlertDialog.Root bind:open={showExpiredModal}>
-		<AlertDialog.Content class="flex h-[80vh] max-w-2xl flex-col bg-bg-paper p-0">
+		<AlertDialog.Content
+			class="flex h-[80vh] max-w-2xl flex-col bg-bg-paper p-0"
+			interactOutsideBehavior="close"
+		>
 			<AlertDialog.Header class="shrink-0 border-b border-sand/40 bg-white p-4">
 				<AlertDialog.Title class="font-display flex items-center gap-2 text-lg text-ink">
 					<History class="h-5 w-5 text-destructive" />
@@ -453,15 +621,9 @@
 			<div class="flex-1 overflow-y-auto bg-bg-paper/30 p-4 sm:p-6">
 				{#await data.streamed.expiredItems then expiredItems}
 					{#if expiredItems.length > 0}
-						<div class="space-y-3">
+						<div class="divide-y divide-sand/30">
 							{#each expiredItems as item (item.id)}
-								<CupboardItem
-									{item}
-									mode="expired"
-									expanded={expandedItemId === item.id}
-									ontoggle={() =>
-										(expandedItemId = expandedItemId === item.id ? null : (item.id ?? null))}
-								/>
+								<CupboardItem {item} onclick={() => openItemDetail(item, 'expired')} />
 							{/each}
 						</div>
 					{:else}
@@ -476,4 +638,7 @@
 			</AlertDialog.Footer>
 		</AlertDialog.Content>
 	</AlertDialog.Root>
+
+	<!-- Item Detail Modal -->
+	<CupboardItemDetail item={selectedItem} mode={selectedItemMode} bind:open={showItemDetail} />
 </div>

@@ -32,6 +32,11 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const itemName = data.get('itemName')?.toString()?.trim();
+		const quantity = data.get('quantity')?.toString()?.trim() || null;
+		const unit = data.get('unit')?.toString()?.trim() || null;
+		const category = data.get('category')?.toString()?.trim() || null;
+		const shelfLifeDays = data.get('shelfLifeDays')?.toString()?.trim();
+		const parsedShelfLife = shelfLifeDays ? parseInt(shelfLifeDays, 10) : null;
 
 		if (!itemName) {
 			return fail(400, { error: 'Item name is required' });
@@ -40,7 +45,13 @@ export const actions: Actions = {
 		const pantryController = AppFactory.getPantryController();
 
 		try {
-			await pantryController.addManualItem(locals.user.id, { itemName });
+			await pantryController.addManualItem(locals.user.id, {
+				itemName,
+				quantity,
+				unit,
+				category,
+				shelfLifeDays: parsedShelfLife
+			});
 			return { success: true };
 		} catch (err) {
 			console.error('Failed to add cupboard item:', err);

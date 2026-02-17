@@ -49,7 +49,7 @@
 			};
 		}
 		if (path === '/cupboard') {
-			return { type: 'submit', formId: 'cupboard-add-form', label: 'Add', icon: Plus };
+			return { type: 'event', eventName: 'cupboard-add-item', label: 'Add', icon: Plus };
 		}
 		if (path === '/recipes') {
 			return { type: 'link', href: '/recipes/generate', label: 'New', icon: Sparkles };
@@ -68,9 +68,9 @@
 <!-- Mobile Bottom Navigation Bar -->
 <nav
 	class="fixed right-0 bottom-0 left-0 z-50 border-t border-border bg-bg-paper/95 backdrop-blur-md md:hidden"
-	style="padding-bottom: env(safe-area-inset-bottom, 0px);"
+	style="padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);"
 >
-	<div class="flex items-stretch">
+	<div class="flex items-stretch px-2">
 		{#each tabs as tab, i}
 			{@const active = isActive(tab.href)}
 			{@const count = tab.countKey ? workflowStore[tab.countKey] : 0}
@@ -82,6 +82,14 @@
 						<button
 							type="submit"
 							form={pageCta.formId}
+							class="flex h-11 w-11 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg shadow-primary-600/30 transition-transform active:scale-95"
+						>
+							<pageCta.icon class="h-5 w-5" />
+						</button>
+					{:else if pageCta.type === 'event'}
+						<button
+							type="button"
+							onclick={() => window.dispatchEvent(new CustomEvent(pageCta.eventName!))}
 							class="flex h-11 w-11 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg shadow-primary-600/30 transition-transform active:scale-95"
 						>
 							<pageCta.icon class="h-5 w-5" />
