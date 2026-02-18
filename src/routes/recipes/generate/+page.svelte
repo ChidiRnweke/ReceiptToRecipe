@@ -29,10 +29,21 @@
 	let loadingMessage = $state('Consulting Chef...');
 	let messageInterval: ReturnType<typeof setInterval> | null = null;
 	let pantryInitialized = $state(false);
+	let servingsInitialized = $state(false);
 
 	// Initialize servings from preferences
-	let servings = $derived(data.preferences?.defaultServings ?? 2);
+	let servings = $state(2);
 	let cuisineHint = $state('');
+
+	// Initialize servings from user preferences once on page load.
+	// After initialization, we don't update it even if preferences change,
+	// because the user may have manually adjusted the value in the form.
+	$effect(() => {
+		if (!servingsInitialized && data.preferences?.defaultServings !== undefined) {
+			servings = data.preferences.defaultServings;
+			servingsInitialized = true;
+		}
+	});
 
 	// Rotating loading messages
 	const loadingMessages = [
