@@ -31,8 +31,15 @@
 	let pantryInitialized = $state(false);
 
 	// Initialize servings from preferences
-	let servings = $derived(data.preferences?.defaultServings ?? 2);
+	let servings = $state(2);
 	let cuisineHint = $state('');
+
+	// Update servings when preferences load
+	$effect(() => {
+		if (data.preferences?.defaultServings) {
+			servings = data.preferences.defaultServings;
+		}
+	});
 
 	// Rotating loading messages
 	const loadingMessages = [
