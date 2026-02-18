@@ -86,6 +86,15 @@ export class ReceiptController {
 		mimeType: string
 	): Promise<void> {
 		try {
+			// Get receipt to access upload date
+			const receipt = await this.receiptRepository.findById(receiptId);
+			if (!receipt) {
+				throw new Error('Receipt not found');
+			}
+
+			// Use receipt upload date (createdAt) as the purchase date
+			const purchaseDate = receipt.createdAt;
+
 			// Update status to PROCESSING
 			await this.receiptRepository.update(receiptId, {
 				status: 'PROCESSING'
@@ -96,14 +105,14 @@ export class ReceiptController {
 			console.log('OCR Data:', ocrData);
 
 			// Normalize and save items
-			await this.saveReceiptData(receiptId, ocrData);
+			await this.saveReceiptData(receiptId, ocrData, purchaseDate);
 
 			// Update status to DONE
 			await this.receiptRepository.update(receiptId, {
 				status: 'DONE',
 				rawOcrData: ocrData as unknown as Record<string, unknown>,
 				storeName: ocrData.storeName,
-				purchaseDate: new Date(),
+				purchaseDate: purchaseDate,
 				totalAmount: ocrData.total?.replace(/[^0-9.]/g, '') || undefined,
 				currency: ocrData.currency || 'USD'
 			});
@@ -119,7 +128,11 @@ export class ReceiptController {
 	/**
 	 * Save normalized receipt items
 	 */
-	private async saveReceiptData(receiptId: string, ocrData: RawReceiptData): Promise<void> {
+	private async saveReceiptData(
+		receiptId: string,
+		ocrData: RawReceiptData,
+		purchaseDate: Date
+	): Promise<void> {
 		const receipt = await this.receiptRepository.findById(receiptId);
 
 		if (!receipt) {
@@ -160,8 +173,8 @@ export class ReceiptController {
 		if (foodItems.length > 0) {
 			await this.receiptItemRepository.createMany(foodItems);
 
-			// Update purchase history - always use today's date (OCR dates are unreliable)
-			await this.updatePurchaseHistory(receipt.userId, foodItems, new Date());
+			// Update purchase history - use receipt upload date
+			await this.updatePurchaseHistory(receipt.userId, foodItems, purchaseDate);
 		}
 	}
 
