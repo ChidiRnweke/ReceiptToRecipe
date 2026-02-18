@@ -35,7 +35,9 @@
 	let servings = $state(2);
 	let cuisineHint = $state('');
 
-	// Update servings when preferences load (only once)
+	// Initialize servings from user preferences once on page load.
+	// After initialization, we don't update it even if preferences change,
+	// because the user may have manually adjusted the value in the form.
 	$effect(() => {
 		if (!servingsInitialized && data.preferences?.defaultServings !== undefined) {
 			servings = data.preferences.defaultServings;
