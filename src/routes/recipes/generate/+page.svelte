@@ -29,15 +29,17 @@
 	let loadingMessage = $state('Consulting Chef...');
 	let messageInterval: ReturnType<typeof setInterval> | null = null;
 	let pantryInitialized = $state(false);
+	let servingsInitialized = $state(false);
 
 	// Initialize servings from preferences
 	let servings = $state(2);
 	let cuisineHint = $state('');
 
-	// Update servings when preferences load
+	// Update servings when preferences load (only once)
 	$effect(() => {
-		if (data.preferences?.defaultServings) {
+		if (!servingsInitialized && data.preferences?.defaultServings !== undefined) {
 			servings = data.preferences.defaultServings;
+			servingsInitialized = true;
 		}
 	});
 
