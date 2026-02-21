@@ -33,6 +33,15 @@ export type {
 	ActiveListStats,
 	SmartSuggestion
 } from './IDashboardService';
+export type {
+	INutritionService,
+	NutritionDaySummary,
+	NutritionWeekSummary,
+	NutritionStreak,
+	NutritionAdherence,
+	NutritionAggregates,
+	NutritionAggregateOptions
+} from './INutritionService';
 
 // Job Queue interface
 export type { IJobQueue } from './IJobQueue';

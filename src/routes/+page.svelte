@@ -798,6 +798,7 @@
 			</div>
 		</main>
 	</div>
+	<OnboardingModal receiptCount={workflowStore.receipts} recipeCount={workflowStore.recipes} />
 	{#await data.streamed.dashboardData catch error}
 		<!-- Error toast or fallback -->
 	{/await}

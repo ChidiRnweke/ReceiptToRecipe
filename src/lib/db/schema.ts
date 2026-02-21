@@ -26,6 +26,8 @@ export const userRoleEnum = pgEnum('user_role', ['WAITING', 'USER', 'ADMIN']);
 
 export const unitTypeEnum = pgEnum('unit_type', ['WEIGHT', 'VOLUME', 'COUNT']);
 
+export const mealTypeEnum = pgEnum('meal_type', ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK']);
+
 // Users
 export const users = pgTable('users', {
 	id: uuid('id').primaryKey().defaultRandom(),
@@ -158,6 +160,36 @@ export const shoppingLists = pgTable('shopping_lists', {
 		.references(() => users.id, { onDelete: 'cascade' }),
 	name: text('name').notNull(),
 	isActive: boolean('is_active').default(true),
+	createdAt: timestamp('created_at').notNull().defaultNow(),
+	updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Meal Logs (nutrition tracking)
+export const mealLogs = pgTable('meal_logs', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	userId: uuid('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	recipeId: uuid('recipe_id').references(() => recipes.id, { onDelete: 'set null' }),
+	foodName: text('food_name').notNull(),
+	calories: integer('calories').notNull(),
+	consumedAt: timestamp('consumed_at').notNull().defaultNow(),
+	mealType: mealTypeEnum('meal_type').notNull(),
+	createdAt: timestamp('created_at').notNull().defaultNow(),
+	updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Planned Meals (meal planning link for nutrition)
+export const plannedMeals = pgTable('planned_meals', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	userId: uuid('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	recipeId: uuid('recipe_id').references(() => recipes.id, { onDelete: 'set null' }),
+	mealName: text('meal_name').notNull(),
+	plannedDate: timestamp('planned_date').notNull(),
+	plannedCalories: integer('planned_calories').notNull(),
+	mealType: mealTypeEnum('meal_type').notNull(),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
@@ -334,6 +366,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 	receipts: many(receipts),
 	recipes: many(recipes),
 	shoppingLists: many(shoppingLists),
+	mealLogs: many(mealLogs),
+	plannedMeals: many(plannedMeals),
 	purchaseHistory: many(purchaseHistory),
 	cupboardItems: many(cupboardItems),
 	savedRecipes: many(savedRecipes)
@@ -410,8 +444,32 @@ export const recipesRelations = relations(recipes, ({ one, many }) => ({
 		references: [receipts.id]
 	}),
 	ingredients: many(recipeIngredients),
+	mealLogs: many(mealLogs),
+	plannedMeals: many(plannedMeals),
 	savedBy: many(savedRecipes),
 	shoppingListItems: many(shoppingListItems)
+}));
+
+export const mealLogsRelations = relations(mealLogs, ({ one }) => ({
+	user: one(users, {
+		fields: [mealLogs.userId],
+		references: [users.id]
+	}),
+	recipe: one(recipes, {
+		fields: [mealLogs.recipeId],
+		references: [recipes.id]
+	})
+}));
+
+export const plannedMealsRelations = relations(plannedMeals, ({ one }) => ({
+	user: one(users, {
+		fields: [plannedMeals.userId],
+		references: [users.id]
+	}),
+	recipe: one(recipes, {
+		fields: [plannedMeals.recipeId],
+		references: [recipes.id]
+	})
 }));
 
 export const recipeIngredientsRelations = relations(recipeIngredients, ({ one }) => ({
@@ -482,6 +540,10 @@ export type RecipeIngredient = typeof recipeIngredients.$inferSelect;
 export type NewRecipeIngredient = typeof recipeIngredients.$inferInsert;
 export type ShoppingList = typeof shoppingLists.$inferSelect;
 export type NewShoppingList = typeof shoppingLists.$inferInsert;
+export type MealLog = typeof mealLogs.$inferSelect;
+export type NewMealLog = typeof mealLogs.$inferInsert;
+export type PlannedMeal = typeof plannedMeals.$inferSelect;
+export type NewPlannedMeal = typeof plannedMeals.$inferInsert;
 export type ShoppingListItem = typeof shoppingListItems.$inferSelect;
 export type NewShoppingListItem = typeof shoppingListItems.$inferInsert;
 export type PurchaseHistory = typeof purchaseHistory.$inferSelect;

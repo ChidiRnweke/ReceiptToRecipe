@@ -126,6 +126,30 @@ export class MockReceiptRepository implements IReceiptRepository {
 	clear(): void {
 		this.receipts.clear();
 	}
+
+	/**
+	 * Create a receipt with a specific createdAt date for testing date-dependent behavior.
+	 * This allows simulating receipts uploaded in the past but processed later.
+	 */
+	async createWithDate(receipt: NewReceiptDao, createdAt: Date): Promise<ReceiptDao> {
+		const now = new Date();
+		const created: ReceiptDao = {
+			id: uuidv4(),
+			userId: receipt.userId,
+			imageUrl: receipt.imageUrl,
+			status: receipt.status || 'QUEUED',
+			rawOcrData: null,
+			storeName: receipt.storeName || null,
+			purchaseDate: receipt.purchaseDate || null,
+			totalAmount: receipt.totalAmount || null,
+			currency: receipt.currency || 'USD',
+			errorMessage: null,
+			createdAt: createdAt,
+			updatedAt: now
+		};
+		this.receipts.set(created.id, created);
+		return created;
+	}
 }
 
 /**

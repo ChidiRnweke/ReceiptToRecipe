@@ -15,6 +15,7 @@ import {
 	PantryService,
 	TasteProfileService,
 	DashboardService,
+	NutritionService,
 	type IStorageService,
 	type INormalizationService,
 	type IReceiptExtractor,
@@ -26,6 +27,7 @@ import {
 	type IPantryService,
 	type ITasteProfileService,
 	type IDashboardService,
+	type INutritionService,
 	type INotificationService
 } from '$services';
 import { AppriseNotificationService, MockNotificationService } from '$services';
@@ -49,6 +51,8 @@ import {
 	ShoppingListItemRepository,
 	PurchaseHistoryRepository,
 	CupboardItemRepository,
+	MealLogRepository,
+	PlannedMealRepository,
 	UserDietaryProfileRepository,
 	UserAllergyRepository,
 	UserIngredientPreferenceRepository,
@@ -66,6 +70,8 @@ import {
 	type IShoppingListItemRepository,
 	type IPurchaseHistoryRepository,
 	type ICupboardItemRepository,
+	type IMealLogRepository,
+	type IPlannedMealRepository,
 	type IUserDietaryProfileRepository,
 	type IUserAllergyRepository,
 	type IUserIngredientPreferenceRepository,
@@ -95,6 +101,7 @@ let oauthService: IOAuthService | null = null;
 let pantryService: IPantryService | null = null;
 let tasteProfileService: ITasteProfileService | null = null;
 let dashboardService: IDashboardService | null = null;
+let nutritionService: INutritionService | null = null;
 
 // Repositories
 let userRepository: IUserRepository | null = null;
@@ -109,6 +116,8 @@ let shoppingListRepository: IShoppingListRepository | null = null;
 let shoppingListItemRepository: IShoppingListItemRepository | null = null;
 let purchaseHistoryRepository: IPurchaseHistoryRepository | null = null;
 let cupboardItemRepository: ICupboardItemRepository | null = null;
+let mealLogRepository: IMealLogRepository | null = null;
+let plannedMealRepository: IPlannedMealRepository | null = null;
 let userDietaryProfileRepository: IUserDietaryProfileRepository | null = null;
 let userAllergyRepository: IUserAllergyRepository | null = null;
 let userIngredientPreferenceRepository: IUserIngredientPreferenceRepository | null = null;
@@ -305,6 +314,17 @@ export class AppFactory {
 		return dashboardService;
 	}
 
+	static getNutritionService(): INutritionService {
+		if (!nutritionService) {
+			nutritionService = new NutritionService(
+				AppFactory.getMealLogRepository(),
+				AppFactory.getPlannedMealRepository(),
+				AppFactory.getUserPreferencesRepository()
+			);
+		}
+		return nutritionService;
+	}
+
 	// Controllers
 	static getRecipeController(): RecipeController {
 		if (!recipeController) {
@@ -460,6 +480,20 @@ export class AppFactory {
 		return cupboardItemRepository;
 	}
 
+	static getMealLogRepository(): IMealLogRepository {
+		if (!mealLogRepository) {
+			mealLogRepository = new MealLogRepository(getDb());
+		}
+		return mealLogRepository;
+	}
+
+	static getPlannedMealRepository(): IPlannedMealRepository {
+		if (!plannedMealRepository) {
+			plannedMealRepository = new PlannedMealRepository(getDb());
+		}
+		return plannedMealRepository;
+	}
+
 	static getUserDietaryProfileRepository(): IUserDietaryProfileRepository {
 		if (!userDietaryProfileRepository) {
 			userDietaryProfileRepository = new UserDietaryProfileRepository(getDb());
@@ -526,6 +560,7 @@ export class AppFactory {
 		pantryService = null;
 		tasteProfileService = null;
 		dashboardService = null;
+		nutritionService = null;
 
 		// Controllers
 		recipeController = null;
@@ -547,6 +582,8 @@ export class AppFactory {
 		shoppingListItemRepository = null;
 		purchaseHistoryRepository = null;
 		cupboardItemRepository = null;
+		mealLogRepository = null;
+		plannedMealRepository = null;
 		userDietaryProfileRepository = null;
 		userAllergyRepository = null;
 		userIngredientPreferenceRepository = null;

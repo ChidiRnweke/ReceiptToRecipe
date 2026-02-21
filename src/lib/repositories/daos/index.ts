@@ -73,3 +73,18 @@ export type {
 	NewCupboardItemDao,
 	UpdateCupboardItemDao
 } from './CupboardItemDaos';
+
+export type {
+	MealTypeDao,
+	MealLogDao,
+	NewMealLogDao,
+	UpdateMealLogDao,
+	DailyCaloriesDao
+} from './MealLogDaos';
+
+export type {
+	PlannedMealDao,
+	NewPlannedMealDao,
+	UpdatePlannedMealDao,
+	DailyPlannedCaloriesDao
+} from './PlannedMealDaos';

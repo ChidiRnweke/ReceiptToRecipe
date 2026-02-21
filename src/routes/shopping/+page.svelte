@@ -21,6 +21,7 @@
 		X
 	} from 'lucide-svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
+	import { undoToastState } from '$lib/state/undoToast.svelte';
 	import Notepad from '$lib/components/Notepad.svelte';
 	import PinnedNote from '$lib/components/PinnedNote.svelte';
 	import WashiTape from '$lib/components/WashiTape.svelte';
@@ -278,6 +279,40 @@
 			...groups,
 			...(other.length > 0 ? { 'Manual & Suggestions': other } : {})
 		};
+	}
+
+	async function restoreDeletedItem(listId: string, item: unknown) {
+		const formData = new FormData();
+		formData.set('listId', listId);
+		formData.set('item', JSON.stringify(item));
+
+		const response = await fetch('?/restoreItem', {
+			method: 'POST',
+			body: formData
+		});
+
+		if (!response.ok) {
+			throw new Error('Failed to restore shopping item');
+		}
+
+		await invalidateAll();
+	}
+
+	async function restoreCheckedItems(listId: string, items: unknown[]) {
+		const formData = new FormData();
+		formData.set('listId', listId);
+		formData.set('items', JSON.stringify(items));
+
+		const response = await fetch('?/restoreCheckedItems', {
+			method: 'POST',
+			body: formData
+		});
+
+		if (!response.ok) {
+			throw new Error('Failed to restore checked shopping items');
+		}
+
+		await invalidateAll();
 	}
 </script>
 
@@ -746,6 +781,14 @@
 																			method="POST"
 																			action="?/deleteItem"
 																			use:enhance={() => {
+																				const removedItem = {
+																					name: item.name,
+																					quantity: item.quantity,
+																					unit: item.unit,
+																					fromRecipeId: item.fromRecipeId,
+																					notes: item.notes,
+																					checked: item.checked
+																				};
 																				lists = lists.map((l) =>
 																					l.id === list.id
 																						? {
@@ -760,6 +803,13 @@
 																						workflowStore.incrementShopping();
 																						await invalidateAll();
 																					} else {
+																						undoToastState.show({
+																							message: `Removed ${item.name} from your shopping list.`,
+																							label: 'Restore',
+																							onUndo: async () => {
+																								await restoreDeletedItem(list.id, removedItem);
+																							}
+																						});
 																						await invalidateAll();
 																					}
 																				};
@@ -794,10 +844,29 @@
 														method="POST"
 														action="?/completeShopping"
 														use:enhance={() => {
+															const completedItems = (list.items || [])
+																.filter((entry: any) => entry.checked)
+																.map((entry: any) => ({
+																	name: entry.name,
+																	quantity: entry.quantity,
+																	unit: entry.unit,
+																	fromRecipeId: entry.fromRecipeId,
+																	notes: entry.notes,
+																	checked: true
+																}));
 															loading = true;
 															return async ({ result }) => {
 																loading = false;
 																if (result.type === 'success') {
+																	if (completedItems.length > 0) {
+																		undoToastState.show({
+																			message: `${completedItems.length} checked ${completedItems.length === 1 ? 'item' : 'items'} archived.`,
+																			label: 'Restore',
+																			onUndo: async () => {
+																				await restoreCheckedItems(list.id, completedItems);
+																			}
+																		});
+																	}
 																	await invalidateAll();
 																}
 															};

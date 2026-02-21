@@ -3,6 +3,66 @@ import type { Actions, PageServerLoad } from './$types';
 import { AppFactory } from '$lib/factories';
 import type { PantryItem } from '$lib/services/interfaces/IPantryService';
 
+type RestorableItemInput = {
+	name: string;
+	quantity: string | null;
+	unit: string | null;
+	fromRecipeId: string | null;
+	notes: string | null;
+	checked: boolean;
+};
+
+function parseRestorableItem(raw: FormDataEntryValue | null): RestorableItemInput | null {
+	if (!raw || typeof raw !== 'string') return null;
+
+	try {
+		const parsed = JSON.parse(raw) as Partial<RestorableItemInput>;
+		if (!parsed || typeof parsed !== 'object') return null;
+		if (typeof parsed.name !== 'string' || parsed.name.trim().length === 0) return null;
+
+		return {
+			name: parsed.name,
+			quantity: typeof parsed.quantity === 'string' ? parsed.quantity : null,
+			unit: typeof parsed.unit === 'string' ? parsed.unit : null,
+			fromRecipeId: typeof parsed.fromRecipeId === 'string' ? parsed.fromRecipeId : null,
+			notes: typeof parsed.notes === 'string' ? parsed.notes : null,
+			checked: Boolean(parsed.checked)
+		};
+	} catch {
+		return null;
+	}
+}
+
+function parseRestorableItems(raw: FormDataEntryValue | null): RestorableItemInput[] | null {
+	if (!raw || typeof raw !== 'string') return null;
+
+	try {
+		const parsed = JSON.parse(raw) as unknown[];
+		if (!Array.isArray(parsed)) return null;
+
+		const values: RestorableItemInput[] = [];
+		for (const value of parsed) {
+			const candidate = parseRestorableItem(JSON.stringify(value));
+			if (candidate) values.push(candidate);
+		}
+
+		return values;
+	} catch {
+		return null;
+	}
+}
+
+function itemFingerprint(item: RestorableItemInput): string {
+	return [
+		item.name.trim().toLowerCase(),
+		(item.quantity ?? '').trim().toLowerCase(),
+		(item.unit ?? '').trim().toLowerCase(),
+		(item.fromRecipeId ?? '').trim().toLowerCase(),
+		(item.notes ?? '').trim().toLowerCase(),
+		item.checked ? 'checked' : 'unchecked'
+	].join('::');
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
 		throw redirect(302, '/login');
@@ -82,6 +142,130 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
+	restoreItem: async ({ request, locals }) => {
+		if (!locals.user) {
+			throw redirect(302, '/login');
+		}
+
+		const data = await request.formData();
+		const listId = data.get('listId')?.toString();
+		const item = parseRestorableItem(data.get('item'));
+
+		if (!listId || !item) {
+			return fail(400, { error: 'List ID and restorable item are required' });
+		}
+
+		const shoppingListController = AppFactory.getShoppingListController();
+		const userLists = await shoppingListController.getUserLists(locals.user.id);
+		const targetList = userLists.find((list) => list.id === listId);
+
+		if (!targetList) {
+			return fail(403, { error: 'Shopping list not found' });
+		}
+
+		const shoppingListItemRepository = AppFactory.getShoppingListItemRepository();
+		const existingItems = await shoppingListItemRepository.findByListId(listId);
+		const existingFingerprints = new Set(
+			existingItems.map((existing) =>
+				itemFingerprint({
+					name: existing.name,
+					quantity: existing.quantity,
+					unit: existing.unit,
+					fromRecipeId: existing.fromRecipeId,
+					notes: existing.notes,
+					checked: existing.checked
+				})
+			)
+		);
+
+		if (existingFingerprints.has(itemFingerprint(item))) {
+			return { success: true, idempotent: true };
+		}
+
+		const maxOrderIndex = await shoppingListItemRepository.getMaxOrderIndex(listId);
+		const restoredItem = await shoppingListItemRepository.create({
+			shoppingListId: listId,
+			name: item.name,
+			quantity: item.quantity,
+			unit: item.unit,
+			fromRecipeId: item.fromRecipeId,
+			notes: item.notes,
+			checked: item.checked,
+			orderIndex: maxOrderIndex + 1
+		});
+
+		return { success: true, idempotent: false, restoredItemId: restoredItem.id };
+	},
+
+	restoreCheckedItems: async ({ request, locals }) => {
+		if (!locals.user) {
+			throw redirect(302, '/login');
+		}
+
+		const data = await request.formData();
+		const listId = data.get('listId')?.toString();
+		const items = parseRestorableItems(data.get('items'));
+
+		if (!listId || !items) {
+			return fail(400, { error: 'List ID and restorable items are required' });
+		}
+
+		if (items.length === 0) {
+			return { success: true, restoredCount: 0, idempotent: true };
+		}
+
+		const shoppingListController = AppFactory.getShoppingListController();
+		const userLists = await shoppingListController.getUserLists(locals.user.id);
+		const targetList = userLists.find((list) => list.id === listId);
+
+		if (!targetList) {
+			return fail(403, { error: 'Shopping list not found' });
+		}
+
+		const shoppingListItemRepository = AppFactory.getShoppingListItemRepository();
+		const existingItems = await shoppingListItemRepository.findByListId(listId);
+		const existingFingerprints = new Set(
+			existingItems.map((existing) =>
+				itemFingerprint({
+					name: existing.name,
+					quantity: existing.quantity,
+					unit: existing.unit,
+					fromRecipeId: existing.fromRecipeId,
+					notes: existing.notes,
+					checked: existing.checked
+				})
+			)
+		);
+
+		let nextOrderIndex = (await shoppingListItemRepository.getMaxOrderIndex(listId)) + 1;
+		let restoredCount = 0;
+
+		for (const item of items) {
+			const fingerprint = itemFingerprint(item);
+			if (existingFingerprints.has(fingerprint)) continue;
+
+			await shoppingListItemRepository.create({
+				shoppingListId: listId,
+				name: item.name,
+				quantity: item.quantity,
+				unit: item.unit,
+				fromRecipeId: item.fromRecipeId,
+				notes: item.notes,
+				checked: item.checked,
+				orderIndex: nextOrderIndex++
+			});
+
+			existingFingerprints.add(fingerprint);
+			restoredCount++;
+		}
+
+		return {
+			success: true,
+			restoredCount,
+			idempotent: restoredCount === 0
+		};
+	},
+
 	completeShopping: async ({ request, locals }) => {
 		if (!locals.user) {
 			throw redirect(302, '/login');

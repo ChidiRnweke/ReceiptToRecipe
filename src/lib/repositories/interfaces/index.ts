@@ -19,6 +19,8 @@ export type {
 
 export type { IPurchaseHistoryRepository } from './IPurchaseHistoryRepository';
 export type { ICupboardItemRepository } from './ICupboardItemRepository';
+export type { IMealLogRepository } from './IMealLogRepository';
+export type { IPlannedMealRepository } from './IPlannedMealRepository';
 
 export type {
 	IUserDietaryProfileRepository,

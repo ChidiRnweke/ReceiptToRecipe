@@ -11,53 +11,116 @@
 
 	let { receiptCount, recipeCount }: Props = $props();
 
-	const STORAGE_KEY = 'r2r_onboarding_dismissed';
+	type OnboardingState = 'active' | 'dismissed' | 'completed';
 
-	// Check if onboarding was already dismissed
-	let dismissed = $state(browser ? localStorage.getItem(STORAGE_KEY) === 'true' : true);
+	const STORAGE_KEY = 'r2r_onboarding_state';
+	const LEGACY_STORAGE_KEY = 'r2r_onboarding_dismissed';
 
-	// Show onboarding if user is new (0 receipts) and hasn't dismissed
-	let showOnboarding = $derived(!dismissed && receiptCount === 0);
+	let onboardingState = $state<OnboardingState>('active');
+	let forceOpen = $state(false);
+	let hydrated = $state(false);
+
+	const isFirstTimeUser = $derived(receiptCount === 0 && recipeCount === 0);
+	const shouldShowOnboarding = $derived(
+		browser && (forceOpen || (isFirstTimeUser && onboardingState === 'active'))
+	);
+	let showOnboarding = $state(false);
 
 	// Current step in the workflow explanation
 	let currentStep = $state(0);
 
+	$effect(() => {
+		if (!browser || hydrated) return;
+
+		hydrated = true;
+		forceOpen = new URLSearchParams(window.location.search).get('onboarding') === '1';
+
+		const existingState = localStorage.getItem(STORAGE_KEY);
+		if (!existingState && localStorage.getItem(LEGACY_STORAGE_KEY) === 'true') {
+			localStorage.setItem(STORAGE_KEY, 'dismissed');
+		}
+
+		const storedState = localStorage.getItem(STORAGE_KEY);
+		if (storedState === 'dismissed' || storedState === 'completed' || storedState === 'active') {
+			onboardingState = storedState;
+		} else {
+			onboardingState = 'active';
+			localStorage.setItem(STORAGE_KEY, 'active');
+		}
+	});
+
+	$effect(() => {
+		showOnboarding = shouldShowOnboarding;
+	});
+
+	$effect(() => {
+		if (!browser || !hydrated) return;
+		if (!showOnboarding && shouldShowOnboarding) {
+			dismissOnboarding();
+		}
+	});
+
 	const steps = [
 		{
 			icon: Upload,
-			title: 'Scan Your Receipt',
-			description:
-				"Drop a photo of your grocery receipt. We'll extract and organize all your purchased items automatically.",
-			cta: "This tells us what's in your kitchen."
+			title: 'Receipts',
+			description: "Drop a grocery receipt photo and we'll extract your items automatically.",
+			cta: 'This is where your kitchen data starts.',
+			actionLabel: 'Upload a receipt',
+			actionHref: '/receipts/upload'
 		},
 		{
 			icon: Warehouse,
-			title: 'Stock Your Cupboard',
+			title: 'Cupboard',
 			description:
-				'Your scanned items fill your cupboard. We track what you have, estimate when things run low, and show you why we think so.',
-			cta: 'You can always correct us if we get it wrong.'
+				'Your scanned items land in your cupboard so you can track what you have and what is running low.',
+			cta: 'Edit anything at any time.',
+			actionLabel: 'Open cupboard',
+			actionHref: '/cupboard'
 		},
 		{
 			icon: ChefHat,
-			title: 'Generate Recipes',
+			title: 'Recipes',
 			description:
-				"Get personalized recipe suggestions based on what you have. We'll prioritize ingredients in your kitchen.",
-			cta: "Cook with what you've got!"
+				'Generate recipes based on what is already in your kitchen and your saved preferences.',
+			cta: 'Use what you already bought first.',
+			actionLabel: 'Generate recipe',
+			actionHref: '/recipes/generate'
 		},
 		{
 			icon: ShoppingCart,
-			title: 'Smart Shopping Lists',
+			title: 'Shopping',
 			description:
-				"Missing ingredients? Add them to your shopping list with one click. We'll even suggest restocks.",
-			cta: 'Never forget an ingredient again.'
+				'Missing ingredients can be added to your shopping list in one click while planning meals.',
+			cta: 'Keep shopping fast and focused.',
+			actionLabel: 'Open shopping list',
+			actionHref: '/shopping'
 		}
 	];
 
-	function dismissOnboarding() {
+	function clearOnboardingQuery() {
+		if (!browser || !forceOpen) return;
+
+		const nextUrl = new URL(window.location.href);
+		nextUrl.searchParams.delete('onboarding');
+		window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+	}
+
+	function setOnboardingState(next: OnboardingState) {
 		if (browser) {
-			localStorage.setItem(STORAGE_KEY, 'true');
+			localStorage.setItem(STORAGE_KEY, next);
 		}
-		dismissed = true;
+		onboardingState = next;
+		forceOpen = false;
+		clearOnboardingQuery();
+	}
+
+	function dismissOnboarding() {
+		setOnboardingState('dismissed');
+	}
+
+	function completeOnboarding() {
+		setOnboardingState('completed');
 	}
 
 	function nextStep() {
@@ -74,7 +137,7 @@
 </script>
 
 <AlertDialog.Root bind:open={showOnboarding}>
-	<AlertDialog.Content class="max-w-md">
+	<AlertDialog.Content class="max-h-[90vh] w-[min(92vw,40rem)] overflow-y-auto sm:max-w-lg">
 		<button
 			onclick={dismissOnboarding}
 			class="absolute top-4 right-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none"
@@ -132,17 +195,27 @@
 				<AlertDialog.Cancel onclick={dismissOnboarding} class="mt-0">Skip tour</AlertDialog.Cancel>
 			{/if}
 
-			{#if currentStep < steps.length - 1}
-				<Button onclick={nextStep}>
-					Next
-					<ArrowRight class="ml-2 h-4 w-4" />
+			<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+				<Button
+					variant="outline"
+					href={steps[currentStep].actionHref}
+					onclick={() => setOnboardingState('dismissed')}
+				>
+					{steps[currentStep].actionLabel}
 				</Button>
-			{:else}
-				<Button href="/receipts/upload" onclick={dismissOnboarding}>
-					<Upload class="mr-2 h-4 w-4" />
-					Start Scanning
-				</Button>
-			{/if}
+
+				{#if currentStep < steps.length - 1}
+					<Button onclick={nextStep}>
+						Next
+						<ArrowRight class="ml-2 h-4 w-4" />
+					</Button>
+				{:else}
+					<Button href="/shopping" onclick={completeOnboarding}>
+						<ShoppingCart class="mr-2 h-4 w-4" />
+						Finish tour
+					</Button>
+				{/if}
+			</div>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>

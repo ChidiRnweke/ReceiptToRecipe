@@ -9,7 +9,6 @@
 		ArrowLeft,
 		Clock,
 		Users,
-		Flame,
 		ShoppingCart,
 		Share2,
 		Heart,
@@ -408,15 +407,6 @@
 									>
 								</div>
 							</div>
-
-							{#if recipe.estimatedCalories}
-								<div class="flex items-center gap-2 text-text-secondary">
-									<Flame class="h-4 w-4 text-danger-500" />
-									<span class="font-ui text-xs tracking-wider uppercase"
-										>{recipe.estimatedCalories} kcal</span
-									>
-								</div>
-							{/if}
 						</div>
 					</div>
 				</div>

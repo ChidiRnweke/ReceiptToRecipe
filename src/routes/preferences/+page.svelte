@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { browser } from '$app/environment';
 	import { Button } from '$lib/components/ui/button';
 	import IconButton from '$lib/components/ui/icon-button/IconButton.svelte';
 	import ToggleChip from '$lib/components/ToggleChip.svelte';
@@ -17,7 +18,8 @@
 		Ban,
 		Flame,
 		Save,
-		ArrowLeft
+		ArrowLeft,
+		RotateCcw
 	} from 'lucide-svelte';
 	import Notepad from '$lib/components/Notepad.svelte';
 	import PinnedNote from '$lib/components/PinnedNote.svelte';
@@ -77,6 +79,8 @@
 		'Korean'
 	];
 
+	const ONBOARDING_STATE_KEY = 'r2r_onboarding_state';
+
 	function addItem(list: string[], item: string, setter: (value: string[]) => void) {
 		if (item.trim() && !list.includes(item.trim())) {
 			setter([...list, item.trim()]);
@@ -114,6 +118,11 @@
 		addItem(excludedIngredients, newExcludedIngredient, (v) => (excludedIngredients = v));
 		newExcludedIngredient = '';
 	}
+
+	function replayOnboarding() {
+		if (!browser) return;
+		localStorage.setItem(ONBOARDING_STATE_KEY, 'active');
+	}
 </script>
 
 <svelte:head>
@@ -147,6 +156,17 @@
 						Define the rules of your kitchen. We'll tailor every recipe to match your taste and
 						needs.
 					</p>
+					<div class="mt-4">
+						<Button
+							href="/?onboarding=1"
+							variant="outline"
+							onclick={replayOnboarding}
+							class="border-sand bg-bg-paper-dark text-ink hover:bg-bg-hover"
+						>
+							<RotateCcw class="mr-2 h-4 w-4" />
+							Replay onboarding tutorial
+						</Button>
+					</div>
 				</div>
 			</div>
 		</div>

@@ -71,6 +71,20 @@
       "when": 1771189773779,
       "tag": "0009_safe_khan",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1771531564215,
+      "tag": "0010_lean_nighthawk",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1771532239987,
+      "tag": "0011_slim_fantastic_four",
+      "breakpoints": true
     }
   ]
 }

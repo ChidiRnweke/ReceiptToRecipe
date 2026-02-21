@@ -2,7 +2,13 @@ import { error, redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { AppFactory } from '$lib/factories';
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export const load: PageServerLoad = async ({ locals, params }) => {
+	if (!UUID_PATTERN.test(params.id)) {
+		throw error(404, 'Recipe not found');
+	}
+
 	const recipeController = AppFactory.getRecipeController();
 	const viewerId = locals.user?.id;
 

@@ -16,6 +16,7 @@
 	} from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
 	import { workflowStore } from '$lib/state/workflow.svelte';
+	import { undoToastState } from '$lib/state/undoToast.svelte';
 	import WashiTape from '$lib/components/WashiTape.svelte';
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Label } from '$lib/components/ui/label';
@@ -52,6 +53,22 @@
 	function confirmDelete(id: string) {
 		recipeToDelete = id;
 		deleteDialogOpen = true;
+	}
+
+	async function restoreDeletedRecipe(snapshot: unknown) {
+		const formData = new FormData();
+		formData.set('recipe', JSON.stringify(snapshot));
+
+		const response = await fetch('?/restore', {
+			method: 'POST',
+			body: formData
+		});
+
+		if (!response.ok) {
+			throw new Error('Failed to restore recipe');
+		}
+
+		await invalidateAll();
 	}
 </script>
 
@@ -526,7 +543,8 @@
 			<AlertDialog.Header>
 				<AlertDialog.Title>Are you sure?</AlertDialog.Title>
 				<AlertDialog.Description>
-					This will permanently delete this recipe from your cookbook. This action cannot be undone.
+					Delete this recipe from your cookbook? You can restore it from the undo toast for a few
+					seconds.
 				</AlertDialog.Description>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
@@ -537,9 +555,23 @@
 					use:enhance={() => {
 						deleteDialogOpen = false;
 						if (recipeToDelete) deletingId = recipeToDelete;
-						return async ({ update }) => {
+						return async ({ result, update }) => {
 							deletingId = null;
 							await update();
+
+							if (result.type !== 'success') return;
+
+							const payload = (result.data as { deletedRecipe?: unknown } | undefined)
+								?.deletedRecipe;
+							if (!payload) return;
+
+							undoToastState.show({
+								message: 'Recipe deleted from your cookbook.',
+								label: 'Restore',
+								onUndo: async () => {
+									await restoreDeletedRecipe(payload);
+								}
+							});
 						};
 					}}
 					class="inline-block"

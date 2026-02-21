@@ -52,6 +52,13 @@ export type {
 	ActiveListStats,
 	IAuthService,
 	AuthResult,
+	INutritionService,
+	NutritionDaySummary,
+	NutritionWeekSummary,
+	NutritionStreak,
+	NutritionAdherence,
+	NutritionAggregates,
+	NutritionAggregateOptions,
 	// OAuth interfaces
 	IOAuthService,
 	Auth0Tokens,
@@ -86,6 +93,8 @@ export * from './JobQueue';
 export { PantryService } from './PantryService';
 export { TasteProfileService } from './TasteProfileService';
 export { DashboardService } from './DashboardService';
+export { NutritionService } from './NutritionService';
+export { GlobalSearchService } from './GlobalSearchService';
 export {
 	AppriseNotificationService,
 	MockNotificationService,
