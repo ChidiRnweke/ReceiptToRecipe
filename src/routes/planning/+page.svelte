@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Sparkles, ShoppingCart, Trash2, ChefHat } from 'lucide-svelte';
 	import WashiTape from '$lib/components/WashiTape.svelte';
 
@@ -12,6 +13,7 @@
 		plannedDate: string;
 		recipeTitle: string;
 		recipeImageUrl: string | null;
+		recipeImageStatus: string | null;
 		calories: number | null;
 	};
 
@@ -20,6 +22,18 @@
 	const rangeEnd = $derived(new Date(data.rangeEnd));
 
 	let calorieLimit = $state(2000);
+
+	const hasPendingImages = $derived(
+		plannedMeals.some(
+			(m) => m.recipeImageStatus === 'QUEUED' || m.recipeImageStatus === 'PROCESSING'
+		)
+	);
+
+	$effect(() => {
+		if (!hasPendingImages) return;
+		const interval = setInterval(() => void invalidateAll(), 3000);
+		return () => clearInterval(interval);
+	});
 
 	let generating = $state(false);
 	let activeDayKey = $state<string | null>(null);

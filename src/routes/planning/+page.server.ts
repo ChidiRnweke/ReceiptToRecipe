@@ -214,6 +214,7 @@ async function getPlanningData(userId: string) {
 			plannedDate: toDateKey(meal.plannedDate),
 			recipeTitle: recipe?.title ?? meal.mealName,
 			recipeImageUrl: recipe?.imageUrl ?? null,
+			recipeImageStatus: recipe?.imageStatus ?? null,
 			calories: calorieEstimate?.calories ?? meal.plannedCalories ?? null
 		};
 	});

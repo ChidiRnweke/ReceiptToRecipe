@@ -11,9 +11,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const preferencesController = AppFactory.getPreferencesController();
 	const preferences = await preferencesController.getPreferences(locals.user.id);
 
-	// Get user pantry items (streamed)
+	// Get all cupboard items for recipe generation — include low-confidence/expired
+	// items too, since users may still have them. Auto-selection is handled on the
+	// client (only pre-selects confidence > 0.6), so showing more is always safe.
 	const pantryController = AppFactory.getPantryController();
-	const pantryPromise = pantryController.getUserPantry(locals.user.id);
+	const pantryPromise = Promise.all([
+		pantryController.getUserPantry(locals.user.id),
+		pantryController.getExpiredItems(locals.user.id)
+	]).then(([active, expired]) => [...active, ...expired]);
 
 	return {
 		preferences,

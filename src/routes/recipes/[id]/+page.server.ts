@@ -1,8 +1,28 @@
 import { error, redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { AppFactory } from '$lib/factories';
+import type { LlmGeneratedRecipe } from '$lib/services';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function toLlmRecipe(recipe: any): LlmGeneratedRecipe {
+	return {
+		title: recipe.title,
+		description: recipe.description || '',
+		instructions: recipe.instructions,
+		servings: recipe.servings,
+		prepTime: recipe.prepTime || 0,
+		cookTime: recipe.cookTime || 0,
+		cuisineType: recipe.cuisineType || undefined,
+		ingredients: recipe.ingredients.map((i: any) => ({
+			name: i.name,
+			quantity: typeof i.quantity === 'string' ? parseFloat(i.quantity) : i.quantity,
+			unit: i.unit,
+			optional: i.optional || false,
+			notes: i.notes || undefined
+		}))
+	};
+}
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!UUID_PATTERN.test(params.id)) {
@@ -77,22 +97,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		return (async () => {
 			try {
 				const llmService = AppFactory.getCulinaryIntelligence();
-				const recipeForAi = {
-					title: recipe.title,
-					description: recipe.description || '',
-					instructions: recipe.instructions,
-					servings: recipe.servings,
-					prepTime: recipe.prepTime || 0,
-					cookTime: recipe.cookTime || 0,
-					cuisineType: recipe.cuisineType || undefined,
-					ingredients: recipe.ingredients.map((i: any) => ({
-						name: i.name,
-						quantity: typeof i.quantity === 'string' ? parseFloat(i.quantity) : i.quantity,
-						unit: i.unit,
-						optional: i.optional || false,
-						notes: i.notes || undefined
-					}))
-				};
+				const recipeForAi = toLlmRecipe(recipe);
 				return await llmService.suggestModifications(recipeForAi);
 			} catch (err) {
 				console.warn('Failed to generate recipe suggestions:', err);
@@ -101,12 +106,45 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		})();
 	});
 
+	const allergyRiskPromise = viewerId
+		? recipeDataPromise.then(({ recipe }) => {
+				return (async () => {
+					try {
+						const llmService = AppFactory.getCulinaryIntelligence();
+						const tasteProfileService = AppFactory.getTasteProfileService();
+						const preferencesController = AppFactory.getPreferencesController();
+
+						const [tasteProfile, preferences] = await Promise.all([
+							tasteProfileService.getUserTasteProfile(viewerId),
+							preferencesController.getPreferences(viewerId)
+						]);
+
+						const review = await llmService.reviewRecipeAllergyRisk({
+							recipe: toLlmRecipe(recipe),
+							allergies: tasteProfile.allergies,
+							legacyAllergies: preferences?.allergies || []
+						});
+
+						if (review.riskLevel === 'medium' || review.riskLevel === 'high') {
+							return review;
+						}
+
+						return null;
+					} catch (err) {
+						console.warn('Failed to review allergy risk:', err);
+						return null;
+					}
+				})();
+			})
+		: Promise.resolve(null);
+
 	return {
 		// Stream everything - page shows skeleton immediately
 		streamed: {
 			recipeData: recipeDataPromise,
 			pantryMatches: pantryMatchesPromise,
-			suggestions: suggestionsPromise
+			suggestions: suggestionsPromise,
+			allergyRisk: allergyRiskPromise
 		}
 	};
 };

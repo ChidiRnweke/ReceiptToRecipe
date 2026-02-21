@@ -73,8 +73,7 @@
 	<div class="flex items-stretch px-2">
 		{#each tabs as tab, i}
 			{@const active = isActive(tab.href)}
-			{@const count = tab.countKey ? workflowStore[tab.countKey] : 0}
-
+			{@const count = workflowStore[tab.countKey]}
 			<!-- Insert CTA button in the middle (after 2nd tab) -->
 			{#if i === 2 && pageCta}
 				<div class="relative -mt-4 flex flex-1 flex-col items-center justify-center gap-0.5 py-2">

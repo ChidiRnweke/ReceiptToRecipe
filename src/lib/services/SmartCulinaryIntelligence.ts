@@ -1,9 +1,12 @@
 import { OpenRouter } from '@openrouter/sdk';
+import { z } from 'zod';
 import type {
 	ICulinaryIntelligence,
 	GeneratedRecipe,
 	RecipeContext,
-	ChatMessage
+	ChatMessage,
+	AllergyRiskReview,
+	AllergyRiskReviewInput
 } from './interfaces';
 
 const RECIPE_SYSTEM_PROMPT = `You are a helpful culinary assistant that creates recipes based on available ingredients.
@@ -14,8 +17,32 @@ When generating recipes:
 4. Aim for the caloric goal if provided
 5. Provide clear, step-by-step instructions
 6. Include prep and cook times that are realistic
+7. Prioritize culinary coherence over ingredient coverage. Do NOT force all available ingredients into one dish.
+8. Prefer a focused subset of compatible ingredients and ignore items that do not fit the same dish.
 
 Always respond with valid JSON matching the requested format.`;
+
+const ALLERGY_REVIEW_SYSTEM_PROMPT = `You are an allergy safety reviewer for recipes.
+You must classify allergy risk for a specific user profile.
+
+Risk levels:
+- none: no meaningful allergy risk signals
+- low: weak or uncertain mention only, no direct ingredient match
+- medium: likely risk for at least one "avoid" allergy OR uncertain but concerning severe-allergy signal
+- high: strong/direct risk for at least one severe allergy (explicit ingredient, common derivative, or obvious synonym)
+
+Rules:
+1. Be conservative for severe allergies.
+2. Consider ingredient names, title, and instructions.
+3. Return strict JSON only, no prose outside JSON.
+4. confidence must be a number between 0 and 1.`;
+
+const allergyRiskReviewSchema = z.object({
+	riskLevel: z.enum(['none', 'low', 'medium', 'high']),
+	triggers: z.array(z.string()).max(8),
+	reasoning: z.string().min(1).max(600),
+	confidence: z.number().min(0).max(1)
+});
 
 const NORMALIZE_SYSTEM_PROMPT = `You are a precise ingredient parser. Extract the quantity, unit, and ingredient name from the given string.
 Normalize units:
@@ -206,9 +233,20 @@ Respond with JSON:
 
 	private buildRecipePrompt(context: RecipeContext): string {
 		const parts: string[] = [];
+		const prioritized = this.prioritizeIngredients(context.availableIngredients);
 
-		parts.push('Generate a recipe using the following available ingredients:');
-		parts.push(context.availableIngredients.join(', '));
+		parts.push('Generate a recipe from the available pantry items below.');
+		parts.push(
+			`Use a coherent subset of ingredients. Do not use every available ingredient unless there are 5 or fewer and they naturally fit together.`
+		);
+		parts.push(`Target 4-8 primary ingredients for the main dish (plus basic staples as needed).`);
+		parts.push('Primary ingredients to prioritize:');
+		parts.push(prioritized.primary.join(', '));
+
+		if (prioritized.optional.length > 0) {
+			parts.push('\nOther available ingredients (optional, use only if they fit):');
+			parts.push(prioritized.optional.join(', '));
+		}
 
 		// --- Taste Profile Constraints ---
 		if (context.tasteProfile) {
@@ -315,6 +353,55 @@ Respond with JSON:
 }`);
 
 		return parts.join('\n');
+	}
+
+	private prioritizeIngredients(ingredients: string[]): { primary: string[]; optional: string[] } {
+		const normalizedUnique = Array.from(
+			new Set(
+				ingredients
+					.map((ing) => ing.trim())
+					.filter((ing) => ing.length > 0)
+					.map((ing) => ing.toLowerCase())
+			)
+		);
+
+		const scored = normalizedUnique.map((ingredient) => ({
+			ingredient,
+			score: this.scoreIngredientForRecipeFocus(ingredient)
+		}));
+
+		scored.sort((a, b) => b.score - a.score);
+
+		const targetPrimaryCount = Math.min(8, Math.max(4, Math.ceil(scored.length * 0.55)));
+		const primary = scored.slice(0, targetPrimaryCount).map((s) => s.ingredient);
+		const optional = scored.slice(targetPrimaryCount).map((s) => s.ingredient);
+
+		return {
+			primary,
+			optional
+		};
+	}
+
+	private scoreIngredientForRecipeFocus(ingredient: string): number {
+		const text = ingredient.toLowerCase();
+		const lowPriorityPatterns = [
+			/(chips?|crisps?|candy|chocolate bar|gum)/,
+			/(soda|cola|tonic|sparkling water|energy drink)/,
+			/(cookies?|biscuits?|snack)/
+		];
+		const highPriorityPatterns = [
+			/(chicken|beef|pork|fish|salmon|tofu|beans?|lentils?|eggs?)/,
+			/(rice|pasta|potato|noodle|bread|flour|quinoa|oats?)/,
+			/(tomato|onion|garlic|pepper|carrot|broccoli|spinach|mushroom|zucchini)/,
+			/(milk|cheese|yogurt|cream|butter)/
+		];
+
+		let score = 0;
+		if (highPriorityPatterns.some((p) => p.test(text))) score += 3;
+		if (lowPriorityPatterns.some((p) => p.test(text))) score -= 4;
+		if (text.split(' ').length <= 3) score += 1;
+
+		return score;
 	}
 
 	private validateRecipe(recipe: GeneratedRecipe, context: RecipeContext): GeneratedRecipe {
@@ -489,5 +576,96 @@ Respond with JSON in this exact format:
 			console.warn('Failed to generate recipe suggestions:', error);
 			return []; // Fail gracefully with empty suggestions
 		}
+	}
+
+	async reviewRecipeAllergyRisk(input: AllergyRiskReviewInput): Promise<AllergyRiskReview> {
+		const combinedAllergies = [
+			...input.allergies,
+			...(input.legacyAllergies || []).map((allergen) => ({
+				allergen,
+				severity: 'avoid' as const
+			}))
+		];
+
+		const uniqueByName = Array.from(
+			new Map(combinedAllergies.map((a) => [a.allergen.toLowerCase(), a])).values()
+		);
+
+		if (uniqueByName.length === 0) {
+			return {
+				riskLevel: 'none',
+				triggers: [],
+				reasoning: 'No allergy settings were provided for this user.',
+				confidence: 1
+			};
+		}
+
+		const prompt = `Review this recipe for allergy risk.
+
+User allergies:
+${uniqueByName.map((a) => `- ${a.allergen} (severity: ${a.severity})`).join('\n')}
+
+Recipe:
+Title: ${input.recipe.title}
+Description: ${input.recipe.description || 'N/A'}
+Ingredients:
+${input.recipe.ingredients.map((ing) => `- ${ing.name}`).join('\n')}
+Instructions:
+${input.recipe.instructions}
+
+Return JSON:
+{
+  "riskLevel": "none" | "low" | "medium" | "high",
+  "triggers": ["matched ingredient/allergen"],
+  "reasoning": "short explanation",
+  "confidence": 0.0
+}`;
+
+		const completion = await this.client.chat.send({
+			chatGenerationParams: {
+				model: this.model,
+				messages: [
+					{
+						role: 'system',
+						content: ALLERGY_REVIEW_SYSTEM_PROMPT
+					},
+					{
+						role: 'user',
+						content: prompt
+					}
+				],
+				responseFormat: { type: 'json_object' },
+				stream: false
+			}
+		});
+
+		if (!completion || !('choices' in completion)) {
+			throw new Error('Invalid response from OpenRouter');
+		}
+
+		const content = completion.choices[0].message.content;
+		let responseText = '';
+
+		if (typeof content === 'string') {
+			responseText = content;
+		} else if (Array.isArray(content)) {
+			responseText = content
+				.filter((part) => part.type === 'text')
+				.map((part) => (part as any).text)
+				.join('');
+		}
+
+		if (!responseText) {
+			throw new Error('Empty allergy review response from OpenRouter');
+		}
+
+		const parsed = allergyRiskReviewSchema.parse(JSON.parse(responseText));
+
+		return {
+			riskLevel: parsed.riskLevel,
+			triggers: parsed.triggers,
+			reasoning: parsed.reasoning,
+			confidence: parsed.confidence
+		};
 	}
 }

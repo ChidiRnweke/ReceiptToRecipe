@@ -25,6 +25,6 @@
 	{/if}
 
 	<div class="h-full overflow-hidden rounded-xl border border-stone-100 bg-white shadow-sm">
-		{@render children()}
+		{@render children?.()}
 	</div>
 </div>

@@ -12,7 +12,8 @@
 		Loader2,
 		AlertTriangle,
 		ShieldAlert,
-		SlidersHorizontal
+		SlidersHorizontal,
+		CalendarDays
 	} from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
 	import { workflowStore } from '$lib/state/workflow.svelte';
@@ -151,10 +152,22 @@
 					{/if}
 				</div>
 
-				<div class="hidden md:block">
+				<div class="flex items-center gap-2">
+					<Button
+						href="/planning"
+						variant="ghost"
+						class="group relative h-10 overflow-hidden rounded-lg border border-border bg-white px-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:bg-bg-card hover:shadow-md active:scale-95"
+					>
+						<div class="flex items-center gap-2">
+							<CalendarDays
+								class="h-4 w-4 text-text-muted transition-colors group-hover:text-primary-600"
+							/>
+							<span class="font-display text-sm font-medium text-text-secondary group-hover:text-text-primary">Plan Week</span>
+						</div>
+					</Button>
 					<Button
 						href="/recipes/generate"
-						class="group relative h-10 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95"
+						class="group relative hidden h-10 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95 md:inline-flex"
 					>
 						<div class="flex items-center gap-2">
 							<Sparkles

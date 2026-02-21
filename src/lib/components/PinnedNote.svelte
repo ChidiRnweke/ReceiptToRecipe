@@ -22,6 +22,6 @@
 	<div
 		class="h-full rounded-xl border border-amber-200/60 bg-linear-to-br from-amber-50 to-[#FFF4D6] p-4 shadow-sm"
 	>
-		{@render children()}
+		{@render children?.()}
 	</div>
 </div>

@@ -4,7 +4,10 @@ export type {
 	ICulinaryIntelligence,
 	RecipeContext,
 	GeneratedRecipe as LlmGeneratedRecipe,
-	ChatMessage
+	ChatMessage,
+	AllergyRiskReview,
+	AllergyRiskReviewInput,
+	AllergyRiskLevel
 } from './ICulinaryIntelligence';
 export * from './IImageGenerator';
 export * from './IVectorService';

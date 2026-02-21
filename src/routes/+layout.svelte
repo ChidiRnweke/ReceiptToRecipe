@@ -505,7 +505,7 @@
 	<!-- Main Content -->
 	<main class="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 md:pb-8 lg:px-8">
 		<ErrorBoundary>
-			{@render children()}
+			{@render children?.()}
 		</ErrorBoundary>
 	</main>
 

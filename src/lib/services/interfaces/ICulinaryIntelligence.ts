@@ -28,6 +28,21 @@ export interface RecipeContext {
 	cookbookContext?: string; // RAG context from cookbook
 }
 
+export type AllergyRiskLevel = 'none' | 'low' | 'medium' | 'high';
+
+export interface AllergyRiskReview {
+	riskLevel: AllergyRiskLevel;
+	triggers: string[];
+	reasoning: string;
+	confidence: number;
+}
+
+export interface AllergyRiskReviewInput {
+	recipe: GeneratedRecipe;
+	allergies: Array<{ allergen: string; severity: 'avoid' | 'severe' }>;
+	legacyAllergies?: string[];
+}
+
 export interface ChatMessage {
 	role: 'user' | 'assistant' | 'system';
 	content: string;
@@ -82,4 +97,11 @@ export interface ICulinaryIntelligence {
 	 * @returns Array of short suggestion strings (3-4 items)
 	 */
 	suggestModifications(recipe: GeneratedRecipe): Promise<string[]>;
+
+	/**
+	 * Review recipe for allergy risk using user settings
+	 * @param input - Recipe and allergy settings
+	 * @returns Structured risk review
+	 */
+	reviewRecipeAllergyRisk(input: AllergyRiskReviewInput): Promise<AllergyRiskReview>;
 }

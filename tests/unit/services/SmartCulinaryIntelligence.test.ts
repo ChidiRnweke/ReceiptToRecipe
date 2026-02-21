@@ -146,6 +146,31 @@ describe('SmartCulinaryIntelligence', () => {
 			const result = await service.generateRecipe(baseContext);
 			expect(result.servings).toBe(2);
 		});
+
+		it('should instruct model to use a coherent subset of ingredients', async () => {
+			mockRecipeResponse({});
+
+			await service.generateRecipe({
+				availableIngredients: [
+					'chicken',
+					'rice',
+					'broccoli',
+					'garlic',
+					'olive oil',
+					'potato chips',
+					'tonic water',
+					'candy'
+				],
+				preferences: {}
+			});
+
+			const call = mocks.send.mock.calls[0][0];
+			const prompt = call.chatGenerationParams.messages[1].content;
+
+			expect(prompt).toContain('Use a coherent subset of ingredients');
+			expect(prompt).toContain('Primary ingredients to prioritize:');
+			expect(prompt).toContain('Other available ingredients (optional');
+		});
 	});
 
 	describe('suggestModifications', () => {
@@ -188,6 +213,62 @@ describe('SmartCulinaryIntelligence', () => {
 
 			expect(result.length).toBe(4);
 			expect(result).toEqual(['1', '2', '3', '4']);
+		});
+	});
+
+	describe('reviewRecipeAllergyRisk', () => {
+		it('should parse structured allergy risk review output', async () => {
+			mocks.send.mockResolvedValue({
+				choices: [
+					{
+						message: {
+							content: JSON.stringify({
+								riskLevel: 'high',
+								triggers: ['peanuts'],
+								reasoning: 'Peanut ingredient appears directly in recipe ingredients.',
+								confidence: 0.96
+							})
+						}
+					}
+				]
+			});
+
+			const result = await service.reviewRecipeAllergyRisk({
+				recipe: {
+					title: 'Satay Bowl',
+					description: 'Savory bowl',
+					instructions: 'Mix and serve',
+					servings: 2,
+					prepTime: 10,
+					cookTime: 15,
+					ingredients: [{ name: 'peanut sauce', quantity: 2, unit: 'tbsp', optional: false }]
+				},
+				allergies: [{ allergen: 'peanuts', severity: 'severe' }],
+				legacyAllergies: []
+			});
+
+			expect(result.riskLevel).toBe('high');
+			expect(result.triggers).toContain('peanuts');
+			expect(result.confidence).toBeGreaterThan(0.9);
+		});
+
+		it('should return none when no allergy settings are provided', async () => {
+			const result = await service.reviewRecipeAllergyRisk({
+				recipe: {
+					title: 'Rice Bowl',
+					description: 'Simple bowl',
+					instructions: 'Cook rice',
+					servings: 2,
+					prepTime: 5,
+					cookTime: 20,
+					ingredients: [{ name: 'rice', quantity: 1, unit: 'cup', optional: false }]
+				},
+				allergies: [],
+				legacyAllergies: []
+			});
+
+			expect(result.riskLevel).toBe('none');
+			expect(result.triggers).toEqual([]);
 		});
 	});
 });

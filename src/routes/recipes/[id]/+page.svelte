@@ -21,7 +21,9 @@
 		PenLine,
 		Utensils,
 		Receipt,
-		Bookmark
+		Bookmark,
+		AlertTriangle,
+		ShieldAlert
 	} from 'lucide-svelte';
 	import LoadingState from '$lib/components/LoadingState.svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
@@ -43,6 +45,12 @@
 	// Subscribe to streamed pantry and suggestions
 	let pantryMatches = $state<Record<string, number>>({});
 	let suggestions = $state<string[]>([]);
+	let allergyRisk = $state<{
+		riskLevel: 'none' | 'low' | 'medium' | 'high';
+		triggers: string[];
+		reasoning: string;
+		confidence: number;
+	} | null>(null);
 
 	$effect(() => {
 		if (data.streamed?.recipeData) {
@@ -76,6 +84,15 @@
 				})
 				.catch(() => {
 					suggestions = [];
+				});
+		}
+		if (data.streamed?.allergyRisk) {
+			data.streamed.allergyRisk
+				.then((risk) => {
+					allergyRisk = risk;
+				})
+				.catch(() => {
+					allergyRisk = null;
 				});
 		}
 	});
@@ -374,6 +391,33 @@
 								<p class="font-body text-base leading-snug text-text-secondary italic">
 									{recipe.description}
 								</p>
+							{/if}
+
+							{#if allergyRisk && (allergyRisk.riskLevel === 'medium' || allergyRisk.riskLevel === 'high')}
+								<div
+									class="mt-3 rounded-md border px-3 py-2 text-sm {allergyRisk.riskLevel === 'high'
+										? 'border-red-200 bg-red-50 text-red-800'
+										: 'border-amber-200 bg-amber-50 text-amber-800'}"
+								>
+									<div class="flex items-start gap-2">
+										{#if allergyRisk.riskLevel === 'high'}
+											<ShieldAlert class="mt-0.5 h-4 w-4 shrink-0" />
+										{:else}
+											<AlertTriangle class="mt-0.5 h-4 w-4 shrink-0" />
+										{/if}
+										<div>
+											<p class="font-ui text-[11px] tracking-wider uppercase">
+												Allergy Risk: {allergyRisk.riskLevel}
+											</p>
+											<p class="font-body mt-1 leading-snug">{allergyRisk.reasoning}</p>
+											{#if allergyRisk.triggers.length > 0}
+												<p class="font-body mt-1 text-xs opacity-90">
+													Triggers: {allergyRisk.triggers.join(', ')}
+												</p>
+											{/if}
+										</div>
+									</div>
+								</div>
 							{/if}
 						</div>
 

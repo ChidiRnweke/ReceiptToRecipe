@@ -2,7 +2,9 @@ import type {
 	ICulinaryIntelligence,
 	GeneratedRecipe,
 	RecipeContext,
-	ChatMessage
+	ChatMessage,
+	AllergyRiskReview,
+	AllergyRiskReviewInput
 } from '../../src/lib/services/interfaces/ICulinaryIntelligence';
 
 /**
@@ -79,6 +81,22 @@ export class MockCulinaryIntelligence implements ICulinaryIntelligence {
 
 	async suggestModifications(recipe: GeneratedRecipe): Promise<string[]> {
 		return ['Make it vegan', 'Add more protein', 'Make it spicy'];
+	}
+
+	async reviewRecipeAllergyRisk(input: AllergyRiskReviewInput): Promise<AllergyRiskReview> {
+		const allergyTerms = input.allergies.map((a) => a.allergen.toLowerCase());
+		const ingredientText = input.recipe.ingredients.map((i) => i.name.toLowerCase()).join(' ');
+		const triggers = allergyTerms.filter((term) => ingredientText.includes(term));
+
+		return {
+			riskLevel: triggers.length > 0 ? 'medium' : 'none',
+			triggers,
+			reasoning:
+				triggers.length > 0
+					? 'Matched one or more allergy terms in ingredient names.'
+					: 'No allergy matches in ingredient names.',
+			confidence: 0.75
+		};
 	}
 
 	// Test helpers
