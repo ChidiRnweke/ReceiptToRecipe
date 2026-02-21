@@ -331,6 +331,12 @@ Respond with JSON:
 			parts.push(`\nReference cookbook context:\n${context.cookbookContext}`);
 		}
 
+		if (context.season) {
+			parts.push(
+				`\nIt is currently ${context.season}. Prefer ingredients that are in season and suggest a dish that fits the season.`
+			);
+		}
+
 		parts.push(`\nRespond with JSON in this exact format:
 {
   "title": "Recipe Name",

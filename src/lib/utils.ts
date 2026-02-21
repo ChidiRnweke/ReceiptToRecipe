@@ -34,3 +34,18 @@ export type WithoutChildrenOrChild<T> = WithoutChildren<WithoutChild<T>>;
 export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & {
 	ref?: U | null;
 };
+
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
+
+/**
+ * Returns the current meteorological season based on the month.
+ * Northern-hemisphere conventions: spring=Mar–May, summer=Jun–Aug,
+ * autumn=Sep–Nov, winter=Dec–Feb.
+ */
+export function getCurrentSeason(date: Date = new Date()): Season {
+	const month = date.getMonth(); // 0-indexed
+	if (month >= 2 && month <= 4) return 'spring';
+	if (month >= 5 && month <= 7) return 'summer';
+	if (month >= 8 && month <= 10) return 'autumn';
+	return 'winter';
+}

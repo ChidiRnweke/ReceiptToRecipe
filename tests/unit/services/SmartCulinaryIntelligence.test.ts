@@ -171,6 +171,32 @@ describe('SmartCulinaryIntelligence', () => {
 			expect(prompt).toContain('Primary ingredients to prioritize:');
 			expect(prompt).toContain('Other available ingredients (optional');
 		});
+
+		it('should include season hint in the prompt when season is provided', async () => {
+			mockRecipeResponse({});
+
+			await service.generateRecipe({
+				...baseContext,
+				season: 'summer'
+			});
+
+			const call = mocks.send.mock.calls[0][0];
+			const prompt = call.chatGenerationParams.messages[1].content;
+
+			expect(prompt).toContain('It is currently summer');
+			expect(prompt).toContain('Prefer ingredients that are in season');
+		});
+
+		it('should not include season hint when season is not provided', async () => {
+			mockRecipeResponse({});
+
+			await service.generateRecipe(baseContext);
+
+			const call = mocks.send.mock.calls[0][0];
+			const prompt = call.chatGenerationParams.messages[1].content;
+
+			expect(prompt).not.toContain('It is currently');
+		});
 	});
 
 	describe('suggestModifications', () => {

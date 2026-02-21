@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatCurrency } from '../../../src/lib/utils';
+import { formatCurrency, getCurrentSeason } from '../../../src/lib/utils';
 
 describe('utils', () => {
 	describe('formatCurrency', () => {
@@ -71,6 +71,49 @@ describe('utils', () => {
 		it('should fallback gracefully for invalid currency code', () => {
 			const result = formatCurrency(10.5, 'INVALID');
 			expect(result).toBe('INVALID 10.50');
+		});
+	});
+
+	describe('getCurrentSeason', () => {
+		it('should return spring for March', () => {
+			expect(getCurrentSeason(new Date(2024, 2, 15))).toBe('spring');
+		});
+
+		it('should return spring for May', () => {
+			expect(getCurrentSeason(new Date(2024, 4, 1))).toBe('spring');
+		});
+
+		it('should return summer for June', () => {
+			expect(getCurrentSeason(new Date(2024, 5, 21))).toBe('summer');
+		});
+
+		it('should return summer for August', () => {
+			expect(getCurrentSeason(new Date(2024, 7, 31))).toBe('summer');
+		});
+
+		it('should return autumn for September', () => {
+			expect(getCurrentSeason(new Date(2024, 8, 1))).toBe('autumn');
+		});
+
+		it('should return autumn for November', () => {
+			expect(getCurrentSeason(new Date(2024, 10, 30))).toBe('autumn');
+		});
+
+		it('should return winter for December', () => {
+			expect(getCurrentSeason(new Date(2024, 11, 21))).toBe('winter');
+		});
+
+		it('should return winter for January', () => {
+			expect(getCurrentSeason(new Date(2024, 0, 15))).toBe('winter');
+		});
+
+		it('should return winter for February', () => {
+			expect(getCurrentSeason(new Date(2024, 1, 14))).toBe('winter');
+		});
+
+		it('should use the current date when no argument is provided', () => {
+			const result = getCurrentSeason();
+			expect(['spring', 'summer', 'autumn', 'winter']).toContain(result);
 		});
 	});
 });

@@ -1,5 +1,6 @@
 import type { UserPreferences } from '$db/schema';
 import type { TasteProfile } from '../TasteProfileService';
+import type { Season } from '$lib/utils';
 
 export interface GeneratedRecipe {
 	title: string;
@@ -26,6 +27,7 @@ export interface RecipeContext {
 	servings?: number;
 	cuisineHint?: string;
 	cookbookContext?: string; // RAG context from cookbook
+	season?: Season; // Current season for seasonal ingredient guidance
 }
 
 export type AllergyRiskLevel = 'none' | 'low' | 'medium' | 'high';

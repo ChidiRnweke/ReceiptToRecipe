@@ -19,6 +19,7 @@ import type {
 	LlmGeneratedRecipe,
 	ITasteProfileService
 } from '$services';
+import { getCurrentSeason } from '$lib/utils';
 
 export interface GenerateRecipeInput {
 	userId: string;
@@ -105,7 +106,8 @@ export class RecipeController {
 			tasteProfile,
 			servings: servings || preferences?.defaultServings || 2,
 			cuisineHint,
-			cookbookContext
+			cookbookContext,
+			season: getCurrentSeason()
 		});
 
 		// Save recipe to database
