@@ -44,3 +44,14 @@ changes.
 
 Use the `drafting-prs` skill for every PR body. Report only checks that actually ran. Use the
 `reviewing-code` skill to review a diff, and the `qa` skill to write or audit tests.
+
+## Releases
+
+[release-please](https://github.com/googleapis/release-please) reads the Conventional Commits on
+`master` and keeps one release PR open with the next version and its `CHANGELOG.md` entry. Merging
+that PR tags `v<version>`, builds the Docker image from the tag, pushes it to GHCR and triggers the
+Komodo deployment. A push to `master` alone deploys nothing. To redeploy an existing release, run
+the "Publish production image" workflow by hand with its tag.
+
+CI runs `npm run lint`, `npm run check` and `npm test` on every PR and on `master`. PR titles and
+commit messages are linted against Conventional Commits.
