@@ -284,7 +284,6 @@ describe('ReceiptController', () => {
 
 		it('should handle OCR failure and set status to FAILED', async () => {
 			// Make the extractor throw
-			receiptExtractor.setMock('mock://receipts/receipt.jpg', null as any);
 			// Override extractReceiptFromBuffer to throw (controller now passes buffer directly)
 			receiptExtractor.extractReceiptFromBuffer = async () => {
 				throw new Error('OCR service unavailable');
@@ -1127,7 +1126,7 @@ describe('ReceiptController', () => {
 
 	describe('getRecipeCountsByReceiptIds', () => {
 		it('should return an empty object (placeholder implementation)', async () => {
-			const result = await controller.getRecipeCountsByReceiptIds(['id1', 'id2']);
+			const result = await controller.getRecipeCountsByReceiptIds();
 			expect(result).toEqual({});
 		});
 	});

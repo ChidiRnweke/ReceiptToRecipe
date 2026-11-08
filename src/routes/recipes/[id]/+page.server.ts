@@ -2,10 +2,11 @@ import { error, redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { AppFactory } from '$lib/factories';
 import type { LlmGeneratedRecipe } from '$lib/services';
+import type { RecipeWithIngredients } from '$lib/controllers';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function toLlmRecipe(recipe: any): LlmGeneratedRecipe {
+function toLlmRecipe(recipe: RecipeWithIngredients): LlmGeneratedRecipe {
 	return {
 		title: recipe.title,
 		description: recipe.description || '',
@@ -14,7 +15,7 @@ function toLlmRecipe(recipe: any): LlmGeneratedRecipe {
 		prepTime: recipe.prepTime || 0,
 		cookTime: recipe.cookTime || 0,
 		cuisineType: recipe.cuisineType || undefined,
-		ingredients: recipe.ingredients.map((i: any) => ({
+		ingredients: recipe.ingredients.map((i) => ({
 			name: i.name,
 			quantity: typeof i.quantity === 'string' ? parseFloat(i.quantity) : i.quantity,
 			unit: i.unit,
@@ -235,7 +236,7 @@ export const actions: Actions = {
 
 		try {
 			await recipeController.deleteRecipe(params.id, locals.user.id);
-		} catch (err) {
+		} catch {
 			throw error(403, 'Not allowed to delete this recipe');
 		}
 

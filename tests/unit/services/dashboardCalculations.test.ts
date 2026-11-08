@@ -24,8 +24,8 @@ describe('calculateListStatsPure', () => {
 	});
 
 	it('should return null for null/undefined items', () => {
-		expect(calculateListStatsPure(null as any)).toBeNull();
-		expect(calculateListStatsPure(undefined as any)).toBeNull();
+		expect(calculateListStatsPure(null as unknown as ShoppingListItemDao[])).toBeNull();
+		expect(calculateListStatsPure(undefined as unknown as ShoppingListItemDao[])).toBeNull();
 	});
 
 	it('should return correct stats when no items are checked', () => {

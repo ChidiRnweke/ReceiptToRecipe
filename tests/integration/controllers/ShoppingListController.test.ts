@@ -470,7 +470,7 @@ describe('ShoppingListController', () => {
 				isActive: true
 			});
 			const item1 = await controller.addItem(userId, list.id, { name: 'Milk' });
-			const item2 = await controller.addItem(userId, list.id, {
+			await controller.addItem(userId, list.id, {
 				name: 'Bread'
 			});
 			const item3 = await controller.addItem(userId, list.id, { name: 'Eggs' });
@@ -554,7 +554,7 @@ describe('ShoppingListController', () => {
 				isActive: true
 			});
 			const item1 = await controller.addItem(userId, list.id, { name: 'Milk' });
-			const item2 = await controller.addItem(userId, list.id, {
+			await controller.addItem(userId, list.id, {
 				name: 'Bread'
 			});
 			await controller.toggleItem(userId, item1.id, true);
@@ -731,7 +731,6 @@ describe('ShoppingListController', () => {
 			// The chat method uses message content concatenated with | as key
 			// We can't predict the exact key, so set a default response
 			// Override the chat method to always return our restock decisions
-			const originalChat = culinaryIntelligence.chat.bind(culinaryIntelligence);
 			culinaryIntelligence.chat = async () => {
 				return JSON.stringify([
 					{

@@ -3,7 +3,6 @@
 	import { enhance } from '$app/forms';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Button } from '$lib/components/ui/button';
-	import { Separator } from '$lib/components/ui/separator';
 	import StockBadge from './StockBadge.svelte';
 	import ConfidenceDetail from './ConfidenceDetail.svelte';
 	import CategoryIcon from './CategoryIcon.svelte';

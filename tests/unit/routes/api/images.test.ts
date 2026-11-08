@@ -1,16 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { GET } from '../../../../src/routes/api/images/[...path]/+server';
 import { AppFactory } from '../../../../src/lib/factories';
 import { MinioStorageService } from '../../../../src/lib/services/MinioStorageService';
-import { error } from '@sveltejs/kit';
+import { MockStorageService } from '../../../mocks/MockStorageService';
 import { Readable } from 'stream';
 
 // Mock SvelteKit error
 vi.mock('@sveltejs/kit', () => ({
 	error: (status: number, message: string) => {
-		const err = new Error(message);
-		(err as any).status = status;
-		return err;
+		return Object.assign(new Error(message), { status });
 	}
 }));
 
@@ -26,16 +24,28 @@ vi.mock('minio', () => {
 });
 
 // Mock AppFactory
-vi.mock('../../../../../src/lib/factories', () => ({
+vi.mock('../../../../src/lib/factories', () => ({
 	AppFactory: {
 		getStorageService: vi.fn()
 	}
 }));
 
+type ImageRequestEvent = Parameters<typeof GET>[0];
+
 describe('GET /api/images/[...path]', () => {
-	let mockSetHeaders: any;
+	let mockSetHeaders: Mock<ImageRequestEvent['setHeaders']>;
 	let mockService: MinioStorageService;
-	let mockClient: any;
+	let mockClient: ReturnType<typeof getMockClient>;
+
+	// The route reads only params and setHeaders, so a partial event is enough
+	function makeEvent(path: string): ImageRequestEvent {
+		return { params: { path }, setHeaders: mockSetHeaders } as unknown as ImageRequestEvent;
+	}
+
+	// The minio Client is mocked above, so its methods are vi.fn() instances
+	function getMockClient(service: MinioStorageService) {
+		return vi.mocked(service['client']);
+	}
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -52,59 +62,49 @@ describe('GET /api/images/[...path]', () => {
 		});
 
 		// Get the mocked client instance
-		// @ts-ignore
-		mockClient = (mockService as any).client;
+		mockClient = getMockClient(mockService);
 
 		// Default AppFactory to return our mock service
-		(AppFactory.getStorageService as any).mockReturnValue(mockService);
+		vi.mocked(AppFactory.getStorageService).mockReturnValue(mockService);
 	});
 
 	it('should throw 400 if path is missing', async () => {
-		const requestEvent: any = {
-			params: { path: '' },
-			setHeaders: mockSetHeaders
-		};
+		const requestEvent = makeEvent('');
 
 		try {
 			await GET(requestEvent);
 			expect.fail('Should have thrown');
-		} catch (e: any) {
-			expect(e.status).toBe(400);
-			expect(e.message).toBe('Missing image path');
+		} catch (e: unknown) {
+			expect(e).toMatchObject({ status: 400, message: 'Missing image path' });
 		}
 	});
 
 	it('should throw 400 for path traversal', async () => {
-		const requestEvent: any = {
-			params: { path: '../secret.txt' },
-			setHeaders: mockSetHeaders
-		};
+		const requestEvent = makeEvent('../secret.txt');
 
 		try {
 			await GET(requestEvent);
 			expect.fail('Should have thrown');
-		} catch (e: any) {
-			expect(e.status).toBe(400);
-			expect(e.message).toBe('Invalid image path');
+		} catch (e: unknown) {
+			expect(e).toMatchObject({ status: 400, message: 'Invalid image path' });
 		}
 	});
 
 	it('should throw 404 if storage service is not MinioStorageService', async () => {
 		// Mock AppFactory to return something else
-		const otherService = {};
-		(AppFactory.getStorageService as any).mockReturnValue(otherService);
+		const otherService = new MockStorageService();
+		vi.mocked(AppFactory.getStorageService).mockReturnValue(otherService);
 
-		const requestEvent: any = {
-			params: { path: 'valid.jpg' },
-			setHeaders: mockSetHeaders
-		};
+		const requestEvent = makeEvent('valid.jpg');
 
 		try {
 			await GET(requestEvent);
 			expect.fail('Should have thrown');
-		} catch (e: any) {
-			expect(e.status).toBe(404);
-			expect(e.message).toBe('Image proxy only available with MinIO storage');
+		} catch (e: unknown) {
+			expect(e).toMatchObject({
+				status: 404,
+				message: 'Image proxy only available with MinIO storage'
+			});
 		}
 	});
 
@@ -115,17 +115,16 @@ describe('GET /api/images/[...path]', () => {
 		// Mock metadata
 		mockClient.statObject.mockResolvedValue({
 			metaData: { 'content-type': 'image/jpeg' },
-			size: content.length
+			size: content.length,
+			etag: 'test-etag',
+			lastModified: new Date()
 		});
 
 		// Mock stream
 		const stream = Readable.from(content);
 		mockClient.getObject.mockResolvedValue(stream);
 
-		const requestEvent: any = {
-			params: { path: key },
-			setHeaders: mockSetHeaders
-		};
+		const requestEvent = makeEvent(key);
 
 		const response = await GET(requestEvent);
 		const responseBuffer = Buffer.from(await response.arrayBuffer());
@@ -147,17 +146,13 @@ describe('GET /api/images/[...path]', () => {
 
 		mockClient.statObject.mockRejectedValue(new Error('Not found'));
 
-		const requestEvent: any = {
-			params: { path: key },
-			setHeaders: mockSetHeaders
-		};
+		const requestEvent = makeEvent(key);
 
 		try {
 			await GET(requestEvent);
 			expect.fail('Should have thrown');
-		} catch (e: any) {
-			expect(e.status).toBe(404);
-			expect(e.message).toBe('Image not found');
+		} catch (e: unknown) {
+			expect(e).toMatchObject({ status: 404, message: 'Image not found' });
 		}
 	});
 });

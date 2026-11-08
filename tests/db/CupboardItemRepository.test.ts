@@ -4,14 +4,13 @@ import { UserRepository } from '../../src/lib/repositories/UserRepositories';
 import { CupboardItemRepository } from '../../src/lib/repositories/CupboardItemRepository';
 
 describe('CupboardItemRepository (DB)', () => {
-	let db: any;
 	let userRepo: UserRepository;
 	let cupboardRepo: CupboardItemRepository;
 	let userId: string;
 	let otherUserId: string;
 
 	beforeEach(async () => {
-		db = await setupTestDb();
+		const db = await setupTestDb();
 		await cleanTables();
 		userRepo = new UserRepository(db);
 		cupboardRepo = new CupboardItemRepository(db);
@@ -70,7 +69,7 @@ describe('CupboardItemRepository (DB)', () => {
 			});
 
 			expect(item.itemName).toBe('organic flour');
-			expect(item.quantity).toBe('2');
+			expect(item.quantity).toBe('2.000');
 			expect(item.unit).toBe('kg');
 			expect(item.category).toBe('pantry');
 			expect(item.shelfLifeDays).toBe(180);
@@ -189,7 +188,7 @@ describe('CupboardItemRepository (DB)', () => {
 				notes: 'whole wheat'
 			});
 
-			expect(updated.quantity).toBe('5');
+			expect(updated.quantity).toBe('5.000');
 			expect(updated.category).toBe('bakery');
 			expect(updated.shelfLifeDays).toBe(60);
 			expect(updated.notes).toBe('whole wheat');

@@ -12,6 +12,7 @@
 	import { pwaInfo } from 'virtual:pwa-info';
 	import { browser } from '$app/environment';
 	import { invalidate, goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
 	import UndoToast from '$lib/components/UndoToast.svelte';
 
@@ -200,6 +201,7 @@
 		persistRecentSearches(searchQuery.trim());
 		searchOpen = false;
 		selectedIndex = -1;
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- item.href is a server-built URL from /api/search, not a route id
 		await goto(item.href);
 	}
 
@@ -221,6 +223,7 @@
 </script>
 
 <svelte:head>
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -- build-time manifest <link> tag from vite-plugin-pwa, no user input -->
 	{@html webManifestLink}
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
@@ -242,7 +245,7 @@
 	<header class="sticky top-0 z-50 border-b border-border bg-bg-paper/95 backdrop-blur-sm">
 		<div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
 			<!-- Logo -->
-			<a href="/" class="group flex items-center gap-3">
+			<a href={resolve('/')} class="group flex items-center gap-3">
 				<img
 					src={logo}
 					alt="Receipt2Recipe Logo"
@@ -290,7 +293,7 @@
 								<div class="mb-2 text-xs tracking-wider text-text-muted uppercase">Recent</div>
 								{#if recentSearches.length > 0}
 									<div class="mb-3 flex flex-wrap gap-2">
-										{#each recentSearches as term}
+										{#each recentSearches as term, i (i)}
 											<button
 												type="button"
 												onmousedown={(event) => event.preventDefault()}
@@ -308,7 +311,7 @@
 									Quick suggestions
 								</div>
 								<div class="flex flex-wrap gap-2">
-									{#each QUICK_SUGGESTIONS as suggestion}
+									{#each QUICK_SUGGESTIONS as suggestion (suggestion)}
 										<button
 											type="button"
 											onmousedown={(event) => event.preventDefault()}
@@ -339,7 +342,7 @@
 											Recipes
 										</div>
 										<div class="space-y-1">
-											{#each searchResults.recipes as recipe}
+											{#each searchResults.recipes as recipe (recipe.id)}
 												<button
 													type="button"
 													onmousedown={(event) => event.preventDefault()}
@@ -360,7 +363,7 @@
 											Cupboard
 										</div>
 										<div class="space-y-1">
-											{#each searchResults.cupboard as item}
+											{#each searchResults.cupboard as item (item.id)}
 												<button
 													type="button"
 													onmousedown={(event) => event.preventDefault()}
@@ -381,7 +384,7 @@
 											Receipts
 										</div>
 										<div class="space-y-1">
-											{#each searchResults.receipts as receipt}
+											{#each searchResults.receipts as receipt (receipt.id)}
 												<button
 													type="button"
 													onmousedown={(event) => event.preventDefault()}
@@ -426,20 +429,20 @@
 							</DropdownMenu.Label>
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item>
-								<a href="/planning" class="flex w-full items-center">
+								<a href={resolve('/planning')} class="flex w-full items-center">
 									<CalendarDays class="mr-2 h-4 w-4" />
 									Meal planning
 								</a>
 							</DropdownMenu.Item>
 							<DropdownMenu.Item>
-								<a href="/preferences" class="flex w-full items-center">
+								<a href={resolve('/preferences')} class="flex w-full items-center">
 									<Settings class="mr-2 h-4 w-4" />
 									Preferences
 								</a>
 							</DropdownMenu.Item>
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item>
-								<a href="/logout" data-sveltekit-reload class="flex w-full items-center">
+								<a href={resolve('/logout')} data-sveltekit-reload class="flex w-full items-center">
 									<LogOut class="mr-2 h-4 w-4" />
 									Log out
 								</a>
@@ -482,7 +485,7 @@
 								<p class="text-sm text-text-primary">No matches found.</p>
 							{:else}
 								<div class="space-y-1">
-									{#each flattenedSearchResults as result}
+									{#each flattenedSearchResults as result (`${result.href}:${result.id}`)}
 										<button
 											type="button"
 											onmousedown={(event) => event.preventDefault()}

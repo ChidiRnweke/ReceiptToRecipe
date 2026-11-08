@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+env:
+  # Nothing here talks to a real provider. The database tests start their own
+  # Postgres through Testcontainers.
+  MISTRAL_API_KEY: ci-not-used
+  OPENROUTER_API_KEY: ci-not-used
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Release-please PRs change only CHANGELOG.md, the release manifest and the
+    # version in package.json and package-lock.json. A required check must still
+    # report a result on them, so the job runs but skips the heavy steps. The
+    # branch name is the signal: with npm, release-please rewrites the lockfile,
+    # so a path filter cannot tell a release bump from a dependency change.
+    env:
+      RELEASE_ONLY: ${{ startsWith(github.head_ref, 'release-please--') }}
+    steps:
+      - if: env.RELEASE_ONLY == 'true'
+        run: echo "Release PR; skipping quality checks"
+      - if: env.RELEASE_ONLY != 'true'
+        uses: actions/checkout@v4
+      - if: env.RELEASE_ONLY != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - if: env.RELEASE_ONLY != 'true'
+        run: npm ci
+      - if: env.RELEASE_ONLY != 'true'
+        run: npm run lint
+      - if: env.RELEASE_ONLY != 'true'
+        run: npm run check
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      RELEASE_ONLY: ${{ startsWith(github.head_ref, 'release-please--') }}
+    steps:
+      - if: env.RELEASE_ONLY == 'true'
+        run: echo "Release PR; skipping tests"
+      - if: env.RELEASE_ONLY != 'true'
+        uses: actions/checkout@v4
+      - if: env.RELEASE_ONLY != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - if: env.RELEASE_ONLY != 'true'
+        run: npm ci
+      - if: env.RELEASE_ONLY != 'true'
+        run: npm test

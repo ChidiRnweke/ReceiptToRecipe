@@ -194,7 +194,7 @@ describe('NormalizationService', () => {
 			});
 
 			it('should handle null as count of 1', () => {
-				const result = service.normalizeQuantity(null as any);
+				const result = service.normalizeQuantity(null as unknown as string);
 				expect(result.value).toBe(1);
 				expect(result.unit).toBe('count');
 				expect(result.unitType).toBe('COUNT');
@@ -301,7 +301,7 @@ describe('NormalizationService', () => {
 		});
 
 		it('should handle null', () => {
-			expect(service.normalizeName(null as any)).toBe('');
+			expect(service.normalizeName(null as unknown as string)).toBe('');
 		});
 	});
 

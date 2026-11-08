@@ -5,14 +5,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import PushPin from '$lib/components/PushPin.svelte';
-	import WashiTape from '$lib/components/WashiTape.svelte';
 	import {
 		ArrowLeft,
-		CheckCircle,
 		XCircle,
 		Loader2,
-		Clock,
-		Receipt,
 		Plus,
 		Check,
 		ChefHat,
@@ -29,20 +25,6 @@
 	let addingItems = $state<Record<string, boolean>>({});
 	let addedItems = $state<Record<string, boolean>>({});
 	let isEditing = $state(false);
-
-	// Subscribe to streamed data
-	let generatedRecipes = $state<any[]>([]);
-	$effect(() => {
-		if (data.streamed?.generatedRecipes) {
-			data.streamed.generatedRecipes
-				.then((recipes) => {
-					generatedRecipes = recipes;
-				})
-				.catch(() => {
-					generatedRecipes = [];
-				});
-		}
-	});
 
 	onMount(() => {
 		if (data.receipt.status === 'QUEUED' || data.receipt.status === 'PROCESSING') {
@@ -69,33 +51,6 @@
 		});
 	}
 
-	function getStatusInfo(status: string) {
-		switch (status) {
-			case 'DONE':
-				return {
-					variant: 'secondary' as const,
-					icon: CheckCircle,
-					label: 'Processed'
-				};
-			case 'PROCESSING':
-				return {
-					variant: 'secondary' as const,
-					icon: Loader2,
-					label: 'Processing...'
-				};
-			case 'QUEUED':
-				return { variant: 'outline' as const, icon: Clock, label: 'In Queue' };
-			case 'FAILED':
-				return {
-					variant: 'destructive' as const,
-					icon: XCircle,
-					label: 'Failed'
-				};
-			default:
-				return { variant: 'outline' as const, icon: Clock, label: status };
-		}
-	}
-
 	function formatQuantity(qty: string | number | null) {
 		if (qty === null || qty === undefined || qty === '') return '-';
 		const num = typeof qty === 'string' ? parseFloat(qty) : qty;
@@ -103,8 +58,6 @@
 		// Format to max 1 decimal, remove trailing zeros
 		return parseFloat(num.toFixed(1)).toString();
 	}
-
-	const status = $derived(getStatusInfo(data.receipt.status));
 </script>
 
 <svelte:head>

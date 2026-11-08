@@ -33,7 +33,7 @@ describe('SmartCulinaryIntelligence', () => {
 			preferences: {}
 		};
 
-		const mockRecipeResponse = (recipe: any) => {
+		const mockRecipeResponse = (recipe: unknown) => {
 			mocks.send.mockResolvedValue({
 				choices: [
 					{

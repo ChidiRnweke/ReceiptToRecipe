@@ -3,13 +3,12 @@ import { setupTestDb, cleanTables, teardownTestDb } from '../helpers/testDb';
 import { UserRepository, SessionRepository } from '../../src/lib/repositories/UserRepositories';
 
 describe('SessionRepository (DB)', () => {
-	let db: any;
 	let userRepo: UserRepository;
 	let sessionRepo: SessionRepository;
 	let userId: string;
 
 	beforeEach(async () => {
-		db = await setupTestDb();
+		const db = await setupTestDb();
 		await cleanTables();
 		userRepo = new UserRepository(db);
 		sessionRepo = new SessionRepository(db);

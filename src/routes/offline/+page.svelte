@@ -1,6 +1,7 @@
 <script>
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { fade } from 'svelte/transition';
 	import { Button } from '$lib/components/ui/button';
 
@@ -22,13 +23,13 @@
 		// If the user landed here but is actually online (e.g. slow first load),
 		// redirect them back home automatically instead of showing the offline page.
 		if (isOnline) {
-			goto('/', { replaceState: true });
+			goto(resolve('/'), { replaceState: true });
 		}
 
 		window.addEventListener('online', () => {
 			isOnline = true;
 			// Auto-navigate home when connectivity returns
-			goto('/', { replaceState: true });
+			goto(resolve('/'), { replaceState: true });
 		});
 
 		window.addEventListener('offline', () => {
@@ -38,7 +39,7 @@
 	}
 
 	function goHome() {
-		goto('/');
+		goto(resolve('/'));
 	}
 
 	function goBack() {

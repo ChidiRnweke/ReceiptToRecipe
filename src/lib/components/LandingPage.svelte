@@ -265,7 +265,7 @@
 					</svg>
 
 					<!-- Steps -->
-					{#each [{ icon: Receipt, label: 'Scan', desc: 'Snap a photo', color: 'text-primary-600' }, { icon: Sparkles, label: 'Organize', desc: 'AI sorts ingredients', color: 'text-secondary-500' }, { icon: ChefHat, label: 'Cook', desc: 'Get recipes', color: 'text-primary-700' }, { icon: ShoppingCart, label: 'Shop', desc: 'Smart lists', color: 'text-blue-600' }] as step, i}
+					{#each [{ icon: Receipt, label: 'Scan', desc: 'Snap a photo', color: 'text-primary-600' }, { icon: Sparkles, label: 'Organize', desc: 'AI sorts ingredients', color: 'text-secondary-500' }, { icon: ChefHat, label: 'Cook', desc: 'Get recipes', color: 'text-primary-700' }, { icon: ShoppingCart, label: 'Shop', desc: 'Smart lists', color: 'text-blue-600' }] as step, i (step.label)}
 						<div class="group relative flex w-48 flex-col items-center text-center">
 							<!-- Hand-drawn circle background -->
 							<div

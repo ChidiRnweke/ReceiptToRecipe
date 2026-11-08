@@ -5,7 +5,7 @@
 <div class="space-y-6">
 	<!-- Stats skeleton -->
 	<div class="grid grid-cols-3 gap-3">
-		{#each [1, 2, 3] as _}
+		{#each [1, 2, 3]}
 			<div class="flex flex-col items-center gap-2 rounded-lg border border-sand/40 p-3">
 				<Skeleton class="h-4 w-4 rounded-full" />
 				<Skeleton class="h-6 w-8" />
@@ -19,14 +19,14 @@
 
 	<!-- Filter skeleton -->
 	<div class="flex gap-2">
-		{#each [1, 2, 3, 4] as _}
+		{#each [1, 2, 3, 4]}
 			<Skeleton class="h-7 w-20 rounded-full" />
 		{/each}
 	</div>
 
 	<!-- Item skeletons -->
 	<div class="space-y-2">
-		{#each [1, 2, 3, 4, 5, 6] as _}
+		{#each [1, 2, 3, 4, 5, 6]}
 			<div class="flex items-center gap-3 rounded-lg border border-sand/40 p-3">
 				<Skeleton class="h-6 w-6 rounded-full" />
 				<div class="flex-1 space-y-1.5">

@@ -21,14 +21,25 @@
 	import OnboardingModal from '$lib/components/OnboardingModal.svelte';
 	import LandingPage from '$lib/components/LandingPage.svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
+	import { resolve } from '$app/paths';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
-	// Time-based greeting (computed client-side to avoid server/client timezone mismatch)
+	const tips = [
+		'Salt your pasta water until it tastes like the sea.',
+		'Let meat rest after cooking for juicier results.',
+		'Fresh herbs go in at the end, dried herbs at the start.',
+		'A squeeze of lemon brightens almost any dish.',
+		'Room temperature eggs blend better in baking.'
+	];
+
+	// Time-based greeting and random tip (computed client-side to avoid server/client mismatch)
 	let greeting = $state('Good evening');
 	let mealSuggestion = $state("What's cooking for dinner tonight?");
+	let randomTip = $state(tips[0]);
 
 	$effect(() => {
+		randomTip = tips[Math.floor(Math.random() * tips.length)];
 		const hour = new Date().getHours();
 		greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 		mealSuggestion =
@@ -41,26 +52,29 @@
 						: 'Late night snack ideas, anyone?';
 	});
 
-	const tips = [
-		'Salt your pasta water until it tastes like the sea.',
-		'Let meat rest after cooking for juicier results.',
-		'Fresh herbs go in at the end, dried herbs at the start.',
-		'A squeeze of lemon brightens almost any dish.',
-		'Room temperature eggs blend better in baking.'
-	];
-	let randomTip = $state(tips[0]);
-	$effect(() => {
-		randomTip = tips[Math.floor(Math.random() * tips.length)];
-	});
-
 	// Optimistic shopping list: track pending adds/removes separately from server state
 	let pendingAdds = $state<Set<string>>(new Set());
 	let pendingRemoves = $state<Set<string>>(new Set());
 	let addingIngredient = $state<string | null>(null);
+
+	// Copy-on-write helpers: pending sets are replaced, not mutated, so $state sees the change
+	function withItem(set: Set<string>, value: string): Set<string> {
+		return new Set([...set, value]);
+	}
+
+	function withoutItem(set: Set<string>, value: string): Set<string> {
+		return new Set([...set].filter((entry) => entry !== value));
+	}
 	let showAllIngredients = $state(false);
 
-	function formatIngredientDisplay(ing: any): string {
-		const name = ing.name || ing.itemName;
+	type DisplayableIngredient = {
+		name: string;
+		quantity?: string | null;
+		unit?: string | null;
+	};
+
+	function formatIngredientDisplay(ing: DisplayableIngredient): string {
+		const name = ing.name;
 		if (ing.quantity && ing.unit) {
 			return `${ing.quantity} ${ing.unit} ${name}`;
 		}
@@ -140,7 +154,7 @@
 
 							<div class="grid grid-cols-1 gap-2">
 								<Button
-									href="/receipts/upload"
+									href={resolve('/receipts/upload')}
 									size="sm"
 									class="w-full bg-sage-600 text-white shadow-sm hover:bg-sage-500"
 								>
@@ -151,7 +165,7 @@
 
 						<div class="p-2">
 							<a
-								href="/shopping"
+								href={resolve('/shopping')}
 								class="flex w-full items-center justify-between rounded-lg p-3 text-left transition-colors hover:bg-bg-hover"
 							>
 								<div>
@@ -196,7 +210,7 @@
 							<span>Cupboard</span>
 						</div>
 						<div class="space-y-2">
-							{#each Array(4) as _}
+							{#each { length: 4 }, i (i)}
 								<div class="flex items-center justify-between">
 									<Skeleton class="h-3 w-24 bg-sand/20" />
 									<Skeleton class="h-3 w-8 bg-sand/20" />
@@ -211,7 +225,7 @@
 							class="mb-4 rotate-1 rounded-xl border border-sand/60 bg-bg-card p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]"
 						>
 							<a
-								href="/cupboard"
+								href={resolve('/cupboard')}
 								class="mb-2 flex items-center justify-between border-b border-sand/40 pb-2"
 							>
 								<span
@@ -224,7 +238,7 @@
 							<ul
 								class="max-h-40 space-y-2 overflow-y-auto [-ms-overflow-style:'none'] [scrollbar-width:'none'] [&::-webkit-scrollbar]:hidden"
 							>
-								{#each pantryList.slice(0, 5) as item}
+								{#each pantryList.slice(0, 5) as item (item.id ?? item.itemName)}
 									<li class="flex items-center justify-between text-sm text-text-secondary">
 										<span class="truncate">{item.itemName}</span>
 										{#if item.stockConfidence}
@@ -238,7 +252,7 @@
 							</ul>
 							{#if pantryList.length > 5}
 								<a
-									href="/cupboard"
+									href={resolve('/cupboard')}
 									class="mt-2 block text-center text-[11px] text-primary-600 hover:underline"
 								>
 									+{pantryList.length - 5} more items
@@ -295,7 +309,7 @@
 						</div>
 					</div>
 					<Button
-						href="/recipes/generate"
+						href={resolve('/recipes/generate')}
 						class="group relative h-10 overflow-hidden rounded-lg border border-primary-300 bg-bg-input px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-paper-dark hover:shadow-md active:scale-95"
 					>
 						<div class="flex items-center gap-2">
@@ -348,7 +362,7 @@
 									</div>
 								</div>
 								<div class="relative flex-1 p-4">
-									{#each Array(6) as _, i}
+									{#each { length: 6 }, i (i)}
 										<div class="flex items-center gap-3 py-3">
 											<Skeleton class="h-5 w-5 rounded-full bg-stone-200/50" />
 											<Skeleton class="h-4 flex-1 bg-stone-200/50" />
@@ -362,15 +376,14 @@
 					{@const recentRecipes = dashboardData.recentRecipes ?? []}
 					{@const pantryItems = dashboardData.pantry ?? []}
 					{@const activeList = dashboardData.activeList}
-					{@const suggestions = dashboardData.suggestions ?? []}
 					{@const featuredRecipe = recentRecipes[0]}
 					{@const recipeFeed = recentRecipes}
-					{@const serverShoppingNames = new Set(activeList?.items?.map((i: any) => i.name) ?? [])}
+					{@const serverShoppingNames = new Set(activeList?.items?.map((i) => i.name) ?? [])}
 					{@const shoppingListNames = (() => {
-						const merged = new Set(serverShoppingNames);
-						for (const name of pendingAdds) merged.add(name);
-						for (const name of pendingRemoves) merged.delete(name);
-						return merged;
+						// Union of server names and pending adds, minus pending removes
+						return new Set(
+							[...serverShoppingNames, ...pendingAdds].filter((name) => !pendingRemoves.has(name))
+						);
 					})()}
 					{@const ingredientList = (() => {
 						if (
@@ -379,9 +392,9 @@
 							Array.isArray(featuredRecipe.ingredients) &&
 							featuredRecipe.ingredients.length > 0
 						) {
-							return featuredRecipe.ingredients.map((ing: any) => {
+							return featuredRecipe.ingredients.map((ing) => {
 								const pantryMatch = pantryItems.find(
-									(p: any) =>
+									(p) =>
 										p.itemName.toLowerCase().includes(ing.name.toLowerCase()) ||
 										ing.name.toLowerCase().includes(p.itemName.toLowerCase())
 								);
@@ -404,12 +417,14 @@
 					{@const visibleIngredients = showAllIngredients
 						? ingredientList
 						: ingredientList.slice(0, 6)}
-					{@const ingredientStates = visibleIngredients.map((ingredient: any) => {
+					{@const ingredientStates = visibleIngredients.map((ingredient) => {
 						const ingredientDisplay = formatIngredientDisplay(ingredient);
 						const isAdded = shoppingListNames.has(ingredientDisplay);
 						const isAdding = addingIngredient === ingredientDisplay;
 						const inPantry =
-							!!ingredient.pantryMatch && ingredient.pantryMatch.stockConfidence > 0.3;
+							'pantryMatch' in ingredient &&
+							!!ingredient.pantryMatch &&
+							ingredient.pantryMatch.stockConfidence > 0.3;
 						return {
 							display: ingredientDisplay,
 							isAdded,
@@ -428,7 +443,7 @@
 					<div class="order-last grid items-stretch gap-8 lg:order-0 lg:grid-cols-12">
 						<div class="lg:col-span-7">
 							<a
-								href={featuredRecipe ? `/recipes/${featuredRecipe.id}` : '/recipes'}
+								href={resolve(featuredRecipe ? `/recipes/${featuredRecipe.id}` : '/recipes')}
 								class="group relative flex h-full flex-col overflow-hidden rounded-l-md rounded-r-2xl border border-border bg-bg-paper shadow-[2px_3px_10px_rgba(0,0,0,0.03)] transition-all hover:-translate-y-0.5 hover:shadow-md md:flex-row"
 							>
 								<div
@@ -541,9 +556,9 @@
 									></div>
 
 									<div
-										class={`relative z-10 h-full max-h-80 space-y-0 overflow-y-auto pt-2 [-ms-overflow-style:'none'] [scrollbar-width:'none'] [&::-webkit-scrollbar]:hidden`}
+										class="relative z-10 h-full max-h-80 space-y-0 overflow-y-auto pt-2 [-ms-overflow-style:'none'] [scrollbar-width:'none'] [&::-webkit-scrollbar]:hidden"
 									>
-										{#each visibleIngredients as ingredient, i}
+										{#each visibleIngredients as ingredient, i (i)}
 											{@const state = ingredientStates[i]}
 											{@const inPantry = state.inPantry}
 
@@ -554,20 +569,12 @@
 													addingIngredient = state.display;
 													// Optimistic update via pending sets (reassign for reactivity)
 													if (state.isAdded) {
-														const removes = new Set(pendingRemoves);
-														removes.add(state.display);
-														pendingRemoves = removes;
-														const adds = new Set(pendingAdds);
-														adds.delete(state.display);
-														pendingAdds = adds;
+														pendingRemoves = withItem(pendingRemoves, state.display);
+														pendingAdds = withoutItem(pendingAdds, state.display);
 														workflowStore.decrementShopping();
 													} else {
-														const adds = new Set(pendingAdds);
-														adds.add(state.display);
-														pendingAdds = adds;
-														const removes = new Set(pendingRemoves);
-														removes.delete(state.display);
-														pendingRemoves = removes;
+														pendingAdds = withItem(pendingAdds, state.display);
+														pendingRemoves = withoutItem(pendingRemoves, state.display);
 														workflowStore.incrementShopping();
 													}
 
@@ -575,23 +582,15 @@
 														addingIngredient = null;
 														if (result.type === 'success') {
 															// Server confirmed — clear pending overrides
-															const adds = new Set(pendingAdds);
-															adds.delete(state.display);
-															pendingAdds = adds;
-															const removes = new Set(pendingRemoves);
-															removes.delete(state.display);
-															pendingRemoves = removes;
+															pendingAdds = withoutItem(pendingAdds, state.display);
+															pendingRemoves = withoutItem(pendingRemoves, state.display);
 														} else {
 															// Rollback: undo optimistic change
 															if (state.isAdded) {
-																const removes = new Set(pendingRemoves);
-																removes.delete(state.display);
-																pendingRemoves = removes;
+																pendingRemoves = withoutItem(pendingRemoves, state.display);
 																workflowStore.incrementShopping();
 															} else {
-																const adds = new Set(pendingAdds);
-																adds.delete(state.display);
-																pendingAdds = adds;
+																pendingAdds = withoutItem(pendingAdds, state.display);
 																workflowStore.decrementShopping();
 															}
 														}
@@ -660,7 +659,7 @@
 										{/each}
 
 										{#if visibleIngredients.length < 6}
-											{#each Array(6 - visibleIngredients.length) as _}
+											{#each { length: 6 - visibleIngredients.length }, i (i)}
 												<div class="relative h-12 w-full">
 													<div
 														class="border-info-200/30 absolute right-0 bottom-0 left-0 border-b"
@@ -696,7 +695,7 @@
 						<div class="mb-6 flex items-baseline justify-between border-b border-border pb-2">
 							<h2 class="font-display text-2xl text-text-primary">Recent Collections</h2>
 							<a
-								href="/recipes"
+								href={resolve('/recipes')}
 								class="text-xs font-medium tracking-wider text-primary-600 uppercase hover:text-primary-800 hover:underline"
 								>To your cookbook</a
 							>
@@ -706,7 +705,7 @@
 							{#if recipeFeed.length}
 								{#each recipeFeed as recipe (recipe.id)}
 									<a
-										href={`/recipes/${recipe.id}`}
+										href={resolve('/recipes/[id]', { id: recipe.id })}
 										class="group relative mb-8 block break-inside-avoid"
 									>
 										<div
@@ -799,7 +798,7 @@
 		</main>
 	</div>
 	<OnboardingModal receiptCount={workflowStore.receipts} recipeCount={workflowStore.recipes} />
-	{#await data.streamed.dashboardData catch error}
+	{#await data.streamed.dashboardData catch}
 		<!-- Error toast or fallback -->
 	{/await}
 {:else}

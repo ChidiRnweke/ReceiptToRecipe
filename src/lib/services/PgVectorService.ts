@@ -3,7 +3,6 @@ import { cookbookEmbeddings } from '$db/schema';
 import { eq, sql, desc } from 'drizzle-orm';
 import type { IVectorService, VectorSearchResult } from './interfaces';
 import type { ICulinaryIntelligence } from './interfaces';
-import type { PgDatabase } from 'drizzle-orm/pg-core';
 
 export class PgVectorService implements IVectorService {
 	private culinaryIntelligence: ICulinaryIntelligence;
@@ -37,7 +36,7 @@ export class PgVectorService implements IVectorService {
 			.orderBy(desc(sql`1 - (${cookbookEmbeddings.embedding} <=> ${embeddingStr}::vector)`))
 			.limit(limit);
 
-		return results.map((r: any) => ({
+		return results.map((r) => ({
 			id: r.id,
 			recipeTitle: r.recipeTitle,
 			contentChunk: r.contentChunk,

@@ -1,7 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { AppFactory } from '$lib/factories';
-import type { PantryItem } from '$lib/services/interfaces/IPantryService';
 
 type RestorableItemInput = {
 	name: string;

@@ -7,8 +7,7 @@ import type {
 	UserIngredientPreferenceDao,
 	NewUserIngredientPreferenceDao,
 	UserCuisinePreferenceDao,
-	NewUserCuisinePreferenceDao,
-	TasteProfileDao
+	NewUserCuisinePreferenceDao
 } from '../daos';
 
 export interface IUserDietaryProfileRepository {

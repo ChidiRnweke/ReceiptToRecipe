@@ -7,9 +7,7 @@
 	import SubmitButton from '$lib/components/SubmitButton.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { Badge } from '$lib/components/ui/badge';
 	import {
-		Settings,
 		X,
 		Plus,
 		AlertTriangle,
@@ -213,7 +211,7 @@
 							</p>
 
 							<div class="mb-4 flex flex-wrap gap-2">
-								{#each commonAllergies as allergy}
+								{#each commonAllergies as allergy (allergy)}
 									<ToggleChip
 										selected={allergies.includes(allergy)}
 										label={allergy}
@@ -248,7 +246,7 @@
 										Active Allergies:
 									</h4>
 									<div class="flex flex-wrap gap-2">
-										{#each allergies as allergy, i}
+										{#each allergies as allergy, i (i)}
 											{#if !commonAllergies.includes(allergy)}
 												<span
 													class="font-ui inline-flex items-center gap-1 rounded-sm border border-sienna-200 bg-white px-2 py-1 text-xs font-bold text-sienna-800 shadow-sm"
@@ -279,7 +277,7 @@
 							</div>
 
 							<div class="mb-4 flex flex-wrap gap-2">
-								{#each commonDiets as diet}
+								{#each commonDiets as diet (diet)}
 									<ToggleChip
 										selected={dietaryRestrictions.includes(diet)}
 										label={diet}
@@ -323,7 +321,7 @@
 							<p class="mb-4 font-serif text-sm text-ink-light italic">Favor these cuisines.</p>
 
 							<div class="mb-4 flex flex-wrap gap-2">
-								{#each commonCuisines as cuisine}
+								{#each commonCuisines as cuisine (cuisine)}
 									<ToggleChip
 										selected={cuisinePreferences.includes(cuisine)}
 										label={cuisine}
@@ -380,7 +378,7 @@
 					</p>
 
 					<div class="space-y-2">
-						{#each excludedIngredients as ingredient, i}
+						{#each excludedIngredients as ingredient, i (i)}
 							<div
 								class="flex items-center justify-between rounded-sm border border-blue-100 bg-white/50 px-2 py-1"
 							>

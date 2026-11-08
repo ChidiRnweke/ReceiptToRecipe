@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -20,7 +21,11 @@
 		Utensils
 	} from 'lucide-svelte';
 
-	let { data, form } = $props();
+	import type { PageData, ActionData } from './$types';
+
+	type PantryItem = Awaited<PageData['streamed']['pantry']>[number];
+
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let loading = $state(false);
 	let customIngredients = $state<string[]>([]);
 	let newIngredient = $state('');
@@ -99,20 +104,18 @@
 	}
 
 	function togglePantryItem(itemId: string, itemName: string) {
-		if (selectedIngredients.has(itemId)) {
-			selectedIngredients.delete(itemId);
-		} else {
-			selectedIngredients.set(itemId, itemName);
-		}
-		selectedIngredients = new Map(selectedIngredients);
+		// Replace rather than mutate so the $state assignment triggers updates
+		selectedIngredients = selectedIngredients.has(itemId)
+			? new Map([...selectedIngredients].filter(([id]) => id !== itemId))
+			: new Map([...selectedIngredients, [itemId, itemName]]);
 	}
 
 	function toggleVibe(vibe: string) {
 		cuisineHint = cuisineHint === vibe ? '' : vibe;
 	}
 
-	function groupPantry(pantryItems: any[]) {
-		const groups: Record<string, any[]> = {};
+	function groupPantry(pantryItems: PantryItem[]) {
+		const groups: Record<string, PantryItem[]> = {};
 		for (const item of pantryItems || []) {
 			const category = item.category || 'Kitchen Staples';
 			const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
@@ -125,22 +128,19 @@
 	// Pre-select high-confidence pantry items once the streamed data resolves.
 	// Must run in $effect (not a template expression) to avoid state_unsafe_mutation.
 	$effect(() => {
-		data.streamed.pantry.then((pantryItems: any[]) => {
+		data.streamed.pantry.then((pantryItems) => {
 			if (pantryInitialized) return;
-			const newMap = new Map<string, string>();
-			pantryItems
-				.filter((i: any) => i.stockConfidence > 0.6 && i.id)
-				.forEach((i: any) => newMap.set(i.id, i.itemName));
-			selectedIngredients = newMap;
+			selectedIngredients = new Map(
+				pantryItems
+					.filter((i): i is PantryItem & { id: string } => i.stockConfidence > 0.6 && !!i.id)
+					.map((i) => [i.id, i.itemName])
+			);
 			pantryInitialized = true;
 		});
 	});
 
 	// All ingredient names that will be sent: selected pantry item names + user-typed extras
-	const allIngredientNames = $derived([
-		...selectedIngredients.values(),
-		...customIngredients
-	]);
+	const allIngredientNames = $derived([...selectedIngredients.values(), ...customIngredients]);
 	const totalIngredients = $derived(allIngredientNames.length);
 </script>
 
@@ -184,6 +184,7 @@
 				return async ({ result }) => {
 					loading = false;
 					if (result.type === 'redirect') {
+						// eslint-disable-next-line svelte/no-navigation-without-resolve -- result.location is a server-issued redirect URL, already resolved
 						goto(result.location);
 					}
 				};
@@ -211,7 +212,7 @@
 							<h2 class="font-display text-xl text-ink">Kitchen Inventory</h2>
 							<div class="flex items-center gap-3">
 								<a
-									href="/cupboard"
+									href={resolve('/cupboard')}
 									class="font-ui text-[10px] tracking-wide text-primary-600 uppercase hover:underline"
 								>
 									Manage cupboard
@@ -224,11 +225,11 @@
 
 						{#await data.streamed.pantry}
 							<div class="space-y-5">
-								{#each Array(3) as _}
+								{#each { length: 3 }, i (i)}
 									<div class="space-y-2">
 										<Skeleton class="h-5 w-28 bg-stone-200/50" />
 										<div class="flex flex-wrap gap-2">
-											{#each Array(4) as _}
+											{#each { length: 4 }, j (j)}
 												<Skeleton class="h-8 w-22 rounded-lg bg-stone-200/50" />
 											{/each}
 										</div>
@@ -240,15 +241,16 @@
 
 							{#if pantry && pantry.length > 0}
 								<div class="space-y-6">
-									{#each Object.entries(pantryByCategory) as [category, items]}
+									{#each Object.entries(pantryByCategory) as [category, items] (category)}
 										<div>
 											<h3 class="mb-2 font-serif text-base text-ink-light italic">{category}</h3>
 											<div class="flex flex-wrap gap-2">
-												{#each items as item}
+												{#each items as item (item.id ?? item.itemName)}
 													{#if item.id}
+														{@const itemId = item.id}
 														<button
 															type="button"
-															onclick={() => togglePantryItem(item.id, item.itemName)}
+															onclick={() => togglePantryItem(itemId, item.itemName)}
 															class="group relative flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm transition-all duration-200
                               {selectedIngredients.has(item.id)
 																? 'border-sage-400 bg-sage-50 text-sage-900 shadow-sm'
@@ -302,7 +304,6 @@
 
 			<!-- RIGHT: Controls -->
 			<div class="order-1 space-y-4 lg:sticky lg:top-8 lg:order-2 lg:col-span-5 xl:col-span-4">
-
 				<!-- Vibe / Cuisine — prominent chip selector -->
 				<div class="rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm">
 					<Label class="mb-3 flex items-center gap-2 font-serif text-base font-semibold text-ink">
@@ -310,7 +311,7 @@
 						Vibe / Cuisine
 					</Label>
 					<div class="mb-3 flex flex-wrap gap-2">
-						{#each vibeOptions as vibe}
+						{#each vibeOptions as vibe (vibe)}
 							<button
 								type="button"
 								onclick={() => toggleVibe(vibe)}
@@ -335,7 +336,10 @@
 
 				<!-- Servings -->
 				<div class="rounded-xl border border-border bg-white p-4 shadow-sm">
-					<Label for="servings" class="mb-2 flex items-center gap-2 font-serif text-base font-semibold text-ink">
+					<Label
+						for="servings"
+						class="mb-2 flex items-center gap-2 font-serif text-base font-semibold text-ink"
+					>
 						<Users class="h-4 w-4 text-text-muted" />
 						Servings
 					</Label>
@@ -397,7 +401,7 @@
 
 						{#if customIngredients.length > 0}
 							<div class="flex flex-wrap gap-2">
-								{#each customIngredients as ingredient, i}
+								{#each customIngredients as ingredient, i (i)}
 									<span
 										class="font-hand inline-flex -rotate-1 items-center gap-1 rounded-md border border-yellow-200 bg-yellow-50 px-2 py-1 text-sm text-ink shadow-sm"
 									>

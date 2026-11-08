@@ -28,7 +28,7 @@ export const actions: Actions = {
 			const controller = new TasteProfileController(AppFactory.getTasteProfileService());
 			await controller.setDietType(locals.user.id, finalDiet);
 			return { success: true };
-		} catch (e) {
+		} catch {
 			return fail(500, { error: 'Failed to set diet type' });
 		}
 	},
@@ -45,7 +45,7 @@ export const actions: Actions = {
 			const controller = new TasteProfileController(AppFactory.getTasteProfileService());
 			await controller.addAllergy(locals.user.id, allergen, severity || 'avoid');
 			return { success: true };
-		} catch (e) {
+		} catch {
 			return fail(500, { error: 'Failed to add allergy' });
 		}
 	},
@@ -61,7 +61,7 @@ export const actions: Actions = {
 			const controller = new TasteProfileController(AppFactory.getTasteProfileService());
 			await controller.removeAllergy(locals.user.id, allergen);
 			return { success: true };
-		} catch (e) {
+		} catch {
 			return fail(500);
 		}
 	},
@@ -78,7 +78,7 @@ export const actions: Actions = {
 			const controller = new TasteProfileController(AppFactory.getTasteProfileService());
 			await controller.setIngredientPreference(locals.user.id, ingredient, preference);
 			return { success: true };
-		} catch (e) {
+		} catch {
 			return fail(500);
 		}
 	},
@@ -94,7 +94,7 @@ export const actions: Actions = {
 			const controller = new TasteProfileController(AppFactory.getTasteProfileService());
 			await controller.removeIngredientPreference(locals.user.id, ingredient);
 			return { success: true };
-		} catch (e) {
+		} catch {
 			return fail(500);
 		}
 	},
@@ -111,7 +111,7 @@ export const actions: Actions = {
 			const controller = new TasteProfileController(AppFactory.getTasteProfileService());
 			await controller.setCuisinePreference(locals.user.id, cuisine, preference);
 			return { success: true };
-		} catch (e) {
+		} catch {
 			return fail(500);
 		}
 	}

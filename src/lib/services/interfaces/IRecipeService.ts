@@ -1,7 +1,3 @@
-import type { IImageGenerator } from './IImageGenerator';
-import type { IVectorService } from './IVectorService';
-import type { ICulinaryIntelligence } from './ICulinaryIntelligence';
-
 export interface RecipeIngredient {
 	id: string;
 	recipeId: string;

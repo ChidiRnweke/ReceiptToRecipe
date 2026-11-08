@@ -3,8 +3,6 @@
 	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import { Badge } from '$lib/components/ui/badge';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import {
 		ShoppingCart,
@@ -17,7 +15,6 @@
 		Check,
 		ChefHat,
 		AlertTriangle,
-		Lightbulb,
 		X
 	} from 'lucide-svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
@@ -51,18 +48,30 @@
 		return recipeMap[recipeId] || null;
 	}
 
-	let { data, form } = $props();
+	import type { PageData, ActionData } from './$types';
+
+	type Streamed = PageData['streamed'];
+	type ShoppingList = Awaited<Streamed['activeList']>;
+	type ShoppingItem = ShoppingList['items'][number];
+
+	/** Success payload of the addItem action when the item looks like it is already in the pantry */
+	type PantryWarningResult = {
+		pantryWarning: true;
+		warningMessage: string;
+		matchedItem: string;
+		confidence: number;
+		pendingItem: { name: string; quantity: string; unit: string; listId: string };
+	};
+
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	// Subscribe to streamed data
-	let suggestions = $state<any[]>([]);
+	let suggestions = $state<Awaited<Streamed['suggestions']>>([]);
 	let recipeMap = $state<Record<string, { id: string; title: string }>>({});
-	let recipeCount = $state(0);
-	let pantry = $state<any[]>([]);
-	let pantryLookup = $state<Record<string, any>>({});
 
 	// Subscribe to streamed lists (active and non-active lists)
-	let streamedLists = $state<any[]>([]);
-	let activeList = $state<any>(null);
+	let streamedLists = $state<ShoppingList[]>([]);
+	let activeList = $state<ShoppingList | null>(null);
 	let listsLoading = $state(true);
 	let activeListLoading = $state(true);
 
@@ -109,26 +118,6 @@
 					recipeMap = {};
 				});
 		}
-		if (data.streamed?.recipeCount) {
-			data.streamed.recipeCount
-				.then((rc) => {
-					recipeCount = rc;
-				})
-				.catch(() => {
-					recipeCount = 0;
-				});
-		}
-		if (data.streamed?.pantryData) {
-			data.streamed.pantryData
-				.then((pd) => {
-					pantry = pd.pantry;
-					pantryLookup = pd.pantryLookup;
-				})
-				.catch(() => {
-					pantry = [];
-					pantryLookup = {};
-				});
-		}
 	});
 
 	// Combine active list with streamed lists
@@ -147,24 +136,11 @@
 	let manualToggles = $state<Map<string, boolean>>(new Map());
 
 	let expandedLists = $derived.by(() => {
-		const expanded = new Set<string>();
-
-		// Determine which lists should be expanded
-		for (const list of lists) {
-			const listId = (list as any).id;
-			const manualToggle = manualToggles.get(listId);
-
-			if (manualToggle !== undefined) {
-				// User has manually toggled this list
-				if (manualToggle) {
-					expanded.add(listId);
-				}
-			} else if (expanded.size === 0 && list === lists[0]) {
-				expanded.add(listId);
-			}
-		}
-
-		return expanded;
+		// A manual toggle wins; otherwise only the first list starts expanded
+		const expandedIds = lists
+			.filter((list, index) => manualToggles.get(list.id) ?? index === 0)
+			.map((list) => list.id);
+		return new Set(expandedIds);
 	});
 	// New item inputs per list
 	type NewItemInput = { name: string; quantity: string; unit: string };
@@ -192,12 +168,11 @@
 
 	function toggleList(listId: string) {
 		const isCurrentlyExpanded = expandedLists.has(listId);
-		const newToggles = new Map(manualToggles);
-		newToggles.set(listId, !isCurrentlyExpanded);
-		manualToggles = newToggles;
+		// Replace rather than mutate so the $state assignment triggers updates
+		manualToggles = new Map([...manualToggles, [listId, !isCurrentlyExpanded]]);
 	}
 
-	function getCompletionPercentage(items: any[]) {
+	function getCompletionPercentage(items: ShoppingItem[]) {
 		if (items.length === 0) return 0;
 		const checked = items.filter((i) => i.checked).length;
 		return Math.round((checked / items.length) * 100);
@@ -255,8 +230,8 @@
 		};
 	}
 
-	function groupItemsBySource(items: any[]) {
-		const groups: Record<string, any[]> = {
+	function groupItemsBySource(items: ShoppingItem[]) {
+		const groups: Record<string, ShoppingItem[]> = {
 			Other: []
 		};
 
@@ -362,7 +337,7 @@
 
 					{#if suggestions && suggestions.length > 0}
 						<ul class="mb-4 space-y-1">
-							{#each suggestions.slice(0, 5) as suggestion}
+							{#each suggestions.slice(0, 5) as suggestion, i (i)}
 								<li class="group flex items-center justify-between">
 									<span class="font-hand text-lg text-ink/90">{suggestion.itemName}</span>
 									<form
@@ -508,7 +483,7 @@
 								</p>
 							</div>
 						{:else}
-							{#each lists as list}
+							{#each lists as list (list.id)}
 								{@const completion = getCompletionPercentage(list.items || [])}
 								{@const isExpanded = expandedLists.has(list.id)}
 
@@ -591,7 +566,10 @@
 															workflowStore.incrementShopping();
 															return async ({ result }) => {
 																if (result.type === 'success') {
-																	const data = result.data as any;
+																	const data = result.data as
+																		| PantryWarningResult
+																		| { pantryWarning?: undefined }
+																		| undefined;
 																	if (data?.pantryWarning) {
 																		workflowStore.decrementShopping();
 																		pantryWarning = {
@@ -666,7 +644,7 @@
 											{#if list.items && list.items.length > 0}
 												{@const groups = groupItemsBySource(list.items)}
 
-												{#each Object.entries(groups) as [groupName, items]}
+												{#each Object.entries(groups) as [groupName, items] (groupName)}
 													<div class="relative">
 														<!-- Group Header (Sticky Note Style if Recipe) -->
 														{#if groupName !== 'Manual & Suggestions'}
@@ -681,7 +659,7 @@
 														{/if}
 
 														<ul class="space-y-0">
-															{#each items as item}
+															{#each items as item (item.id)}
 																<li
 																	class="group relative flex items-start border-b border-dashed border-blue-200/50 py-3 transition-colors hover:bg-amber-50/30"
 																>
@@ -696,7 +674,7 @@
 																					l.id === list.id
 																						? {
 																								...l,
-																								items: l.items.map((i: any) =>
+																								items: l.items.map((i) =>
 																									i.id === item.id ? { ...i, checked } : i
 																								)
 																							}
@@ -708,7 +686,7 @@
 																							l.id === list.id
 																								? {
 																										...l,
-																										items: l.items.map((i: any) =>
+																										items: l.items.map((i) =>
 																											i.id === item.id
 																												? {
 																														...i,
@@ -793,7 +771,7 @@
 																					l.id === list.id
 																						? {
 																								...l,
-																								items: l.items.filter((i: any) => i.id !== item.id)
+																								items: l.items.filter((i) => i.id !== item.id)
 																							}
 																						: l
 																				);
@@ -845,8 +823,8 @@
 														action="?/completeShopping"
 														use:enhance={() => {
 															const completedItems = (list.items || [])
-																.filter((entry: any) => entry.checked)
-																.map((entry: any) => ({
+																.filter((entry) => entry.checked)
+																.map((entry) => ({
 																	name: entry.name,
 																	quantity: entry.quantity,
 																	unit: entry.unit,
@@ -887,7 +865,7 @@
 
 							<!-- Skeleton loading for additional lists -->
 							{#if listsLoading || activeListLoading}
-								{#each Array(3) as _, i}
+								{#each { length: 3 }, i (i)}
 									<div class="mb-8 animate-pulse">
 										<div
 											class="mb-4 flex items-center justify-between border-b-2 border-border pb-2"
@@ -899,7 +877,7 @@
 											<div class="h-4 w-4 rounded bg-gray-200"></div>
 										</div>
 										<div class="space-y-3 pl-4">
-											{#each Array(4) as _}
+											{#each { length: 4 }, j (j)}
 												<div class="flex items-center gap-3">
 													<div class="h-5 w-5 rounded bg-gray-200"></div>
 													<div class="h-4 flex-1 rounded bg-gray-200"></div>

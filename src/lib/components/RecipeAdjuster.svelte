@@ -123,7 +123,7 @@
 
 						<!-- Example chips -->
 						<div class="mt-2 flex flex-wrap gap-1.5">
-							{#each activeSuggestions as example}
+							{#each activeSuggestions as example, i (i)}
 								<button
 									type="button"
 									class="font-ui rounded-full border border-border bg-bg-paper px-2 py-0.5 text-xs transition-colors hover:border-primary-300 hover:bg-primary-50/30"

@@ -34,7 +34,7 @@ export class MockCulinaryIntelligence implements ICulinaryIntelligence {
 		// Return default recipe with context ingredients
 		return {
 			...this.defaultRecipe,
-			ingredients: context.availableIngredients.map((name, index) => ({
+			ingredients: context.availableIngredients.map((name) => ({
 				name,
 				quantity: 1,
 				unit: 'cup',
@@ -58,12 +58,12 @@ export class MockCulinaryIntelligence implements ICulinaryIntelligence {
 		};
 	}
 
-	async chat(messages: ChatMessage[], systemPrompt?: string): Promise<string> {
+	async chat(messages: ChatMessage[]): Promise<string> {
 		const key = messages.map((m) => m.content).join('|');
 		return this.mockResponses.get(key) || 'Mock response';
 	}
 
-	async embed(text: string): Promise<number[]> {
+	async embed(): Promise<number[]> {
 		// Return mock 768-dimensional embedding
 		return Array(768).fill(0.1);
 	}
@@ -79,7 +79,7 @@ export class MockCulinaryIntelligence implements ICulinaryIntelligence {
 		};
 	}
 
-	async suggestModifications(recipe: GeneratedRecipe): Promise<string[]> {
+	async suggestModifications(): Promise<string[]> {
 		return ['Make it vegan', 'Add more protein', 'Make it spicy'];
 	}
 

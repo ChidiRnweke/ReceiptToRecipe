@@ -1,4 +1,5 @@
 import { OpenRouter } from '@openrouter/sdk';
+import type { Message } from '@openrouter/sdk/models';
 import { z } from 'zod';
 import type {
 	ICulinaryIntelligence,
@@ -94,7 +95,7 @@ export class SmartCulinaryIntelligence implements ICulinaryIntelligence {
 		} else if (Array.isArray(content)) {
 			responseText = content
 				.filter((part) => part.type === 'text')
-				.map((part) => (part as any).text)
+				.map((part) => part.text)
 				.join('');
 		}
 
@@ -153,7 +154,7 @@ Respond with JSON:
 		} else if (Array.isArray(content)) {
 			responseText = content
 				.filter((part) => part.type === 'text')
-				.map((part) => (part as any).text)
+				.map((part) => part.text)
 				.join('');
 		}
 
@@ -165,7 +166,7 @@ Respond with JSON:
 	}
 
 	async chat(messages: ChatMessage[], systemPrompt?: string): Promise<string> {
-		const formattedMessages: any[] = messages.map((msg) => ({
+		const formattedMessages: Message[] = messages.map((msg) => ({
 			role: msg.role,
 			content: msg.content
 		}));
@@ -197,7 +198,7 @@ Respond with JSON:
 		} else if (Array.isArray(content)) {
 			responseText = content
 				.filter((part) => part.type === 'text')
-				.map((part) => (part as any).text)
+				.map((part) => part.text)
 				.join('');
 		}
 
@@ -498,7 +499,7 @@ Respond with JSON in this exact format:
 		} else if (Array.isArray(content)) {
 			responseText = content
 				.filter((part) => part.type === 'text')
-				.map((part) => (part as any).text)
+				.map((part) => part.text)
 				.join('');
 		}
 
@@ -561,7 +562,7 @@ Respond with JSON in this exact format:
 			} else if (Array.isArray(content)) {
 				responseText = content
 					.filter((part) => part.type === 'text')
-					.map((part) => (part as any).text)
+					.map((part) => part.text)
 					.join('');
 			}
 
@@ -651,7 +652,7 @@ Return JSON:
 		} else if (Array.isArray(content)) {
 			responseText = content
 				.filter((part) => part.type === 'text')
-				.map((part) => (part as any).text)
+				.map((part) => part.text)
 				.join('');
 		}
 

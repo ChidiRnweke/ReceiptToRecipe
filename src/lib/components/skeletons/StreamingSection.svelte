@@ -1,10 +1,10 @@
-<script lang="ts">
+<script lang="ts" generics="T">
 	import type { Snippet } from 'svelte';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	interface Props {
-		promise: Promise<any>;
-		children: Snippet<[any]>;
+		promise: Promise<T>;
+		children: Snippet<[T]>;
 		fallback?: Snippet;
 		error?: Snippet<[Error]>;
 	}

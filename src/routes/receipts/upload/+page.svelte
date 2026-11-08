@@ -2,19 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
-	import {
-		Upload,
-		Image,
-		X,
-		Sun,
-		Camera,
-		ScanLine,
-		Layers,
-		Sparkles,
-		ArrowLeft,
-		ChefHat,
-		Paperclip
-	} from 'lucide-svelte';
+	import { Upload, X, Sun, ScanLine, Layers, ArrowLeft, Paperclip } from 'lucide-svelte';
 	import WashiTape from '$lib/components/WashiTape.svelte';
 
 	let { form } = $props();
@@ -149,6 +137,7 @@
 							return async ({ result }) => {
 								loading = false;
 								if (result.type === 'redirect') {
+									// eslint-disable-next-line svelte/no-navigation-without-resolve -- result.location is a server-issued redirect URL, already resolved
 									goto(result.location);
 								}
 							};

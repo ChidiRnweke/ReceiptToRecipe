@@ -12,17 +12,15 @@ const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
 
 export default defineConfig(
 	includeIgnoreFile(gitignorePath),
+	// Vendored agent skills
+	{ ignores: ['.claude/'] },
 	js.configs.recommended,
 	...ts.configs.recommended,
 	...svelte.configs.recommended,
 	prettier,
 	...svelte.configs.prettier,
 	{
-		languageOptions: { globals: { ...globals.browser, ...globals.node } },
-		rules: {
-			'tailwindcss/enforces-shorthand': 'warn',
-			'tailwindcss/no-custom-classname': 'off'
-		}
+		languageOptions: { globals: { ...globals.browser, ...globals.node } }
 	},
 	{
 		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { User, Settings, Heart, ArrowLeft } from 'lucide-svelte';
+	import { Settings, Heart, ArrowLeft } from 'lucide-svelte';
+	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
 
 	let { children } = $props();
@@ -9,7 +10,7 @@
 		{ href: '/preferences', label: 'General', icon: Settings },
 		{ href: '/settings/taste-profile', label: 'Taste Profile', icon: Heart }
 		// { href: '/settings/account', label: 'Account', icon: User },
-	];
+	] as const;
 </script>
 
 <div class="min-h-screen bg-bg-paper p-6 font-serif text-ink md:p-10">
@@ -32,10 +33,10 @@
 			<aside class="w-full shrink-0 md:w-64">
 				<!-- Mobile: Horizontal tabs -->
 				<nav class="flex gap-2 overflow-x-auto md:hidden">
-					{#each navItems as item}
+					{#each navItems as item (item.href)}
 						{@const isActive = $page.url.pathname === item.href}
 						<a
-							href={item.href}
+							href={resolve(item.href)}
 							class="flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm transition-all
 								{isActive
 								? 'bg-sage-600 font-medium text-white'
@@ -48,10 +49,10 @@
 				</nav>
 				<!-- Desktop: Vertical sidebar -->
 				<nav class="hidden space-y-1 md:block">
-					{#each navItems as item}
+					{#each navItems as item (item.href)}
 						{@const isActive = $page.url.pathname === item.href}
 						<a
-							href={item.href}
+							href={resolve(item.href)}
 							class="flex items-center gap-3 rounded-lg px-4 py-3 transition-all
                             {isActive
 								? 'bg-sage-100 font-medium text-sage-900'

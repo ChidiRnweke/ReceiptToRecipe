@@ -1,4 +1,4 @@
-import type { INormalizationService, NormalizedQuantity, UnitType } from './interfaces';
+import type { INormalizationService, NormalizedQuantity } from './interfaces';
 
 // Weight conversions to grams
 const WEIGHT_TO_GRAMS: Record<string, number> = {

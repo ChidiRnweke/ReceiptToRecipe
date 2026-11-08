@@ -5,8 +5,7 @@ import type {
 	ShoppingListWithItemsDao,
 	ShoppingListItemDao,
 	NewShoppingListItemDao,
-	UpdateShoppingListItemDao,
-	AddItemInputDao
+	UpdateShoppingListItemDao
 } from '../daos';
 
 export interface IShoppingListRepository {

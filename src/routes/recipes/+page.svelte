@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -162,7 +163,10 @@
 							<CalendarDays
 								class="h-4 w-4 text-text-muted transition-colors group-hover:text-primary-600"
 							/>
-							<span class="font-display text-sm font-medium text-text-secondary group-hover:text-text-primary">Plan Week</span>
+							<span
+								class="font-display text-sm font-medium text-text-secondary group-hover:text-text-primary"
+								>Plan Week</span
+							>
 						</div>
 					</Button>
 					<Button
@@ -187,7 +191,7 @@
 				</div>
 
 				<div class="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 lg:gap-10">
-					{#each Array(6) as _, i}
+					{#each { length: 6 }, i (i)}
 						<div class="group mt-0">
 							<Skeleton class="mb-3 h-9 w-32 rounded-full" />
 							<div class="relative bg-white p-2 pb-16 shadow-md">
@@ -202,12 +206,11 @@
 				</div>
 			{:then recipesData}
 				{@const recipes = recipesData.recipes}
-				{@const receiptCount = recipesData.receiptCount}
 				{@const suggestedRecipes = recipes.filter(
-					(r: any) => r.isSuggested && (!hideIncompatible || (r.compatibility?.compatible ?? true))
+					(r) => r.isSuggested && (!hideIncompatible || (r.compatibility?.compatible ?? true))
 				)}
 				{@const otherRecipes = recipes.filter(
-					(r: any) => !r.isSuggested && (!hideIncompatible || (r.compatibility?.compatible ?? true))
+					(r) => !r.isSuggested && (!hideIncompatible || (r.compatibility?.compatible ?? true))
 				)}
 
 				<!-- Suggested Recipes -->
@@ -263,7 +266,7 @@
 									</div>
 
 									<!-- Photo Frame -->
-									<a href="/recipes/{recipe.id}" class="block">
+									<a href={resolve('/recipes/[id]', { id: recipe.id })} class="block">
 										<div
 											class="
                     relative bg-white p-2 pb-16
@@ -442,7 +445,7 @@
 									</div>
 
 									<!-- Photo Frame -->
-									<a href="/recipes/{recipe.id}" class="block">
+									<a href={resolve('/recipes/[id]', { id: recipe.id })} class="block">
 										<div
 											class="
                     relative bg-white p-2 pb-16

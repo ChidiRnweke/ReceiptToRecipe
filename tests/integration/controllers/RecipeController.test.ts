@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { RecipeController } from '../../../src/lib/controllers/RecipeController';
-import type { GenerateRecipeInput } from '../../../src/lib/controllers/RecipeController';
+import type { RecipeContext } from '../../../src/lib/services/interfaces/ICulinaryIntelligence';
 import {
 	MockCulinaryIntelligence,
 	MockImageGenerator,
@@ -117,7 +117,7 @@ describe('RecipeController', () => {
 				unitType: 'WEIGHT'
 			});
 
-			let capturedContext: any;
+			let capturedContext!: RecipeContext;
 			const original = mockCulinaryIntelligence.generateRecipe.bind(mockCulinaryIntelligence);
 			mockCulinaryIntelligence.generateRecipe = async (context) => {
 				capturedContext = context;
@@ -135,7 +135,7 @@ describe('RecipeController', () => {
 		});
 
 		it('should skip null receipt items from ingredientIds', async () => {
-			let capturedContext: any;
+			let capturedContext!: RecipeContext;
 			const original = mockCulinaryIntelligence.generateRecipe.bind(mockCulinaryIntelligence);
 			mockCulinaryIntelligence.generateRecipe = async (context) => {
 				capturedContext = context;
@@ -158,7 +158,7 @@ describe('RecipeController', () => {
 				defaultServings: 6
 			});
 
-			let capturedContext: any;
+			let capturedContext!: RecipeContext;
 			const original = mockCulinaryIntelligence.generateRecipe.bind(mockCulinaryIntelligence);
 			mockCulinaryIntelligence.generateRecipe = async (context) => {
 				capturedContext = context;
@@ -175,7 +175,7 @@ describe('RecipeController', () => {
 		});
 
 		it('should pass cuisine hint to culinary intelligence', async () => {
-			let capturedContext: any;
+			let capturedContext!: RecipeContext;
 			const original = mockCulinaryIntelligence.generateRecipe.bind(mockCulinaryIntelligence);
 			mockCulinaryIntelligence.generateRecipe = async (context) => {
 				capturedContext = context;
@@ -199,7 +199,7 @@ describe('RecipeController', () => {
 				'Classic tomato sauce with garlic and basil'
 			);
 
-			let capturedContext: any;
+			let capturedContext!: RecipeContext;
 			const original = mockCulinaryIntelligence.generateRecipe.bind(mockCulinaryIntelligence);
 			mockCulinaryIntelligence.generateRecipe = async (context) => {
 				capturedContext = context;
@@ -296,7 +296,7 @@ describe('RecipeController', () => {
 				cuisinePreferences: []
 			});
 
-			let capturedContext: any;
+			let capturedContext!: RecipeContext;
 			const original = mockCulinaryIntelligence.generateRecipe.bind(mockCulinaryIntelligence);
 			mockCulinaryIntelligence.generateRecipe = async (context) => {
 				capturedContext = context;
@@ -309,7 +309,7 @@ describe('RecipeController', () => {
 			});
 
 			expect(capturedContext.tasteProfile).toBeDefined();
-			expect(capturedContext.tasteProfile.dietType).toBe('vegetarian');
+			expect(capturedContext.tasteProfile?.dietType).toBe('vegetarian');
 		});
 	});
 

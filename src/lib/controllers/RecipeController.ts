@@ -7,7 +7,6 @@ import type {
 } from '$repositories';
 import type {
 	RecipeDao,
-	NewRecipeDao,
 	RecipeWithIngredientsDao,
 	RecipeIngredientDao,
 	NewRecipeIngredientDao

@@ -91,7 +91,7 @@ export class MockShoppingListRepository implements IShoppingListRepository {
 	}
 
 	async deactivateAllByUserId(userId: string): Promise<void> {
-		for (const [id, list] of this.lists) {
+		for (const list of this.lists.values()) {
 			if (list.userId === userId && list.isActive) {
 				list.isActive = false;
 				list.updatedAt = new Date();

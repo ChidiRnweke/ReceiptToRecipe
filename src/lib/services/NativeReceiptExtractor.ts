@@ -64,6 +64,17 @@ const RECEIPT_JSON_SCHEMA = {
 	}
 };
 
+interface OcrImageDocument {
+	type: 'image_url';
+	image_url: string;
+}
+
+// Only the fields we read from the Mistral OCR response; the API may use either casing
+interface MistralOcrResponse {
+	document_annotation?: string | RawReceiptData | null;
+	documentAnnotation?: string | RawReceiptData | null;
+}
+
 export class NativeReceiptExtractor implements IReceiptExtractor {
 	private apiKey: string;
 
@@ -75,7 +86,7 @@ export class NativeReceiptExtractor implements IReceiptExtractor {
 		const isUrl = imageUrl.startsWith('http');
 		const dataUrl = isUrl ? imageUrl : await this.getLocalAsBase64(imageUrl);
 
-		const document = {
+		const document: OcrImageDocument = {
 			type: 'image_url',
 			image_url: dataUrl
 		};
@@ -86,7 +97,7 @@ export class NativeReceiptExtractor implements IReceiptExtractor {
 	async extractReceiptFromBuffer(imageBuffer: Buffer, mimeType: string): Promise<RawReceiptData> {
 		const dataUrl = `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
 
-		const document = {
+		const document: OcrImageDocument = {
 			type: 'image_url',
 			image_url: dataUrl
 		};
@@ -94,7 +105,7 @@ export class NativeReceiptExtractor implements IReceiptExtractor {
 		return this.processOcrRequest(document);
 	}
 
-	private async processOcrRequest(document: any): Promise<RawReceiptData> {
+	private async processOcrRequest(document: OcrImageDocument): Promise<RawReceiptData> {
 		const response = await fetch('https://api.mistral.ai/v1/ocr', {
 			method: 'POST',
 			headers: {
@@ -114,10 +125,7 @@ export class NativeReceiptExtractor implements IReceiptExtractor {
 			throw new Error(`Mistral OCR API failed with status ${response.status}: ${errorText}`);
 		}
 
-		const result = await response.json();
-
-		// Using 'any' to bypass strict type checking for the raw API response
-		const data: any = result;
+		const data = (await response.json()) as MistralOcrResponse;
 
 		const annotation = data.document_annotation || data.documentAnnotation;
 

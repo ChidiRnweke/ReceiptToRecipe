@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { getDb } from '$db/client';
+import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
+import { setupTestDb, teardownTestDb } from '../helpers/testDb';
 import { WaitlistRepository } from '$repositories/WaitlistRepository';
 import { waitlistUsers } from '$db/schema';
-import { eq } from 'drizzle-orm';
 import type { Database } from '$db/client';
 
 describe('WaitlistRepository Integration', () => {
@@ -10,7 +9,7 @@ describe('WaitlistRepository Integration', () => {
 	let db: Database;
 
 	beforeEach(async () => {
-		db = getDb();
+		db = await setupTestDb();
 		repository = new WaitlistRepository(db);
 		// Clean up waitlist table before each test
 		await db.delete(waitlistUsers);
@@ -19,6 +18,10 @@ describe('WaitlistRepository Integration', () => {
 	afterEach(async () => {
 		// Clean up waitlist table after each test
 		await db.delete(waitlistUsers);
+	});
+
+	afterAll(async () => {
+		await teardownTestDb();
 	});
 
 	it('should create a new waitlist user', async () => {

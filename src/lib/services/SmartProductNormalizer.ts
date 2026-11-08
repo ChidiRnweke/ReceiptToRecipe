@@ -63,7 +63,7 @@ Respond with JSON:
 			} else if (Array.isArray(content)) {
 				responseText = content
 					.filter((part) => part.type === 'text')
-					.map((part) => (part as any).text)
+					.map((part) => part.text)
 					.join('');
 			}
 

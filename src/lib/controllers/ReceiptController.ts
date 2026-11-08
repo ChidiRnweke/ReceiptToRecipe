@@ -21,7 +21,7 @@ export interface UploadReceiptInput {
 	file: File;
 }
 
-export interface ReceiptWithItems extends ReceiptWithItemsDao {}
+export type ReceiptWithItems = ReceiptWithItemsDao;
 
 export class ReceiptController {
 	constructor(
@@ -430,7 +430,7 @@ export class ReceiptController {
 		}
 	}
 
-	async getRecipeCountsByReceiptIds(receiptIds: string[]): Promise<Record<string, number>> {
+	async getRecipeCountsByReceiptIds(): Promise<Record<string, number>> {
 		// Implementation placeholder if needed
 		return {};
 	}

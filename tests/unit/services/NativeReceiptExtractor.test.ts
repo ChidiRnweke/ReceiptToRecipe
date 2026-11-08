@@ -45,7 +45,7 @@ describe('NativeReceiptExtractor', () => {
 
 		it('should convert local file path to base64', async () => {
 			const mockBuffer = Buffer.from('fake-image-data');
-			(readFile as any).mockResolvedValue(mockBuffer);
+			vi.mocked(readFile).mockResolvedValue(mockBuffer);
 
 			mockFetch.mockResolvedValue({
 				ok: true,
@@ -68,7 +68,7 @@ describe('NativeReceiptExtractor', () => {
 
 		it('should handle JPEG files correctly', async () => {
 			const mockBuffer = Buffer.from('fake-jpeg-data');
-			(readFile as any).mockResolvedValue(mockBuffer);
+			vi.mocked(readFile).mockResolvedValue(mockBuffer);
 
 			mockFetch.mockResolvedValue({
 				ok: true,

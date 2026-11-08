@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { Play, Pause, Square, Volume2 } from 'lucide-svelte';
+	import { Play, Pause, Square } from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
 
 	interface Props {
