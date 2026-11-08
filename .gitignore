@@ -21,8 +21,13 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-.claude
+.claude/*
+!.claude/skills/
+!.claude/settings.json
 llm_docs
 .gemini
 static/uploads
 coverage
+
+# Agent worktrees
+artifacts/
