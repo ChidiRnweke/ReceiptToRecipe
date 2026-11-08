@@ -26,7 +26,7 @@ vi.mock('minio', () => {
 });
 
 // Mock AppFactory
-vi.mock('../../../../../src/lib/factories', () => ({
+vi.mock('../../../../src/lib/factories', () => ({
 	AppFactory: {
 		getStorageService: vi.fn()
 	}
