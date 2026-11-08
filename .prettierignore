@@ -11,3 +11,9 @@ bun.lockb
 # Vendored agent skills
 /.claude/
 skills-lock.json
+
+# drizzle-kit regenerates migrations and snapshots in its own style.
+drizzle/
+
+# release-please regenerates this in its own style on every release.
+CHANGELOG.md

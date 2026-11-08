@@ -162,7 +162,10 @@
 							<CalendarDays
 								class="h-4 w-4 text-text-muted transition-colors group-hover:text-primary-600"
 							/>
-							<span class="font-display text-sm font-medium text-text-secondary group-hover:text-text-primary">Plan Week</span>
+							<span
+								class="font-display text-sm font-medium text-text-secondary group-hover:text-text-primary"
+								>Plan Week</span
+							>
 						</div>
 					</Button>
 					<Button

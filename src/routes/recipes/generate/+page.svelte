@@ -137,10 +137,7 @@
 	});
 
 	// All ingredient names that will be sent: selected pantry item names + user-typed extras
-	const allIngredientNames = $derived([
-		...selectedIngredients.values(),
-		...customIngredients
-	]);
+	const allIngredientNames = $derived([...selectedIngredients.values(), ...customIngredients]);
 	const totalIngredients = $derived(allIngredientNames.length);
 </script>
 
@@ -302,7 +299,6 @@
 
 			<!-- RIGHT: Controls -->
 			<div class="order-1 space-y-4 lg:sticky lg:top-8 lg:order-2 lg:col-span-5 xl:col-span-4">
-
 				<!-- Vibe / Cuisine — prominent chip selector -->
 				<div class="rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm">
 					<Label class="mb-3 flex items-center gap-2 font-serif text-base font-semibold text-ink">
@@ -335,7 +331,10 @@
 
 				<!-- Servings -->
 				<div class="rounded-xl border border-border bg-white p-4 shadow-sm">
-					<Label for="servings" class="mb-2 flex items-center gap-2 font-serif text-base font-semibold text-ink">
+					<Label
+						for="servings"
+						class="mb-2 flex items-center gap-2 font-serif text-base font-semibold text-ink"
+					>
 						<Users class="h-4 w-4 text-text-muted" />
 						Servings
 					</Label>

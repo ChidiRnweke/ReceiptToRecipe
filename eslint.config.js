@@ -20,11 +20,7 @@ export default defineConfig(
 	prettier,
 	...svelte.configs.prettier,
 	{
-		languageOptions: { globals: { ...globals.browser, ...globals.node } },
-		rules: {
-			'tailwindcss/enforces-shorthand': 'warn',
-			'tailwindcss/no-custom-classname': 'off'
-		}
+		languageOptions: { globals: { ...globals.browser, ...globals.node } }
 	},
 	{
 		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
