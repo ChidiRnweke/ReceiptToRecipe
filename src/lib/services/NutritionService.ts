@@ -1,8 +1,7 @@
 import type {
 	IMealLogRepository,
 	IPlannedMealRepository,
-	IUserPreferencesRepository,
-	MealLogDao
+	IUserPreferencesRepository
 } from '$repositories';
 import type {
 	INutritionService,
@@ -159,7 +158,7 @@ export class NutritionService implements INutritionService {
 		);
 
 		let currentDays = 0;
-		let dayCursor = this.startOfDay(referenceDate);
+		const dayCursor = this.startOfDay(referenceDate);
 		while (eligibleDates.has(this.toIsoDate(dayCursor))) {
 			currentDays += 1;
 			dayCursor.setDate(dayCursor.getDate() - 1);

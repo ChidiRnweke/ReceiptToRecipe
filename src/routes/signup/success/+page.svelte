@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { ChefHat, CheckCircle, ArrowRight } from 'lucide-svelte';
+	import { CheckCircle, ArrowRight } from 'lucide-svelte';
 </script>
 
 <svelte:head>

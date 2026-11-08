@@ -10,10 +10,7 @@ export class MockImageGenerator implements IImageGenerator {
 	private mockImages = new Map<string, GeneratedImage>();
 	private callCount = 0;
 
-	async generateImage(
-		prompt: string,
-		size?: '256x256' | '512x512' | '1024x1024' | '1792x1024' | '1024x1792'
-	): Promise<GeneratedImage> {
+	async generateImage(prompt: string): Promise<GeneratedImage> {
 		this.callCount++;
 		return (
 			this.mockImages.get(prompt) || {

@@ -10,10 +10,7 @@ export class SmartImageGenerator implements IImageGenerator {
 		this.model = model;
 	}
 
-	async generateImage(
-		prompt: string,
-		_size: '256x256' | '512x512' | '1024x1024' | '1792x1024' | '1024x1792' = '1024x1024'
-	): Promise<GeneratedImage> {
+	async generateImage(prompt: string): Promise<GeneratedImage> {
 		const completion = await this.client.chat.send({
 			chatGenerationParams: {
 				model: this.model,

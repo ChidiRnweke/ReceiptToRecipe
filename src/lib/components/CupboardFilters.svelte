@@ -2,7 +2,6 @@
 	import { Search, SlidersHorizontal, X } from 'lucide-svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Button } from '$lib/components/ui/button';
-	import { slide } from 'svelte/transition';
 
 	let {
 		searchQuery = '',
@@ -55,7 +54,7 @@
 			value={sortBy}
 			onchange={(e) => onsortchange(e.currentTarget.value)}
 		>
-			{#each sortOptions as option}
+			{#each sortOptions as option (option.value)}
 				<option value={option.value}>{option.label}</option>
 			{/each}
 		</select>
@@ -67,7 +66,7 @@
 				onchange={(e) => oncategorychange(e.currentTarget.value)}
 			>
 				<option value="all">All Categories</option>
-				{#each categories as cat}
+				{#each categories as cat (cat)}
 					<option value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
 				{/each}
 			</select>
@@ -144,7 +143,7 @@
 					value={sortBy}
 					onchange={(e) => onsortchange(e.currentTarget.value)}
 				>
-					{#each sortOptions as option}
+					{#each sortOptions as option (option.value)}
 						<option value={option.value}>{option.label}</option>
 					{/each}
 				</select>
@@ -166,7 +165,7 @@
 						onchange={(e) => oncategorychange(e.currentTarget.value)}
 					>
 						<option value="all">All Categories</option>
-						{#each categories as cat}
+						{#each categories as cat (cat)}
 							<option value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
 						{/each}
 					</select>

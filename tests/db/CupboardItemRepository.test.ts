@@ -4,14 +4,13 @@ import { UserRepository } from '../../src/lib/repositories/UserRepositories';
 import { CupboardItemRepository } from '../../src/lib/repositories/CupboardItemRepository';
 
 describe('CupboardItemRepository (DB)', () => {
-	let db: any;
 	let userRepo: UserRepository;
 	let cupboardRepo: CupboardItemRepository;
 	let userId: string;
 	let otherUserId: string;
 
 	beforeEach(async () => {
-		db = await setupTestDb();
+		const db = await setupTestDb();
 		await cleanTables();
 		userRepo = new UserRepository(db);
 		cupboardRepo = new CupboardItemRepository(db);

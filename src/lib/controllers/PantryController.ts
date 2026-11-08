@@ -1,4 +1,4 @@
-import type { IPantryService, PantryItem, ConfidenceFactors } from '$services';
+import type { IPantryService, PantryItem } from '$services';
 import type {
 	IPurchaseHistoryRepository,
 	IReceiptItemRepository,

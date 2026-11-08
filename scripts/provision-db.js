@@ -51,7 +51,7 @@ async function updateOrCreateSecret(client, projectId, environment, secretKey, s
 				secretValue
 			});
 			console.log(`Updated secret '${secretKey}' in Infisical`);
-		} catch (updateErr) {
+		} catch {
 			// If update fails (doesn't exist), create it
 			await client.secrets().createSecret(secretKey, {
 				environment,

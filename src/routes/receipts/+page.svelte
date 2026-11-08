@@ -1,41 +1,19 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	import { formatCurrency } from '$lib/utils';
 	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Badge } from '$lib/components/ui/badge';
-	import {
-		Plus,
-		Receipt,
-		Clock,
-		CheckCircle,
-		XCircle,
-		Loader2,
-		Store,
-		ShoppingBag,
-		Sparkles,
-		ArrowRight,
-		ChefHat,
-		ShoppingCart,
-		Filter,
-		Search,
-		FileText,
-		Trash2,
-		Archive,
-		Check,
-		Lightbulb
-	} from 'lucide-svelte';
-	import WashiTape from '$lib/components/WashiTape.svelte';
+	import { Plus, Receipt, Loader2, Store, ChefHat, Trash2, Lightbulb } from 'lucide-svelte';
 	import PinnedNote from '$lib/components/PinnedNote.svelte';
 	import Notepad from '$lib/components/Notepad.svelte';
 
-	let { data } = $props();
-	let addingToShoppingId = $state<string | null>(null);
+	import type { PageData } from './$types';
+
+	let { data }: { data: PageData } = $props();
 
 	// Subscribe to streamed data
-	let receipts = $state<any[]>([]);
-	let recipeCounts = $state<Record<string, number>>({});
+	let receipts = $state<Awaited<PageData['streamed']['receipts']>>([]);
 	let receiptsLoading = $state(true);
 
 	$effect(() => {
@@ -51,15 +29,6 @@
 					receiptsLoading = false;
 				});
 		}
-		if (data.streamed?.recipeCounts) {
-			data.streamed.recipeCounts
-				.then((counts) => {
-					recipeCounts = counts;
-				})
-				.catch(() => {
-					recipeCounts = {};
-				});
-		}
 	});
 
 	// Dialog state
@@ -70,23 +39,6 @@
 	function confirmDelete(id: string) {
 		receiptToDelete = id;
 		deleteDialogOpen = true;
-	}
-
-	function formatDate(date: Date | string) {
-		return new Date(date).toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric'
-		});
-	}
-
-	function getRelativeTime(date: Date | string) {
-		const now = new Date();
-		const then = new Date(date);
-		const diffDays = Math.floor((now.getTime() - then.getTime()) / (1000 * 60 * 60 * 24));
-		if (diffDays === 0) return 'Today';
-		if (diffDays === 1) return 'Yesterday';
-		return formatDate(date);
 	}
 
 	const tips = [
@@ -159,7 +111,7 @@
 			{#if receiptsLoading}
 				<Notepad class="w-full border border-amber-100/50 bg-amber-50/50" showTape={false}>
 					<div class="flex flex-col">
-						{#each Array(5) as _}
+						{#each { length: 5 }, i (i)}
 							<div class="animate-pulse border-b border-dashed border-border bg-white px-6 py-5">
 								<div class="flex flex-col gap-4 md:flex-row md:items-center">
 									<div class="flex items-center gap-3 md:w-1/3">
@@ -188,7 +140,7 @@
 			{:else}
 				<Notepad class="w-full border border-amber-100/50 bg-amber-50/50" showTape={false}>
 					<div class="flex flex-col">
-						{#each receipts as receipt}
+						{#each receipts as receipt (receipt.id)}
 							<!-- 
                     Row Structure
                 -->
@@ -196,7 +148,7 @@
 								class="group relative block border-b border-dashed border-border bg-white transition-colors duration-200 last:border-0 hover:bg-[#fffdf5]"
 							>
 								<a
-									href="/receipts/{receipt.id}"
+									href={resolve('/receipts/[id]', { id: receipt.id })}
 									class="absolute inset-0 z-20"
 									aria-label="View receipt"
 								></a>
@@ -224,13 +176,13 @@
 												<div class="mt-1 flex items-center gap-2">
 													<!-- Barcode lines -->
 													<div class="flex h-3 shrink-0 gap-px opacity-30">
-														{#each Array(8) as _}
+														{#each { length: 8 }, i (i)}
 															<div class="w-px bg-black"></div>
 															<div class="w-0.5 bg-transparent"></div>
 														{/each}
 													</div>
 													<p class="font-ui truncate text-xs text-text-muted">
-														{(receipt as any).items?.length || 0} items scanned
+														{receipt.items?.length || 0} items scanned
 													</p>
 												</div>
 											</div>

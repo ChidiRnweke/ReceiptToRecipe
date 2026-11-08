@@ -22,10 +22,6 @@
 	let { data } = $props();
 	let profile = $derived(data.profile);
 
-	let newAllergen = $state('');
-	let newIngredient = $state('');
-	let ingredientPrefLevel = $state('dislike');
-
 	const commonAllergens = [
 		'Peanuts',
 		'Tree Nuts',
@@ -54,10 +50,6 @@
 		'French',
 		'American'
 	];
-
-	function getDietLabel(value: string) {
-		return dietTypes.find((d) => d.value === value)?.label || value;
-	}
 </script>
 
 <div class="space-y-10 pb-20">
@@ -72,7 +64,7 @@
 			<div class="p-6">
 				<form method="POST" action="?/setDiet" use:enhance>
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-						{#each dietTypes as diet}
+						{#each dietTypes as diet (diet.value)}
 							<label
 								class="flex cursor-pointer items-start space-x-3 rounded-lg border p-4 transition-colors hover:bg-bg-hover
                                 {profile.dietType === diet.value
@@ -116,7 +108,7 @@
 			</div>
 
 			<div class="mb-6 flex flex-wrap gap-2">
-				{#each profile.allergies as allergy}
+				{#each profile.allergies as allergy (allergy.allergen)}
 					<Badge
 						variant={allergy.severity === 'severe' ? 'destructive' : 'secondary'}
 						class="gap-1 py-1 pr-1 pl-2 text-sm"
@@ -142,7 +134,7 @@
 			<div class="max-w-md space-y-4">
 				<p class="text-sm font-medium text-ink-light">Add Common Allergens:</p>
 				<div class="flex flex-wrap gap-2">
-					{#each commonAllergens as ca}
+					{#each commonAllergens as ca (ca)}
 						{#if !profile.allergies.find((a) => a.allergen.toLowerCase() === ca.toLowerCase())}
 							<form method="POST" action="?/addAllergy" use:enhance class="inline-block">
 								<input type="hidden" name="allergen" value={ca} />
@@ -203,7 +195,7 @@
 					<h3 class="font-serif text-lg font-bold">I Love</h3>
 				</div>
 				<div class="mb-4 flex flex-wrap gap-2">
-					{#each profile.ingredientPreferences.filter((p) => p.preference === 'love') as pref}
+					{#each profile.ingredientPreferences.filter((p) => p.preference === 'love') as pref (pref.ingredientName)}
 						<span
 							class="inline-flex items-center rounded border border-amber-100 bg-white px-2 py-1 text-sm shadow-sm"
 						>
@@ -247,7 +239,7 @@
 					<h3 class="font-serif text-lg font-bold text-text-secondary">I Avoid / Dislike</h3>
 				</div>
 				<div class="mb-4 flex flex-wrap gap-2">
-					{#each profile.ingredientPreferences.filter( (p) => ['dislike', 'avoid'].includes(p.preference) ) as pref}
+					{#each profile.ingredientPreferences.filter( (p) => ['dislike', 'avoid'].includes(p.preference) ) as pref (pref.ingredientName)}
 						<span
 							class="inline-flex items-center rounded border border-border bg-white px-2 py-1 text-sm text-text-secondary shadow-sm"
 						>
@@ -290,7 +282,7 @@
 		</div>
 
 		<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-			{#each cuisines as cuisine}
+			{#each cuisines as cuisine (cuisine)}
 				{@const pref = profile.cuisinePreferences.find((c) => c.cuisineType === cuisine)}
 				<div
 					class="flex flex-col items-center gap-3 rounded-lg border bg-white p-4 shadow-sm transition-colors

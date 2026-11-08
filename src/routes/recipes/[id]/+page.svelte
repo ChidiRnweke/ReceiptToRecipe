@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -9,14 +10,10 @@
 		ArrowLeft,
 		Clock,
 		Users,
-		ShoppingCart,
 		Share2,
-		Heart,
 		Trash2,
 		ChefHat,
-		Sparkles,
 		Check,
-		Loader2,
 		Printer,
 		PenLine,
 		Utensils,
@@ -27,19 +24,19 @@
 	} from 'lucide-svelte';
 	import LoadingState from '$lib/components/LoadingState.svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
-	import StockBadge from '$lib/components/StockBadge.svelte';
-	import WashiTape from '$lib/components/WashiTape.svelte';
-	import PinnedNote from '$lib/components/PinnedNote.svelte';
 	import RecipeNarrator from '$lib/components/RecipeNarrator.svelte';
 	import RecipeAdjuster from '$lib/components/RecipeAdjuster.svelte';
 
-	let { data } = $props();
+	import type { PageData } from './$types';
+
+	type RecipeData = Awaited<PageData['streamed']['recipeData']>;
+
+	let { data }: { data: PageData } = $props();
 
 	// Subscribe to streamed recipe data
-	let recipe = $state<any>(null);
-	let isSaved = $state(false);
+	let recipe = $state<RecipeData['recipe'] | null>(null);
 	let isOwner = $state(false);
-	let sourceReceipt = $state<any>(null);
+	let sourceReceipt = $state<RecipeData['sourceReceipt']>(null);
 	let recipeLoading = $state(true);
 
 	// Subscribe to streamed pantry and suggestions
@@ -58,7 +55,6 @@
 			data.streamed.recipeData
 				.then((recipeData) => {
 					recipe = recipeData.recipe;
-					isSaved = recipeData.isSaved;
 					isOwner = recipeData.isOwner;
 					sourceReceipt = recipeData.sourceReceipt;
 					recipeLoading = false;
@@ -100,7 +96,6 @@
 	// Local state
 	let servings = $state(1);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
-	let shareMessage = $state('');
 	let addingToList = $state(false);
 	let completedSteps = $state<Set<number>>(new Set());
 	let excludePantry = $state(true);
@@ -124,17 +119,14 @@
 		new Set(Object.keys(pantryMatches).map((i: string) => i.toLowerCase()))
 	);
 	const missingCount = $derived(
-		recipe?.ingredients?.filter((i: any) => !pantrySet.has(i.name.toLowerCase())).length ?? 0
+		recipe?.ingredients?.filter((i) => !pantrySet.has(i.name.toLowerCase())).length ?? 0
 	);
 
 	function toggleStep(index: number) {
-		const newSet = new Set(completedSteps);
-		if (newSet.has(index)) {
-			newSet.delete(index);
-		} else {
-			newSet.add(index);
-		}
-		completedSteps = newSet;
+		// Replace rather than mutate so the $state assignment triggers updates
+		completedSteps = completedSteps.has(index)
+			? new Set([...completedSteps].filter((step) => step !== index))
+			: new Set([...completedSteps, index]);
 	}
 
 	onMount(() => {
@@ -169,11 +161,8 @@
 	async function copyShareLink() {
 		try {
 			await navigator.clipboard.writeText(window.location.href);
-			shareMessage = 'Link copied';
-			setTimeout(() => (shareMessage = ''), 2000);
-		} catch (err) {
-			shareMessage = 'Unable to copy';
-			setTimeout(() => (shareMessage = ''), 2000);
+		} catch {
+			// Clipboard access can be denied; there is no feedback UI for this yet
 		}
 	}
 </script>
@@ -226,7 +215,7 @@
 				<div class="border-r border-border/50 bg-[#faf9f6] p-8 md:p-12">
 					<Skeleton class="mb-8 h-8 w-40" />
 					<div class="space-y-4">
-						{#each Array(8) as _}
+						{#each { length: 8 }, i (i)}
 							<div class="flex items-center gap-3">
 								<Skeleton class="h-3 w-3 rounded-full" />
 								<Skeleton class="h-4 flex-1" />
@@ -239,7 +228,7 @@
 				<div class="bg-white p-8 md:p-12">
 					<Skeleton class="mb-8 h-8 w-32" />
 					<div class="space-y-8">
-						{#each Array(4) as _}
+						{#each { length: 4 }, i (i)}
 							<div class="flex gap-6">
 								<Skeleton class="h-10 w-8" />
 								<Skeleton class="h-20 flex-1" />
@@ -273,7 +262,7 @@
 		<!-- Back Navigation (Diegetic: Sticky Note) -->
 		<div class="absolute top-4 left-4 z-50 hidden md:block">
 			<a
-				href="/recipes"
+				href={resolve('/recipes')}
 				class="flex items-center gap-1 text-text-secondary decoration-secondary-400 decoration-wavy hover:text-text-primary hover:underline"
 			>
 				<ArrowLeft class="h-4 w-4" />
@@ -467,7 +456,7 @@
 						</div>
 
 						<ul class="font-body relative z-10 space-y-4 text-text-primary">
-							{#each recipe.ingredients as ingredient}
+							{#each recipe.ingredients as ingredient (ingredient.id)}
 								{@const inPantry = pantrySet.has(ingredient.name.toLowerCase())}
 								<li class="group flex items-baseline gap-3">
 									<div
@@ -528,7 +517,9 @@
 									use:enhance={({ formData }) => {
 										addingToList = true;
 										formData.set('excludePantry', excludePantry.toString());
-										const countToAdd = excludePantry ? missingCount : recipe.ingredients.length;
+										const countToAdd = excludePantry
+											? missingCount
+											: (recipe?.ingredients.length ?? 0);
 										workflowStore.shoppingItems += countToAdd;
 										return async ({ result }) => {
 											addingToList = false;
@@ -585,7 +576,7 @@
 					</div>
 
 					<div class="space-y-6 md:space-y-10">
-						{#each steps as step, i}
+						{#each steps as step, i (i)}
 							<button class="group flex w-full gap-6 text-left" onclick={() => toggleStep(i)}>
 								<div class="flex shrink-0 flex-col items-center gap-1 pt-1">
 									<span

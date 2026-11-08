@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { AppFactory } from '$lib/factories';
 import { parseNumber, parseStringList } from '$lib/validation';
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
 		throw redirect(302, '/login');
 	}

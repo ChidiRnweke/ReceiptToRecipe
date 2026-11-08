@@ -35,7 +35,7 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 	try {
 		// Complete the OAuth flow
 		const oauthService = AppFactory.getOAuthService();
-		const { user, session } = await oauthService.completeOAuthFlow(code, pkceData.codeVerifier);
+		const { session } = await oauthService.completeOAuthFlow(code, pkceData.codeVerifier);
 
 		// Set session cookie
 		setSessionCookie(cookies, session.id);

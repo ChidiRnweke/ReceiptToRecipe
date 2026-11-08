@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Loader2 } from 'lucide-svelte';
+	import type { Snippet } from 'svelte';
 
 	interface Props {
 		loading?: boolean;
 		loadingText?: string;
 		disabled?: boolean;
 		class?: string;
-		children?: () => any;
+		children?: Snippet;
 	}
 
 	let {

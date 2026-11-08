@@ -24,7 +24,7 @@
 	const shouldShowOnboarding = $derived(
 		browser && (forceOpen || (isFirstTimeUser && onboardingState === 'active'))
 	);
-	let showOnboarding = $state(false);
+	let showOnboarding = $derived(shouldShowOnboarding);
 
 	// Current step in the workflow explanation
 	let currentStep = $state(0);
@@ -47,10 +47,6 @@
 			onboardingState = 'active';
 			localStorage.setItem(STORAGE_KEY, 'active');
 		}
-	});
-
-	$effect(() => {
-		showOnboarding = shouldShowOnboarding;
 	});
 
 	$effect(() => {
@@ -149,7 +145,7 @@
 		<div class="text-center">
 			<!-- Step indicator -->
 			<div class="mb-6 flex justify-center gap-2">
-				{#each steps as step, i}
+				{#each steps as step, i (step.title)}
 					<button
 						onclick={() => (currentStep = i)}
 						aria-label="Go to step {i + 1}: {step.title}"

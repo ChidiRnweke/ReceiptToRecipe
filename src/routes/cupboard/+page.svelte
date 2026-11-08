@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PantryItem } from '$services';
+	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Skeleton } from '$lib/components/ui/skeleton';
@@ -69,14 +70,6 @@
 		openLane = openLane === lane ? null : lane;
 	}
 
-	// Time-based greeting
-	let greeting = $state('Good evening');
-	$effect(() => {
-		const hour = new Date().getHours();
-		greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-	});
-
-	// Random tip
 	const tips = [
 		'Store grains in airtight containers to keep them fresh.',
 		'Keep spices away from heat and light.',
@@ -84,8 +77,13 @@
 		'Check expiry dates regularly.',
 		'Group similar items together for easier finding.'
 	];
+
+	// Time-based greeting and random tip (computed client-side to avoid server/client mismatch)
+	let greeting = $state('Good evening');
 	let randomTip = $state(tips[0]);
 	$effect(() => {
+		const hour = new Date().getHours();
+		greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 		randomTip = tips[Math.floor(Math.random() * tips.length)];
 	});
 
@@ -148,14 +146,12 @@
 
 	// Sub-group items by category within a lane
 	function subGroupByCategory(items: PantryItem[]) {
-		const groups = new Map<string, PantryItem[]>();
-		for (const item of items) {
-			const cat = item.category || 'Other';
-			const existing = groups.get(cat) || [];
-			existing.push(item);
-			groups.set(cat, existing);
-		}
-		return groups;
+		const categoryOf = (item: PantryItem) => item.category || 'Other';
+		// Categories in first-seen order, each mapped to its items in original order
+		const categories = [...new Set(items.map(categoryOf))];
+		return new Map(
+			categories.map((cat) => [cat, items.filter((item) => categoryOf(item) === cat)])
+		);
 	}
 
 	// Lane config
@@ -238,7 +234,7 @@
 			<div class="space-y-3">
 				<h3 class="font-ui text-xs tracking-wider text-ink-muted uppercase">Recent Receipts</h3>
 				<div class="space-y-2">
-					{#each Array(3) as _}
+					{#each { length: 3 }, i (i)}
 						<div class="rounded-lg border border-sand/60 bg-bg-card p-3">
 							<Skeleton class="mb-2 h-4 w-3/4 bg-sand/20" />
 							<Skeleton class="h-3 w-1/2 bg-sand/20" />
@@ -293,7 +289,7 @@
 										class="border-t border-sand/40 bg-bg-paper"
 									>
 										<ul class="space-y-1 p-2">
-											{#each receipt.items || [] as item}
+											{#each receipt.items || [] as item (item.id)}
 												{@const status = checkStockStatus(items, item.normalizedName)}
 												<li class="flex items-center justify-between rounded px-2 py-1.5 text-xs">
 													<span class="truncate pr-2 text-ink-light">{item.rawName}</span>
@@ -312,7 +308,7 @@
 										</ul>
 										<div class="border-t border-sand/40 bg-bg-paper-dark/30 p-2 text-center">
 											<a
-												href="/receipts/{receipt.id}"
+												href={resolve('/receipts/[id]', { id: receipt.id })}
 												class="text-[10px] font-medium tracking-wide text-primary uppercase hover:text-primary/80 hover:underline"
 											>
 												View Receipt Detail →
@@ -431,7 +427,7 @@
 						{#if filtered.length > 0}
 							<!-- Desktop: 3-column notepads -->
 							<div class="hidden gap-4 md:grid md:grid-cols-3">
-								{#each lanes as lane}
+								{#each lanes as lane (lane.key)}
 									{@const laneItems = statusGroups[lane.key as keyof typeof statusGroups]}
 									{@const categoryGroups = subGroupByCategory(laneItems)}
 									{@const LaneIcon = getLaneIcon(lane.key)}
@@ -455,7 +451,7 @@
 												<!-- Lane content -->
 												{#if laneItems.length > 0}
 													<div class="space-y-4">
-														{#each [...categoryGroups.entries()] as [category, catItems]}
+														{#each [...categoryGroups.entries()] as [category, catItems] (category)}
 															<div>
 																<!-- Category sub-header -->
 																<div
@@ -488,7 +484,7 @@
 
 							<!-- Mobile: Collapsible accordion sections -->
 							<div class="space-y-3 md:hidden">
-								{#each lanes as lane}
+								{#each lanes as lane (lane.key)}
 									{@const laneItems = statusGroups[lane.key as keyof typeof statusGroups]}
 									{@const categoryGroups = subGroupByCategory(laneItems)}
 									{@const LaneIcon = getLaneIcon(lane.key)}
@@ -522,7 +518,7 @@
 											<div transition:slide={{ duration: 200 }} class="border-t border-sand/30">
 												{#if laneItems.length > 0}
 													<div class="space-y-3 px-2 pt-2 pb-3">
-														{#each [...categoryGroups.entries()] as [category, catItems]}
+														{#each [...categoryGroups.entries()] as [category, catItems] (category)}
 															<div>
 																<div
 																	class="mb-1 flex items-center gap-1.5 px-2 text-[10px] font-medium tracking-wider text-ink-muted/60 uppercase"

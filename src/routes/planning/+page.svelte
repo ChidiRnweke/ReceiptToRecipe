@@ -52,6 +52,7 @@
 
 	const dayKeys = $derived.by(() => {
 		const days: string[] = [];
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- loop cursor local to this derived; never stored or exposed
 		const cursor = new Date(rangeStart);
 		while (cursor <= rangeEnd) {
 			days.push(toDateKey(cursor));
@@ -61,22 +62,16 @@
 	});
 
 	const mealsByDate = $derived.by(() => {
-		const map = new Map<string, PlannedMeal[]>();
-		for (const meal of plannedMeals) {
-			const key = meal.plannedDate; // already YYYY-MM-DD from server
-			const existing = map.get(key) ?? [];
-			existing.push(meal);
-			map.set(key, existing);
-		}
-
-		for (const key of map.keys()) {
-			map.set(
+		// plannedDate is already YYYY-MM-DD from server; keys keep first-seen order
+		const keys = [...new Set(plannedMeals.map((meal) => meal.plannedDate))];
+		return new Map(
+			keys.map((key) => [
 				key,
-				(map.get(key) ?? []).slice().sort((a, b) => a.mealType.localeCompare(b.mealType))
-			);
-		}
-
-		return map;
+				plannedMeals
+					.filter((meal) => meal.plannedDate === key)
+					.sort((a, b) => a.mealType.localeCompare(b.mealType))
+			])
+		);
 	});
 
 	function dayLabel(key: string): string {
@@ -248,7 +243,7 @@
 
 			<!-- Weekday polaroid board -->
 			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
-				{#each visibleDayKeys as key, dayIdx}
+				{#each visibleDayKeys as key, dayIdx (key)}
 					{@const dayMeals = mealsByDate.get(key) ?? []}
 					{@const today = isToday(key)}
 					<div
@@ -302,7 +297,7 @@
 									</div>
 								{:else}
 									<div class="space-y-2">
-										{#each dayMeals as meal, idx}
+										{#each dayMeals as meal (meal.id)}
 											<div
 												class="group/meal relative overflow-hidden rounded-sm border border-[#e6dece] bg-white p-1.5 shadow-[0_2px_5px_rgba(0,0,0,0.09)]"
 											>

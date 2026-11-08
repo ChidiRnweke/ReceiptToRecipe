@@ -1,18 +1,24 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { resolve } from '$app/paths';
 	import { Receipt, ChefHat, ShoppingCart, ChevronRight, Warehouse } from 'lucide-svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
 
 	const steps = [
-		{ href: '/receipts', label: 'Receipts', icon: Receipt, countKey: 'receipts' as const },
+		{ href: '/receipts' as const, label: 'Receipts', icon: Receipt, countKey: 'receipts' as const },
 		{
-			href: '/cupboard',
+			href: '/cupboard' as const,
 			label: 'Cupboard',
 			icon: Warehouse,
 			countKey: 'cupboardItems' as const
 		},
-		{ href: '/recipes', label: 'Recipes', icon: ChefHat, countKey: 'recipes' as const },
-		{ href: '/shopping', label: 'Shopping', icon: ShoppingCart, countKey: 'shoppingItems' as const }
+		{ href: '/recipes' as const, label: 'Recipes', icon: ChefHat, countKey: 'recipes' as const },
+		{
+			href: '/shopping' as const,
+			label: 'Shopping',
+			icon: ShoppingCart,
+			countKey: 'shoppingItems' as const
+		}
 	];
 
 	function isActive(href: string) {
@@ -28,7 +34,7 @@
 
 <!-- Desktop Navigation -->
 <nav class="hidden items-center gap-1 md:flex">
-	{#each steps as step, i}
+	{#each steps as step, i (step.href)}
 		{@const count = workflowStore[step.countKey]}
 		{@const navState = getStepState(step.href, count)}
 
@@ -37,7 +43,7 @@
 		{/if}
 
 		<a
-			href={step.href}
+			href={resolve(step.href)}
 			class="group relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors
 				{navState === 'active'
 				? 'bg-primary-100 text-primary-700'
@@ -67,12 +73,12 @@
 
 <!-- Mobile Navigation -->
 <nav class="flex flex-col gap-1 md:hidden">
-	{#each steps as step, i}
+	{#each steps as step, i (step.href)}
 		{@const count = workflowStore[step.countKey]}
 		{@const navState = getStepState(step.href, count)}
 
 		<a
-			href={step.href}
+			href={resolve(step.href)}
 			class="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
 			{navState === 'active'
 				? 'bg-primary-100 text-primary-700'

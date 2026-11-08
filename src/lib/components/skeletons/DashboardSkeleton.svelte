@@ -69,7 +69,7 @@
 				<Skeleton class="h-3 w-20" />
 			</div>
 			<div class="max-h-40 space-y-2 overflow-y-auto">
-				{#each Array(4) as _, i}
+				{#each Array(4)}
 					<div class="flex items-center justify-between text-sm">
 						<Skeleton class="h-4 w-32" />
 						<Skeleton class="h-4 w-12" />
@@ -137,7 +137,7 @@
 						</div>
 					</div>
 					<div class="relative flex-1 p-4">
-						{#each Array(6) as _, i}
+						{#each Array(6)}
 							<div class="flex items-center gap-3 py-3">
 								<Skeleton class="h-5 w-5 rounded-full" />
 								<Skeleton class="h-4 flex-1" />
@@ -156,7 +156,7 @@
 			</div>
 
 			<div class="columns-1 gap-6 md:columns-2 lg:columns-3">
-				{#each Array(6) as _, i}
+				{#each Array(6)}
 					<slot name="recipe-card-skeleton">
 						<div class="group relative mb-8 block break-inside-avoid">
 							<div

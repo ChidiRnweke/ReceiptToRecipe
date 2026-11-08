@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { resolve } from '$app/paths';
 	import {
 		Receipt,
 		ChefHat,
@@ -13,16 +14,16 @@
 	import { workflowStore } from '$lib/state/workflow.svelte';
 
 	const tabs = [
-		{ href: '/receipts', label: 'Receipts', icon: Receipt, countKey: 'receipts' as const },
+		{ href: '/receipts' as const, label: 'Receipts', icon: Receipt, countKey: 'receipts' as const },
 		{
-			href: '/cupboard',
+			href: '/cupboard' as const,
 			label: 'Cupboard',
 			icon: Warehouse,
 			countKey: 'cupboardItems' as const
 		},
-		{ href: '/recipes', label: 'Recipes', icon: ChefHat, countKey: 'recipes' as const },
+		{ href: '/recipes' as const, label: 'Recipes', icon: ChefHat, countKey: 'recipes' as const },
 		{
-			href: '/shopping',
+			href: '/shopping' as const,
 			label: 'Shopping',
 			icon: ShoppingCart,
 			countKey: 'shoppingItems' as const
@@ -33,17 +34,29 @@
 		return $page.url.pathname.startsWith(href);
 	}
 
+	type PageCta =
+		| {
+				type: 'link';
+				path: '/receipts/upload' | '/recipes/generate' | '/shopping';
+				search: string;
+				label: string;
+				icon: typeof Upload;
+		  }
+		| { type: 'event'; eventName: string; label: string; icon: typeof Upload }
+		| { type: 'submit'; formId: string; label: string; icon: typeof Upload };
+
 	// Determine the page-specific CTA based on current route
-	const pageCta = $derived.by(() => {
+	const pageCta = $derived.by((): PageCta | null => {
 		const path = $page.url.pathname;
 
 		if (path === '/' || path === '/receipts') {
-			return { type: 'link', href: '/receipts/upload', label: 'Upload', icon: Upload };
+			return { type: 'link', path: '/receipts/upload', search: '', label: 'Upload', icon: Upload };
 		}
 		if (path.startsWith('/receipts/') && path !== '/receipts/upload') {
 			return {
 				type: 'link',
-				href: `/recipes/generate?receiptId=${path.split('/')[2]}`,
+				path: '/recipes/generate',
+				search: `?receiptId=${path.split('/')[2]}`,
 				label: 'Cook',
 				icon: ChefHat
 			};
@@ -52,13 +65,19 @@
 			return { type: 'event', eventName: 'cupboard-add-item', label: 'Add', icon: Plus };
 		}
 		if (path === '/recipes') {
-			return { type: 'link', href: '/recipes/generate', label: 'New', icon: Sparkles };
+			return { type: 'link', path: '/recipes/generate', search: '', label: 'New', icon: Sparkles };
 		}
 		if (path === '/recipes/generate') {
 			return { type: 'submit', formId: 'generate-recipe-form', label: 'Invent', icon: ChefHat };
 		}
 		if (path === '/shopping') {
-			return { type: 'link', href: '#new-list-input', label: 'New List', icon: ListPlus };
+			return {
+				type: 'link',
+				path: '/shopping',
+				search: '#new-list-input',
+				label: 'New List',
+				icon: ListPlus
+			};
 		}
 		// No CTA for other pages
 		return null;
@@ -71,7 +90,7 @@
 	style="padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);"
 >
 	<div class="flex items-stretch px-2">
-		{#each tabs as tab, i}
+		{#each tabs as tab, i (tab.href)}
 			{@const active = isActive(tab.href)}
 			{@const count = workflowStore[tab.countKey]}
 			<!-- Insert CTA button in the middle (after 2nd tab) -->
@@ -95,7 +114,7 @@
 						</button>
 					{:else}
 						<a
-							href={pageCta.href}
+							href="{resolve(pageCta.path)}{pageCta.search}"
 							class="flex h-11 w-11 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg shadow-primary-600/30 transition-transform active:scale-95"
 						>
 							<pageCta.icon class="h-5 w-5" />
@@ -108,7 +127,7 @@
 			{/if}
 
 			<a
-				href={tab.href}
+				href={resolve(tab.href)}
 				class="relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 pt-2.5 transition-colors
 					{active ? 'text-primary-700' : 'text-text-muted'}"
 			>

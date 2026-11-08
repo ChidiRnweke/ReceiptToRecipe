@@ -1,6 +1,5 @@
 import type {
 	IPantryService,
-	PantryItem,
 	ConfidenceFactors,
 	StockOverrides
 } from '../../src/lib/services/interfaces/IPantryService';

@@ -32,7 +32,7 @@
 				</div>
 			{:else}
 				<div class="space-y-4">
-					{#each data.waitingUsers as user}
+					{#each data.waitingUsers as user (user.id)}
 						<div
 							class="flex items-center justify-between rounded-lg border border-border bg-white p-4 transition-colors hover:bg-bg-hover"
 						>

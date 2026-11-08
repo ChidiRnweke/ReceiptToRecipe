@@ -234,7 +234,7 @@ export const actions: Actions = {
 					}))
 				}
 			};
-		} catch (err) {
+		} catch {
 			throw error(403, 'Not allowed to delete this recipe');
 		}
 	},

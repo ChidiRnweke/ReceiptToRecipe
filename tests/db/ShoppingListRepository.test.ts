@@ -7,14 +7,13 @@ import {
 import { UserRepository } from '../../src/lib/repositories/UserRepositories';
 
 describe('ShoppingListRepository (DB)', () => {
-	let db: any;
 	let userRepo: UserRepository;
 	let listRepo: ShoppingListRepository;
 	let itemRepo: ShoppingListItemRepository;
 	let userId: string;
 
 	beforeEach(async () => {
-		db = await setupTestDb();
+		const db = await setupTestDb();
 		await cleanTables();
 
 		userRepo = new UserRepository(db);
@@ -161,9 +160,9 @@ describe('ShoppingListRepository (DB)', () => {
 
 	describe('findByUserId', () => {
 		it('should return all lists for a user sorted by createdAt descending', async () => {
-			const first = await listRepo.create({ userId, name: 'First' });
-			const second = await listRepo.create({ userId, name: 'Second' });
-			const third = await listRepo.create({ userId, name: 'Third' });
+			await listRepo.create({ userId, name: 'First' });
+			await listRepo.create({ userId, name: 'Second' });
+			await listRepo.create({ userId, name: 'Third' });
 
 			const lists = await listRepo.findByUserId(userId);
 

@@ -122,7 +122,7 @@ async function getSecretIfExists(client, projectId, environment, secretKey) {
 			secretName: secretKey
 		});
 		return secret ? secret.secretValue : null;
-	} catch (err) {
+	} catch {
 		// 404/Not Found is expected if it doesn't exist
 		return null;
 	}
@@ -137,7 +137,7 @@ async function updateOrCreateSecret(client, projectId, environment, secretKey, s
 			secretValue
 		});
 		console.log(`Updated '${secretKey}'`);
-	} catch (err) {
+	} catch {
 		// If update fails, create
 		try {
 			await client.secrets().createSecret(secretKey, {

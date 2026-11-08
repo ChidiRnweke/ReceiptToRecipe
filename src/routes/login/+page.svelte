@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { ChefHat, Sparkles } from 'lucide-svelte';
+	import { resolve } from '$app/paths';
 </script>
 
 <svelte:head>
@@ -54,7 +55,7 @@
 
 				<div class="pt-4">
 					<a
-						href="/"
+						href={resolve('/')}
 						class="font-ui text-xs tracking-widest text-text-muted uppercase transition-colors hover:text-text-secondary"
 					>
 						Click here if not redirected

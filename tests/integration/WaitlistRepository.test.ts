@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
 import { setupTestDb, teardownTestDb } from '../helpers/testDb';
 import { WaitlistRepository } from '$repositories/WaitlistRepository';
 import { waitlistUsers } from '$db/schema';
-import { eq } from 'drizzle-orm';
 import type { Database } from '$db/client';
 
 describe('WaitlistRepository Integration', () => {

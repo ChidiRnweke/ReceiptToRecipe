@@ -26,7 +26,7 @@ describe('SmartProductNormalizer', () => {
 	});
 
 	describe('normalizeProduct', () => {
-		const mockResponse = (data: any) => {
+		const mockResponse = (data: unknown) => {
 			mocks.send.mockResolvedValue({
 				choices: [
 					{

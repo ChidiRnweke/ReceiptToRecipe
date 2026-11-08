@@ -6,13 +6,12 @@ import {
 } from '../../src/lib/repositories/UserRepositories';
 
 describe('UserPreferencesRepository (DB)', () => {
-	let db: any;
 	let userRepo: UserRepository;
 	let prefsRepo: UserPreferencesRepository;
 	let userId: string;
 
 	beforeEach(async () => {
-		db = await setupTestDb();
+		const db = await setupTestDb();
 		await cleanTables();
 		userRepo = new UserRepository(db);
 		prefsRepo = new UserPreferencesRepository(db);

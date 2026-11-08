@@ -20,7 +20,7 @@ export function formatCurrency(amount: number | string, currency = 'USD'): strin
 			style: 'currency',
 			currency: currencyCode
 		}).format(value);
-	} catch (e) {
+	} catch {
 		// Fallback if currency code is invalid
 		return `${currency} ${value.toFixed(2)}`;
 	}

@@ -1,5 +1,3 @@
-import type { RawReceiptData } from './IReceiptExtractor';
-
 export interface Receipt {
 	id: string;
 	userId: string;

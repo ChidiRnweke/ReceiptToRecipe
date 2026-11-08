@@ -34,7 +34,7 @@ export class FileSystemStorageService implements IStorageService {
 		};
 	}
 
-	async getSignedUrl(key: string, expiresIn: number = 3600): Promise<string> {
+	async getSignedUrl(key: string): Promise<string> {
 		return `${this.baseUrl}/${key}`;
 	}
 

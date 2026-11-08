@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Plus, Package, Hash, Calendar, Tag } from 'lucide-svelte';
-	import CategoryIcon from './CategoryIcon.svelte';
+	import { Plus, Package, Hash, Calendar } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 
 	let { existingItems = [] } = $props<{
@@ -32,10 +31,6 @@
 	];
 
 	const commonUnits = ['unit', 'pcs', 'g', 'kg', 'ml', 'l', 'oz', 'lb', 'cups', 'tbsp', 'tsp'];
-
-	function handleSubmit() {
-		isSubmitting = true;
-	}
 
 	function resetForm() {
 		itemName = '';
@@ -82,7 +77,7 @@
 			/>
 			{#if existingItems.length > 0}
 				<datalist id="cupboard-suggestions">
-					{#each existingItems as item}
+					{#each existingItems as item (item)}
 						<option value={item}></option>
 					{/each}
 				</datalist>
@@ -127,7 +122,7 @@
 				class="font-body w-full rounded-lg border border-sand/60 bg-bg-input px-3 py-2.5 text-sm text-ink focus:border-primary-400 focus:ring-1 focus:ring-primary-400 focus:outline-none"
 			>
 				<option value="">Select...</option>
-				{#each commonUnits as u}
+				{#each commonUnits as u (u)}
 					<option value={u}>{u}</option>
 				{/each}
 			</select>
@@ -148,7 +143,7 @@
 			class="font-body w-full rounded-lg border border-sand/60 bg-bg-input px-3 py-2.5 text-sm text-ink focus:border-primary-400 focus:ring-1 focus:ring-primary-400 focus:outline-none"
 		>
 			<option value="">Select a category...</option>
-			{#each categories as cat}
+			{#each categories as cat (cat.value)}
 				<option value={cat.value}>
 					{cat.label}
 				</option>

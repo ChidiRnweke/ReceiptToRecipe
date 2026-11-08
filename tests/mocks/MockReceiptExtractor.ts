@@ -15,7 +15,7 @@ export class MockReceiptExtractor implements IReceiptExtractor {
 		return this.mocks.get(imageUrl) || this.defaultData;
 	}
 
-	async extractReceiptFromBuffer(imageBuffer: Buffer, mimeType: string): Promise<RawReceiptData> {
+	async extractReceiptFromBuffer(): Promise<RawReceiptData> {
 		return this.defaultData;
 	}
 

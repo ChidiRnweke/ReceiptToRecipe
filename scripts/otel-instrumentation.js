@@ -75,7 +75,7 @@ function bridgeConsoleLogs() {
 							}
 						: undefined
 				});
-			} catch (e) {
+			} catch {
 				// Silently ignore OTel errors to prevent infinite loops
 			}
 		};
