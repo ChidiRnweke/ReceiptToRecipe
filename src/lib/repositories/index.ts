@@ -18,6 +18,7 @@ export {
 	UserCuisinePreferenceRepository
 } from './TasteProfileRepositories';
 export { WaitlistRepository } from './WaitlistRepository';
+export { HouseholdRepository } from './HouseholdRepository';
 
 // Repository Interfaces
 export type {
@@ -46,6 +47,7 @@ export type {
 	IUserCuisinePreferenceRepository
 } from './interfaces/ITasteProfileRepositories';
 export type { IWaitlistRepository } from './interfaces/IWaitlistRepository';
+export type { IHouseholdRepository } from './interfaces/IHouseholdRepository';
 
 // DAOs
 export * from './daos';

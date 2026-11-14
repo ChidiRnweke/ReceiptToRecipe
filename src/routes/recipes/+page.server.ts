@@ -113,7 +113,7 @@ function parseDeletedRecipeInput(raw: FormDataEntryValue | null): DeletedRecipeI
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) {
+	if (!locals.actor) {
 		throw redirect(302, '/login');
 	}
 
@@ -122,9 +122,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const receiptRepo = AppFactory.getReceiptRepository();
 
 	// Start all async operations in parallel, don't await yet
-	const recipesPromise = recipeController.getUserRecipesWithIngredients(locals.user.id);
-	const pantryPromise = pantryController.getUserPantry(locals.user.id);
-	const receiptCountPromise = receiptRepo.countByUserId(locals.user.id);
+	const recipesPromise = recipeController.getHouseholdRecipesWithIngredients(locals.actor);
+	const pantryPromise = pantryController.getHouseholdPantry(locals.actor);
+	const receiptCountPromise = receiptRepo.countByHouseholdId(locals.actor.householdId);
 
 	// Return promises for streaming - page shell renders immediately
 	return {
@@ -159,7 +159,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 						// Check compatibility
 						const compatibility = await tasteProfileController.checkCompatibility(
-							locals.user!.id,
+							locals.actor!.userId,
 							recipe.id
 						);
 
@@ -186,7 +186,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	delete: async ({ locals, request }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -200,12 +200,12 @@ export const actions: Actions = {
 		const recipeController = AppFactory.getRecipeController();
 
 		try {
-			const recipe = await recipeController.getRecipe(recipeId, locals.user.id);
+			const recipe = await recipeController.getRecipe(recipeId, locals.actor);
 			if (!recipe) {
 				throw error(404, 'Recipe not found');
 			}
 
-			await recipeController.deleteRecipe(recipeId, locals.user.id);
+			await recipeController.deleteRecipe(recipeId, locals.actor);
 
 			return {
 				success: true,
@@ -240,7 +240,7 @@ export const actions: Actions = {
 	},
 
 	restore: async ({ locals, request }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -253,7 +253,10 @@ export const actions: Actions = {
 
 		const recipeRepository = AppFactory.getRecipeRepository();
 		const ingredientRepository = AppFactory.getRecipeIngredientRepository();
-		const recentRecipes = await recipeRepository.findByUserIdWithIngredients(locals.user.id, 10);
+		const recentRecipes = await recipeRepository.findByHouseholdIdWithIngredients(
+			locals.actor.householdId,
+			10
+		);
 
 		const idempotentMatch = recentRecipes.find(
 			(recipe) => recipe.title === parsed.title && recipe.instructions === parsed.instructions
@@ -264,7 +267,8 @@ export const actions: Actions = {
 		}
 
 		const restored = await recipeRepository.create({
-			userId: locals.user.id,
+			userId: locals.actor.userId,
+			householdId: locals.actor.householdId,
 			title: parsed.title,
 			description: parsed.description ?? null,
 			instructions: parsed.instructions,
@@ -302,7 +306,7 @@ export const actions: Actions = {
 	},
 
 	addToShopping: async ({ locals, request }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -315,8 +319,8 @@ export const actions: Actions = {
 
 		try {
 			const listController = AppFactory.getShoppingListController();
-			const list = await listController.getActiveList(locals.user.id);
-			await listController.addRecipeIngredients(locals.user.id, list.id, recipeId);
+			const list = await listController.getActiveList(locals.actor);
+			await listController.addRecipeIngredients(locals.actor, list.id, recipeId);
 			return { success: true, listId: list.id };
 		} catch (err) {
 			return fail(500, {

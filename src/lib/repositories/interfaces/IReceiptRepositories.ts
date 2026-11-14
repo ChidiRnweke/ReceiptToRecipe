@@ -9,18 +9,22 @@ import type {
 export interface IReceiptRepository {
 	findById(id: string): Promise<ReceiptDao | null>;
 	findByIdWithItems(id: string): Promise<ReceiptWithItemsDao | null>;
-	findByUserId(userId: string, limit?: number): Promise<ReceiptDao[]>;
-	findByUserIdWithItems(userId: string, limit?: number): Promise<ReceiptWithItemsDao[]>;
+	findByHouseholdId(householdId: string, limit?: number): Promise<ReceiptDao[]>;
+	findByHouseholdIdWithItems(householdId: string, limit?: number): Promise<ReceiptWithItemsDao[]>;
 	create(receipt: NewReceiptDao): Promise<ReceiptDao>;
 	update(id: string, receipt: UpdateReceiptDao): Promise<ReceiptDao>;
 	delete(id: string): Promise<void>;
 	getStatus(id: string): Promise<ReceiptStatusDao | null>;
-	countByUserId(userId: string): Promise<number>;
+	countByHouseholdId(householdId: string): Promise<number>;
 }
 
 export interface IReceiptItemRepository {
 	findById(id: string): Promise<import('../daos').ReceiptItemDao | null>;
 	findByReceiptId(receiptId: string): Promise<import('../daos').ReceiptItemDao[]>;
+	findByIdsInHousehold(
+		ids: string[],
+		householdId: string
+	): Promise<import('../daos').ReceiptItemDao[]>;
 	create(item: import('../daos').NewReceiptItemDao): Promise<import('../daos').ReceiptItemDao>;
 	createMany(
 		items: import('../daos').NewReceiptItemDao[]
@@ -31,7 +35,7 @@ export interface IReceiptItemRepository {
 	): Promise<import('../daos').ReceiptItemDao>;
 	delete(id: string): Promise<void>;
 	findLatestByNormalizedName(
-		userId: string,
+		householdId: string,
 		normalizedName: string
 	): Promise<
 		| (import('../daos').ReceiptItemDao & {

@@ -3,15 +3,15 @@ import { AppFactory } from '$lib/factories';
 import { fail, redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) {
+	if (!locals.user || !locals.actor) {
 		return { user: null };
 	}
 
-	const userId = locals.user.id;
+	const actor = locals.actor;
 	const dashboardService = AppFactory.getDashboardService();
 
 	// Stream non-critical data - don't await, return promises
-	const dashboardDataPromise = dashboardService.getDashboardData(userId);
+	const dashboardDataPromise = dashboardService.getDashboardData(actor);
 
 	return {
 		user: locals.user,
@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	toggleIngredient: async ({ locals, request }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -37,16 +37,16 @@ export const actions: Actions = {
 
 		try {
 			const listController = AppFactory.getShoppingListController();
-			const list = await listController.getActiveList(locals.user.id);
+			const list = await listController.getActiveList(locals.actor);
 
 			// Check if item exists
 			const existingItem = list.items.find((i) => i.name === ingredientName);
 
 			if (existingItem) {
-				await listController.removeItem(locals.user.id, existingItem.id);
+				await listController.removeItem(locals.actor, existingItem.id);
 				return { success: true, removed: ingredientName };
 			} else {
-				await listController.addItem(locals.user.id, list.id, {
+				await listController.addItem(locals.actor, list.id, {
 					name: ingredientName,
 					quantity: '1',
 					unit: ''

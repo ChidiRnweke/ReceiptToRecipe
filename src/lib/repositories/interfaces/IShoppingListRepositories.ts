@@ -11,12 +11,12 @@ import type {
 export interface IShoppingListRepository {
 	findById(id: string): Promise<ShoppingListDao | null>;
 	findByIdWithItems(id: string): Promise<ShoppingListWithItemsDao | null>;
-	findActiveByUserId(userId: string): Promise<ShoppingListWithItemsDao | null>;
-	findByUserId(userId: string): Promise<ShoppingListWithItemsDao[]>;
+	findActiveByHouseholdId(householdId: string): Promise<ShoppingListWithItemsDao | null>;
+	findByHouseholdId(householdId: string): Promise<ShoppingListWithItemsDao[]>;
 	create(list: NewShoppingListDao): Promise<ShoppingListDao>;
 	update(id: string, list: UpdateShoppingListDao): Promise<ShoppingListDao>;
 	delete(id: string): Promise<void>;
-	deactivateAllByUserId(userId: string): Promise<void>;
+	deactivateAllByHouseholdId(householdId: string): Promise<void>;
 }
 
 export interface IShoppingListItemRepository {

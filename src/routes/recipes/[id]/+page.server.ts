@@ -31,30 +31,28 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	}
 
 	const recipeController = AppFactory.getRecipeController();
-	const viewerId = locals.user?.id;
+	const viewer = locals.actor ?? null;
+	const viewerId = viewer?.userId;
 
 	// Stream everything - page shows skeleton immediately
 	const recipeDataPromise = (async () => {
-		const recipe = await recipeController.getRecipe(params.id, viewerId);
+		const recipe = await recipeController.getRecipe(params.id, viewer);
 
 		if (!recipe) {
 			throw error(404, 'Recipe not found');
 		}
 
 		// Load related data in parallel
-		const [isSaved, isOwner] = await Promise.all([
-			viewerId ? recipeController.isSaved(viewerId, recipe.id) : false,
-			viewerId === recipe.userId
-				? Promise.resolve(true)
-				: Promise.resolve(viewerId === recipe.userId)
-		]);
+		// Anyone in the recipe's household can manage it
+		const isOwner = viewer !== null && viewer.householdId === recipe.householdId;
+		const isSaved = viewer ? await recipeController.isSaved(viewer, recipe.id) : false;
 
-		// Load source receipt if available
+		// Load source receipt if available — only the household may see its own receipts
 		let sourceReceipt = null;
-		if (recipe.sourceReceiptId) {
+		if (recipe.sourceReceiptId && isOwner) {
 			const receiptRepo = AppFactory.getReceiptRepository();
 			const receipt = await receiptRepo.findById(recipe.sourceReceiptId);
-			if (receipt) {
+			if (receipt && receipt.householdId === viewer.householdId) {
 				sourceReceipt = {
 					id: receipt.id,
 					storeName: receipt.storeName,
@@ -74,9 +72,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	// Non-critical data - stream as promises
 	const pantryController = AppFactory.getPantryController();
-	const pantryMatchesPromise = viewerId
+	const pantryMatchesPromise = viewer
 		? recipeDataPromise.then(({ recipe }) => {
-				return pantryController.getUserPantry(viewerId).then((pantry) => {
+				return pantryController.getHouseholdPantry(viewer).then((pantry) => {
 					const matches: Record<string, number> = {};
 					recipe.ingredients.forEach((ing) => {
 						const ingName = ing.name.toLowerCase();
@@ -152,42 +150,42 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
 	save: async ({ locals, params }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
 		const recipeController = AppFactory.getRecipeController();
 
-		await recipeController.saveRecipe(locals.user.id, params.id);
+		await recipeController.saveRecipe(locals.actor, params.id);
 		return { success: true };
 	},
 	unsave: async ({ locals, params }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
 		const recipeController = AppFactory.getRecipeController();
 
-		await recipeController.unsaveRecipe(locals.user.id, params.id);
+		await recipeController.unsaveRecipe(locals.actor, params.id);
 		return { success: true };
 	},
 	togglePublic: async ({ locals, params }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
 		const recipeController = AppFactory.getRecipeController();
 
-		const recipe = await recipeController.getRecipe(params.id, locals.user.id);
-		if (!recipe || recipe.userId !== locals.user.id) {
+		const recipe = await recipeController.getRecipe(params.id, locals.actor);
+		if (!recipe || recipe.householdId !== locals.actor.householdId) {
 			throw error(403, 'Not allowed');
 		}
 
-		const isPublic = await recipeController.togglePublic(params.id, locals.user.id);
+		const isPublic = await recipeController.togglePublic(params.id, locals.actor);
 		return { success: true, isPublic };
 	},
 	addToShopping: async ({ locals, params, request }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -196,25 +194,25 @@ export const actions: Actions = {
 
 		const recipeController = AppFactory.getRecipeController();
 
-		const recipe = await recipeController.getRecipe(params.id, locals.user.id);
+		const recipe = await recipeController.getRecipe(params.id, locals.actor);
 		if (!recipe) {
 			throw error(404, 'Recipe not found');
 		}
 
 		try {
 			const listController = AppFactory.getShoppingListController();
-			const list = await listController.getActiveList(locals.user.id);
+			const list = await listController.getActiveList(locals.actor);
 
 			// Get pantry items if excluding
 			let pantryItems: string[] = [];
 			if (excludePantry) {
 				const pantryController = AppFactory.getPantryController();
-				const pantry = await pantryController.getUserPantry(locals.user.id);
+				const pantry = await pantryController.getHouseholdPantry(locals.actor);
 				pantryItems = pantry.map((i: { itemName: string }) => i.itemName);
 			}
 
 			await listController.addRecipeIngredients(
-				locals.user.id,
+				locals.actor,
 				list.id,
 				params.id,
 				excludePantry,
@@ -228,14 +226,14 @@ export const actions: Actions = {
 		}
 	},
 	delete: async ({ locals, params }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
 		const recipeController = AppFactory.getRecipeController();
 
 		try {
-			await recipeController.deleteRecipe(params.id, locals.user.id);
+			await recipeController.deleteRecipe(params.id, locals.actor);
 		} catch {
 			throw error(403, 'Not allowed to delete this recipe');
 		}
@@ -243,7 +241,7 @@ export const actions: Actions = {
 		throw redirect(302, '/recipes');
 	},
 	adjustRecipe: async ({ locals, params, request }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -257,7 +255,7 @@ export const actions: Actions = {
 		const recipeController = AppFactory.getRecipeController();
 
 		try {
-			await recipeController.adjustRecipeWithAi(params.id, locals.user.id, instruction.trim());
+			await recipeController.adjustRecipeWithAi(params.id, locals.actor, instruction.trim());
 			return { success: true };
 		} catch (err) {
 			return fail(500, {

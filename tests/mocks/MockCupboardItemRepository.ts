@@ -9,9 +9,9 @@ import type {
 export class MockCupboardItemRepository implements ICupboardItemRepository {
 	private store = new Map<string, CupboardItemDao>();
 
-	async findByUserId(userId: string): Promise<CupboardItemDao[]> {
+	async findByHouseholdId(householdId: string): Promise<CupboardItemDao[]> {
 		return [...this.store.values()]
-			.filter((item) => item.userId === userId && !item.isDepleted)
+			.filter((item) => item.householdId === householdId && !item.isDepleted)
 			.sort((a, b) => b.addedDate.getTime() - a.addedDate.getTime());
 	}
 
@@ -19,9 +19,12 @@ export class MockCupboardItemRepository implements ICupboardItemRepository {
 		return this.store.get(id) || null;
 	}
 
-	async findByUserAndItem(userId: string, itemName: string): Promise<CupboardItemDao | null> {
+	async findByHouseholdAndItem(
+		householdId: string,
+		itemName: string
+	): Promise<CupboardItemDao | null> {
 		for (const item of this.store.values()) {
-			if (item.userId === userId && item.itemName === itemName) {
+			if (item.householdId === householdId && item.itemName === itemName) {
 				return item;
 			}
 		}
@@ -33,6 +36,7 @@ export class MockCupboardItemRepository implements ICupboardItemRepository {
 		const record: CupboardItemDao = {
 			id: uuid(),
 			userId: item.userId,
+			householdId: item.householdId,
 			itemName: item.itemName,
 			quantity: item.quantity ?? null,
 			unit: item.unit ?? null,
@@ -78,9 +82,10 @@ export class MockCupboardItemRepository implements ICupboardItemRepository {
 		this.store.delete(id);
 	}
 
-	async countByUserId(userId: string): Promise<number> {
-		return [...this.store.values()].filter((item) => item.userId === userId && !item.isDepleted)
-			.length;
+	async countByHouseholdId(householdId: string): Promise<number> {
+		return [...this.store.values()].filter(
+			(item) => item.householdId === householdId && !item.isDepleted
+		).length;
 	}
 
 	// Test helpers

@@ -3,6 +3,7 @@ import type { MealTypeDao } from './MealLogDaos';
 export interface PlannedMealDao {
 	id: string;
 	userId: string;
+	householdId: string;
 	recipeId: string | null;
 	mealName: string;
 	plannedDate: Date;
@@ -14,6 +15,7 @@ export interface PlannedMealDao {
 
 export interface NewPlannedMealDao {
 	userId: string;
+	householdId: string;
 	recipeId?: string | null;
 	mealName: string;
 	plannedDate: Date;

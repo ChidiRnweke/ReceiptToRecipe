@@ -14,15 +14,18 @@ export class MockPurchaseHistoryRepository implements IPurchaseHistoryRepository
 		return this.store.get(id) || null;
 	}
 
-	async findByUserId(userId: string): Promise<PurchaseHistoryDao[]> {
+	async findByHouseholdId(householdId: string): Promise<PurchaseHistoryDao[]> {
 		return [...this.store.values()]
-			.filter((h) => h.userId === userId)
+			.filter((h) => h.householdId === householdId)
 			.sort((a, b) => b.lastPurchased.getTime() - a.lastPurchased.getTime());
 	}
 
-	async findByUserAndItem(userId: string, itemName: string): Promise<PurchaseHistoryDao | null> {
+	async findByHouseholdAndItem(
+		householdId: string,
+		itemName: string
+	): Promise<PurchaseHistoryDao | null> {
 		for (const record of this.store.values()) {
-			if (record.userId === userId && record.itemName === itemName) {
+			if (record.householdId === householdId && record.itemName === itemName) {
 				return record;
 			}
 		}
@@ -34,6 +37,7 @@ export class MockPurchaseHistoryRepository implements IPurchaseHistoryRepository
 		const record: PurchaseHistoryDao = {
 			id: uuid(),
 			userId: history.userId,
+			householdId: history.householdId,
 			itemName: history.itemName,
 			lastPurchased: history.lastPurchased,
 			purchaseCount: history.purchaseCount ?? 1,
@@ -68,8 +72,8 @@ export class MockPurchaseHistoryRepository implements IPurchaseHistoryRepository
 		this.store.delete(id);
 	}
 
-	async findSuggestions(userId: string, limit: number): Promise<SmartSuggestionDao[]> {
-		const history = await this.findByUserId(userId);
+	async findSuggestions(householdId: string, limit: number): Promise<SmartSuggestionDao[]> {
+		const history = await this.findByHouseholdId(householdId);
 		const now = new Date();
 		const suggestions: SmartSuggestionDao[] = [];
 
@@ -125,8 +129,9 @@ export class MockPurchaseHistoryRepository implements IPurchaseHistoryRepository
 		return updated;
 	}
 
-	async countActiveByUserId(userId: string): Promise<number> {
-		return [...this.store.values()].filter((h) => h.userId === userId && !h.isDepleted).length;
+	async countActiveByHouseholdId(householdId: string): Promise<number> {
+		return [...this.store.values()].filter((h) => h.householdId === householdId && !h.isDepleted)
+			.length;
 	}
 
 	// Test helpers

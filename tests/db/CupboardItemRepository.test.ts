@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { setupTestDb, cleanTables, teardownTestDb } from '../helpers/testDb';
+import { setupTestDb, cleanTables, teardownTestDb, createHouseholdFor } from '../helpers/testDb';
 import { UserRepository } from '../../src/lib/repositories/UserRepositories';
 import { CupboardItemRepository } from '../../src/lib/repositories/CupboardItemRepository';
 
@@ -8,6 +8,8 @@ describe('CupboardItemRepository (DB)', () => {
 	let cupboardRepo: CupboardItemRepository;
 	let userId: string;
 	let otherUserId: string;
+	let householdId: string;
+	let otherHouseholdId: string;
 
 	beforeEach(async () => {
 		const db = await setupTestDb();
@@ -28,6 +30,9 @@ describe('CupboardItemRepository (DB)', () => {
 			authProviderId: 'oauth-cupboard-2'
 		});
 		otherUserId = otherUser.id;
+
+		householdId = await createHouseholdFor(userId);
+		otherHouseholdId = await createHouseholdFor(otherUserId, 'Other kitchen');
 	});
 
 	afterAll(async () => {
@@ -38,6 +43,7 @@ describe('CupboardItemRepository (DB)', () => {
 		it('should create a cupboard item with minimal fields', async () => {
 			const item = await cupboardRepo.create({
 				userId,
+				householdId,
 				itemName: 'salt'
 			});
 
@@ -55,10 +61,16 @@ describe('CupboardItemRepository (DB)', () => {
 			expect(item.updatedAt).toBeInstanceOf(Date);
 		});
 
+		it('stores the household the item belongs to', async () => {
+			const item = await cupboardRepo.create({ userId, householdId, itemName: 'salt' });
+			expect(item.householdId).toBe(householdId);
+		});
+
 		it('should create a cupboard item with all fields', async () => {
 			const addedDate = new Date('2025-06-01');
 			const item = await cupboardRepo.create({
 				userId,
+				householdId,
 				itemName: 'organic flour',
 				quantity: '2',
 				unit: 'kg',
@@ -82,6 +94,7 @@ describe('CupboardItemRepository (DB)', () => {
 		it('should find an existing item', async () => {
 			const created = await cupboardRepo.create({
 				userId,
+				householdId,
 				itemName: 'pepper'
 			});
 
@@ -97,17 +110,21 @@ describe('CupboardItemRepository (DB)', () => {
 		});
 	});
 
-	describe('findByUserId', () => {
-		it('should return only non-depleted items for the user', async () => {
-			await cupboardRepo.create({ userId, itemName: 'salt' });
-			await cupboardRepo.create({ userId, itemName: 'pepper' });
-			const depleted = await cupboardRepo.create({ userId, itemName: 'sugar' });
+	describe('findByHouseholdId', () => {
+		it('should return only non-depleted items for the household', async () => {
+			await cupboardRepo.create({ userId, householdId, itemName: 'salt' });
+			await cupboardRepo.create({ userId, householdId, itemName: 'pepper' });
+			const depleted = await cupboardRepo.create({ userId, householdId, itemName: 'sugar' });
 			await cupboardRepo.markDepleted(depleted.id);
 
-			// Other user's item
-			await cupboardRepo.create({ userId: otherUserId, itemName: 'flour' });
+			// Other household's item
+			await cupboardRepo.create({
+				userId: otherUserId,
+				householdId: otherHouseholdId,
+				itemName: 'flour'
+			});
 
-			const items = await cupboardRepo.findByUserId(userId);
+			const items = await cupboardRepo.findByHouseholdId(householdId);
 
 			expect(items.length).toBe(2);
 			const names = items.map((i) => i.itemName);
@@ -120,54 +137,78 @@ describe('CupboardItemRepository (DB)', () => {
 		it('should return items ordered by addedDate descending', async () => {
 			await cupboardRepo.create({
 				userId,
+				householdId,
 				itemName: 'old item',
 				addedDate: new Date('2025-01-01')
 			});
 			await cupboardRepo.create({
 				userId,
+				householdId,
 				itemName: 'new item',
 				addedDate: new Date('2025-06-01')
 			});
 
-			const items = await cupboardRepo.findByUserId(userId);
+			const items = await cupboardRepo.findByHouseholdId(householdId);
 
 			expect(items.length).toBe(2);
 			expect(items[0].itemName).toBe('new item');
 			expect(items[1].itemName).toBe('old item');
 		});
 
-		it('should return empty array for user with no items', async () => {
-			const items = await cupboardRepo.findByUserId(userId);
+		it('excludes items that belong to another household', async () => {
+			await cupboardRepo.create({
+				userId: otherUserId,
+				householdId: otherHouseholdId,
+				itemName: 'flour'
+			});
+
+			const items = await cupboardRepo.findByHouseholdId(householdId);
+			expect(items).toEqual([]);
+		});
+
+		it('includes items any member of the household added', async () => {
+			await cupboardRepo.create({ userId: otherUserId, householdId, itemName: 'flour' });
+
+			const items = await cupboardRepo.findByHouseholdId(householdId);
+			expect(items.map((item) => item.itemName)).toEqual(['flour']);
+		});
+
+		it('should return empty array for household with no items', async () => {
+			const items = await cupboardRepo.findByHouseholdId(householdId);
 			expect(items).toEqual([]);
 		});
 	});
 
-	describe('findByUserAndItem', () => {
-		it('should find an active item by user and name', async () => {
-			await cupboardRepo.create({ userId, itemName: 'olive oil' });
+	describe('findByHouseholdAndItem', () => {
+		it('should find an active item by household and name', async () => {
+			await cupboardRepo.create({ userId, householdId, itemName: 'olive oil' });
 
-			const found = await cupboardRepo.findByUserAndItem(userId, 'olive oil');
+			const found = await cupboardRepo.findByHouseholdAndItem(householdId, 'olive oil');
 			expect(found).not.toBeNull();
 			expect(found!.itemName).toBe('olive oil');
 		});
 
 		it('should not find depleted items', async () => {
-			const item = await cupboardRepo.create({ userId, itemName: 'butter' });
+			const item = await cupboardRepo.create({ userId, householdId, itemName: 'butter' });
 			await cupboardRepo.markDepleted(item.id);
 
-			const found = await cupboardRepo.findByUserAndItem(userId, 'butter');
+			const found = await cupboardRepo.findByHouseholdAndItem(householdId, 'butter');
 			expect(found).toBeNull();
 		});
 
-		it('should not find items from other users', async () => {
-			await cupboardRepo.create({ userId: otherUserId, itemName: 'eggs' });
+		it('should not find items from other households', async () => {
+			await cupboardRepo.create({
+				userId: otherUserId,
+				householdId: otherHouseholdId,
+				itemName: 'eggs'
+			});
 
-			const found = await cupboardRepo.findByUserAndItem(userId, 'eggs');
+			const found = await cupboardRepo.findByHouseholdAndItem(householdId, 'eggs');
 			expect(found).toBeNull();
 		});
 
 		it('should return null for non-existent item', async () => {
-			const found = await cupboardRepo.findByUserAndItem(userId, 'nonexistent');
+			const found = await cupboardRepo.findByHouseholdAndItem(householdId, 'nonexistent');
 			expect(found).toBeNull();
 		});
 	});
@@ -176,6 +217,7 @@ describe('CupboardItemRepository (DB)', () => {
 		it('should update specified fields', async () => {
 			const created = await cupboardRepo.create({
 				userId,
+				householdId,
 				itemName: 'flour',
 				quantity: '1',
 				category: 'pantry'
@@ -201,6 +243,7 @@ describe('CupboardItemRepository (DB)', () => {
 		it('should allow updating the item name', async () => {
 			const created = await cupboardRepo.create({
 				userId,
+				householdId,
 				itemName: 'typo item'
 			});
 
@@ -216,6 +259,7 @@ describe('CupboardItemRepository (DB)', () => {
 		it('should set isDepleted to true', async () => {
 			const created = await cupboardRepo.create({
 				userId,
+				householdId,
 				itemName: 'milk'
 			});
 
@@ -225,12 +269,12 @@ describe('CupboardItemRepository (DB)', () => {
 			expect(depleted.updatedAt.getTime()).toBeGreaterThanOrEqual(created.updatedAt.getTime());
 		});
 
-		it('should hide item from findByUserId', async () => {
-			const created = await cupboardRepo.create({ userId, itemName: 'eggs' });
+		it('should hide item from findByHouseholdId', async () => {
+			const created = await cupboardRepo.create({ userId, householdId, itemName: 'eggs' });
 
 			await cupboardRepo.markDepleted(created.id);
 
-			const items = await cupboardRepo.findByUserId(userId);
+			const items = await cupboardRepo.findByHouseholdId(householdId);
 			expect(items.length).toBe(0);
 		});
 	});
@@ -239,6 +283,7 @@ describe('CupboardItemRepository (DB)', () => {
 		it('should permanently remove the item', async () => {
 			const created = await cupboardRepo.create({
 				userId,
+				householdId,
 				itemName: 'to delete'
 			});
 
@@ -255,22 +300,26 @@ describe('CupboardItemRepository (DB)', () => {
 		});
 	});
 
-	describe('countByUserId', () => {
-		it('should return 0 for user with no items', async () => {
-			const count = await cupboardRepo.countByUserId(userId);
+	describe('countByHouseholdId', () => {
+		it('should return 0 for household with no items', async () => {
+			const count = await cupboardRepo.countByHouseholdId(householdId);
 			expect(count).toBe(0);
 		});
 
-		it('should count only non-depleted items for the user', async () => {
-			await cupboardRepo.create({ userId, itemName: 'salt' });
-			await cupboardRepo.create({ userId, itemName: 'pepper' });
-			const depleted = await cupboardRepo.create({ userId, itemName: 'sugar' });
+		it('should count only non-depleted items for the household', async () => {
+			await cupboardRepo.create({ userId, householdId, itemName: 'salt' });
+			await cupboardRepo.create({ userId, householdId, itemName: 'pepper' });
+			const depleted = await cupboardRepo.create({ userId, householdId, itemName: 'sugar' });
 			await cupboardRepo.markDepleted(depleted.id);
 
 			// Other user
-			await cupboardRepo.create({ userId: otherUserId, itemName: 'flour' });
+			await cupboardRepo.create({
+				userId: otherUserId,
+				householdId: otherHouseholdId,
+				itemName: 'flour'
+			});
 
-			const count = await cupboardRepo.countByUserId(userId);
+			const count = await cupboardRepo.countByHouseholdId(householdId);
 			expect(count).toBe(2);
 		});
 	});

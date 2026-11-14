@@ -1,6 +1,7 @@
 export interface PurchaseHistoryDao {
 	id: string;
 	userId: string;
+	householdId: string;
 	itemName: string;
 	lastPurchased: Date;
 	purchaseCount: number;
@@ -17,6 +18,7 @@ export interface PurchaseHistoryDao {
 
 export interface NewPurchaseHistoryDao {
 	userId: string;
+	householdId: string;
 	itemName: string;
 	lastPurchased: Date;
 	purchaseCount?: number;

@@ -1,6 +1,7 @@
 export interface RecipeDao {
 	id: string;
 	userId: string;
+	householdId: string;
 	sourceReceiptId: string | null;
 	title: string;
 	description: string | null;
@@ -20,6 +21,7 @@ export interface RecipeDao {
 
 export interface NewRecipeDao {
 	userId: string;
+	householdId: string;
 	sourceReceiptId?: string | null;
 	title: string;
 	description?: string | null;

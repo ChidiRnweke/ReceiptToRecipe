@@ -19,18 +19,21 @@ export class PurchaseHistoryRepository implements IPurchaseHistoryRepository {
 		return history ? this.toDao(history) : null;
 	}
 
-	async findByUserId(userId: string): Promise<PurchaseHistoryDao[]> {
+	async findByHouseholdId(householdId: string): Promise<PurchaseHistoryDao[]> {
 		const history = await this.db.query.purchaseHistory.findMany({
-			where: eq(schema.purchaseHistory.userId, userId),
+			where: eq(schema.purchaseHistory.householdId, householdId),
 			orderBy: [desc(schema.purchaseHistory.lastPurchased)]
 		});
 		return history.map((h) => this.toDao(h));
 	}
 
-	async findByUserAndItem(userId: string, itemName: string): Promise<PurchaseHistoryDao | null> {
+	async findByHouseholdAndItem(
+		householdId: string,
+		itemName: string
+	): Promise<PurchaseHistoryDao | null> {
 		const history = await this.db.query.purchaseHistory.findFirst({
 			where: and(
-				eq(schema.purchaseHistory.userId, userId),
+				eq(schema.purchaseHistory.householdId, householdId),
 				eq(schema.purchaseHistory.itemName, itemName)
 			)
 		});
@@ -42,6 +45,7 @@ export class PurchaseHistoryRepository implements IPurchaseHistoryRepository {
 			.insert(schema.purchaseHistory)
 			.values({
 				userId: history.userId,
+				householdId: history.householdId,
 				itemName: history.itemName,
 				lastPurchased: history.lastPurchased,
 				purchaseCount: history.purchaseCount ?? 1,
@@ -69,11 +73,11 @@ export class PurchaseHistoryRepository implements IPurchaseHistoryRepository {
 		await this.db.delete(schema.purchaseHistory).where(eq(schema.purchaseHistory.id, id));
 	}
 
-	async findSuggestions(userId: string, limit: number): Promise<SmartSuggestionDao[]> {
+	async findSuggestions(householdId: string, limit: number): Promise<SmartSuggestionDao[]> {
 		const now = new Date();
 
 		const history = await this.db.query.purchaseHistory.findMany({
-			where: eq(schema.purchaseHistory.userId, userId),
+			where: eq(schema.purchaseHistory.householdId, householdId),
 			orderBy: [desc(schema.purchaseHistory.lastPurchased)]
 		});
 
@@ -129,12 +133,15 @@ export class PurchaseHistoryRepository implements IPurchaseHistoryRepository {
 		return this.toDao(updated);
 	}
 
-	async countActiveByUserId(userId: string): Promise<number> {
+	async countActiveByHouseholdId(householdId: string): Promise<number> {
 		const result = await this.db
 			.select({ count: sql<number>`count(*)::int` })
 			.from(schema.purchaseHistory)
 			.where(
-				and(eq(schema.purchaseHistory.userId, userId), eq(schema.purchaseHistory.isDepleted, false))
+				and(
+					eq(schema.purchaseHistory.householdId, householdId),
+					eq(schema.purchaseHistory.isDepleted, false)
+				)
 			);
 		return result[0]?.count ?? 0;
 	}
@@ -143,6 +150,7 @@ export class PurchaseHistoryRepository implements IPurchaseHistoryRepository {
 		return {
 			id: history.id,
 			userId: history.userId,
+			householdId: history.householdId,
 			itemName: history.itemName,
 			lastPurchased: history.lastPurchased,
 			purchaseCount: history.purchaseCount,

@@ -7,11 +7,11 @@ import type {
 
 export interface IPlannedMealRepository {
 	findById(id: string): Promise<PlannedMealDao | null>;
-	findByUserId(userId: string, limit?: number): Promise<PlannedMealDao[]>;
-	findByUserIdAndRange(userId: string, start: Date, end: Date): Promise<PlannedMealDao[]>;
-	deleteByUserIdAndRange(userId: string, start: Date, end: Date): Promise<void>;
-	findDailyCaloriesByUserIdAndRange(
-		userId: string,
+	findByHouseholdId(householdId: string, limit?: number): Promise<PlannedMealDao[]>;
+	findByHouseholdIdAndRange(householdId: string, start: Date, end: Date): Promise<PlannedMealDao[]>;
+	deleteByHouseholdIdAndRange(householdId: string, start: Date, end: Date): Promise<void>;
+	findDailyCaloriesByHouseholdIdAndRange(
+		householdId: string,
 		start: Date,
 		end: Date
 	): Promise<DailyPlannedCaloriesDao[]>;

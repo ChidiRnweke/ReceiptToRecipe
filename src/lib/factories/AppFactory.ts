@@ -16,6 +16,7 @@ import {
 	TasteProfileService,
 	DashboardService,
 	NutritionService,
+	HouseholdService,
 	type IStorageService,
 	type INormalizationService,
 	type IReceiptExtractor,
@@ -28,7 +29,8 @@ import {
 	type ITasteProfileService,
 	type IDashboardService,
 	type INutritionService,
-	type INotificationService
+	type INotificationService,
+	type IHouseholdService
 } from '$services';
 import { AppriseNotificationService, MockNotificationService } from '$services';
 import {
@@ -36,7 +38,8 @@ import {
 	PreferencesController,
 	ReceiptController,
 	PantryController,
-	ShoppingListController
+	ShoppingListController,
+	HouseholdController
 } from '$controllers';
 import {
 	UserRepository,
@@ -58,6 +61,7 @@ import {
 	UserIngredientPreferenceRepository,
 	UserCuisinePreferenceRepository,
 	WaitlistRepository,
+	HouseholdRepository,
 	type IUserRepository,
 	type ISessionRepository,
 	type IUserPreferencesRepository,
@@ -76,7 +80,8 @@ import {
 	type IUserAllergyRepository,
 	type IUserIngredientPreferenceRepository,
 	type IUserCuisinePreferenceRepository,
-	type IWaitlistRepository
+	type IWaitlistRepository,
+	type IHouseholdRepository
 } from '$repositories';
 
 // Infrastructure Services
@@ -95,6 +100,7 @@ let preferencesController: PreferencesController | null = null;
 let receiptController: ReceiptController | null = null;
 let pantryController: PantryController | null = null;
 let shoppingListController: ShoppingListController | null = null;
+let householdController: HouseholdController | null = null;
 
 // Domain Services - Using IOAuthService as the auth interface
 let oauthService: IOAuthService | null = null;
@@ -102,6 +108,7 @@ let pantryService: IPantryService | null = null;
 let tasteProfileService: ITasteProfileService | null = null;
 let dashboardService: IDashboardService | null = null;
 let nutritionService: INutritionService | null = null;
+let householdService: IHouseholdService | null = null;
 
 // Repositories
 let userRepository: IUserRepository | null = null;
@@ -123,6 +130,7 @@ let userAllergyRepository: IUserAllergyRepository | null = null;
 let userIngredientPreferenceRepository: IUserIngredientPreferenceRepository | null = null;
 let userCuisinePreferenceRepository: IUserCuisinePreferenceRepository | null = null;
 let waitlistRepository: IWaitlistRepository | null = null;
+let householdRepository: IHouseholdRepository | null = null;
 let notificationService: INotificationService | null = null;
 
 /**
@@ -325,6 +333,13 @@ export class AppFactory {
 		return nutritionService;
 	}
 
+	static getHouseholdService(): IHouseholdService {
+		if (!householdService) {
+			householdService = new HouseholdService(AppFactory.getHouseholdRepository());
+		}
+		return householdService;
+	}
+
 	// Controllers
 	static getRecipeController(): RecipeController {
 		if (!recipeController) {
@@ -389,10 +404,19 @@ export class AppFactory {
 				AppFactory.getShoppingListItemRepository(),
 				AppFactory.getPurchaseHistoryRepository(),
 				AppFactory.getRecipeIngredientRepository(),
-				AppFactory.getReceiptItemRepository()
+				AppFactory.getReceiptItemRepository(),
+				AppFactory.getRecipeRepository(),
+				AppFactory.getReceiptRepository()
 			);
 		}
 		return shoppingListController;
+	}
+
+	static getHouseholdController(): HouseholdController {
+		if (!householdController) {
+			householdController = new HouseholdController(AppFactory.getHouseholdService());
+		}
+		return householdController;
 	}
 
 	// Repositories
@@ -529,6 +553,13 @@ export class AppFactory {
 		return waitlistRepository;
 	}
 
+	static getHouseholdRepository(): IHouseholdRepository {
+		if (!householdRepository) {
+			householdRepository = new HouseholdRepository(getDb());
+		}
+		return householdRepository;
+	}
+
 	static getNotificationService(): INotificationService {
 		if (!notificationService) {
 			const endpoint = ConfigService.get('NOTIFICATION_ENDPOINT');
@@ -561,6 +592,7 @@ export class AppFactory {
 		tasteProfileService = null;
 		dashboardService = null;
 		nutritionService = null;
+		householdService = null;
 
 		// Controllers
 		recipeController = null;
@@ -568,6 +600,7 @@ export class AppFactory {
 		receiptController = null;
 		pantryController = null;
 		shoppingListController = null;
+		householdController = null;
 
 		// Repositories
 		userRepository = null;
@@ -589,6 +622,7 @@ export class AppFactory {
 		userIngredientPreferenceRepository = null;
 		userCuisinePreferenceRepository = null;
 		waitlistRepository = null;
+		householdRepository = null;
 		notificationService = null;
 	}
 }

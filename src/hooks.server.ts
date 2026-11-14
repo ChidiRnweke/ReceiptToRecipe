@@ -16,6 +16,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		if (result) {
 			event.locals.user = result.user;
 			event.locals.session = result.session;
+			event.locals.actor = await AppFactory.getHouseholdService().resolveActor(result.user);
 		}
 	}
 

@@ -18,9 +18,10 @@ import type {
 	LlmGeneratedRecipe,
 	ITasteProfileService
 } from '$services';
+import type { Actor } from '$lib/models/household';
 
 export interface GenerateRecipeInput {
-	userId: string;
+	actor: Actor;
 	ingredientIds?: string[]; // Receipt item IDs to use
 	customIngredients?: string[]; // Additional ingredients to include
 	servings?: number;
@@ -54,7 +55,7 @@ export class RecipeController {
 	 */
 	async generateRecipe(input: GenerateRecipeInput): Promise<RecipeDao> {
 		const {
-			userId,
+			actor,
 			ingredientIds,
 			customIngredients,
 			servings,
@@ -63,24 +64,19 @@ export class RecipeController {
 			sourceReceiptId
 		} = input;
 
-		// Get user preferences
-		const preferences = await this.userPreferencesRepository.findByUserId(userId);
-
-		// Get taste profile
-		const tasteProfile = await this.tasteProfileService.getUserTasteProfile(userId);
+		// Preferences and taste profile belong to the person cooking, not the household
+		const preferences = await this.userPreferencesRepository.findByUserId(actor.userId);
+		const tasteProfile = await this.tasteProfileService.getUserTasteProfile(actor.userId);
 
 		// Gather ingredients
 		const ingredients: string[] = [...(customIngredients || [])];
 
 		if (ingredientIds?.length) {
-			const items = await Promise.all(
-				ingredientIds.map((id) => this.receiptItemRepository.findById(id))
+			const items = await this.receiptItemRepository.findByIdsInHousehold(
+				ingredientIds,
+				actor.householdId
 			);
-			ingredients.push(
-				...items
-					.filter((item): item is NonNullable<typeof item> => item !== null)
-					.map((item) => item.normalizedName)
-			);
+			ingredients.push(...items.map((item) => item.normalizedName));
 		}
 
 		if (ingredients.length === 0) {
@@ -109,7 +105,7 @@ export class RecipeController {
 
 		// Save recipe to database
 		const recipe = await this.persistRecipe(
-			userId,
+			actor,
 			generatedRecipe,
 			useRag ? 'RAG' : 'GENERATED',
 			sourceReceiptId
@@ -136,13 +132,14 @@ export class RecipeController {
 	 * Save a generated recipe to the database
 	 */
 	private async persistRecipe(
-		userId: string,
+		actor: Actor,
 		generated: LlmGeneratedRecipe,
 		source: 'GENERATED' | 'RAG' | 'USER',
 		sourceReceiptId?: string
 	): Promise<RecipeDao> {
 		const recipe = await this.recipeRepository.create({
-			userId,
+			userId: actor.userId,
+			householdId: actor.householdId,
 			sourceReceiptId: sourceReceiptId || null,
 			title: generated.title,
 			description: generated.description,
@@ -243,24 +240,17 @@ export class RecipeController {
 	}
 
 	/**
-	 * Get recipe by ID with ingredients
+	 * Get recipe by ID with ingredients. Household recipes are visible to the household;
+	 * public recipes are visible to anyone, signed in or not.
 	 */
-	async getRecipe(recipeId: string, userId?: string): Promise<RecipeWithIngredients | null> {
+	async getRecipe(recipeId: string, actor?: Actor | null): Promise<RecipeWithIngredients | null> {
 		const recipe = await this.recipeRepository.findByIdWithIngredients(recipeId);
 
 		if (!recipe) return null;
+		if (recipe.isPublic) return recipe;
+		if (actor && recipe.householdId === actor.householdId) return recipe;
 
-		// If userId is provided, check ownership or public access
-		if (userId && recipe.userId !== userId && !recipe.isPublic) {
-			return null;
-		}
-
-		// If no userId provided, only return public recipes
-		if (!userId && !recipe.isPublic) {
-			return null;
-		}
-
-		return recipe;
+		return null;
 	}
 
 	/**
@@ -269,9 +259,9 @@ export class RecipeController {
 	async getRecipeWithServings(
 		recipeId: string,
 		targetServings: number,
-		userId?: string
+		actor?: Actor | null
 	): Promise<RecipeWithIngredients | null> {
-		const recipe = await this.getRecipe(recipeId, userId);
+		const recipe = await this.getRecipe(recipeId, actor);
 		if (!recipe) return null;
 
 		const scaleFactor = targetServings / recipe.servings;
@@ -287,64 +277,70 @@ export class RecipeController {
 	}
 
 	/**
-	 * Get all recipes for a user
+	 * Get the household's recipes
 	 */
-	async getUserRecipes(userId: string, limit: number = 20): Promise<RecipeDao[]> {
-		return this.recipeRepository.findByUserId(userId, limit);
+	async getHouseholdRecipes(actor: Actor, limit: number = 20): Promise<RecipeDao[]> {
+		return this.recipeRepository.findByHouseholdId(actor.householdId, limit);
 	}
 
 	/**
-	 * Get all recipes for a user with ingredients
+	 * Get the household's recipes with ingredients
 	 */
-	async getUserRecipesWithIngredients(
-		userId: string,
+	async getHouseholdRecipesWithIngredients(
+		actor: Actor,
 		limit: number = 20
 	): Promise<RecipeWithIngredientsDao[]> {
-		return this.recipeRepository.findByUserIdWithIngredients(userId, limit);
+		return this.recipeRepository.findByHouseholdIdWithIngredients(actor.householdId, limit);
 	}
 
 	/**
-	 * Save/favorite a recipe
+	 * Save/favorite a recipe (per person)
 	 */
-	async saveRecipe(userId: string, recipeId: string): Promise<void> {
-		const existing = await this.savedRecipeRepository.findByUserAndRecipe(userId, recipeId);
+	async saveRecipe(actor: Actor, recipeId: string): Promise<void> {
+		const recipe = await this.getRecipe(recipeId, actor);
+		if (!recipe) {
+			throw new Error('Recipe not found');
+		}
+
+		const existing = await this.savedRecipeRepository.findByUserAndRecipe(actor.userId, recipeId);
 		if (!existing) {
-			await this.savedRecipeRepository.create({ userId, recipeId });
+			await this.savedRecipeRepository.create({ userId: actor.userId, recipeId });
 		}
 	}
 
 	/**
-	 * Unsave/unfavorite a recipe
+	 * Unsave/unfavorite a recipe (per person)
 	 */
-	async unsaveRecipe(userId: string, recipeId: string): Promise<void> {
-		await this.savedRecipeRepository.delete(userId, recipeId);
+	async unsaveRecipe(actor: Actor, recipeId: string): Promise<void> {
+		await this.savedRecipeRepository.delete(actor.userId, recipeId);
 	}
 
 	/**
-	 * Get saved recipes for a user
+	 * Get the person's saved recipes that they can still see
 	 */
-	async getSavedRecipes(userId: string): Promise<RecipeDao[]> {
-		const saved = await this.savedRecipeRepository.findByUserId(userId);
+	async getSavedRecipes(actor: Actor): Promise<RecipeDao[]> {
+		const saved = await this.savedRecipeRepository.findByUserId(actor.userId);
 		if (saved.length === 0) return [];
 
 		const recipeIds = saved.map((s) => s.recipeId);
-		return this.recipeRepository.findByIds(recipeIds);
+		const recipes = await this.recipeRepository.findByIds(recipeIds);
+		return recipes.filter((recipe) => recipe.isPublic || recipe.householdId === actor.householdId);
 	}
 
 	/**
-	 * Check if a recipe is saved by a user
+	 * Check if a recipe is saved by the person
 	 */
-	async isSaved(userId: string, recipeId: string): Promise<boolean> {
-		return this.savedRecipeRepository.exists(userId, recipeId);
+	async isSaved(actor: Actor, recipeId: string): Promise<boolean> {
+		return this.savedRecipeRepository.exists(actor.userId, recipeId);
 	}
 
 	/**
 	 * Toggle recipe public/private
 	 */
-	async togglePublic(recipeId: string, userId: string): Promise<boolean> {
+	async togglePublic(recipeId: string, actor: Actor): Promise<boolean> {
 		const recipe = await this.recipeRepository.findById(recipeId);
 
-		if (!recipe || recipe.userId !== userId) {
+		if (!recipe || recipe.householdId !== actor.householdId) {
 			throw new Error('Recipe not found');
 		}
 
@@ -354,10 +350,10 @@ export class RecipeController {
 	/**
 	 * Delete a recipe
 	 */
-	async deleteRecipe(recipeId: string, userId: string): Promise<void> {
+	async deleteRecipe(recipeId: string, actor: Actor): Promise<void> {
 		const recipe = await this.recipeRepository.findById(recipeId);
 
-		if (!recipe || recipe.userId !== userId) {
+		if (!recipe || recipe.householdId !== actor.householdId) {
 			throw new Error('Recipe not found');
 		}
 
@@ -368,8 +364,13 @@ export class RecipeController {
 	 * Get recipe image status (for polling)
 	 */
 	async getImageStatus(
-		recipeId: string
+		recipeId: string,
+		actor?: Actor | null
 	): Promise<{ imageStatus: string | null; imageUrl: string | null } | null> {
+		const recipe = await this.recipeRepository.findById(recipeId);
+		if (!recipe) return null;
+		if (!recipe.isPublic && recipe.householdId !== actor?.householdId) return null;
+
 		return this.recipeRepository.getImageStatus(recipeId);
 	}
 
@@ -378,7 +379,7 @@ export class RecipeController {
 	 */
 	async updateRecipe(
 		recipeId: string,
-		userId: string,
+		actor: Actor,
 		updates: {
 			title?: string;
 			description?: string;
@@ -395,7 +396,7 @@ export class RecipeController {
 		// Verify ownership
 		const recipe = await this.recipeRepository.findById(recipeId);
 
-		if (!recipe || recipe.userId !== userId) {
+		if (!recipe || recipe.householdId !== actor.householdId) {
 			throw new Error('Recipe not found or not authorized');
 		}
 
@@ -434,7 +435,7 @@ export class RecipeController {
 		}
 
 		// Return updated recipe
-		const updatedRecipe = await this.getRecipe(recipeId, userId);
+		const updatedRecipe = await this.getRecipe(recipeId, actor);
 		if (!updatedRecipe) {
 			throw new Error('Failed to retrieve updated recipe');
 		}
@@ -447,12 +448,12 @@ export class RecipeController {
 	 */
 	async adjustRecipeWithAi(
 		recipeId: string,
-		userId: string,
+		actor: Actor,
 		instruction: string
 	): Promise<RecipeWithIngredients> {
-		// Get current recipe
-		const currentRecipe = await this.getRecipe(recipeId, userId);
-		if (!currentRecipe) {
+		// Get current recipe; only the household may change it, even when it is public
+		const currentRecipe = await this.getRecipe(recipeId, actor);
+		if (!currentRecipe || currentRecipe.householdId !== actor.householdId) {
 			throw new Error('Recipe not found or not authorized');
 		}
 
@@ -511,7 +512,7 @@ export class RecipeController {
 		}
 
 		// Return updated recipe
-		const result = await this.getRecipe(recipeId, userId);
+		const result = await this.getRecipe(recipeId, actor);
 		if (!result) {
 			throw new Error('Failed to retrieve adjusted recipe');
 		}

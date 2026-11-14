@@ -40,15 +40,18 @@ export class MockReceiptRepository implements IReceiptRepository {
 		return { ...receipt, items };
 	}
 
-	async findByUserId(userId: string, limit?: number): Promise<ReceiptDao[]> {
+	async findByHouseholdId(householdId: string, limit?: number): Promise<ReceiptDao[]> {
 		const results = Array.from(this.receipts.values())
-			.filter((r) => r.userId === userId)
+			.filter((r) => r.householdId === householdId)
 			.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 		return limit ? results.slice(0, limit) : results;
 	}
 
-	async findByUserIdWithItems(userId: string, limit?: number): Promise<ReceiptWithItemsDao[]> {
-		const receipts = await this.findByUserId(userId, limit);
+	async findByHouseholdIdWithItems(
+		householdId: string,
+		limit?: number
+	): Promise<ReceiptWithItemsDao[]> {
+		const receipts = await this.findByHouseholdId(householdId, limit);
 		const results: ReceiptWithItemsDao[] = [];
 		for (const r of receipts) {
 			let items: ReceiptItemDao[] = [];
@@ -65,6 +68,7 @@ export class MockReceiptRepository implements IReceiptRepository {
 		const created: ReceiptDao = {
 			id: uuidv4(),
 			userId: receipt.userId,
+			householdId: receipt.householdId,
 			imageUrl: receipt.imageUrl,
 			status: receipt.status || 'QUEUED',
 			rawOcrData: null,
@@ -89,6 +93,7 @@ export class MockReceiptRepository implements IReceiptRepository {
 			...receipt,
 			id: existing.id,
 			userId: existing.userId,
+			householdId: existing.householdId,
 			imageUrl: existing.imageUrl,
 			createdAt: existing.createdAt,
 			updatedAt: new Date()
@@ -110,8 +115,8 @@ export class MockReceiptRepository implements IReceiptRepository {
 		};
 	}
 
-	async countByUserId(userId: string): Promise<number> {
-		return Array.from(this.receipts.values()).filter((r) => r.userId === userId).length;
+	async countByHouseholdId(householdId: string): Promise<number> {
+		return Array.from(this.receipts.values()).filter((r) => r.householdId === householdId).length;
 	}
 
 	// Test helpers
@@ -136,6 +141,7 @@ export class MockReceiptRepository implements IReceiptRepository {
 		const created: ReceiptDao = {
 			id: uuidv4(),
 			userId: receipt.userId,
+			householdId: receipt.householdId,
 			imageUrl: receipt.imageUrl,
 			status: receipt.status || 'QUEUED',
 			rawOcrData: null,
@@ -157,6 +163,11 @@ export class MockReceiptRepository implements IReceiptRepository {
  */
 export class MockReceiptItemRepository implements IReceiptItemRepository {
 	private items = new Map<string, ReceiptItemDao>();
+	private receiptRepo?: IReceiptRepository;
+
+	setReceiptRepository(receiptRepo: IReceiptRepository): void {
+		this.receiptRepo = receiptRepo;
+	}
 
 	async findById(id: string): Promise<ReceiptItemDao | null> {
 		return this.items.get(id) || null;
@@ -166,6 +177,24 @@ export class MockReceiptItemRepository implements IReceiptItemRepository {
 		return Array.from(this.items.values())
 			.filter((i) => i.receiptId === receiptId)
 			.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+	}
+
+	/**
+	 * Without a receipt repository the fake cannot see households and returns every item asked
+	 * for; give it one with `setReceiptRepository` to scope items to a household.
+	 */
+	async findByIdsInHousehold(ids: string[], householdId: string): Promise<ReceiptItemDao[]> {
+		const items = ids
+			.map((id) => this.items.get(id))
+			.filter((item): item is ReceiptItemDao => !!item);
+		if (!this.receiptRepo) return items;
+
+		const scoped: ReceiptItemDao[] = [];
+		for (const item of items) {
+			const receipt = await this.receiptRepo.findById(item.receiptId);
+			if (receipt?.householdId === householdId) scoped.push(item);
+		}
+		return scoped;
 	}
 
 	async create(item: NewReceiptItemDao): Promise<ReceiptItemDao> {
@@ -214,7 +243,7 @@ export class MockReceiptItemRepository implements IReceiptItemRepository {
 	}
 
 	async findLatestByNormalizedName(
-		userId: string,
+		householdId: string,
 		normalizedName: string
 	): Promise<(ReceiptItemDao & { storeName: string | null; receiptId: string }) | null> {
 		// This would need user info from receipts in real implementation

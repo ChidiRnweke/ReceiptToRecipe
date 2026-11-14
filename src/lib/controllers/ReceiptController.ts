@@ -15,9 +15,10 @@ import type {
 	NewReceiptItemDao,
 	ReceiptWithItemsDao
 } from '$repositories';
+import type { Actor } from '$lib/models/household';
 
 export interface UploadReceiptInput {
-	userId: string;
+	actor: Actor;
 	file: File;
 }
 
@@ -42,7 +43,7 @@ export class ReceiptController {
 	 * Upload a receipt image and start async OCR processing
 	 */
 	async uploadReceipt(input: UploadReceiptInput): Promise<ReceiptDao> {
-		const { userId, file } = input;
+		const { actor, file } = input;
 
 		// Upload image to storage
 		const buffer = Buffer.from(await file.arrayBuffer());
@@ -51,7 +52,8 @@ export class ReceiptController {
 
 		// Create receipt record with QUEUED status
 		const receipt = await this.receiptRepository.create({
-			userId,
+			userId: actor.userId,
+			householdId: actor.householdId,
 			imageUrl: uploadResult.url,
 			status: 'QUEUED'
 		});
@@ -59,7 +61,7 @@ export class ReceiptController {
 		// Background OCR processing - pass the original buffer so OCR
 		// doesn't need to fetch from an internal/proxy URL
 		const task = () =>
-			this.processReceiptOcr(receipt.id, buffer, mimeType).catch((error) => {
+			this.processReceiptOcr(receipt.id, actor.householdId, buffer, mimeType).catch((error) => {
 				console.error(`OCR processing failed for receipt ${receipt.id}:`, error);
 			});
 
@@ -82,6 +84,7 @@ export class ReceiptController {
 	 */
 	private async processReceiptOcr(
 		receiptId: string,
+		householdId: string,
 		imageBuffer: Buffer,
 		mimeType: string
 	): Promise<void> {
@@ -105,7 +108,7 @@ export class ReceiptController {
 			console.log('OCR Data:', ocrData);
 
 			// Normalize and save items
-			await this.saveReceiptData(receiptId, ocrData, purchaseDate);
+			await this.saveReceiptData(receiptId, householdId, ocrData, purchaseDate);
 
 			// Update status to DONE
 			await this.receiptRepository.update(receiptId, {
@@ -130,6 +133,7 @@ export class ReceiptController {
 	 */
 	private async saveReceiptData(
 		receiptId: string,
+		householdId: string,
 		ocrData: RawReceiptData,
 		purchaseDate: Date
 	): Promise<void> {
@@ -174,7 +178,11 @@ export class ReceiptController {
 			await this.receiptItemRepository.createMany(foodItems);
 
 			// Update purchase history - use receipt upload date
-			await this.updatePurchaseHistory(receipt.userId, foodItems, purchaseDate);
+			await this.updatePurchaseHistory(
+				{ userId: receipt.userId, householdId },
+				foodItems,
+				purchaseDate
+			);
 		}
 	}
 
@@ -182,13 +190,13 @@ export class ReceiptController {
 	 * Update purchase history for smart shopping list suggestions
 	 */
 	private async updatePurchaseHistory(
-		userId: string,
+		author: { userId: string; householdId: string },
 		items: NewReceiptItemDao[],
 		purchaseDate: Date
 	): Promise<void> {
 		for (const item of items) {
-			const existing = await this.purchaseHistoryRepository.findByUserAndItem(
-				userId,
+			const existing = await this.purchaseHistoryRepository.findByHouseholdAndItem(
+				author.householdId,
 				item.normalizedName
 			);
 
@@ -239,7 +247,8 @@ export class ReceiptController {
 				});
 			} else {
 				await this.purchaseHistoryRepository.create({
-					userId,
+					userId: author.userId,
+					householdId: author.householdId,
 					itemName: item.normalizedName,
 					lastPurchased: purchaseDate,
 					purchaseCount: 1,
@@ -254,10 +263,10 @@ export class ReceiptController {
 	/**
 	 * Get receipt by ID with items
 	 */
-	async getReceipt(receiptId: string, userId: string): Promise<ReceiptWithItems | null> {
+	async getReceipt(receiptId: string, actor: Actor): Promise<ReceiptWithItems | null> {
 		const receipt = await this.receiptRepository.findByIdWithItems(receiptId);
 
-		if (!receipt || receipt.userId !== userId) {
+		if (!receipt || receipt.householdId !== actor.householdId) {
 			return null;
 		}
 
@@ -269,10 +278,10 @@ export class ReceiptController {
 	 */
 	async getReceiptStatus(
 		receiptId: string,
-		userId: string
+		actor: Actor
 	): Promise<{ status: string; errorMessage?: string | null } | null> {
 		const receipt = await this.receiptRepository.findById(receiptId);
-		if (!receipt || receipt.userId !== userId) return null;
+		if (!receipt || receipt.householdId !== actor.householdId) return null;
 
 		return {
 			status: receipt.status,
@@ -281,25 +290,25 @@ export class ReceiptController {
 	}
 
 	/**
-	 * Get all receipts for a user
+	 * Get the household's receipts
 	 */
-	async getUserReceipts(userId: string, limit: number = 20): Promise<ReceiptWithItemsDao[]> {
-		return this.receiptRepository.findByUserIdWithItems(userId, limit);
+	async getHouseholdReceipts(actor: Actor, limit: number = 20): Promise<ReceiptWithItemsDao[]> {
+		return this.receiptRepository.findByHouseholdIdWithItems(actor.householdId, limit);
 	}
 
 	/**
 	 * Delete a receipt
 	 */
-	async deleteReceipt(receiptId: string, userId: string): Promise<void> {
+	async deleteReceipt(receiptId: string, actor: Actor): Promise<void> {
 		const receipt = await this.receiptRepository.findByIdWithItems(receiptId);
 
-		if (!receipt || receipt.userId !== userId) {
+		if (!receipt || receipt.householdId !== actor.householdId) {
 			throw new Error('Receipt not found');
 		}
 
 		// Clean up purchase history for each item on this receipt
 		for (const item of receipt.items) {
-			await this.removePurchaseHistoryForItem(userId, item.normalizedName);
+			await this.removePurchaseHistoryForItem(actor.householdId, item.normalizedName);
 		}
 
 		// Delete from storage
@@ -317,7 +326,7 @@ export class ReceiptController {
 	 */
 	async updateReceiptItem(
 		receiptId: string,
-		userId: string,
+		actor: Actor,
 		itemId: string,
 		data: {
 			name: string;
@@ -329,7 +338,7 @@ export class ReceiptController {
 	): Promise<ReceiptItemDao> {
 		const receipt = await this.receiptRepository.findById(receiptId);
 
-		if (!receipt || receipt.userId !== userId) {
+		if (!receipt || receipt.householdId !== actor.householdId) {
 			throw new Error('Receipt not found');
 		}
 
@@ -357,7 +366,7 @@ export class ReceiptController {
 
 	async addManualItem(
 		receiptId: string,
-		userId: string,
+		actor: Actor,
 		data: {
 			name: string;
 			quantity: string;
@@ -368,7 +377,7 @@ export class ReceiptController {
 	): Promise<ReceiptItemDao> {
 		const receipt = await this.receiptRepository.findById(receiptId);
 
-		if (!receipt || receipt.userId !== userId) {
+		if (!receipt || receipt.householdId !== actor.householdId) {
 			throw new Error('Receipt not found');
 		}
 
@@ -389,10 +398,10 @@ export class ReceiptController {
 		return created;
 	}
 
-	async deleteReceiptItem(receiptId: string, userId: string, itemId: string): Promise<void> {
+	async deleteReceiptItem(receiptId: string, actor: Actor, itemId: string): Promise<void> {
 		const receipt = await this.receiptRepository.findById(receiptId);
 
-		if (!receipt || receipt.userId !== userId) {
+		if (!receipt || receipt.householdId !== actor.householdId) {
 			throw new Error('Receipt not found');
 		}
 
@@ -403,7 +412,7 @@ export class ReceiptController {
 		}
 
 		// Clean up purchase history for this item
-		await this.removePurchaseHistoryForItem(userId, existingItem.normalizedName);
+		await this.removePurchaseHistoryForItem(actor.householdId, existingItem.normalizedName);
 
 		await this.receiptItemRepository.delete(itemId);
 	}
@@ -414,10 +423,13 @@ export class ReceiptController {
 	 * If purchased multiple times, decrement the purchase count.
 	 */
 	private async removePurchaseHistoryForItem(
-		userId: string,
+		householdId: string,
 		normalizedName: string
 	): Promise<void> {
-		const history = await this.purchaseHistoryRepository.findByUserAndItem(userId, normalizedName);
+		const history = await this.purchaseHistoryRepository.findByHouseholdAndItem(
+			householdId,
+			normalizedName
+		);
 
 		if (!history) return;
 

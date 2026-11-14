@@ -19,9 +19,9 @@ export class PlannedMealRepository implements IPlannedMealRepository {
 		return meal ? this.toDao(meal) : null;
 	}
 
-	async findByUserId(userId: string, limit = 100): Promise<PlannedMealDao[]> {
+	async findByHouseholdId(householdId: string, limit = 100): Promise<PlannedMealDao[]> {
 		const meals = await this.db.query.plannedMeals.findMany({
-			where: eq(schema.plannedMeals.userId, userId),
+			where: eq(schema.plannedMeals.householdId, householdId),
 			orderBy: [desc(schema.plannedMeals.plannedDate)],
 			limit
 		});
@@ -29,10 +29,14 @@ export class PlannedMealRepository implements IPlannedMealRepository {
 		return meals.map((meal) => this.toDao(meal));
 	}
 
-	async findByUserIdAndRange(userId: string, start: Date, end: Date): Promise<PlannedMealDao[]> {
+	async findByHouseholdIdAndRange(
+		householdId: string,
+		start: Date,
+		end: Date
+	): Promise<PlannedMealDao[]> {
 		const meals = await this.db.query.plannedMeals.findMany({
 			where: and(
-				eq(schema.plannedMeals.userId, userId),
+				eq(schema.plannedMeals.householdId, householdId),
 				gte(schema.plannedMeals.plannedDate, start),
 				lte(schema.plannedMeals.plannedDate, end)
 			),
@@ -42,20 +46,20 @@ export class PlannedMealRepository implements IPlannedMealRepository {
 		return meals.map((meal) => this.toDao(meal));
 	}
 
-	async deleteByUserIdAndRange(userId: string, start: Date, end: Date): Promise<void> {
+	async deleteByHouseholdIdAndRange(householdId: string, start: Date, end: Date): Promise<void> {
 		await this.db
 			.delete(schema.plannedMeals)
 			.where(
 				and(
-					eq(schema.plannedMeals.userId, userId),
+					eq(schema.plannedMeals.householdId, householdId),
 					gte(schema.plannedMeals.plannedDate, start),
 					lte(schema.plannedMeals.plannedDate, end)
 				)
 			);
 	}
 
-	async findDailyCaloriesByUserIdAndRange(
-		userId: string,
+	async findDailyCaloriesByHouseholdIdAndRange(
+		householdId: string,
 		start: Date,
 		end: Date
 	): Promise<DailyPlannedCaloriesDao[]> {
@@ -67,7 +71,7 @@ export class PlannedMealRepository implements IPlannedMealRepository {
 			.from(schema.plannedMeals)
 			.where(
 				and(
-					eq(schema.plannedMeals.userId, userId),
+					eq(schema.plannedMeals.householdId, householdId),
 					gte(schema.plannedMeals.plannedDate, start),
 					lte(schema.plannedMeals.plannedDate, end)
 				)
@@ -83,6 +87,7 @@ export class PlannedMealRepository implements IPlannedMealRepository {
 			.insert(schema.plannedMeals)
 			.values({
 				userId: meal.userId,
+				householdId: meal.householdId,
 				recipeId: meal.recipeId ?? null,
 				mealName: meal.mealName,
 				plannedDate: meal.plannedDate,
@@ -115,6 +120,7 @@ export class PlannedMealRepository implements IPlannedMealRepository {
 		return {
 			id: meal.id,
 			userId: meal.userId,
+			householdId: meal.householdId,
 			recipeId: meal.recipeId,
 			mealName: meal.mealName,
 			plannedDate: meal.plannedDate,

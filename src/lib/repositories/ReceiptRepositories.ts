@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import type { Database } from '$db/client';
 import * as schema from '$db/schema';
 import type { IReceiptRepository, IReceiptItemRepository } from './interfaces';
@@ -37,18 +37,21 @@ export class ReceiptRepository implements IReceiptRepository {
 		};
 	}
 
-	async findByUserId(userId: string, limit = 20): Promise<ReceiptDao[]> {
+	async findByHouseholdId(householdId: string, limit = 20): Promise<ReceiptDao[]> {
 		const receipts = await this.db.query.receipts.findMany({
-			where: eq(schema.receipts.userId, userId),
+			where: eq(schema.receipts.householdId, householdId),
 			orderBy: [desc(schema.receipts.createdAt)],
 			limit
 		});
 		return receipts.map((r) => this.toDao(r));
 	}
 
-	async findByUserIdWithItems(userId: string, limit = 20): Promise<ReceiptWithItemsDao[]> {
+	async findByHouseholdIdWithItems(
+		householdId: string,
+		limit = 20
+	): Promise<ReceiptWithItemsDao[]> {
 		const receipts = await this.db.query.receipts.findMany({
-			where: eq(schema.receipts.userId, userId),
+			where: eq(schema.receipts.householdId, householdId),
 			orderBy: [desc(schema.receipts.createdAt)],
 			limit,
 			with: { items: true }
@@ -65,6 +68,7 @@ export class ReceiptRepository implements IReceiptRepository {
 			.insert(schema.receipts)
 			.values({
 				userId: receipt.userId,
+				householdId: receipt.householdId,
 				imageUrl: receipt.imageUrl,
 				status: receipt.status || 'QUEUED',
 				storeName: receipt.storeName || null,
@@ -106,11 +110,11 @@ export class ReceiptRepository implements IReceiptRepository {
 			: null;
 	}
 
-	async countByUserId(userId: string): Promise<number> {
+	async countByHouseholdId(householdId: string): Promise<number> {
 		const result = await this.db
 			.select({ count: sql<number>`count(*)`.as('count') })
 			.from(schema.receipts)
-			.where(eq(schema.receipts.userId, userId));
+			.where(eq(schema.receipts.householdId, householdId));
 
 		return result[0]?.count || 0;
 	}
@@ -119,6 +123,7 @@ export class ReceiptRepository implements IReceiptRepository {
 		return {
 			id: receipt.id,
 			userId: receipt.userId,
+			householdId: receipt.householdId,
 			imageUrl: receipt.imageUrl,
 			status: receipt.status as 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED',
 			rawOcrData: receipt.rawOcrData as Record<string, unknown> | null,
@@ -153,6 +158,18 @@ export class ReceiptItemRepository implements IReceiptItemRepository {
 			orderBy: [desc(schema.receiptItems.createdAt)]
 		});
 		return items.map((i) => this.toDao(i));
+	}
+
+	async findByIdsInHousehold(ids: string[], householdId: string): Promise<ReceiptItemDao[]> {
+		if (ids.length === 0) return [];
+		const rows = await this.db
+			.select({ item: schema.receiptItems })
+			.from(schema.receiptItems)
+			.innerJoin(schema.receipts, eq(schema.receipts.id, schema.receiptItems.receiptId))
+			.where(
+				and(inArray(schema.receiptItems.id, ids), eq(schema.receipts.householdId, householdId))
+			);
+		return rows.map((row) => this.toDao(row.item));
 	}
 
 	async create(item: NewReceiptItemDao): Promise<ReceiptItemDao> {
@@ -193,7 +210,7 @@ export class ReceiptItemRepository implements IReceiptItemRepository {
 	}
 
 	async findLatestByNormalizedName(
-		userId: string,
+		householdId: string,
 		normalizedName: string
 	): Promise<(ReceiptItemDao & { storeName: string | null; receiptId: string }) | null> {
 		const result = await this.db
@@ -206,7 +223,7 @@ export class ReceiptItemRepository implements IReceiptItemRepository {
 			.innerJoin(schema.receipts, eq(schema.receipts.id, schema.receiptItems.receiptId))
 			.where(
 				and(
-					eq(schema.receipts.userId, userId),
+					eq(schema.receipts.householdId, householdId),
 					eq(schema.receiptItems.normalizedName, normalizedName)
 				)
 			)

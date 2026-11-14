@@ -8,6 +8,7 @@ import {
 	MockShoppingListRepository,
 	MockShoppingListItemRepository
 } from '../../mocks/MockShoppingListRepositories';
+import type { Actor } from '../../../src/lib/models/household';
 
 describe('PantryController', () => {
 	let controller: PantryController;
@@ -20,6 +21,23 @@ describe('PantryController', () => {
 
 	const userId = 'user-123';
 	const otherUserId = 'user-456';
+	const householdId = 'household-1';
+	const otherHouseholdId = 'household-2';
+	const roles = { plans: true, shops: true, cooks: true };
+	const actor: Actor = {
+		userId,
+		householdId,
+		memberId: 'member-1',
+		displayName: 'Test',
+		roles
+	};
+	const otherActor: Actor = {
+		userId: otherUserId,
+		householdId: otherHouseholdId,
+		memberId: 'member-2',
+		displayName: 'Other',
+		roles
+	};
 
 	// Helper to create a date N days ago
 	function daysAgo(n: number): Date {
@@ -46,9 +64,9 @@ describe('PantryController', () => {
 		);
 	});
 
-	describe('getUserPantry', () => {
+	describe('getHouseholdPantry', () => {
 		it('should return empty array when user has no purchase history', async () => {
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 			expect(result).toEqual([]);
 		});
 
@@ -56,6 +74,7 @@ describe('PantryController', () => {
 			// Add purchase history for a recently purchased item
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'milk',
 				lastPurchased: daysAgo(2),
 				purchaseCount: 5,
@@ -75,7 +94,7 @@ describe('PantryController', () => {
 				category: 'dairy'
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(1);
 			expect(result[0].itemName).toBe('milk');
@@ -90,6 +109,7 @@ describe('PantryController', () => {
 			// Purchase history from long ago - confidence should be very low
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'expired item',
 				lastPurchased: daysAgo(365),
 				purchaseCount: 1,
@@ -97,15 +117,16 @@ describe('PantryController', () => {
 				avgFrequencyDays: 7
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			// Item purchased 365 days ago with 7-day frequency should have near-zero confidence
 			expect(result).toEqual([]);
 		});
 
-		it('should not include items from other users', async () => {
+		it('should not include items from other households', async () => {
 			await purchaseHistoryRepo.create({
 				userId: otherUserId,
+				householdId: otherHouseholdId,
 				itemName: 'bread',
 				lastPurchased: daysAgo(1),
 				purchaseCount: 3,
@@ -113,13 +134,14 @@ describe('PantryController', () => {
 				avgFrequencyDays: 5
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 			expect(result).toEqual([]);
 		});
 
 		it('should use default unit when no receipt item detail is found', async () => {
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'mystery item',
 				lastPurchased: daysAgo(1),
 				purchaseCount: 2,
@@ -129,7 +151,7 @@ describe('PantryController', () => {
 
 			// Don't add any receipt items - findLatestByNormalizedName returns null
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(1);
 			expect(result[0].unit).toBe('unit');
@@ -140,6 +162,7 @@ describe('PantryController', () => {
 			// Item purchased very recently - high confidence
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'fresh eggs',
 				lastPurchased: daysAgo(1),
 				purchaseCount: 10,
@@ -150,6 +173,7 @@ describe('PantryController', () => {
 			// Item purchased a while ago - lower confidence
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'old butter',
 				lastPurchased: daysAgo(10),
 				purchaseCount: 5,
@@ -157,7 +181,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 14
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(2);
 			// Fresh eggs (1 day ago) should have higher confidence than old butter (10 days ago)
@@ -169,6 +193,7 @@ describe('PantryController', () => {
 		it('should use avgQuantity from purchase history', async () => {
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'rice',
 				lastPurchased: daysAgo(3),
 				purchaseCount: 4,
@@ -176,7 +201,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 30
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(1);
 			expect(result[0].quantity).toBe('2.5');
@@ -185,6 +210,7 @@ describe('PantryController', () => {
 		it('should default quantity to "1" when avgQuantity is null', async () => {
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'salt',
 				lastPurchased: daysAgo(2),
 				purchaseCount: 1,
@@ -192,7 +218,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 90
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(1);
 			expect(result[0].quantity).toBe('1');
@@ -202,6 +228,7 @@ describe('PantryController', () => {
 			const depleteDate = daysAgo(-10); // 10 days in the future
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'flour',
 				lastPurchased: daysAgo(5),
 				purchaseCount: 3,
@@ -210,7 +237,7 @@ describe('PantryController', () => {
 				estimatedDepleteDate: depleteDate
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(1);
 			expect(result[0].estimatedDepleteDate).toEqual(depleteDate);
@@ -220,6 +247,7 @@ describe('PantryController', () => {
 			// Create purchase history
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'chicken breast',
 				lastPurchased: daysAgo(3),
 				purchaseCount: 5,
@@ -238,7 +266,7 @@ describe('PantryController', () => {
 				category: 'meat'
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			// The item should be present (category 'meat' might affect confidence via shelf life)
 			expect(result.length).toBe(1);
@@ -249,6 +277,7 @@ describe('PantryController', () => {
 			// Purchase without frequency data - pantryService falls back to shelf life
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'canned beans',
 				lastPurchased: daysAgo(5),
 				purchaseCount: 1,
@@ -267,7 +296,7 @@ describe('PantryController', () => {
 				category: 'canned'
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			// Canned goods have long shelf life, so 5 days ago should still be high confidence
 			expect(result.length).toBe(1);
@@ -280,6 +309,7 @@ describe('PantryController', () => {
 			for (const item of items) {
 				await purchaseHistoryRepo.create({
 					userId,
+					householdId,
 					itemName: item,
 					lastPurchased: daysAgo(2),
 					purchaseCount: 3,
@@ -288,7 +318,7 @@ describe('PantryController', () => {
 				});
 			}
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(4);
 			const itemNames = result.map((r) => r.itemName);
@@ -301,6 +331,7 @@ describe('PantryController', () => {
 		it('should set id from purchase history record', async () => {
 			const created = await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'olive oil',
 				lastPurchased: daysAgo(3),
 				purchaseCount: 2,
@@ -308,7 +339,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 60
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(1);
 			expect(result[0].id).toBe(created.id);
@@ -318,6 +349,7 @@ describe('PantryController', () => {
 			const purchaseDate = daysAgo(7);
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'yogurt',
 				lastPurchased: purchaseDate,
 				purchaseCount: 2,
@@ -325,7 +357,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 14
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(1);
 			// Should be approximately 7 days (may be off by 1 due to timing)
@@ -336,6 +368,7 @@ describe('PantryController', () => {
 		it('should filter items that pass initial confidence but fail with category', async () => {
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'fresh fish',
 				lastPurchased: daysAgo(6),
 				purchaseCount: 2,
@@ -355,7 +388,7 @@ describe('PantryController', () => {
 				category: 'seafood'
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			// Whether this item appears depends on the shelf life calculation
 			// The key thing is the controller handles the double-check correctly
@@ -368,6 +401,7 @@ describe('PantryController', () => {
 			// The pantry service boosts confidence for larger quantities
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'rice',
 				lastPurchased: daysAgo(10),
 				purchaseCount: 3,
@@ -375,12 +409,13 @@ describe('PantryController', () => {
 				avgFrequencyDays: 14
 			});
 
-			const resultHighQty = await controller.getUserPantry(userId);
+			const resultHighQty = await controller.getHouseholdPantry(actor);
 
 			// Reset and test with lower quantity
 			purchaseHistoryRepo.clear();
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'rice',
 				lastPurchased: daysAgo(10),
 				purchaseCount: 3,
@@ -388,7 +423,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 14
 			});
 
-			const resultLowQty = await controller.getUserPantry(userId);
+			const resultLowQty = await controller.getHouseholdPantry(actor);
 
 			// High quantity should have higher confidence than low quantity
 			if (resultHighQty.length > 0 && resultLowQty.length > 0) {
@@ -404,6 +439,7 @@ describe('PantryController', () => {
 
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'butter',
 				lastPurchased: purchaseDate,
 				purchaseCount: 4,
@@ -422,7 +458,7 @@ describe('PantryController', () => {
 				category: 'dairy'
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(1);
 			const item = result[0];
@@ -444,6 +480,7 @@ describe('PantryController', () => {
 		it('should skip depleted receipt items', async () => {
 			const created = await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'depleted milk',
 				lastPurchased: daysAgo(1),
 				purchaseCount: 5,
@@ -454,13 +491,14 @@ describe('PantryController', () => {
 			// Mark as depleted
 			await purchaseHistoryRepo.markDepleted(created.id);
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 			expect(result).toEqual([]);
 		});
 
 		it('should include confidence factors in results', async () => {
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'eggs',
 				lastPurchased: daysAgo(3),
 				purchaseCount: 8,
@@ -468,7 +506,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 14
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(1);
 			expect(result[0].confidenceFactors).toBeDefined();
@@ -483,6 +521,7 @@ describe('PantryController', () => {
 			// But user confirmed 1 day ago
 			const created = await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'cheese',
 				lastPurchased: daysAgo(12),
 				purchaseCount: 3,
@@ -494,7 +533,7 @@ describe('PantryController', () => {
 				userOverrideDate: daysAgo(1)
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(1);
 			// With override date of 1 day ago and 14-day lifespan, confidence should be high
@@ -503,17 +542,18 @@ describe('PantryController', () => {
 		});
 	});
 
-	describe('getUserPantry - manual items', () => {
+	describe('getHouseholdPantry - manual items', () => {
 		it('should include manual cupboard items', async () => {
 			await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'olive oil',
 				quantity: '1',
 				unit: 'bottle',
 				category: 'pantry'
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(1);
 			expect(result[0].itemName).toBe('olive oil');
@@ -525,13 +565,14 @@ describe('PantryController', () => {
 		it('should filter out depleted manual items', async () => {
 			const created = await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'sugar',
 				quantity: '1'
 			});
 
 			await cupboardItemRepo.markDepleted(created.id);
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 			expect(result).toEqual([]);
 		});
 
@@ -539,6 +580,7 @@ describe('PantryController', () => {
 			// Manual item added today (high confidence)
 			await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'manual salt',
 				category: 'pantry' // 90 day shelf life
 			});
@@ -546,6 +588,7 @@ describe('PantryController', () => {
 			// Receipt item from a week ago (lower confidence)
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'receipt butter',
 				lastPurchased: daysAgo(7),
 				purchaseCount: 2,
@@ -553,7 +596,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 10
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(2);
 			// Manual salt (added today, pantry category = 90d) should have higher confidence
@@ -566,11 +609,12 @@ describe('PantryController', () => {
 		it('should use shelf life override for manual items', async () => {
 			await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'custom item',
 				shelfLifeDays: 30
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(1);
 			expect(result[0].confidenceFactors).toBeDefined();
@@ -581,10 +625,11 @@ describe('PantryController', () => {
 		it('should default manual item quantity to "1" and unit to "unit"', async () => {
 			await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'bare item'
 			});
 
-			const result = await controller.getUserPantry(userId);
+			const result = await controller.getHouseholdPantry(actor);
 
 			expect(result.length).toBe(1);
 			expect(result[0].quantity).toBe('1');
@@ -594,7 +639,7 @@ describe('PantryController', () => {
 
 	describe('addManualItem', () => {
 		it('should create a new manual cupboard item', async () => {
-			const item = await controller.addManualItem(userId, {
+			const item = await controller.addManualItem(actor, {
 				itemName: 'baking soda'
 			});
 
@@ -607,7 +652,7 @@ describe('PantryController', () => {
 		});
 
 		it('should create item with all optional fields', async () => {
-			const item = await controller.addManualItem(userId, {
+			const item = await controller.addManualItem(actor, {
 				itemName: 'organic flour',
 				quantity: '2',
 				unit: 'kg',
@@ -624,7 +669,7 @@ describe('PantryController', () => {
 		});
 
 		it('should persist the item in the repository', async () => {
-			await controller.addManualItem(userId, {
+			await controller.addManualItem(actor, {
 				itemName: 'test item'
 			});
 
@@ -635,7 +680,7 @@ describe('PantryController', () => {
 		});
 
 		it('should include confidence factors in the returned item', async () => {
-			const item = await controller.addManualItem(userId, {
+			const item = await controller.addManualItem(actor, {
 				itemName: 'spice',
 				category: 'pantry'
 			});
@@ -649,6 +694,7 @@ describe('PantryController', () => {
 		it('should mark a receipt-sourced item as depleted', async () => {
 			const created = await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'milk',
 				lastPurchased: daysAgo(1),
 				purchaseCount: 1,
@@ -656,7 +702,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 7
 			});
 
-			await controller.markItemUsedUp(created.id, 'receipt');
+			await controller.markItemUsedUp(actor, created.id, 'receipt');
 
 			const stored = await purchaseHistoryRepo.findById(created.id);
 			expect(stored!.isDepleted).toBe(true);
@@ -665,10 +711,11 @@ describe('PantryController', () => {
 		it('should mark a manual item as depleted', async () => {
 			const created = await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'sugar'
 			});
 
-			await controller.markItemUsedUp(created.id, 'manual');
+			await controller.markItemUsedUp(actor, created.id, 'manual');
 
 			const stored = await cupboardItemRepo.findById(created.id);
 			expect(stored!.isDepleted).toBe(true);
@@ -677,6 +724,7 @@ describe('PantryController', () => {
 		it('should cause depleted items to be excluded from getUserPantry', async () => {
 			const receiptItem = await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'milk',
 				lastPurchased: daysAgo(1),
 				purchaseCount: 1,
@@ -686,18 +734,19 @@ describe('PantryController', () => {
 
 			const manualItem = await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'sugar'
 			});
 
 			// Before depletion
-			let result = await controller.getUserPantry(userId);
+			let result = await controller.getHouseholdPantry(actor);
 			expect(result.length).toBe(2);
 
 			// Mark both as depleted
-			await controller.markItemUsedUp(receiptItem.id, 'receipt');
-			await controller.markItemUsedUp(manualItem.id, 'manual');
+			await controller.markItemUsedUp(actor, receiptItem.id, 'receipt');
+			await controller.markItemUsedUp(actor, manualItem.id, 'manual');
 
-			result = await controller.getUserPantry(userId);
+			result = await controller.getHouseholdPantry(actor);
 			expect(result.length).toBe(0);
 		});
 	});
@@ -706,6 +755,7 @@ describe('PantryController', () => {
 		it('should set override date to now for receipt items', async () => {
 			const created = await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'butter',
 				lastPurchased: daysAgo(10),
 				purchaseCount: 2,
@@ -713,7 +763,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 14
 			});
 
-			await controller.confirmItemInStock(created.id, 'receipt');
+			await controller.confirmItemInStock(actor, created.id, 'receipt');
 
 			const stored = await purchaseHistoryRepo.findById(created.id);
 			expect(stored!.userOverrideDate).toBeDefined();
@@ -726,6 +776,7 @@ describe('PantryController', () => {
 		it('should clear depleted flag for manual items', async () => {
 			const created = await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'salt'
 			});
 
@@ -734,7 +785,7 @@ describe('PantryController', () => {
 			expect((await cupboardItemRepo.findById(created.id))!.isDepleted).toBe(true);
 
 			// Confirm in stock
-			await controller.confirmItemInStock(created.id, 'manual');
+			await controller.confirmItemInStock(actor, created.id, 'manual');
 
 			const stored = await cupboardItemRepo.findById(created.id);
 			expect(stored!.isDepleted).toBe(false);
@@ -743,6 +794,7 @@ describe('PantryController', () => {
 		it('should boost confidence for old receipt items after confirmation', async () => {
 			const created = await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'old cheese',
 				lastPurchased: daysAgo(12),
 				purchaseCount: 3,
@@ -751,14 +803,14 @@ describe('PantryController', () => {
 			});
 
 			// Get confidence before confirmation
-			const before = await controller.getUserPantry(userId);
+			const before = await controller.getHouseholdPantry(actor);
 			const confidenceBefore = before.length > 0 ? before[0].stockConfidence : 0;
 
 			// Confirm in stock
-			await controller.confirmItemInStock(created.id, 'receipt');
+			await controller.confirmItemInStock(actor, created.id, 'receipt');
 
 			// Get confidence after
-			const after = await controller.getUserPantry(userId);
+			const after = await controller.getHouseholdPantry(actor);
 			expect(after.length).toBe(1);
 			expect(after[0].stockConfidence).toBeGreaterThan(confidenceBefore);
 		});
@@ -768,12 +820,13 @@ describe('PantryController', () => {
 		it('should update a manual item', async () => {
 			const created = await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'flour',
 				quantity: '1',
 				category: 'pantry'
 			});
 
-			await controller.updateItem(created.id, 'manual', {
+			await controller.updateItem(actor, created.id, 'manual', {
 				quantity: '5',
 				category: 'bakery',
 				shelfLifeDays: 60,
@@ -790,6 +843,7 @@ describe('PantryController', () => {
 		it('should update override fields on a receipt item', async () => {
 			const created = await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'milk',
 				lastPurchased: daysAgo(3),
 				purchaseCount: 5,
@@ -797,7 +851,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 7
 			});
 
-			await controller.updateItem(created.id, 'receipt', {
+			await controller.updateItem(actor, created.id, 'receipt', {
 				quantity: '2',
 				shelfLifeDays: 14
 			});
@@ -812,10 +866,11 @@ describe('PantryController', () => {
 		it('should permanently delete a manual cupboard item', async () => {
 			const created = await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'old spice'
 			});
 
-			await controller.deleteManualItem(created.id);
+			await controller.deleteManualItem(actor, created.id);
 
 			const stored = await cupboardItemRepo.findById(created.id);
 			expect(stored).toBeNull();
@@ -824,22 +879,23 @@ describe('PantryController', () => {
 		it('should remove the item from getUserPantry results', async () => {
 			const created = await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'to delete'
 			});
 
-			let result = await controller.getUserPantry(userId);
+			let result = await controller.getHouseholdPantry(actor);
 			expect(result.length).toBe(1);
 
-			await controller.deleteManualItem(created.id);
+			await controller.deleteManualItem(actor, created.id);
 
-			result = await controller.getUserPantry(userId);
+			result = await controller.getHouseholdPantry(actor);
 			expect(result.length).toBe(0);
 		});
 	});
 
 	describe('getCupboardStats', () => {
 		it('should return zero stats when cupboard is empty', async () => {
-			const stats = await controller.getCupboardStats(userId);
+			const stats = await controller.getCupboardStats(actor);
 
 			expect(stats.totalItems).toBe(0);
 			expect(stats.inStock).toBe(0);
@@ -852,6 +908,7 @@ describe('PantryController', () => {
 			// In stock: purchased today (confidence ~1.0)
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'fresh item',
 				lastPurchased: new Date(),
 				purchaseCount: 1,
@@ -862,6 +919,7 @@ describe('PantryController', () => {
 			// Running low: 8 days of 14 (confidence ~0.43)
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'aging item',
 				lastPurchased: daysAgo(8),
 				purchaseCount: 1,
@@ -872,6 +930,7 @@ describe('PantryController', () => {
 			// Needs restock: 10 days of 14 (confidence ~0.29)
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'almost gone',
 				lastPurchased: daysAgo(10),
 				purchaseCount: 1,
@@ -879,7 +938,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 14
 			});
 
-			const stats = await controller.getCupboardStats(userId);
+			const stats = await controller.getCupboardStats(actor);
 
 			expect(stats.totalItems).toBe(3);
 			expect(stats.inStock).toBeGreaterThanOrEqual(1);
@@ -889,6 +948,7 @@ describe('PantryController', () => {
 		it('should include both receipt and manual items', async () => {
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'receipt item',
 				lastPurchased: daysAgo(1),
 				purchaseCount: 1,
@@ -898,11 +958,12 @@ describe('PantryController', () => {
 
 			await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'manual item',
 				category: 'pantry'
 			});
 
-			const stats = await controller.getCupboardStats(userId);
+			const stats = await controller.getCupboardStats(actor);
 
 			expect(stats.totalItems).toBe(2);
 		});
@@ -910,13 +971,14 @@ describe('PantryController', () => {
 
 	describe('getCupboardCount', () => {
 		it('should return 0 when no items exist', async () => {
-			const count = await controller.getCupboardCount(userId);
+			const count = await controller.getCupboardCount(actor);
 			expect(count).toBe(0);
 		});
 
 		it('should count receipt and manual items separately', async () => {
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'milk',
 				lastPurchased: daysAgo(1),
 				purchaseCount: 1,
@@ -926,16 +988,18 @@ describe('PantryController', () => {
 
 			await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'sugar'
 			});
 
-			const count = await controller.getCupboardCount(userId);
+			const count = await controller.getCupboardCount(actor);
 			expect(count).toBe(2);
 		});
 
 		it('should not count depleted items', async () => {
 			const receipt = await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'milk',
 				lastPurchased: daysAgo(1),
 				purchaseCount: 1,
@@ -945,19 +1009,21 @@ describe('PantryController', () => {
 
 			const manual = await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'sugar'
 			});
 
 			await purchaseHistoryRepo.markDepleted(receipt.id);
 			await cupboardItemRepo.markDepleted(manual.id);
 
-			const count = await controller.getCupboardCount(userId);
+			const count = await controller.getCupboardCount(actor);
 			expect(count).toBe(0);
 		});
 
-		it('should not count items from other users', async () => {
+		it('should not count items from other households', async () => {
 			await purchaseHistoryRepo.create({
 				userId: otherUserId,
+				householdId: otherHouseholdId,
 				itemName: 'bread',
 				lastPurchased: daysAgo(1),
 				purchaseCount: 1,
@@ -967,10 +1033,11 @@ describe('PantryController', () => {
 
 			await cupboardItemRepo.create({
 				userId: otherUserId,
+				householdId: otherHouseholdId,
 				itemName: 'butter'
 			});
 
-			const count = await controller.getCupboardCount(userId);
+			const count = await controller.getCupboardCount(actor);
 			expect(count).toBe(0);
 		});
 
@@ -978,6 +1045,7 @@ describe('PantryController', () => {
 			// Item purchased 365 days ago with 7-day frequency — confidence is 0
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'ancient milk',
 				lastPurchased: daysAgo(365),
 				purchaseCount: 1,
@@ -985,7 +1053,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 7
 			});
 
-			const count = await controller.getCupboardCount(userId);
+			const count = await controller.getCupboardCount(actor);
 			expect(count).toBe(0);
 		});
 	});
@@ -995,6 +1063,7 @@ describe('PantryController', () => {
 			// Fresh item — high confidence, not expired
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'fresh milk',
 				lastPurchased: daysAgo(1),
 				purchaseCount: 1,
@@ -1002,7 +1071,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 14
 			});
 
-			const expired = await controller.getExpiredItems(userId);
+			const expired = await controller.getExpiredItems(actor);
 			expect(expired).toEqual([]);
 		});
 
@@ -1010,6 +1079,7 @@ describe('PantryController', () => {
 			// Item purchased 12 days ago with 14-day lifespan — confidence ~0.14 (below 0.2)
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'expired yogurt',
 				lastPurchased: daysAgo(12),
 				purchaseCount: 1,
@@ -1017,7 +1087,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 14
 			});
 
-			const expired = await controller.getExpiredItems(userId);
+			const expired = await controller.getExpiredItems(actor);
 			expect(expired.length).toBe(1);
 			expect(expired[0].itemName).toBe('expired yogurt');
 			expect(expired[0].stockConfidence).toBeLessThanOrEqual(0.2);
@@ -1028,6 +1098,7 @@ describe('PantryController', () => {
 			// so users can explicitly dismiss it
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'ancient eggs',
 				lastPurchased: daysAgo(365),
 				purchaseCount: 1,
@@ -1035,7 +1106,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 7
 			});
 
-			const expired = await controller.getExpiredItems(userId);
+			const expired = await controller.getExpiredItems(actor);
 			expect(expired).toHaveLength(1);
 			expect(expired[0].itemName).toBe('ancient eggs');
 		});
@@ -1044,6 +1115,7 @@ describe('PantryController', () => {
 			// Item still in stock
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'fresh item',
 				lastPurchased: daysAgo(3),
 				purchaseCount: 1,
@@ -1051,13 +1123,14 @@ describe('PantryController', () => {
 				avgFrequencyDays: 14
 			});
 
-			const expired = await controller.getExpiredItems(userId);
+			const expired = await controller.getExpiredItems(actor);
 			expect(expired).toEqual([]);
 		});
 
 		it('should not return depleted items', async () => {
 			const created = await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'used up',
 				lastPurchased: daysAgo(12),
 				purchaseCount: 1,
@@ -1066,7 +1139,7 @@ describe('PantryController', () => {
 			});
 			await purchaseHistoryRepo.markDepleted(created.id);
 
-			const expired = await controller.getExpiredItems(userId);
+			const expired = await controller.getExpiredItems(actor);
 			expect(expired).toEqual([]);
 		});
 
@@ -1074,6 +1147,7 @@ describe('PantryController', () => {
 			// Both expired but different dates
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'older expired',
 				lastPurchased: daysAgo(20),
 				purchaseCount: 1,
@@ -1083,6 +1157,7 @@ describe('PantryController', () => {
 
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'newer expired',
 				lastPurchased: daysAgo(13),
 				purchaseCount: 1,
@@ -1090,7 +1165,7 @@ describe('PantryController', () => {
 				avgFrequencyDays: 14
 			});
 
-			const expired = await controller.getExpiredItems(userId);
+			const expired = await controller.getExpiredItems(actor);
 			expect(expired.length).toBe(2);
 			expect(expired[0].itemName).toBe('newer expired');
 			expect(expired[1].itemName).toBe('older expired');
@@ -1100,11 +1175,12 @@ describe('PantryController', () => {
 			// Manual item added 20 days ago with default 14-day shelf life
 			await cupboardItemRepo.create({
 				userId,
+				householdId,
 				itemName: 'manual expired',
 				addedDate: daysAgo(20)
 			});
 
-			const expired = await controller.getExpiredItems(userId);
+			const expired = await controller.getExpiredItems(actor);
 			expect(expired.length).toBe(1);
 			expect(expired[0].itemName).toBe('manual expired');
 			expect(expired[0].source).toBe('manual');
@@ -1113,7 +1189,7 @@ describe('PantryController', () => {
 
 	describe('addToShoppingList', () => {
 		it('should create a shopping list and add the item', async () => {
-			await controller.addToShoppingList(userId, 'milk', '1', 'liter');
+			await controller.addToShoppingList(actor, 'milk', '1', 'liter');
 
 			// Verify list was created
 			const lists = shoppingListRepo.getAllStored();
@@ -1134,11 +1210,12 @@ describe('PantryController', () => {
 			// Create an active list first
 			const list = await shoppingListRepo.create({
 				userId,
+				householdId,
 				name: 'My List',
 				isActive: true
 			});
 
-			await controller.addToShoppingList(userId, 'butter');
+			await controller.addToShoppingList(actor, 'butter');
 
 			// Should not create a new list
 			const lists = shoppingListRepo.getAllStored();
@@ -1153,11 +1230,12 @@ describe('PantryController', () => {
 		it('should handle null quantity and unit', async () => {
 			await shoppingListRepo.create({
 				userId,
+				householdId,
 				name: 'My List',
 				isActive: true
 			});
 
-			await controller.addToShoppingList(userId, 'salt');
+			await controller.addToShoppingList(actor, 'salt');
 
 			const items = shoppingListItemRepo.getAllStored();
 			expect(items.length).toBe(1);
@@ -1169,19 +1247,131 @@ describe('PantryController', () => {
 		it('should add multiple items with incrementing order', async () => {
 			await shoppingListRepo.create({
 				userId,
+				householdId,
 				name: 'My List',
 				isActive: true
 			});
 
-			await controller.addToShoppingList(userId, 'milk');
-			await controller.addToShoppingList(userId, 'eggs');
-			await controller.addToShoppingList(userId, 'bread');
+			await controller.addToShoppingList(actor, 'milk');
+			await controller.addToShoppingList(actor, 'eggs');
+			await controller.addToShoppingList(actor, 'bread');
 
 			const items = shoppingListItemRepo.getAllStored();
 			expect(items.length).toBe(3);
 			// Order should be incrementing
 			expect(items[0].orderIndex).toBeLessThan(items[1].orderIndex);
 			expect(items[1].orderIndex).toBeLessThan(items[2].orderIndex);
+		});
+	});
+
+	describe('household sharing', () => {
+		const housemate: Actor = {
+			userId: 'user-789',
+			householdId,
+			memberId: 'member-3',
+			displayName: 'Housemate',
+			roles
+		};
+
+		it('shows a housemate the cupboard item another member added', async () => {
+			await controller.addManualItem(actor, { itemName: 'olive oil' });
+
+			const result = await controller.getHouseholdPantry(housemate);
+			expect(result.map((item) => item.itemName)).toEqual(['olive oil']);
+		});
+
+		it('keeps the cupboard item of another household out of the pantry', async () => {
+			await controller.addManualItem(otherActor, { itemName: 'olive oil' });
+
+			const result = await controller.getHouseholdPantry(actor);
+			expect(result).toEqual([]);
+		});
+
+		it('rejects marking another household item as used up', async () => {
+			const created = await cupboardItemRepo.create({
+				userId: otherUserId,
+				householdId: otherHouseholdId,
+				itemName: 'rice'
+			});
+
+			await expect(controller.markItemUsedUp(actor, created.id, 'manual')).rejects.toThrow(
+				'Item not found'
+			);
+		});
+
+		it('rejects marking another household purchase history as used up', async () => {
+			const created = await purchaseHistoryRepo.create({
+				userId: otherUserId,
+				householdId: otherHouseholdId,
+				itemName: 'milk',
+				lastPurchased: daysAgo(1)
+			});
+
+			await expect(controller.markItemUsedUp(actor, created.id, 'receipt')).rejects.toThrow(
+				'Item not found'
+			);
+		});
+
+		it('rejects deleting another household cupboard item', async () => {
+			const created = await cupboardItemRepo.create({
+				userId: otherUserId,
+				householdId: otherHouseholdId,
+				itemName: 'rice'
+			});
+
+			await expect(controller.deleteManualItem(actor, created.id)).rejects.toThrow(
+				'Item not found'
+			);
+		});
+
+		it('leaves another household cupboard item in place after a rejected delete', async () => {
+			const created = await cupboardItemRepo.create({
+				userId: otherUserId,
+				householdId: otherHouseholdId,
+				itemName: 'rice'
+			});
+
+			await controller.deleteManualItem(actor, created.id).catch(() => undefined);
+
+			expect(await cupboardItemRepo.findById(created.id)).not.toBeNull();
+		});
+
+		it('rejects updating another household cupboard item', async () => {
+			const created = await cupboardItemRepo.create({
+				userId: otherUserId,
+				householdId: otherHouseholdId,
+				itemName: 'rice'
+			});
+
+			await expect(
+				controller.updateItem(actor, created.id, 'manual', { quantity: '5' })
+			).rejects.toThrow('Item not found');
+		});
+
+		it('rejects confirming another household item in stock', async () => {
+			const created = await cupboardItemRepo.create({
+				userId: otherUserId,
+				householdId: otherHouseholdId,
+				itemName: 'rice'
+			});
+
+			await expect(controller.confirmItemInStock(actor, created.id, 'manual')).rejects.toThrow(
+				'Item not found'
+			);
+		});
+
+		it('adds to the active shopping list a housemate created', async () => {
+			const list = await shoppingListRepo.create({
+				userId: housemate.userId,
+				householdId,
+				name: 'Shared list',
+				isActive: true
+			});
+
+			await controller.addToShoppingList(actor, 'flour');
+
+			const items = await shoppingListItemRepo.findByListId(list.id);
+			expect(items.map((item) => item.name)).toEqual(['flour']);
 		});
 	});
 });

@@ -44,6 +44,8 @@ export async function cleanTables() {
 	// Truncate all tables in correct order
 	// Note: we don't truncate enums or internal migration tables
 	await _db.execute(sql`TRUNCATE 
+    household_invites, household_members, households,
+    planned_meals,
     shopping_list_items, shopping_lists,
     recipe_ingredients, saved_recipes, recipes,
     receipt_items, receipts,
@@ -54,6 +56,19 @@ export async function cleanTables() {
     user_cuisine_preferences, user_dietary_profiles,
     user_preferences, sessions, users
     CASCADE`);
+}
+
+/**
+ * Gives a user a household of one, the state `HouseholdService.resolveActor` produces for a new
+ * user. Returns the household id to put on household-scoped rows.
+ */
+export async function createHouseholdFor(userId: string, name = 'Test kitchen'): Promise<string> {
+	const _db = getTestDb();
+	const [household] = await _db.insert(schema.households).values({ name }).returning();
+	await _db
+		.insert(schema.householdMembers)
+		.values({ householdId: household.id, userId, displayName: name });
+	return household.id;
 }
 
 export async function teardownTestDb() {

@@ -1,6 +1,7 @@
 export interface ShoppingListDao {
 	id: string;
 	userId: string;
+	householdId: string;
 	name: string;
 	isActive: boolean;
 	createdAt: Date;
@@ -9,6 +10,7 @@ export interface ShoppingListDao {
 
 export interface NewShoppingListDao {
 	userId: string;
+	householdId: string;
 	name: string;
 	isActive?: boolean;
 }

@@ -4,20 +4,20 @@ import { AppFactory } from '$lib/factories';
 import { parseNumber, parseStringList } from '$lib/validation';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) {
+	if (!locals.actor) {
 		throw redirect(302, '/login');
 	}
 
 	const preferencesController = AppFactory.getPreferencesController();
-	const preferences = await preferencesController.getPreferences(locals.user.id);
+	const preferences = await preferencesController.getPreferences(locals.actor.userId);
 
 	// Get all cupboard items for recipe generation — include low-confidence/expired
 	// items too, since users may still have them. Auto-selection is handled on the
 	// client (only pre-selects confidence > 0.6), so showing more is always safe.
 	const pantryController = AppFactory.getPantryController();
 	const pantryPromise = Promise.all([
-		pantryController.getUserPantry(locals.user.id),
-		pantryController.getExpiredItems(locals.user.id)
+		pantryController.getHouseholdPantry(locals.actor),
+		pantryController.getExpiredItems(locals.actor)
 	]).then(([active, expired]) => [...active, ...expired]);
 
 	return {
@@ -30,7 +30,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	default: async ({ request, locals }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -63,7 +63,7 @@ export const actions: Actions = {
 			const recipeController = AppFactory.getRecipeController();
 
 			const recipe = await recipeController.generateRecipe({
-				userId: locals.user.id,
+				actor: locals.actor,
 				ingredientIds: ingredientIds.length > 0 ? ingredientIds : undefined,
 				customIngredients: customIngredients.length > 0 ? customIngredients : undefined,
 				servings,

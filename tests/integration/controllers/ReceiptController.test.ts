@@ -11,6 +11,7 @@ import {
 } from '../../mocks/MockReceiptRepositories';
 import { MockPurchaseHistoryRepository } from '../../mocks/MockPurchaseHistoryRepository';
 import { MockJobQueue } from '../../mocks/MockJobQueue';
+import type { Actor } from '../../../src/lib/models/household';
 
 describe('ReceiptController', () => {
 	let controller: ReceiptController;
@@ -26,6 +27,31 @@ describe('ReceiptController', () => {
 
 	const userId = 'user-123';
 	const otherUserId = 'user-456';
+	const householdId = 'household-1';
+	const otherHouseholdId = 'household-2';
+
+	const roles = { plans: true, shops: true, cooks: true };
+	const actor: Actor = {
+		userId,
+		householdId,
+		memberId: 'member-1',
+		displayName: 'Test',
+		roles
+	};
+	const housemateActor: Actor = {
+		userId: 'user-789',
+		householdId,
+		memberId: 'member-3',
+		displayName: 'Housemate',
+		roles
+	};
+	const otherActor: Actor = {
+		userId: otherUserId,
+		householdId: otherHouseholdId,
+		memberId: 'member-2',
+		displayName: 'Other',
+		roles
+	};
 
 	/**
 	 * Helper: create a fake File object for upload tests
@@ -55,7 +81,7 @@ describe('ReceiptController', () => {
 		purchaseHistoryRepo = new MockPurchaseHistoryRepository();
 		jobQueue = new MockJobQueue();
 
-		// Wire the item repo into the receipt repo for findByIdWithItems / findByUserIdWithItems
+		// Wire the item repo into the receipt repo for findByIdWithItems / findByHouseholdIdWithItems
 		receiptRepo.setItemRepository(receiptItemRepo);
 
 		controller = new ReceiptController(
@@ -78,7 +104,7 @@ describe('ReceiptController', () => {
 			receiptExtractor.setDefaultData({ items: [] });
 
 			const file = createFakeFile('receipt.jpg');
-			const receipt = await controller.uploadReceipt({ userId, file });
+			const receipt = await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			expect(storageService.getStored('receipts/receipt.jpg')).toBeDefined();
@@ -89,7 +115,7 @@ describe('ReceiptController', () => {
 			receiptExtractor.setDefaultData({ items: [] });
 
 			const file = createFakeFile('receipt.jpg');
-			const receipt = await controller.uploadReceipt({ userId, file });
+			const receipt = await controller.uploadReceipt({ actor, file });
 
 			// At the point of return, the receipt was created as QUEUED
 			expect(receipt.userId).toBe(userId);
@@ -101,7 +127,7 @@ describe('ReceiptController', () => {
 			receiptExtractor.setDefaultData({ items: [] });
 
 			const file = createFakeFile('receipt.jpg');
-			const receipt = await controller.uploadReceipt({ userId, file });
+			const receipt = await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			const jobNames = jobQueue.getExecutedJobNames();
@@ -118,7 +144,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			const receipt = await controller.uploadReceipt({ userId, file });
+			const receipt = await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			// After processing, the receipt should be DONE
@@ -137,7 +163,7 @@ describe('ReceiptController', () => {
 			receiptExtractor.setDefaultData({ items: [] });
 
 			const file = createFakeFile('receipt.jpg');
-			await controller.uploadReceipt({ userId, file });
+			await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			// Should use the buffer method
@@ -159,7 +185,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			await controller.uploadReceipt({ userId, file });
+			await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			const items = receiptItemRepo.getAllStored();
@@ -178,7 +204,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			await controller.uploadReceipt({ userId, file });
+			await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			const items = receiptItemRepo.getAllStored();
@@ -192,7 +218,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			await controller.uploadReceipt({ userId, file });
+			await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			const items = receiptItemRepo.getAllStored();
@@ -207,7 +233,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			await controller.uploadReceipt({ userId, file });
+			await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			const history = purchaseHistoryRepo.getAll();
@@ -224,6 +250,7 @@ describe('ReceiptController', () => {
 			const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Milk',
 				lastPurchased: tenDaysAgo,
 				purchaseCount: 3,
@@ -237,7 +264,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			await controller.uploadReceipt({ userId, file });
+			await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			const history = purchaseHistoryRepo.getAll();
@@ -257,6 +284,7 @@ describe('ReceiptController', () => {
 			const olderDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Eggs',
 				lastPurchased: olderDate,
 				purchaseCount: 2,
@@ -272,7 +300,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			await controller.uploadReceipt({ userId, file });
+			await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			const history = purchaseHistoryRepo.getAll();
@@ -290,7 +318,7 @@ describe('ReceiptController', () => {
 			};
 
 			const file = createFakeFile('receipt.jpg');
-			const receipt = await controller.uploadReceipt({ userId, file });
+			const receipt = await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			const stored = receiptRepo.getStored(receipt.id);
@@ -305,7 +333,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			const receipt = await controller.uploadReceipt({ userId, file });
+			const receipt = await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			const stored = receiptRepo.getStored(receipt.id);
@@ -322,7 +350,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			const receipt = await controller.uploadReceipt({ userId, file });
+			const receipt = await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			const stored = receiptRepo.getStored(receipt.id);
@@ -342,7 +370,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			await controller.uploadReceipt({ userId, file });
+			await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			expect(receiptItemRepo.getAllStored()).toHaveLength(3);
@@ -355,7 +383,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			await controller.uploadReceipt({ userId, file });
+			await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			const items = receiptItemRepo.getAllStored();
@@ -369,7 +397,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			const receipt = await controller.uploadReceipt({ userId, file });
+			const receipt = await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			const stored = receiptRepo.getStored(receipt.id);
@@ -395,7 +423,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			const receipt = await controllerNoQueue.uploadReceipt({ userId, file });
+			const receipt = await controllerNoQueue.uploadReceipt({ actor, file });
 			// Without job queue, fire-and-forget task() is called directly
 			await flushMicrotasks();
 
@@ -428,7 +456,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			await controller.uploadReceipt({ userId, file });
+			await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			// Only Milk should be saved, Dish Soap should be filtered out
@@ -462,7 +490,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			await controller.uploadReceipt({ userId, file });
+			await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			// No items should be saved
@@ -470,7 +498,9 @@ describe('ReceiptController', () => {
 			expect(items).toHaveLength(0);
 
 			// Receipt should still be marked as DONE
-			const stored = receiptRepo.getStored((await receiptRepo.findByUserId(userId, 1))[0].id);
+			const stored = receiptRepo.getStored(
+				(await receiptRepo.findByHouseholdId(householdId, 1))[0].id
+			);
 			expect(stored!.status).toBe('DONE');
 		});
 
@@ -506,7 +536,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			await controller.uploadReceipt({ userId, file });
+			await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			// All items should be saved
@@ -540,7 +570,7 @@ describe('ReceiptController', () => {
 			});
 
 			const file = createFakeFile('receipt.jpg');
-			await controller.uploadReceipt({ userId, file });
+			await controller.uploadReceipt({ actor, file });
 			await flushMicrotasks();
 
 			// Only Apples should be in purchase history
@@ -557,6 +587,7 @@ describe('ReceiptController', () => {
 			// Seed a receipt and items
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
@@ -570,7 +601,7 @@ describe('ReceiptController', () => {
 				category: 'dairy'
 			});
 
-			const result = await controller.getReceipt(receipt.id, userId);
+			const result = await controller.getReceipt(receipt.id, actor);
 
 			expect(result).not.toBeNull();
 			expect(result!.id).toBe(receipt.id);
@@ -581,16 +612,17 @@ describe('ReceiptController', () => {
 		it('should return null for a different user', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
 
-			const result = await controller.getReceipt(receipt.id, otherUserId);
+			const result = await controller.getReceipt(receipt.id, otherActor);
 			expect(result).toBeNull();
 		});
 
 		it('should return null for non-existent receipt', async () => {
-			const result = await controller.getReceipt('non-existent-id', userId);
+			const result = await controller.getReceipt('non-existent-id', actor);
 			expect(result).toBeNull();
 		});
 	});
@@ -601,17 +633,19 @@ describe('ReceiptController', () => {
 		it('should return status for own receipt', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'PROCESSING'
 			});
 
-			const result = await controller.getReceiptStatus(receipt.id, userId);
+			const result = await controller.getReceiptStatus(receipt.id, actor);
 			expect(result).toEqual({ status: 'PROCESSING', errorMessage: null });
 		});
 
 		it('should return error message for failed receipt', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'QUEUED'
 			});
@@ -620,33 +654,35 @@ describe('ReceiptController', () => {
 				errorMessage: 'OCR timeout'
 			});
 
-			const result = await controller.getReceiptStatus(receipt.id, userId);
+			const result = await controller.getReceiptStatus(receipt.id, actor);
 			expect(result).toEqual({ status: 'FAILED', errorMessage: 'OCR timeout' });
 		});
 
 		it('should return null for another user receipt', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
 
-			const result = await controller.getReceiptStatus(receipt.id, otherUserId);
+			const result = await controller.getReceiptStatus(receipt.id, otherActor);
 			expect(result).toBeNull();
 		});
 
 		it('should return null for non-existent receipt', async () => {
-			const result = await controller.getReceiptStatus('no-such-id', userId);
+			const result = await controller.getReceiptStatus('no-such-id', actor);
 			expect(result).toBeNull();
 		});
 	});
 
-	// ---------- getUserReceipts ----------
+	// ---------- getHouseholdReceipts ----------
 
-	describe('getUserReceipts', () => {
+	describe('getHouseholdReceipts', () => {
 		it('should return all receipts with items for a user', async () => {
 			const receipt1 = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/r1.jpg',
 				status: 'DONE'
 			});
@@ -661,6 +697,7 @@ describe('ReceiptController', () => {
 
 			const receipt2 = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/r2.jpg',
 				status: 'DONE'
 			});
@@ -673,7 +710,7 @@ describe('ReceiptController', () => {
 				unitType: 'COUNT'
 			});
 
-			const results = await controller.getUserReceipts(userId);
+			const results = await controller.getHouseholdReceipts(actor);
 			expect(results).toHaveLength(2);
 			// Each receipt should have its items
 			const allItemNames = results.flatMap((r) => r.items.map((i) => i.normalizedName));
@@ -684,11 +721,12 @@ describe('ReceiptController', () => {
 		it('should not return receipts belonging to other users', async () => {
 			await receiptRepo.create({
 				userId: otherUserId,
+				householdId: otherHouseholdId,
 				imageUrl: 'mock://receipts/other.jpg',
 				status: 'DONE'
 			});
 
-			const results = await controller.getUserReceipts(userId);
+			const results = await controller.getHouseholdReceipts(actor);
 			expect(results).toHaveLength(0);
 		});
 
@@ -696,17 +734,18 @@ describe('ReceiptController', () => {
 			for (let i = 0; i < 5; i++) {
 				await receiptRepo.create({
 					userId,
+					householdId,
 					imageUrl: `mock://receipts/r${i}.jpg`,
 					status: 'DONE'
 				});
 			}
 
-			const results = await controller.getUserReceipts(userId, 3);
+			const results = await controller.getHouseholdReceipts(actor, 3);
 			expect(results).toHaveLength(3);
 		});
 
 		it('should return empty array for user with no receipts', async () => {
-			const results = await controller.getUserReceipts(userId);
+			const results = await controller.getHouseholdReceipts(actor);
 			expect(results).toEqual([]);
 		});
 	});
@@ -720,17 +759,18 @@ describe('ReceiptController', () => {
 
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
 
-			await controller.deleteReceipt(receipt.id, userId);
+			await controller.deleteReceipt(receipt.id, actor);
 
 			expect(receiptRepo.getStored(receipt.id)).toBeUndefined();
 		});
 
 		it('should throw for non-existent receipt', async () => {
-			await expect(controller.deleteReceipt('no-such-id', userId)).rejects.toThrow(
+			await expect(controller.deleteReceipt('no-such-id', actor)).rejects.toThrow(
 				'Receipt not found'
 			);
 		});
@@ -738,11 +778,12 @@ describe('ReceiptController', () => {
 		it('should throw when deleting another user receipt', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
 
-			await expect(controller.deleteReceipt(receipt.id, otherUserId)).rejects.toThrow(
+			await expect(controller.deleteReceipt(receipt.id, otherActor)).rejects.toThrow(
 				'Receipt not found'
 			);
 		});
@@ -750,12 +791,13 @@ describe('ReceiptController', () => {
 		it('should handle deletion when imageUrl has no path segments gracefully', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'https://example.com/receipts/img.jpg',
 				status: 'DONE'
 			});
 
 			// Should not throw even if storage.delete fails
-			await controller.deleteReceipt(receipt.id, userId);
+			await controller.deleteReceipt(receipt.id, actor);
 			expect(receiptRepo.getStored(receipt.id)).toBeUndefined();
 		});
 	});
@@ -766,6 +808,7 @@ describe('ReceiptController', () => {
 		it('should normalize and update an existing item', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
@@ -778,7 +821,7 @@ describe('ReceiptController', () => {
 				unitType: 'COUNT'
 			});
 
-			const updated = await controller.updateReceiptItem(receipt.id, userId, item.id, {
+			const updated = await controller.updateReceiptItem(receipt.id, actor, item.id, {
 				name: 'Whole Milk',
 				quantity: '2 lbs',
 				price: '$5.99',
@@ -798,6 +841,7 @@ describe('ReceiptController', () => {
 		it('should use provided unit over normalized unit when specified', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
@@ -810,7 +854,7 @@ describe('ReceiptController', () => {
 				unitType: 'COUNT'
 			});
 
-			const updated = await controller.updateReceiptItem(receipt.id, userId, item.id, {
+			const updated = await controller.updateReceiptItem(receipt.id, actor, item.id, {
 				name: 'Sugar',
 				quantity: '500',
 				unit: 'grams'
@@ -822,6 +866,7 @@ describe('ReceiptController', () => {
 		it('should throw when receipt belongs to another user', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
@@ -835,7 +880,7 @@ describe('ReceiptController', () => {
 			});
 
 			await expect(
-				controller.updateReceiptItem(receipt.id, otherUserId, item.id, {
+				controller.updateReceiptItem(receipt.id, otherActor, item.id, {
 					name: 'Updated',
 					quantity: '1'
 				})
@@ -845,11 +890,13 @@ describe('ReceiptController', () => {
 		it('should throw when item does not belong to the receipt', async () => {
 			const receipt1 = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/r1.jpg',
 				status: 'DONE'
 			});
 			const receipt2 = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/r2.jpg',
 				status: 'DONE'
 			});
@@ -863,7 +910,7 @@ describe('ReceiptController', () => {
 			});
 
 			await expect(
-				controller.updateReceiptItem(receipt1.id, userId, item.id, {
+				controller.updateReceiptItem(receipt1.id, actor, item.id, {
 					name: 'Updated',
 					quantity: '1'
 				})
@@ -873,12 +920,13 @@ describe('ReceiptController', () => {
 		it('should throw when item does not exist', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
 
 			await expect(
-				controller.updateReceiptItem(receipt.id, userId, 'non-existent-item', {
+				controller.updateReceiptItem(receipt.id, actor, 'non-existent-item', {
 					name: 'Updated',
 					quantity: '1'
 				})
@@ -888,6 +936,7 @@ describe('ReceiptController', () => {
 		it('should handle null price by setting it to null', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
@@ -901,7 +950,7 @@ describe('ReceiptController', () => {
 				price: '5.00'
 			});
 
-			const updated = await controller.updateReceiptItem(receipt.id, userId, item.id, {
+			const updated = await controller.updateReceiptItem(receipt.id, actor, item.id, {
 				name: 'Test',
 				quantity: '1',
 				price: null
@@ -913,6 +962,7 @@ describe('ReceiptController', () => {
 		it('should default category to "other" when not provided', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
@@ -926,7 +976,7 @@ describe('ReceiptController', () => {
 				category: 'dairy'
 			});
 
-			const updated = await controller.updateReceiptItem(receipt.id, userId, item.id, {
+			const updated = await controller.updateReceiptItem(receipt.id, actor, item.id, {
 				name: 'Test',
 				quantity: '1'
 			});
@@ -941,11 +991,12 @@ describe('ReceiptController', () => {
 		it('should create a new item on the receipt with normalized data', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
 
-			const item = await controller.addManualItem(receipt.id, userId, {
+			const item = await controller.addManualItem(receipt.id, actor, {
 				name: 'Fresh Bananas',
 				quantity: '6',
 				category: 'produce'
@@ -962,11 +1013,12 @@ describe('ReceiptController', () => {
 		it('should normalize quantity with units', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
 
-			const item = await controller.addManualItem(receipt.id, userId, {
+			const item = await controller.addManualItem(receipt.id, actor, {
 				name: 'Flour',
 				quantity: '2 kg',
 				price: '$4.50'
@@ -982,12 +1034,13 @@ describe('ReceiptController', () => {
 		it('should throw when receipt belongs to another user', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
 
 			await expect(
-				controller.addManualItem(receipt.id, otherUserId, {
+				controller.addManualItem(receipt.id, otherActor, {
 					name: 'Item',
 					quantity: '1'
 				})
@@ -996,7 +1049,7 @@ describe('ReceiptController', () => {
 
 		it('should throw for non-existent receipt', async () => {
 			await expect(
-				controller.addManualItem('no-such-receipt', userId, {
+				controller.addManualItem('no-such-receipt', actor, {
 					name: 'Item',
 					quantity: '1'
 				})
@@ -1006,11 +1059,12 @@ describe('ReceiptController', () => {
 		it('should default category to "other" when not provided', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
 
-			const item = await controller.addManualItem(receipt.id, userId, {
+			const item = await controller.addManualItem(receipt.id, actor, {
 				name: 'Mystery Item',
 				quantity: '1'
 			});
@@ -1021,11 +1075,12 @@ describe('ReceiptController', () => {
 		it('should use provided unit over normalized unit', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
 
-			const item = await controller.addManualItem(receipt.id, userId, {
+			const item = await controller.addManualItem(receipt.id, actor, {
 				name: 'Rice',
 				quantity: '500',
 				unit: 'grams'
@@ -1041,6 +1096,7 @@ describe('ReceiptController', () => {
 		it('should delete an item from the receipt', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
@@ -1053,7 +1109,7 @@ describe('ReceiptController', () => {
 				unitType: 'COUNT'
 			});
 
-			await controller.deleteReceiptItem(receipt.id, userId, item.id);
+			await controller.deleteReceiptItem(receipt.id, actor, item.id);
 
 			expect(receiptItemRepo.getStored(item.id)).toBeUndefined();
 		});
@@ -1061,6 +1117,7 @@ describe('ReceiptController', () => {
 		it('should throw when receipt belongs to another user', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
@@ -1073,7 +1130,7 @@ describe('ReceiptController', () => {
 				unitType: 'COUNT'
 			});
 
-			await expect(controller.deleteReceiptItem(receipt.id, otherUserId, item.id)).rejects.toThrow(
+			await expect(controller.deleteReceiptItem(receipt.id, otherActor, item.id)).rejects.toThrow(
 				'Receipt not found'
 			);
 		});
@@ -1081,11 +1138,13 @@ describe('ReceiptController', () => {
 		it('should throw when item does not belong to receipt', async () => {
 			const receipt1 = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/r1.jpg',
 				status: 'DONE'
 			});
 			const receipt2 = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/r2.jpg',
 				status: 'DONE'
 			});
@@ -1098,7 +1157,7 @@ describe('ReceiptController', () => {
 				unitType: 'COUNT'
 			});
 
-			await expect(controller.deleteReceiptItem(receipt1.id, userId, item.id)).rejects.toThrow(
+			await expect(controller.deleteReceiptItem(receipt1.id, actor, item.id)).rejects.toThrow(
 				'Item not found'
 			);
 		});
@@ -1106,18 +1165,19 @@ describe('ReceiptController', () => {
 		it('should throw when item does not exist', async () => {
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'mock://receipts/test.jpg',
 				status: 'DONE'
 			});
 
-			await expect(
-				controller.deleteReceiptItem(receipt.id, userId, 'no-such-item')
-			).rejects.toThrow('Item not found');
+			await expect(controller.deleteReceiptItem(receipt.id, actor, 'no-such-item')).rejects.toThrow(
+				'Item not found'
+			);
 		});
 
 		it('should throw for non-existent receipt', async () => {
 			await expect(
-				controller.deleteReceiptItem('no-such-receipt', userId, 'some-item')
+				controller.deleteReceiptItem('no-such-receipt', actor, 'some-item')
 			).rejects.toThrow('Receipt not found');
 		});
 	});
@@ -1128,6 +1188,45 @@ describe('ReceiptController', () => {
 		it('should return an empty object (placeholder implementation)', async () => {
 			const result = await controller.getRecipeCountsByReceiptIds();
 			expect(result).toEqual({});
+		});
+	});
+	// ---------- household sharing ----------
+
+	describe('household sharing', () => {
+		it('lets a second member of the household read a receipt the first member uploaded', async () => {
+			const receipt = await receiptRepo.create({
+				userId,
+				householdId,
+				imageUrl: 'mock://receipts/shared.jpg',
+				status: 'DONE'
+			});
+
+			const result = await controller.getReceipt(receipt.id, housemateActor);
+
+			expect(result?.id).toBe(receipt.id);
+		});
+
+		it('rejects deleting a receipt that belongs to another household', async () => {
+			const receipt = await receiptRepo.create({
+				userId: otherUserId,
+				householdId: otherHouseholdId,
+				imageUrl: 'mock://receipts/theirs.jpg',
+				status: 'DONE'
+			});
+
+			await expect(controller.deleteReceipt(receipt.id, actor)).rejects.toThrow(
+				'Receipt not found'
+			);
+		});
+
+		it('writes purchase history from background OCR under the uploader household', async () => {
+			receiptExtractor.setDefaultData({ items: [{ name: 'Milk', quantity: '1' }] });
+
+			await controller.uploadReceipt({ actor, file: createFakeFile('receipt.jpg') });
+			await flushMicrotasks();
+
+			const history = await purchaseHistoryRepo.findByHouseholdAndItem(householdId, 'Milk');
+			expect(history?.householdId).toBe(householdId);
 		});
 	});
 });

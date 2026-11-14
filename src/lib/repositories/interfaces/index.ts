@@ -30,3 +30,4 @@ export type {
 } from './ITasteProfileRepositories';
 
 export type { IWaitlistRepository } from './IWaitlistRepository';
+export type { IHouseholdRepository } from './IHouseholdRepository';

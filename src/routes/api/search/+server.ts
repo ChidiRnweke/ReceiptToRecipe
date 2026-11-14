@@ -4,7 +4,7 @@ import { getDb } from '$db/client';
 import { GlobalSearchService } from '$lib/services/GlobalSearchService';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
-	if (!locals.user) {
+	if (!locals.actor) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
@@ -28,7 +28,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const searchService = new GlobalSearchService(getDb());
 
 	try {
-		const results = await searchService.search(locals.user.id, query, limit);
+		const results = await searchService.search(locals.actor.householdId, query, limit);
 		return json(results);
 	} catch {
 		return json(

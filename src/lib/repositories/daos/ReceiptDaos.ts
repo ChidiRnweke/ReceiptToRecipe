@@ -1,6 +1,7 @@
 export interface ReceiptDao {
 	id: string;
 	userId: string;
+	householdId: string;
 	imageUrl: string;
 	status: 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED';
 	rawOcrData: Record<string, unknown> | null;
@@ -15,6 +16,7 @@ export interface ReceiptDao {
 
 export interface NewReceiptDao {
 	userId: string;
+	householdId: string;
 	imageUrl: string;
 	status?: 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED';
 	storeName?: string | null;

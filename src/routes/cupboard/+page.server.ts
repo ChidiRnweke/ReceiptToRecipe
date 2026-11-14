@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { AppFactory } from '$factories/AppFactory';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) throw redirect(302, '/login');
+	if (!locals.actor) throw redirect(302, '/login');
 
 	const pantryController = AppFactory.getPantryController();
 	const receiptRepo = AppFactory.getReceiptRepository();
@@ -11,10 +11,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const purchaseHistoryRepo = AppFactory.getPurchaseHistoryRepository();
 
 	// Fetch data promises
-	const itemsPromise = pantryController.getUserPantry(locals.user.id);
-	const expiredItemsPromise = pantryController.getExpiredItems(locals.user.id);
-	const recentReceiptsPromise = receiptRepo.findByUserIdWithItems(locals.user.id, 5);
-	const allHistoryPromise = purchaseHistoryRepo.findByUserId(locals.user.id);
+	const itemsPromise = pantryController.getHouseholdPantry(locals.actor);
+	const expiredItemsPromise = pantryController.getExpiredItems(locals.actor);
+	const recentReceiptsPromise = receiptRepo.findByHouseholdIdWithItems(locals.actor.householdId, 5);
+	const allHistoryPromise = purchaseHistoryRepo.findByHouseholdId(locals.actor.householdId);
 
 	return {
 		streamed: {
@@ -28,7 +28,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	addItem: async ({ request, locals }) => {
-		if (!locals.user) throw redirect(302, '/login');
+		if (!locals.actor) throw redirect(302, '/login');
 
 		const data = await request.formData();
 		const itemName = data.get('itemName')?.toString()?.trim();
@@ -45,7 +45,7 @@ export const actions: Actions = {
 		const pantryController = AppFactory.getPantryController();
 
 		try {
-			await pantryController.addManualItem(locals.user.id, {
+			await pantryController.addManualItem(locals.actor, {
 				itemName,
 				quantity,
 				unit,
@@ -60,7 +60,7 @@ export const actions: Actions = {
 	},
 
 	markUsedUp: async ({ request, locals }) => {
-		if (!locals.user) throw redirect(302, '/login');
+		if (!locals.actor) throw redirect(302, '/login');
 
 		const data = await request.formData();
 		const itemId = data.get('itemId')?.toString();
@@ -73,7 +73,7 @@ export const actions: Actions = {
 		const pantryController = AppFactory.getPantryController();
 
 		try {
-			await pantryController.markItemUsedUp(itemId, source);
+			await pantryController.markItemUsedUp(locals.actor, itemId, source);
 			return { success: true };
 		} catch (err) {
 			console.error('Failed to mark item as used:', err);
@@ -82,7 +82,7 @@ export const actions: Actions = {
 	},
 
 	confirmInStock: async ({ request, locals }) => {
-		if (!locals.user) throw redirect(302, '/login');
+		if (!locals.actor) throw redirect(302, '/login');
 
 		const data = await request.formData();
 		const itemId = data.get('itemId')?.toString();
@@ -95,7 +95,7 @@ export const actions: Actions = {
 		const pantryController = AppFactory.getPantryController();
 
 		try {
-			await pantryController.confirmItemInStock(itemId, source);
+			await pantryController.confirmItemInStock(locals.actor, itemId, source);
 			return { success: true };
 		} catch (err) {
 			console.error('Failed to confirm item in stock:', err);
@@ -104,7 +104,7 @@ export const actions: Actions = {
 	},
 
 	updateItem: async ({ request, locals }) => {
-		if (!locals.user) throw redirect(302, '/login');
+		if (!locals.actor) throw redirect(302, '/login');
 
 		const data = await request.formData();
 		const itemId = data.get('itemId')?.toString();
@@ -121,7 +121,7 @@ export const actions: Actions = {
 		const pantryController = AppFactory.getPantryController();
 
 		try {
-			await pantryController.updateItem(itemId, source, {
+			await pantryController.updateItem(locals.actor, itemId, source, {
 				quantity,
 				category,
 				shelfLifeDays
@@ -134,7 +134,7 @@ export const actions: Actions = {
 	},
 
 	deleteItem: async ({ request, locals }) => {
-		if (!locals.user) throw redirect(302, '/login');
+		if (!locals.actor) throw redirect(302, '/login');
 
 		const data = await request.formData();
 		const itemId = data.get('itemId')?.toString();
@@ -146,7 +146,7 @@ export const actions: Actions = {
 		const pantryController = AppFactory.getPantryController();
 
 		try {
-			await pantryController.deleteManualItem(itemId);
+			await pantryController.deleteManualItem(locals.actor, itemId);
 			return { success: true };
 		} catch (err) {
 			console.error('Failed to delete item:', err);
@@ -155,7 +155,7 @@ export const actions: Actions = {
 	},
 
 	addToShoppingList: async ({ request, locals }) => {
-		if (!locals.user) throw redirect(302, '/login');
+		if (!locals.actor) throw redirect(302, '/login');
 
 		const data = await request.formData();
 		const itemName = data.get('itemName')?.toString()?.trim();
@@ -169,7 +169,7 @@ export const actions: Actions = {
 		const pantryController = AppFactory.getPantryController();
 
 		try {
-			await pantryController.addToShoppingList(locals.user.id, itemName, quantity, unit);
+			await pantryController.addToShoppingList(locals.actor, itemName, quantity, unit);
 			return { success: true, addedToList: itemName };
 		} catch (err) {
 			console.error('Failed to add to shopping list:', err);

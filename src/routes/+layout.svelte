@@ -5,7 +5,7 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import WorkflowNav from '$lib/components/WorkflowNav.svelte';
 	import MobileBottomNav from '$lib/components/MobileBottomNav.svelte';
-	import { Settings, LogOut, CalendarDays, Search, Clock3 } from 'lucide-svelte';
+	import { Settings, LogOut, CalendarDays, Search, Clock3, Users } from 'lucide-svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
 	import logo from '$lib/assets/logo.svg';
 	import favicon from '$lib/assets/favicon.svg';
@@ -432,6 +432,12 @@
 								<a href={resolve('/planning')} class="flex w-full items-center">
 									<CalendarDays class="mr-2 h-4 w-4" />
 									Meal planning
+								</a>
+							</DropdownMenu.Item>
+							<DropdownMenu.Item>
+								<a href={resolve('/household')} class="flex w-full items-center">
+									<Users class="mr-2 h-4 w-4" />
+									Household
 								</a>
 							</DropdownMenu.Item>
 							<DropdownMenu.Item>

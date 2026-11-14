@@ -4,14 +4,14 @@ import { AppFactory } from '$lib/factories';
 export const load: LayoutServerLoad = async ({ locals, depends }) => {
 	depends('app:session');
 
-	if (!locals.user) {
+	if (!locals.user || !locals.actor) {
 		return {
 			user: null,
 			workflowCounts: null
 		};
 	}
 
-	const userId = locals.user.id;
+	const actor = locals.actor;
 
 	// Fetch counts for the workflow nav using repositories
 	const receiptRepo = AppFactory.getReceiptRepository();
@@ -19,15 +19,15 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 	const pantryController = AppFactory.getPantryController();
 
 	const [receiptCount, recipeCount, cupboardCount] = await Promise.all([
-		receiptRepo.countByUserId(userId),
-		recipeRepo.countByUserId(userId),
-		pantryController.getCupboardCount(userId)
+		receiptRepo.countByHouseholdId(actor.householdId),
+		recipeRepo.countByHouseholdId(actor.householdId),
+		pantryController.getCupboardCount(actor)
 	]);
 
 	const listController = AppFactory.getShoppingListController();
 	let shoppingItems = 0;
 	try {
-		const activeList = await listController.getActiveList(userId);
+		const activeList = await listController.getActiveList(actor);
 		shoppingItems = activeList.items?.filter((i) => !i.checked).length || 0;
 	} catch {
 		// No active list

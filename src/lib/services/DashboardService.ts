@@ -20,6 +20,7 @@ import type { ShoppingListController } from '$controllers';
 import type { IPantryService, PantryItem } from './interfaces/IPantryService';
 import { PantryController } from '$controllers';
 import { calculateListStatsPure } from './dashboardCalculations';
+import type { Actor } from '$lib/models/household';
 
 export class DashboardService implements IDashboardService {
 	constructor(
@@ -34,25 +35,26 @@ export class DashboardService implements IDashboardService {
 		private cupboardItemRepo: ICupboardItemRepository
 	) {}
 
-	async getDashboardData(userId: string): Promise<DashboardData> {
-		// Fetch all counts and active list in parallel
+	async getDashboardData(actor: Actor): Promise<DashboardData> {
+		const { householdId } = actor;
+		// Fetch all counts and active list in parallel. Saved recipes are per person.
 		const [receiptCount, recipeCount, savedCount, activeList] = await Promise.all([
-			this.receiptRepo.countByUserId(userId),
-			this.recipeRepo.countByUserId(userId),
-			this.savedRecipeRepo.countByUserId(userId),
-			this.shoppingListRepo.findActiveByUserId(userId)
+			this.receiptRepo.countByHouseholdId(householdId),
+			this.recipeRepo.countByHouseholdId(householdId),
+			this.savedRecipeRepo.countByUserId(actor.userId),
+			this.shoppingListRepo.findActiveByHouseholdId(householdId)
 		]);
 
 		// Fetch recent receipts (3)
-		const recentReceipts: ReceiptDao[] = await this.receiptRepo.findByUserId(userId, 3);
+		const recentReceipts: ReceiptDao[] = await this.receiptRepo.findByHouseholdId(householdId, 3);
 
 		// Fetch recent recipes with ingredients (6)
 		const recentRecipes: RecipeWithIngredientsDao[] =
-			await this.recipeRepo.findByUserIdWithIngredients(userId, 6);
+			await this.recipeRepo.findByHouseholdIdWithIngredients(householdId, 6);
 
 		// Fetch smart suggestions (5)
 		const suggestions: SmartSuggestion[] = await this.shoppingListController.getSmartSuggestions(
-			userId,
+			actor,
 			5
 		);
 
@@ -63,7 +65,7 @@ export class DashboardService implements IDashboardService {
 			this.receiptItemRepo,
 			this.cupboardItemRepo
 		);
-		const pantry: PantryItem[] = await pantryController.getUserPantry(userId);
+		const pantry: PantryItem[] = await pantryController.getHouseholdPantry(actor);
 
 		// Calculate metrics
 		const metrics: DashboardMetrics = {

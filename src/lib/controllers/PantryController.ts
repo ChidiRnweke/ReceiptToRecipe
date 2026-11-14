@@ -6,6 +6,7 @@ import type {
 	IShoppingListRepository,
 	IShoppingListItemRepository
 } from '$repositories';
+import type { Actor } from '$lib/models/household';
 
 export interface CupboardStats {
 	totalItems: number;
@@ -45,11 +46,11 @@ export class PantryController {
 	 * Build all pantry items (both receipt + manual) with confidence scores.
 	 * Skips depleted items. Does NOT apply a confidence threshold — callers filter.
 	 */
-	private async buildAllItems(userId: string): Promise<PantryItem[]> {
+	private async buildAllItems(householdId: string): Promise<PantryItem[]> {
 		const pantryItems: PantryItem[] = [];
 
 		// 1. Fetch receipt-sourced items from purchase history (non-depleted)
-		const history = await this.purchaseHistoryRepository.findByUserId(userId);
+		const history = await this.purchaseHistoryRepository.findByHouseholdId(householdId);
 
 		for (const record of history) {
 			if (record.isDepleted) continue;
@@ -68,7 +69,7 @@ export class PantryController {
 
 			// Find the latest receipt item for category/unit details
 			const detail = await this.receiptItemRepository.findLatestByNormalizedName(
-				userId,
+				householdId,
 				record.itemName
 			);
 
@@ -108,7 +109,7 @@ export class PantryController {
 		}
 
 		// 2. Fetch manual cupboard items (non-depleted)
-		const manualItems = await this.cupboardItemRepository.findByUserId(userId);
+		const manualItems = await this.cupboardItemRepository.findByHouseholdId(householdId);
 
 		for (const item of manualItems) {
 			const quantity = item.quantity ? parseFloat(item.quantity) : 1;
@@ -155,8 +156,8 @@ export class PantryController {
 	 * Get the unified cupboard: merges receipt-sourced purchase history with manual cupboard items.
 	 * Returns items above 0.2 confidence, sorted by confidence descending.
 	 */
-	async getUserPantry(userId: string): Promise<PantryItem[]> {
-		const allItems = await this.buildAllItems(userId);
+	async getHouseholdPantry(actor: Actor): Promise<PantryItem[]> {
+		const allItems = await this.buildAllItems(actor.householdId);
 		return allItems
 			.filter((item) => item.stockConfidence > 0.2)
 			.sort((a, b) => b.stockConfidence - a.stockConfidence);
@@ -167,8 +168,8 @@ export class PantryController {
 	 * These are shown in a separate "Expired" section so users can rescue
 	 * (confirm still in stock) or dismiss them (mark as used up).
 	 */
-	async getExpiredItems(userId: string): Promise<PantryItem[]> {
-		const allItems = await this.buildAllItems(userId);
+	async getExpiredItems(actor: Actor): Promise<PantryItem[]> {
+		const allItems = await this.buildAllItems(actor.householdId);
 		return allItems
 			.filter((item) => item.stockConfidence <= 0.2)
 			.sort((a, b) => b.lastPurchased.getTime() - a.lastPurchased.getTime());
@@ -177,9 +178,10 @@ export class PantryController {
 	/**
 	 * Add a manually-entered item to the cupboard
 	 */
-	async addManualItem(userId: string, input: AddManualItemInput): Promise<PantryItem> {
+	async addManualItem(actor: Actor, input: AddManualItemInput): Promise<PantryItem> {
 		const created = await this.cupboardItemRepository.create({
-			userId,
+			userId: actor.userId,
+			householdId: actor.householdId,
 			itemName: input.itemName,
 			quantity: input.quantity,
 			unit: input.unit,
@@ -224,9 +226,28 @@ export class PantryController {
 	}
 
 	/**
+	 * Throws unless the cupboard or purchase-history row belongs to the actor's household
+	 */
+	private async assertItemInHousehold(
+		actor: Actor,
+		itemId: string,
+		source: 'receipt' | 'manual'
+	): Promise<void> {
+		const item =
+			source === 'manual'
+				? await this.cupboardItemRepository.findById(itemId)
+				: await this.purchaseHistoryRepository.findById(itemId);
+
+		if (!item || item.householdId !== actor.householdId) {
+			throw new Error('Item not found');
+		}
+	}
+
+	/**
 	 * Mark an item as "used up" (soft delete)
 	 */
-	async markItemUsedUp(itemId: string, source: 'receipt' | 'manual'): Promise<void> {
+	async markItemUsedUp(actor: Actor, itemId: string, source: 'receipt' | 'manual'): Promise<void> {
+		await this.assertItemInHousehold(actor, itemId, source);
 		if (source === 'manual') {
 			await this.cupboardItemRepository.markDepleted(itemId);
 		} else {
@@ -237,7 +258,12 @@ export class PantryController {
 	/**
 	 * Confirm an item is still in stock (resets confidence clock)
 	 */
-	async confirmItemInStock(itemId: string, source: 'receipt' | 'manual'): Promise<void> {
+	async confirmItemInStock(
+		actor: Actor,
+		itemId: string,
+		source: 'receipt' | 'manual'
+	): Promise<void> {
+		await this.assertItemInHousehold(actor, itemId, source);
 		if (source === 'manual') {
 			// For manual items, reset the added_date to now
 			await this.cupboardItemRepository.update(itemId, {
@@ -256,10 +282,12 @@ export class PantryController {
 	 * Update item details (quantity, category, shelf life, notes)
 	 */
 	async updateItem(
+		actor: Actor,
 		itemId: string,
 		source: 'receipt' | 'manual',
 		input: UpdateItemInput
 	): Promise<void> {
+		await this.assertItemInHousehold(actor, itemId, source);
 		if (source === 'manual') {
 			await this.cupboardItemRepository.update(itemId, {
 				quantity: input.quantity,
@@ -279,15 +307,16 @@ export class PantryController {
 	/**
 	 * Delete a manual cupboard item permanently
 	 */
-	async deleteManualItem(itemId: string): Promise<void> {
+	async deleteManualItem(actor: Actor, itemId: string): Promise<void> {
+		await this.assertItemInHousehold(actor, itemId, 'manual');
 		await this.cupboardItemRepository.delete(itemId);
 	}
 
 	/**
 	 * Get summary statistics for the cupboard
 	 */
-	async getCupboardStats(userId: string): Promise<CupboardStats> {
-		const items = await this.getUserPantry(userId);
+	async getCupboardStats(actor: Actor): Promise<CupboardStats> {
+		const items = await this.getHouseholdPantry(actor);
 
 		let lastStocked: Date | null = null;
 		let inStock = 0;
@@ -319,20 +348,20 @@ export class PantryController {
 
 	/**
 	 * Get total count of active cupboard items (for nav badge).
-	 * Uses the same confidence-filtered logic as getUserPantry() so the badge
+	 * Uses the same confidence-filtered logic as getHouseholdPantry() so the badge
 	 * count matches the actual number of visible items.
 	 */
-	async getCupboardCount(userId: string): Promise<number> {
-		const items = await this.getUserPantry(userId);
+	async getCupboardCount(actor: Actor): Promise<number> {
+		const items = await this.getHouseholdPantry(actor);
 		return items.length;
 	}
 
 	/**
-	 * Add a cupboard item to the user's active shopping list.
+	 * Add a cupboard item to the household's active shopping list.
 	 * Creates a new list if none exists.
 	 */
 	async addToShoppingList(
-		userId: string,
+		actor: Actor,
 		itemName: string,
 		quantity?: string | null,
 		unit?: string | null
@@ -342,13 +371,16 @@ export class PantryController {
 		}
 
 		// Get or create the active shopping list
-		const existingList = await this.shoppingListRepository.findActiveByUserId(userId);
+		const existingList = await this.shoppingListRepository.findActiveByHouseholdId(
+			actor.householdId
+		);
 		let listId: string;
 		if (existingList) {
 			listId = existingList.id;
 		} else {
 			const newList = await this.shoppingListRepository.create({
-				userId,
+				userId: actor.userId,
+				householdId: actor.householdId,
 				name: 'Shopping List',
 				isActive: true
 			});

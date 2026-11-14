@@ -3,14 +3,14 @@ import type { Actions, PageServerLoad } from './$types';
 import { AppFactory } from '$lib/factories';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) {
+	if (!locals.actor) {
 		throw redirect(302, '/login');
 	}
 };
 
 export const actions: Actions = {
 	default: async ({ request, locals }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -32,7 +32,7 @@ export const actions: Actions = {
 		try {
 			const receiptController = AppFactory.getReceiptController();
 			const receipt = await receiptController.uploadReceipt({
-				userId: locals.user.id,
+				actor: locals.actor,
 				file
 			});
 

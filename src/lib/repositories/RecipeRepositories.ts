@@ -43,21 +43,21 @@ export class RecipeRepository implements IRecipeRepository {
 		};
 	}
 
-	async findByUserId(userId: string, limit = 20): Promise<RecipeDao[]> {
+	async findByHouseholdId(householdId: string, limit = 20): Promise<RecipeDao[]> {
 		const recipes = await this.db.query.recipes.findMany({
-			where: eq(schema.recipes.userId, userId),
+			where: eq(schema.recipes.householdId, householdId),
 			orderBy: [desc(schema.recipes.createdAt)],
 			limit
 		});
 		return recipes.map((r) => this.toDao(r));
 	}
 
-	async findByUserIdWithIngredients(
-		userId: string,
+	async findByHouseholdIdWithIngredients(
+		householdId: string,
 		limit = 20
 	): Promise<RecipeWithIngredientsDao[]> {
 		const recipes = await this.db.query.recipes.findMany({
-			where: eq(schema.recipes.userId, userId),
+			where: eq(schema.recipes.householdId, householdId),
 			orderBy: [desc(schema.recipes.createdAt)],
 			limit,
 			with: { ingredients: true }
@@ -91,6 +91,7 @@ export class RecipeRepository implements IRecipeRepository {
 			.insert(schema.recipes)
 			.values({
 				userId: recipe.userId,
+				householdId: recipe.householdId,
 				sourceReceiptId: recipe.sourceReceiptId || null,
 				title: recipe.title,
 				description: recipe.description || null,
@@ -166,11 +167,11 @@ export class RecipeRepository implements IRecipeRepository {
 			.map((c) => ({ receiptId: c.sourceReceiptId!, count: c.count }));
 	}
 
-	async countByUserId(userId: string): Promise<number> {
+	async countByHouseholdId(householdId: string): Promise<number> {
 		const result = await this.db
 			.select({ count: sql<number>`count(*)`.as('count') })
 			.from(schema.recipes)
-			.where(eq(schema.recipes.userId, userId));
+			.where(eq(schema.recipes.householdId, householdId));
 
 		return result[0]?.count || 0;
 	}
@@ -179,6 +180,7 @@ export class RecipeRepository implements IRecipeRepository {
 		return {
 			id: recipe.id,
 			userId: recipe.userId,
+			householdId: recipe.householdId,
 			sourceReceiptId: recipe.sourceReceiptId,
 			title: recipe.title,
 			description: recipe.description,
@@ -268,6 +270,7 @@ export class SavedRecipeRepository implements ISavedRecipeRepository {
 				? {
 						id: s.recipe.id,
 						userId: s.recipe.userId,
+						householdId: s.recipe.householdId,
 						sourceReceiptId: s.recipe.sourceReceiptId,
 						title: s.recipe.title,
 						description: s.recipe.description,

@@ -1,4 +1,5 @@
 import type { MealLogDao } from '$repositories';
+import type { Actor } from '$lib/models/household';
 
 export interface NutritionDaySummary {
 	date: string;
@@ -52,5 +53,5 @@ export interface NutritionAggregateOptions {
 }
 
 export interface INutritionService {
-	getAggregates(userId: string, options?: NutritionAggregateOptions): Promise<NutritionAggregates>;
+	getAggregates(actor: Actor, options?: NutritionAggregateOptions): Promise<NutritionAggregates>;
 }

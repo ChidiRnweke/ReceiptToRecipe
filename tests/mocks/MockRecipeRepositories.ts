@@ -46,18 +46,18 @@ export class MockRecipeRepository implements IRecipeRepository {
 		return ids.map((id) => this.recipes.get(id)).filter((r): r is RecipeDao => !!r);
 	}
 
-	async findByUserId(userId: string, limit?: number): Promise<RecipeDao[]> {
+	async findByHouseholdId(householdId: string, limit?: number): Promise<RecipeDao[]> {
 		const results = Array.from(this.recipes.values())
-			.filter((r) => r.userId === userId)
+			.filter((r) => r.householdId === householdId)
 			.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 		return limit ? results.slice(0, limit) : results;
 	}
 
-	async findByUserIdWithIngredients(
-		userId: string,
+	async findByHouseholdIdWithIngredients(
+		householdId: string,
 		limit?: number
 	): Promise<RecipeWithIngredientsDao[]> {
-		const recipes = await this.findByUserId(userId, limit);
+		const recipes = await this.findByHouseholdId(householdId, limit);
 		const results: RecipeWithIngredientsDao[] = [];
 		for (const r of recipes) {
 			let ingredients: RecipeIngredientDao[] = [];
@@ -78,6 +78,7 @@ export class MockRecipeRepository implements IRecipeRepository {
 		const created: RecipeDao = {
 			id: uuidv4(),
 			userId: recipe.userId,
+			householdId: recipe.householdId,
 			sourceReceiptId: recipe.sourceReceiptId || null,
 			title: recipe.title,
 			description: recipe.description || null,
@@ -107,6 +108,7 @@ export class MockRecipeRepository implements IRecipeRepository {
 			...recipe,
 			id: existing.id,
 			userId: existing.userId,
+			householdId: existing.householdId,
 			sourceReceiptId: existing.sourceReceiptId,
 			createdAt: existing.createdAt,
 			updatedAt: new Date()
@@ -143,8 +145,8 @@ export class MockRecipeRepository implements IRecipeRepository {
 		}));
 	}
 
-	async countByUserId(userId: string): Promise<number> {
-		return Array.from(this.recipes.values()).filter((r) => r.userId === userId).length;
+	async countByHouseholdId(householdId: string): Promise<number> {
+		return Array.from(this.recipes.values()).filter((r) => r.householdId === householdId).length;
 	}
 
 	// Test helpers

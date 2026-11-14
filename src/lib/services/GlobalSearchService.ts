@@ -29,7 +29,11 @@ export class GlobalSearchService {
 
 	constructor(private db: Database) {}
 
-	async search(userId: string, query: string, limitPerGroup = 5): Promise<GlobalSearchResponse> {
+	async search(
+		householdId: string,
+		query: string,
+		limitPerGroup = 5
+	): Promise<GlobalSearchResponse> {
 		const normalizedQuery = query.trim();
 		if (normalizedQuery.length === 0) {
 			return {
@@ -44,9 +48,9 @@ export class GlobalSearchService {
 		const useTrigram = await this.isTrigramEnabled();
 
 		const [recipes, cupboard, receipts] = await Promise.all([
-			this.searchRecipes(userId, normalizedQuery, likeValue, limitPerGroup, useTrigram),
-			this.searchCupboard(userId, normalizedQuery, likeValue, limitPerGroup, useTrigram),
-			this.searchReceipts(userId, normalizedQuery, likeValue, limitPerGroup, useTrigram)
+			this.searchRecipes(householdId, normalizedQuery, likeValue, limitPerGroup, useTrigram),
+			this.searchCupboard(householdId, normalizedQuery, likeValue, limitPerGroup, useTrigram),
+			this.searchReceipts(householdId, normalizedQuery, likeValue, limitPerGroup, useTrigram)
 		]);
 
 		const total = recipes.length + cupboard.length + receipts.length;
@@ -71,7 +75,7 @@ export class GlobalSearchService {
 	}
 
 	private async searchRecipes(
-		userId: string,
+		householdId: string,
 		query: string,
 		likeValue: string,
 		limit: number,
@@ -107,7 +111,7 @@ export class GlobalSearchService {
 				r.cuisine_type,
 				${scoreExpr} AS score
 			FROM recipes r
-			WHERE r.user_id = ${userId}
+			WHERE r.household_id = ${householdId}
 				AND (
 					to_tsvector('english', COALESCE(r.title, '') || ' ' || COALESCE(r.description, '') || ' ' || COALESCE(r.instructions, '')) @@ websearch_to_tsquery('english', ${query})
 					OR COALESCE(r.title, '') ILIKE ${likeValue}
@@ -128,7 +132,7 @@ export class GlobalSearchService {
 	}
 
 	private async searchCupboard(
-		userId: string,
+		householdId: string,
 		query: string,
 		likeValue: string,
 		limit: number,
@@ -168,7 +172,7 @@ export class GlobalSearchService {
 				c.unit,
 				${scoreExpr} AS score
 			FROM cupboard_items c
-			WHERE c.user_id = ${userId}
+			WHERE c.household_id = ${householdId}
 				AND c.is_depleted = false
 				AND (
 					to_tsvector('english', COALESCE(c.item_name, '') || ' ' || COALESCE(c.category, '') || ' ' || COALESCE(c.notes, '')) @@ websearch_to_tsquery('english', ${query})
@@ -193,7 +197,7 @@ export class GlobalSearchService {
 	}
 
 	private async searchReceipts(
-		userId: string,
+		householdId: string,
 		query: string,
 		likeValue: string,
 		limit: number,
@@ -234,7 +238,7 @@ export class GlobalSearchService {
 				${scoreExpr} AS score
 			FROM receipts r
 			LEFT JOIN receipt_items ri ON ri.receipt_id = r.id
-			WHERE r.user_id = ${userId}
+			WHERE r.household_id = ${householdId}
 				AND (
 					COALESCE(r.store_name, '') ILIKE ${likeValue}
 					OR COALESCE(ri.normalized_name, '') ILIKE ${likeValue}

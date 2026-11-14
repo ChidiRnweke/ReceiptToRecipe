@@ -13,6 +13,7 @@ import {
 	MockPantryService,
 	MockCupboardItemRepository
 } from '../../mocks';
+import type { Actor } from '../../../src/lib/models/household';
 
 describe('DashboardService', () => {
 	let service: DashboardService;
@@ -32,6 +33,14 @@ describe('DashboardService', () => {
 	let shoppingListController: ShoppingListController;
 
 	const userId = 'user-dash-1';
+	const householdId = 'household-dash-1';
+	const actor: Actor = {
+		userId,
+		householdId,
+		memberId: 'member-dash-1',
+		displayName: 'Dash',
+		roles: { plans: true, shops: true, cooks: true }
+	};
 
 	beforeEach(() => {
 		receiptRepo = new MockReceiptRepository();
@@ -56,7 +65,9 @@ describe('DashboardService', () => {
 			shoppingListItemRepo,
 			purchaseHistoryRepo,
 			recipeIngredientRepo,
-			receiptItemRepo
+			receiptItemRepo,
+			recipeRepo,
+			receiptRepo
 		);
 
 		service = new DashboardService(
@@ -74,7 +85,7 @@ describe('DashboardService', () => {
 
 	describe('getDashboardData', () => {
 		it('should return empty dashboard when user has no data', async () => {
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			expect(data.metrics).toEqual({
 				receipts: 0,
@@ -96,6 +107,7 @@ describe('DashboardService', () => {
 				receipts.push(
 					await receiptRepo.create({
 						userId,
+						householdId,
 						imageUrl: `https://example.com/receipt-${i}.jpg`,
 						status: 'DONE',
 						storeName: `Store ${i}`
@@ -103,7 +115,7 @@ describe('DashboardService', () => {
 				);
 			}
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			expect(data.metrics.receipts).toBe(5);
 			// getDashboardData requests 3 recent receipts
@@ -115,6 +127,7 @@ describe('DashboardService', () => {
 			for (let i = 0; i < 8; i++) {
 				const recipe = await recipeRepo.create({
 					userId,
+					householdId,
 					title: `Recipe ${i}`,
 					instructions: `Steps for recipe ${i}`,
 					servings: 4
@@ -131,7 +144,7 @@ describe('DashboardService', () => {
 				]);
 			}
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			expect(data.metrics.recipes).toBe(8);
 			// getDashboardData requests 6 recent recipes
@@ -145,12 +158,14 @@ describe('DashboardService', () => {
 			// Create recipes and save some
 			const r1 = await recipeRepo.create({
 				userId,
+				householdId,
 				title: 'Recipe 1',
 				instructions: 'Steps 1',
 				servings: 2
 			});
 			const r2 = await recipeRepo.create({
 				userId,
+				householdId,
 				title: 'Recipe 2',
 				instructions: 'Steps 2',
 				servings: 2
@@ -159,7 +174,7 @@ describe('DashboardService', () => {
 			await savedRecipeRepo.create({ userId, recipeId: r1.id });
 			await savedRecipeRepo.create({ userId, recipeId: r2.id });
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			expect(data.metrics.saved).toBe(2);
 		});
@@ -167,6 +182,7 @@ describe('DashboardService', () => {
 		it('should return active shopping list with items and stats', async () => {
 			const list = await shoppingListRepo.create({
 				userId,
+				householdId,
 				name: 'Weekly Groceries',
 				isActive: true
 			});
@@ -197,7 +213,7 @@ describe('DashboardService', () => {
 				}
 			]);
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			expect(data.activeList).not.toBeNull();
 			expect(data.activeList!.id).toBe(list.id);
@@ -215,11 +231,12 @@ describe('DashboardService', () => {
 			// Create an inactive list
 			await shoppingListRepo.create({
 				userId,
+				householdId,
 				name: 'Old List',
 				isActive: false
 			});
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			expect(data.activeList).toBeNull();
 			expect(data.metrics.activeListItems).toBe(0);
@@ -233,6 +250,7 @@ describe('DashboardService', () => {
 			// Item must have avgFrequencyDays and daysSinceLastPurchase >= avgFrequencyDays * 0.8
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Milk',
 				lastPurchased: thirtyDaysAgo,
 				purchaseCount: 5,
@@ -242,6 +260,7 @@ describe('DashboardService', () => {
 
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Bread',
 				lastPurchased: thirtyDaysAgo,
 				purchaseCount: 3,
@@ -249,7 +268,7 @@ describe('DashboardService', () => {
 				avgFrequencyDays: 10
 			});
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			// getDashboardData requests 5 suggestions
 			expect(data.suggestions.length).toBeGreaterThanOrEqual(2);
@@ -265,6 +284,7 @@ describe('DashboardService', () => {
 
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Butter',
 				lastPurchased: recentDate,
 				purchaseCount: 3,
@@ -275,6 +295,7 @@ describe('DashboardService', () => {
 			// Create a receipt item so the pantry controller can find category info
 			const receipt = await receiptRepo.create({
 				userId,
+				householdId,
 				imageUrl: 'https://example.com/r.jpg',
 				status: 'DONE'
 			});
@@ -288,7 +309,7 @@ describe('DashboardService', () => {
 				category: 'dairy'
 			});
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			expect(data.pantry.length).toBeGreaterThanOrEqual(1);
 			const butterItem = data.pantry.find((p) => p.itemName === 'Butter');
@@ -304,6 +325,7 @@ describe('DashboardService', () => {
 
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Ancient Spice',
 				lastPurchased: oldDate,
 				purchaseCount: 1,
@@ -311,7 +333,7 @@ describe('DashboardService', () => {
 				avgFrequencyDays: 30
 			});
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			const found = data.pantry.find((p) => p.itemName === 'Ancient Spice');
 			expect(found).toBeUndefined();
@@ -326,6 +348,7 @@ describe('DashboardService', () => {
 			for (let i = 0; i < 4; i++) {
 				await receiptRepo.create({
 					userId,
+					householdId,
 					imageUrl: `https://example.com/r${i}.jpg`,
 					status: 'DONE'
 				});
@@ -335,6 +358,7 @@ describe('DashboardService', () => {
 			for (let i = 0; i < 3; i++) {
 				const recipe = await recipeRepo.create({
 					userId,
+					householdId,
 					title: `Recipe ${i}`,
 					instructions: `Steps ${i}`,
 					servings: 2
@@ -352,12 +376,13 @@ describe('DashboardService', () => {
 			}
 
 			// Save one recipe
-			const allRecipes = await recipeRepo.findByUserId(userId);
+			const allRecipes = await recipeRepo.findByHouseholdId(householdId);
 			await savedRecipeRepo.create({ userId, recipeId: allRecipes[0].id });
 
 			// Active shopping list with 2 items
 			const list = await shoppingListRepo.create({
 				userId,
+				householdId,
 				name: 'Current List',
 				isActive: true
 			});
@@ -379,6 +404,7 @@ describe('DashboardService', () => {
 			// Purchase history for suggestions
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Coffee',
 				lastPurchased: thirtyDaysAgo,
 				purchaseCount: 10,
@@ -389,6 +415,7 @@ describe('DashboardService', () => {
 			// Recent purchase for pantry
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Eggs',
 				lastPurchased: fiveDaysAgo,
 				purchaseCount: 5,
@@ -396,7 +423,7 @@ describe('DashboardService', () => {
 				avgFrequencyDays: 10
 			});
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			// Verify all sections
 			expect(data.metrics.receipts).toBe(4);
@@ -426,28 +453,32 @@ describe('DashboardService', () => {
 			expect(eggsPantry!.stockConfidence).toBeGreaterThan(0.2);
 		});
 
-		it('should not mix data from other users', async () => {
+		it('should not mix data from other households', async () => {
 			const otherUserId = 'user-other';
+			const otherHouseholdId = 'household-other';
 
 			// Create data for other user
 			await receiptRepo.create({
 				userId: otherUserId,
+				householdId: otherHouseholdId,
 				imageUrl: 'https://example.com/other.jpg',
 				status: 'DONE'
 			});
 			await recipeRepo.create({
 				userId: otherUserId,
+				householdId: otherHouseholdId,
 				title: 'Other Recipe',
 				instructions: 'Other steps',
 				servings: 2
 			});
 			await shoppingListRepo.create({
 				userId: otherUserId,
+				householdId: otherHouseholdId,
 				name: 'Other List',
 				isActive: true
 			});
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			expect(data.metrics.receipts).toBe(0);
 			expect(data.metrics.recipes).toBe(0);
@@ -457,14 +488,43 @@ describe('DashboardService', () => {
 			expect(data.activeList).toBeNull();
 		});
 
+		it('counts receipts uploaded by another member of the same household', async () => {
+			await receiptRepo.create({
+				userId: 'user-housemate',
+				householdId,
+				imageUrl: 'https://example.com/housemate.jpg',
+				status: 'DONE'
+			});
+
+			const data = await service.getDashboardData(actor);
+
+			expect(data.metrics.receipts).toBe(1);
+		});
+
+		it('does not count recipes saved by another member of the same household', async () => {
+			const recipe = await recipeRepo.create({
+				userId,
+				householdId,
+				title: 'Shared Recipe',
+				instructions: 'Steps',
+				servings: 2
+			});
+			await savedRecipeRepo.create({ userId: 'user-housemate', recipeId: recipe.id });
+
+			const data = await service.getDashboardData(actor);
+
+			expect(data.metrics.saved).toBe(0);
+		});
+
 		it('should return active list stats as null when active list has no items', async () => {
 			await shoppingListRepo.create({
 				userId,
+				householdId,
 				name: 'Empty List',
 				isActive: true
 			});
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			expect(data.activeList).not.toBeNull();
 			expect(data.activeList!.items).toHaveLength(0);
@@ -476,6 +536,7 @@ describe('DashboardService', () => {
 		it('should return 100% completion when all items are checked', async () => {
 			const list = await shoppingListRepo.create({
 				userId,
+				householdId,
 				name: 'Done List',
 				isActive: true
 			});
@@ -494,7 +555,7 @@ describe('DashboardService', () => {
 				}
 			]);
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			expect(data.activeList!.stats).toEqual({
 				totalItems: 2,
@@ -507,12 +568,13 @@ describe('DashboardService', () => {
 			for (let i = 0; i < 10; i++) {
 				await receiptRepo.create({
 					userId,
+					householdId,
 					imageUrl: `https://example.com/r${i}.jpg`,
 					status: 'DONE'
 				});
 			}
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			expect(data.recentReceipts).toHaveLength(3);
 		});
@@ -521,13 +583,14 @@ describe('DashboardService', () => {
 			for (let i = 0; i < 10; i++) {
 				await recipeRepo.create({
 					userId,
+					householdId,
 					title: `Recipe ${i}`,
 					instructions: `Steps ${i}`,
 					servings: 2
 				});
 			}
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			expect(data.recentRecipes).toHaveLength(6);
 		});
@@ -540,6 +603,7 @@ describe('DashboardService', () => {
 			for (let i = 0; i < 10; i++) {
 				await purchaseHistoryRepo.create({
 					userId,
+					householdId,
 					itemName: `Item ${i}`,
 					lastPurchased: longAgo,
 					purchaseCount: 5,
@@ -548,7 +612,7 @@ describe('DashboardService', () => {
 				});
 			}
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			expect(data.suggestions).toHaveLength(5);
 		});
@@ -560,6 +624,7 @@ describe('DashboardService', () => {
 
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Fresh Item',
 				lastPurchased: oneDayAgo,
 				purchaseCount: 3,
@@ -569,6 +634,7 @@ describe('DashboardService', () => {
 
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Older Item',
 				lastPurchased: fiveDaysAgo,
 				purchaseCount: 3,
@@ -576,7 +642,7 @@ describe('DashboardService', () => {
 				avgFrequencyDays: 14
 			});
 
-			const data = await service.getDashboardData(userId);
+			const data = await service.getDashboardData(actor);
 
 			expect(data.pantry.length).toBeGreaterThanOrEqual(2);
 			// First item should have higher confidence than second
