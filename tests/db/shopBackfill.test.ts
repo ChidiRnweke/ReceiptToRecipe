@@ -43,6 +43,12 @@ describe('shop door migration backfill', () => {
 			`INSERT INTO shopping_list_items (shopping_list_id, name, quantity, unit) VALUES ($1, '  Baby  Spinach ', 200, 'g')`,
 			[list.rows[0].id]
 		);
+		for (const status of ['DONE', 'QUEUED']) {
+			await pool.query(
+				`INSERT INTO receipts (user_id, household_id, image_url, status) VALUES ($1, $2, $3, $4)`,
+				[user.rows[0].id, household.rows[0].id, `mock://receipts/${status}.jpg`, status]
+			);
+		}
 
 		await applyMigration(pool, migrationTag('0014'));
 	});
@@ -50,6 +56,22 @@ describe('shop door migration backfill', () => {
 	afterAll(async () => {
 		await pool?.end();
 		await container?.stop();
+	});
+
+	async function shopRecorded(status: string): Promise<boolean> {
+		const result = await pool.query(
+			`SELECT shop_recorded_at IS NOT NULL AS recorded FROM receipts WHERE status = $1`,
+			[status]
+		);
+		return result.rows[0].recorded;
+	}
+
+	it('marks a receipt that was already read as counted', async () => {
+		expect(await shopRecorded('DONE')).toBe(true);
+	});
+
+	it('leaves a receipt still to be read uncounted', async () => {
+		expect(await shopRecorded('QUEUED')).toBe(false);
 	});
 
 	it('marks an existing item as added by hand', async () => {

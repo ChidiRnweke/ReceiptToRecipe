@@ -15,6 +15,7 @@ import type {
 	KitchenAuthor,
 	KitchenPicture,
 	RecordCookedInput,
+	RecordShopClosedInput,
 	RecordShopDoneInput,
 	WithdrawCupboardItemInput
 } from './interfaces/IKitchenService';
@@ -163,15 +164,23 @@ export class KitchenService implements IKitchenService {
 		);
 		return this.kitchenEventRepository.appendMany([
 			...bought,
-			{
-				householdId: input.author.householdId,
-				actorUserId: input.author.userId,
-				occurredAt: input.at,
-				kind: 'SHOP_DONE',
-				method: input.method,
-				payload: { ...input.details, itemCount: bought.length }
-			}
+			this.shopDoneEvent({ ...input, itemCount: bought.length })
 		]);
+	}
+
+	async recordShopClosed(input: RecordShopClosedInput): Promise<KitchenEvent> {
+		return this.kitchenEventRepository.append(this.shopDoneEvent(input));
+	}
+
+	private shopDoneEvent(input: RecordShopClosedInput): NewKitchenEvent {
+		return {
+			householdId: input.author.householdId,
+			actorUserId: input.author.userId,
+			occurredAt: input.at,
+			kind: 'SHOP_DONE',
+			method: input.method,
+			payload: { ...input.details, itemCount: input.itemCount }
+		};
 	}
 
 	async recordBought(

@@ -175,6 +175,8 @@ export const receipts = pgTable(
 		totalAmount: decimal('total_amount', { precision: 10, scale: 2 }),
 		currency: text('currency').default('USD'),
 		errorMessage: text('error_message'),
+		/** When the OCR job counted the receipt's shop: its SHOP_DONE and purchase history. */
+		shopRecordedAt: timestamp('shop_recorded_at'),
 		createdAt: timestamp('created_at').notNull().defaultNow(),
 		updatedAt: timestamp('updated_at').notNull().defaultNow()
 	},

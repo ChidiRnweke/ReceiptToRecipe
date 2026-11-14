@@ -69,6 +69,12 @@ export interface RecordShopDoneInput {
 	details?: Record<string, unknown>;
 }
 
+/** A shop whose purchases were recorded on their own, e.g. a receipt's lines as they are read. */
+export interface RecordShopClosedInput extends Omit<RecordShopDoneInput, 'items'> {
+	/** How many things the shop bought. */
+	itemCount: number;
+}
+
 export interface IKitchenService {
 	/**
 	 * What the household's kitchen holds now, projected from its events. Local days use
@@ -81,6 +87,8 @@ export interface IKitchenService {
 	correct(input: CorrectionInput): Promise<KitchenEvent>;
 	/** One BOUGHT per item, then the SHOP_DONE that closes the shop. */
 	recordShopDone(input: RecordShopDoneInput): Promise<KitchenEvent[]>;
+	/** Only the SHOP_DONE that closes a shop whose BOUGHT events are recorded separately. */
+	recordShopClosed(input: RecordShopClosedInput): Promise<KitchenEvent>;
 	/** BOUGHT events outside a shop, such as an item added to the cupboard by hand. */
 	recordBought(
 		author: KitchenAuthor,

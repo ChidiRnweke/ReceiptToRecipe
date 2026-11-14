@@ -10,6 +10,8 @@ export interface ReceiptDao {
 	totalAmount: string | null;
 	currency: string | null;
 	errorMessage: string | null;
+	/** When the OCR job counted this receipt's shop. Null until then. */
+	shopRecordedAt: Date | null;
 	createdAt: Date;
 	updatedAt: Date;
 }

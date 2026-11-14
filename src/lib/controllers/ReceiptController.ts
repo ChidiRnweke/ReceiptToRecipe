@@ -119,9 +119,16 @@ export class ReceiptController {
 	}
 
 	/**
-	 * Background OCR processing.
-	 * Uses the raw image buffer directly so OCR doesn't need to fetch
+	 * Background OCR processing. Uses the raw image buffer directly so OCR doesn't need to fetch
 	 * from an internal MinIO URL or a proxy URL.
+	 *
+	 * Safe to run again for the same receipt, as `resumePendingReceipts` does after a crash part
+	 * of the way through:
+	 * - The lines are replaced, never added to, and the BOUGHT events of the lines they replace
+	 *   are forgotten first, so the receipt keeps one set of lines with one BOUGHT each.
+	 * - The SHOP_DONE and the purchase history are written by the one reading that claims the
+	 *   receipt's `shopRecordedAt` mark. A crash after the claim loses them rather than doubling
+	 *   them: a missed count is harmless, a double count teaches wrong habits.
 	 */
 	private async processReceiptOcr(
 		receiptId: string,
@@ -132,7 +139,6 @@ export class ReceiptController {
 		mimeType: string
 	): Promise<void> {
 		try {
-			// Get receipt to access upload date
 			const receipt = await this.receiptRepository.findById(receiptId);
 			if (!receipt) {
 				throw new Error('Receipt not found');
@@ -140,26 +146,40 @@ export class ReceiptController {
 
 			// Use receipt upload date (createdAt) as the purchase date
 			const purchaseDate = receipt.createdAt;
+			const author = { userId: receipt.userId, householdId };
 
-			// Update status to PROCESSING
 			await this.receiptRepository.update(receiptId, {
 				status: 'PROCESSING'
 			});
 
 			// Extract data via OCR using the buffer directly
 			const ocrData = await this.receiptExtractor.extractReceiptFromBuffer(imageBuffer, mimeType);
-			console.log('OCR Data:', ocrData);
 
-			// Normalize and save items
-			const savedItems = await this.saveReceiptData(
-				receiptId,
+			const foodItems = await this.normalizeLines(receiptId, ocrData);
+			const earlier = await this.receiptItemRepository.findByReceiptId(receiptId);
+			await this.kitchenService.forgetReceiptItems(
 				householdId,
-				ocrData,
+				earlier.map((item) => item.id)
+			);
+			const savedItems = await this.receiptItemRepository.replaceForReceipt(receiptId, foodItems);
+			await this.kitchenService.recordBought(
+				author,
+				savedItems.map((item) => this.toBoughtItem(item)),
 				purchaseDate,
-				timeZone
+				'receipt'
 			);
 
-			// Update status to DONE
+			if (await this.receiptRepository.claimShopRecording(receiptId, new Date())) {
+				await this.updatePurchaseHistory(author, foodItems, purchaseDate, timeZone);
+				await this.kitchenService.recordShopClosed({
+					author,
+					method: 'RECEIPT',
+					itemCount: savedItems.length,
+					at: purchaseDate,
+					details: { receiptId }
+				});
+			}
+
 			await this.receiptRepository.update(receiptId, {
 				status: 'DONE',
 				rawOcrData: ocrData as unknown as Record<string, unknown>,
@@ -168,37 +188,12 @@ export class ReceiptController {
 				totalAmount: ocrData.total?.replace(/[^0-9.]/g, '') || undefined,
 				currency: ocrData.currency || 'USD'
 			});
-
-			await this.recordReceiptShop(receipt, householdId, savedItems, purchaseDate);
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			await this.receiptRepository.update(receiptId, {
 				status: 'FAILED',
 				errorMessage
 			});
-		}
-	}
-
-	/**
-	 * Records the finished receipt in the kitchen log: what was bought, and that a shop happened.
-	 * The receipt is already DONE, so a failure here is logged rather than failing the receipt.
-	 */
-	private async recordReceiptShop(
-		receipt: ReceiptDao,
-		householdId: string,
-		items: ReceiptItemDao[],
-		purchaseDate: Date
-	): Promise<void> {
-		try {
-			await this.kitchenService.recordShopDone({
-				author: { userId: receipt.userId, householdId },
-				method: 'RECEIPT',
-				items: items.map((item) => this.toBoughtItem(item)),
-				at: purchaseDate,
-				details: { receiptId: receipt.id }
-			});
-		} catch (error) {
-			console.error(`Recording kitchen events failed for receipt ${receipt.id}:`, error);
 		}
 	}
 
@@ -212,23 +207,12 @@ export class ReceiptController {
 		};
 	}
 
-	/**
-	 * Save normalized receipt items
-	 */
-	private async saveReceiptData(
+	/** The receipt's food lines, normalized. */
+	private async normalizeLines(
 		receiptId: string,
-		householdId: string,
-		ocrData: RawReceiptData,
-		purchaseDate: Date,
-		timeZone: string
-	): Promise<ReceiptItemDao[]> {
-		const receipt = await this.receiptRepository.findById(receiptId);
-
-		if (!receipt) {
-			throw new Error('Receipt not found');
-		}
-
-		const allNormalizedItems: (NewReceiptItemDao & { isFoodItem: boolean })[] = await Promise.all(
+		ocrData: RawReceiptData
+	): Promise<NewReceiptItemDao[]> {
+		const lines = await Promise.all(
 			(ocrData.items || []).map(async (item) => {
 				const nameStr = typeof item.name === 'string' ? item.name : String(item.name || '');
 				const rawName = nameStr.trim() || 'Unknown Item';
@@ -238,7 +222,7 @@ export class ReceiptController {
 				// Use AI for advanced product normalization
 				const productInfo = await this.productNormalizer.normalizeProduct(rawName);
 
-				return {
+				const line: NewReceiptItemDao = {
 					receiptId,
 					rawName,
 					normalizedName: productInfo.normalizedName,
@@ -250,27 +234,12 @@ export class ReceiptController {
 							? item.price.replace(/[^0-9.]/g, '')
 							: undefined,
 					category: productInfo.category || 'other',
-					productGroup: productInfo.productGroup,
-					isFoodItem: productInfo.isFoodItem
+					productGroup: productInfo.productGroup
 				};
+				return { line, isFoodItem: productInfo.isFoodItem };
 			})
 		);
-
-		// Filter out non-food items
-		const foodItems = allNormalizedItems.filter((item) => item.isFoodItem);
-
-		if (foodItems.length === 0) return [];
-
-		const saved = await this.receiptItemRepository.createMany(foodItems);
-
-		// Update purchase history - use receipt upload date
-		await this.updatePurchaseHistory(
-			{ userId: receipt.userId, householdId },
-			foodItems,
-			purchaseDate,
-			timeZone
-		);
-		return saved;
+		return lines.filter((entry) => entry.isFoodItem).map((entry) => entry.line);
 	}
 
 	/**
