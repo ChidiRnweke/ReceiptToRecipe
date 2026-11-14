@@ -1,6 +1,6 @@
 {
-  "id": "634a6e72-264c-480a-a393-b7d2788d03c1",
-  "prevId": "e8d94137-e63f-4555-bc55-4276613cd707",
+  "id": "dfe6848f-1700-45bb-8f0b-a9c41ff58fb1",
+  "prevId": "3093b5d8-3f7a-451d-9d24-8d56ac6e37e5",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -602,6 +602,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "time_zone": {
+          "name": "time_zone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Europe/Brussels'"
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -716,6 +723,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "cupboard_item_id": {
+          "name": "cupboard_item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "method": {
           "name": "method",
           "type": "shop_method",
@@ -819,6 +832,19 @@
           "tableTo": "recipes",
           "columnsFrom": [
             "recipe_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "kitchen_events_cupboard_item_id_cupboard_items_id_fk": {
+          "name": "kitchen_events_cupboard_item_id_cupboard_items_id_fk",
+          "tableFrom": "kitchen_events",
+          "tableTo": "cupboard_items",
+          "columnsFrom": [
+            "cupboard_item_id"
           ],
           "columnsTo": [
             "id"
