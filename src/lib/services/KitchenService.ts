@@ -10,6 +10,7 @@ import type {
 import type { KitchenEvent, NewKitchenEvent, UsedIngredient } from '$lib/models/kitchen';
 import type {
 	BoughtItem,
+	CookedRecipe,
 	CorrectionInput,
 	IKitchenService,
 	KitchenAuthor,
@@ -65,6 +66,14 @@ export class KitchenService implements IKitchenService {
 				? new Date(Math.max(...shops.map((event) => event.occurredAt.getTime())))
 				: null
 		};
+	}
+
+	async listCooked(householdId: string): Promise<CookedRecipe[]> {
+		const events = await this.kitchenEventRepository.listByKind(householdId, 'COOKED');
+		return events
+			.filter((event): event is KitchenEvent & { recipeId: string } => event.recipeId !== null)
+			.map((event) => ({ recipeId: event.recipeId, at: event.occurredAt }))
+			.reverse();
 	}
 
 	async recordCooked(input: RecordCookedInput): Promise<KitchenEvent> {

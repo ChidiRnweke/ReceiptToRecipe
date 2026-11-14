@@ -101,7 +101,9 @@ export class RecipeRepository implements IRecipeRepository {
 				cookTime: recipe.cookTime ?? null,
 				cuisineType: recipe.cuisineType ?? null,
 				estimatedCalories: recipe.estimatedCalories ?? null,
-				source: recipe.source || 'GENERATED'
+				source: recipe.source || 'GENERATED',
+				...(recipe.imageUrl !== undefined ? { imageUrl: recipe.imageUrl } : {}),
+				...(recipe.imageStatus ? { imageStatus: recipe.imageStatus } : {})
 			})
 			.returning();
 		return this.toDao(created);
@@ -190,7 +192,7 @@ export class RecipeRepository implements IRecipeRepository {
 			cookTime: recipe.cookTime,
 			imageUrl: recipe.imageUrl,
 			imageStatus: recipe.imageStatus as 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED',
-			source: recipe.source as 'GENERATED' | 'RAG' | 'USER',
+			source: recipe.source,
 			cuisineType: recipe.cuisineType,
 			estimatedCalories: recipe.estimatedCalories,
 			isPublic: recipe.isPublic ?? false,
@@ -280,7 +282,7 @@ export class SavedRecipeRepository implements ISavedRecipeRepository {
 						cookTime: s.recipe.cookTime,
 						imageUrl: s.recipe.imageUrl,
 						imageStatus: s.recipe.imageStatus as 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED',
-						source: s.recipe.source as 'GENERATED' | 'RAG' | 'USER',
+						source: s.recipe.source,
 						cuisineType: s.recipe.cuisineType,
 						estimatedCalories: s.recipe.estimatedCalories,
 						isPublic: s.recipe.isPublic ?? false,

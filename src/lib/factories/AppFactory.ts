@@ -21,6 +21,7 @@ import {
 	PlanService,
 	ShopService,
 	type IShopService,
+	RecipeBookService,
 	type IStorageService,
 	type INormalizationService,
 	type IReceiptExtractor,
@@ -36,7 +37,8 @@ import {
 	type IHouseholdService,
 	type IKitchenService,
 	type IHabitService,
-	type IPlanService
+	type IPlanService,
+	type IRecipeBookService
 } from '$services';
 import { AppriseNotificationService, MockNotificationService } from '$services';
 import {
@@ -50,7 +52,8 @@ import {
 	TonightController,
 	FrontDoorController,
 	PlanController,
-	ShopController
+	ShopController,
+	RecipesDoorController
 } from '$controllers';
 import {
 	UserRepository,
@@ -75,6 +78,7 @@ import {
 	HouseholdRepository,
 	KitchenEventRepository,
 	HabitAnswerRepository,
+	RecipeStepRepository,
 	type IUserRepository,
 	type ISessionRepository,
 	type IUserPreferencesRepository,
@@ -96,7 +100,8 @@ import {
 	type IWaitlistRepository,
 	type IHouseholdRepository,
 	type IKitchenEventRepository,
-	type IHabitAnswerRepository
+	type IHabitAnswerRepository,
+	type IRecipeStepRepository
 } from '$repositories';
 
 // Infrastructure Services
@@ -121,6 +126,7 @@ let tonightController: TonightController | null = null;
 let frontDoorController: FrontDoorController | null = null;
 let planController: PlanController | null = null;
 let shopController: ShopController | null = null;
+let recipesDoorController: RecipesDoorController | null = null;
 
 // Domain Services - Using IOAuthService as the auth interface
 let oauthService: IOAuthService | null = null;
@@ -132,6 +138,7 @@ let kitchenService: IKitchenService | null = null;
 let habitService: IHabitService | null = null;
 let planService: IPlanService | null = null;
 let shopService: IShopService | null = null;
+let recipeBookService: IRecipeBookService | null = null;
 
 // Repositories
 let userRepository: IUserRepository | null = null;
@@ -156,6 +163,7 @@ let waitlistRepository: IWaitlistRepository | null = null;
 let householdRepository: IHouseholdRepository | null = null;
 let kitchenEventRepository: IKitchenEventRepository | null = null;
 let habitAnswerRepository: IHabitAnswerRepository | null = null;
+let recipeStepRepository: IRecipeStepRepository | null = null;
 let notificationService: INotificationService | null = null;
 
 /**
@@ -424,12 +432,24 @@ export class AppFactory {
 		return shopService;
 	}
 
+	static getRecipeBookService(): IRecipeBookService {
+		if (!recipeBookService) {
+			recipeBookService = new RecipeBookService(
+				AppFactory.getRecipeRepository(),
+				AppFactory.getRecipeIngredientRepository(),
+				AppFactory.getRecipeStepRepository(),
+				AppFactory.getImageGenerator(),
+				AppFactory.getJobQueue()
+			);
+		}
+		return recipeBookService;
+	}
+
 	// Controllers
 	static getRecipeController(): RecipeController {
 		if (!recipeController) {
 			recipeController = new RecipeController(
 				AppFactory.getCulinaryIntelligence(),
-				AppFactory.getImageGenerator(),
 				AppFactory.getVectorService(),
 				AppFactory.getTasteProfileService(),
 				AppFactory.getRecipeRepository(),
@@ -437,10 +457,27 @@ export class AppFactory {
 				AppFactory.getSavedRecipeRepository(),
 				AppFactory.getUserPreferencesRepository(),
 				AppFactory.getReceiptItemRepository(),
-				AppFactory.getJobQueue()
+				AppFactory.getRecipeBookService()
 			);
 		}
 		return recipeController;
+	}
+
+	static getRecipesDoorController(): RecipesDoorController {
+		if (!recipesDoorController) {
+			recipesDoorController = new RecipesDoorController(
+				AppFactory.getCulinaryIntelligence(),
+				AppFactory.getStorageService(),
+				AppFactory.getKitchenService(),
+				AppFactory.getTasteProfileService(),
+				AppFactory.getRecipeBookService(),
+				AppFactory.getUserPreferencesRepository(),
+				AppFactory.getRecipeRepository(),
+				AppFactory.getSavedRecipeRepository(),
+				AppFactory.getMealLogRepository()
+			);
+		}
+		return recipesDoorController;
 	}
 
 	static getPreferencesController(): PreferencesController {
@@ -707,6 +744,13 @@ export class AppFactory {
 		return habitAnswerRepository;
 	}
 
+	static getRecipeStepRepository(): IRecipeStepRepository {
+		if (!recipeStepRepository) {
+			recipeStepRepository = new RecipeStepRepository(getDb());
+		}
+		return recipeStepRepository;
+	}
+
 	static getNotificationService(): INotificationService {
 		if (!notificationService) {
 			const endpoint = ConfigService.get('NOTIFICATION_ENDPOINT');
@@ -743,6 +787,7 @@ export class AppFactory {
 		habitService = null;
 		planService = null;
 		shopService = null;
+		recipeBookService = null;
 
 		// Controllers
 		recipeController = null;
@@ -755,6 +800,7 @@ export class AppFactory {
 		tonightController = null;
 		frontDoorController = null;
 		shopController = null;
+		recipesDoorController = null;
 
 		// Repositories
 		userRepository = null;
@@ -779,6 +825,7 @@ export class AppFactory {
 		householdRepository = null;
 		kitchenEventRepository = null;
 		habitAnswerRepository = null;
+		recipeStepRepository = null;
 		notificationService = null;
 	}
 }

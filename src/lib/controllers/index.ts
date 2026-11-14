@@ -38,3 +38,4 @@ export {
 	type DiscoverResult
 } from './PlanController';
 export { ShopController, type ReceiptIntake } from './ShopController';
+export { RecipesDoorController, type SnapPhoto, type SnappedRecipe } from './RecipesDoorController';

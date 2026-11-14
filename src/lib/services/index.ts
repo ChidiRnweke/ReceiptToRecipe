@@ -8,6 +8,13 @@ export type {
 	ICulinaryIntelligence,
 	RecipeContext,
 	LlmGeneratedRecipe,
+	GeneratedStep,
+	CravingContext,
+	RecipeImage,
+	ImageRecipeContext,
+	ImageRecipe,
+	IRecipeBookService,
+	NewRecipeContent,
 	ChatMessage,
 	AllergyRiskReview,
 	AllergyRiskReviewInput,
@@ -71,6 +78,7 @@ export type {
 	CorrectionInput,
 	RecordShopDoneInput,
 	WithdrawCupboardItemInput,
+	CookedRecipe,
 	IHabitService,
 	IPlanService,
 	Cookbook,
@@ -93,6 +101,8 @@ export type {
 	Auth0UserInfo,
 	PKCEChallenge
 } from './interfaces';
+
+export { NoRecipeInImageError } from './interfaces';
 
 // Export implementations
 export { MinioStorageService, type MinioConfig } from './MinioStorageService';
@@ -127,6 +137,7 @@ export { KitchenService } from './KitchenService';
 export { HabitService } from './HabitService';
 export { PlanService } from './PlanService';
 export { ShopService } from './ShopService';
+export { RecipeBookService } from './RecipeBookService';
 export {
 	AppriseNotificationService,
 	MockNotificationService,

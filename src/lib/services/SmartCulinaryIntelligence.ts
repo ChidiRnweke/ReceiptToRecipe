@@ -3,12 +3,25 @@ import type { Message } from '@openrouter/sdk/models';
 import { z } from 'zod';
 import type {
 	ICulinaryIntelligence,
-	GeneratedRecipe,
+	LlmGeneratedRecipe as GeneratedRecipe,
 	RecipeContext,
 	ChatMessage,
 	AllergyRiskReview,
-	AllergyRiskReviewInput
+	AllergyRiskReviewInput,
+	CravingContext,
+	ImageRecipe,
+	ImageRecipeContext,
+	RecipeImage
 } from './interfaces';
+import { NoRecipeInImageError } from './interfaces';
+import {
+	TECHNIQUE_VERBS,
+	generatedRecipeSchema,
+	generatedStepSchema,
+	snappedRecipeSchema,
+	type GeneratedRecipeJson
+} from '$lib/models/recipes';
+import { formatInstructions, stepsFromGenerated } from './recipes';
 
 const RECIPE_SYSTEM_PROMPT = `You are a helpful culinary assistant that creates recipes based on available ingredients.
 When generating recipes:
@@ -22,6 +35,47 @@ When generating recipes:
 8. Prefer a focused subset of compatible ingredients and ignore items that do not fit the same dish.
 
 Always respond with valid JSON matching the requested format.`;
+
+const VOCABULARY = TECHNIQUE_VERBS.join(', ');
+
+/** Steps of an adjusted recipe; a malformed list falls back to the instructions. */
+const adjustedStepsSchema = z.array(generatedStepSchema).catch([]);
+
+/** How steps are written, shared by every prompt that returns a recipe. */
+const STEPS_RULES = `Write the method as "steps". Start a step with one of these cooking verbs when one fits: ${VOCABULARY}.
+Put that verb in "verb" and the rest of the sentence, without the verb, in "text" (for example {"verb": "Sweat", "text": "the onion with a pinch of salt, 5 min.", "minutes": 5}).
+When none of the verbs fits, set "verb" to null and write the whole sentence in "text" (for example {"verb": null, "text": "Crack in the eggs and cover until just set.", "minutes": 5}).
+Use no other verbs in "verb". "minutes" is the time the step takes, or null. Keep each step to one or two short sentences.`;
+
+const RECIPE_JSON_FORMAT = (servings: number) => `{
+  "title": "Recipe Name",
+  "description": "Brief description of the dish",
+  "steps": [{ "verb": "Sweat" | null, "text": "...", "minutes": <number or null> }],
+  "servings": ${servings},
+  "prepTime": <minutes>,
+  "cookTime": <minutes>,
+  "cuisineType": "cuisine type",
+  "estimatedCalories": <per serving>,
+  "ingredients": [
+    {
+      "name": "ingredient name",
+      "quantity": <number>,
+      "unit": "g" | "ml" | "count" | "tbsp" | "tsp" | "cup",
+      "optional": false,
+      "notes": "optional preparation notes"
+    }
+  ]
+}`;
+
+const SNAP_SYSTEM_PROMPT = `You read recipes from photos for a home-cooking app.
+First decide what the photo shows:
+- "page": a printed cookbook page, a recipe card or a handwritten recipe
+- "screenshot": a screenshot of a recipe from a website, an app or a social media post
+- "dish": a photo of a cooked or plated dish, with no written recipe
+- "none": anything else
+For "page" and "screenshot", keep the recipe's own dish, ingredients and amounts, and rewrite its method in the app's words.
+For "dish", work out a home recipe that recreates what you see.
+Always respond with valid JSON only.`;
 
 const ALLERGY_REVIEW_SYSTEM_PROMPT = `You are an allergy safety reviewer for recipes.
 You must classify allergy risk for a specific user profile.
@@ -64,20 +118,58 @@ export class SmartCulinaryIntelligence implements ICulinaryIntelligence {
 
 	async generateRecipe(context: RecipeContext): Promise<GeneratedRecipe> {
 		const prompt = this.buildRecipePrompt(context);
+		const json = await this.completeJson([
+			{ role: 'system', content: RECIPE_SYSTEM_PROMPT },
+			{ role: 'user', content: prompt }
+		]);
+		const servings = context.servings || context.preferences.defaultServings || 2;
+		return this.toRecipe(generatedRecipeSchema.parse(json), servings);
+	}
 
+	async generateFromCraving(context: CravingContext): Promise<GeneratedRecipe> {
+		const json = await this.completeJson([
+			{ role: 'system', content: RECIPE_SYSTEM_PROMPT },
+			{ role: 'user', content: this.buildCravingPrompt(context) }
+		]);
+		return this.toRecipe(generatedRecipeSchema.parse(json), context.servings);
+	}
+
+	async recipeFromImage(image: RecipeImage, context: ImageRecipeContext): Promise<ImageRecipe> {
+		const dataUrl = `data:${image.mimeType};base64,${Buffer.from(image.bytes).toString('base64')}`;
+		const constraints = this.constraintLines(context.preferences, context.tasteProfile);
+		const prompt = [
+			'Read the recipe in this photo.',
+			...(constraints.length > 0
+				? ['\nFor a dish you recreate, respect these settings:', ...constraints]
+				: []),
+			`\nServings: ${context.servings} (scale the amounts when the recipe gives another number).`,
+			`\n${STEPS_RULES}`,
+			`\nRespond with JSON: {"kind": "page" | "screenshot" | "dish" | "none", "recipe": ${RECIPE_JSON_FORMAT(context.servings)}}`,
+			'Leave out "recipe" when kind is "none".'
+		].join('\n');
+
+		const json = await this.completeJson([
+			{ role: 'system', content: SNAP_SYSTEM_PROMPT },
+			{
+				role: 'user',
+				content: [
+					{ type: 'text', text: prompt },
+					{ type: 'image_url', imageUrl: { url: dataUrl } }
+				]
+			}
+		]);
+
+		const snapped = snappedRecipeSchema.parse(json);
+		if (snapped.kind === 'none') throw new NoRecipeInImageError();
+		return { kind: snapped.kind, recipe: this.toRecipe(snapped.recipe, context.servings) };
+	}
+
+	/** Sends one JSON-mode completion and returns the parsed JSON. */
+	private async completeJson(messages: Message[]): Promise<unknown> {
 		const completion = await this.client.chat.send({
 			chatGenerationParams: {
 				model: this.model,
-				messages: [
-					{
-						role: 'system',
-						content: RECIPE_SYSTEM_PROMPT
-					},
-					{
-						role: 'user',
-						content: prompt
-					}
-				],
+				messages,
 				responseFormat: { type: 'json_object' },
 				stream: false
 			}
@@ -88,23 +180,106 @@ export class SmartCulinaryIntelligence implements ICulinaryIntelligence {
 		}
 
 		const content = completion.choices[0].message.content;
-		let responseText = '';
-
-		if (typeof content === 'string') {
-			responseText = content;
-		} else if (Array.isArray(content)) {
-			responseText = content
-				.filter((part) => part.type === 'text')
-				.map((part) => part.text)
-				.join('');
-		}
+		const responseText =
+			typeof content === 'string'
+				? content
+				: Array.isArray(content)
+					? content
+							.filter((part) => part.type === 'text')
+							.map((part) => part.text)
+							.join('')
+					: '';
 
 		if (!responseText) {
 			throw new Error('Empty response from OpenRouter');
 		}
-		const recipe = JSON.parse(responseText) as GeneratedRecipe;
+		return JSON.parse(responseText);
+	}
 
-		return this.validateRecipe(recipe, context);
+	/** A parsed recipe with its steps in the vocabulary and its instructions written from them. */
+	private toRecipe(parsed: GeneratedRecipeJson, servings: number): GeneratedRecipe {
+		const steps = stepsFromGenerated(parsed);
+		return {
+			title: parsed.title,
+			description: parsed.description,
+			instructions: steps.length > 0 ? formatInstructions(steps) : parsed.instructions,
+			steps: steps.map(({ verb, text, minutes }) => ({ verb, text, minutes })),
+			servings: parsed.servings ?? servings,
+			prepTime: parsed.prepTime,
+			cookTime: parsed.cookTime,
+			cuisineType: parsed.cuisineType,
+			estimatedCalories: parsed.estimatedCalories,
+			ingredients: parsed.ingredients
+		};
+	}
+
+	private buildCravingPrompt(context: CravingContext): string {
+		const parts: string[] = [];
+		parts.push(`Make up one home recipe for this request: "${context.text}"`);
+		parts.push(
+			'The request may be a craving ("something spicy, 20 minutes"), a few ingredients ("eggs, spinach and feta"), or both. Respect any time limit it gives.'
+		);
+		const available = this.prioritizeIngredients(context.available);
+		if (available.primary.length > 0) {
+			parts.push(
+				`\nThe kitchen holds: ${[...available.primary, ...available.optional].join(', ')}.`
+			);
+			parts.push(
+				'Prefer what the kitchen holds when it suits the dish, but the request comes first. A few things to buy are fine.'
+			);
+		}
+		if (context.excludeTitles.length > 0) {
+			parts.push(
+				`\nThese were already suggested, so make a clearly different dish: ${context.excludeTitles.join('; ')}.`
+			);
+		}
+		parts.push(...this.constraintLines(context.preferences, context.tasteProfile));
+		parts.push(`\nServings: ${context.servings}`);
+		parts.push(`\n${STEPS_RULES}`);
+		parts.push(
+			`\nRespond with JSON in this exact format:\n${RECIPE_JSON_FORMAT(context.servings)}`
+		);
+		return parts.join('\n');
+	}
+
+	/** Diet, allergy and dislike lines for prompts that do not take a cuisine hint. */
+	private constraintLines(
+		preferences: CravingContext['preferences'],
+		tasteProfile: CravingContext['tasteProfile']
+	): string[] {
+		const lines: string[] = [];
+		if (tasteProfile) {
+			if (tasteProfile.dietType) {
+				lines.push(
+					`CONSTRAINT: The recipe MUST be compatible with a ${tasteProfile.dietType} diet.`
+				);
+			}
+			const severe = tasteProfile.allergies
+				.filter((a) => a.severity === 'severe')
+				.map((a) => a.allergen);
+			const avoid = tasteProfile.allergies
+				.filter((a) => a.severity === 'avoid')
+				.map((a) => a.allergen);
+			if (severe.length > 0) {
+				lines.push(`CRITICAL SAFETY WARNING: Do NOT use ${severe.join(', ')} or any derivatives.`);
+			}
+			if (avoid.length > 0) lines.push(`Allergies to avoid: ${avoid.join(', ')}`);
+			const disliked = tasteProfile.ingredientPreferences
+				.filter((p) => p.preference === 'dislike' || p.preference === 'avoid')
+				.map((p) => p.ingredientName);
+			if (disliked.length > 0) lines.push(`Avoid using these ingredients: ${disliked.join(', ')}`);
+			return lines;
+		}
+		if (preferences.allergies?.length) {
+			lines.push(`ALLERGIES (MUST AVOID): ${preferences.allergies.join(', ')}`);
+		}
+		if (preferences.dietaryRestrictions?.length) {
+			lines.push(`Dietary restrictions: ${preferences.dietaryRestrictions.join(', ')}`);
+		}
+		if (preferences.excludedIngredients?.length) {
+			lines.push(`Do not use these ingredients: ${preferences.excludedIngredients.join(', ')}`);
+		}
+		return lines;
 	}
 
 	async normalizeIngredient(rawIngredient: string): Promise<{
@@ -332,26 +507,8 @@ Respond with JSON:
 			parts.push(`\nReference cookbook context:\n${context.cookbookContext}`);
 		}
 
-		parts.push(`\nRespond with JSON in this exact format:
-{
-  "title": "Recipe Name",
-  "description": "Brief description of the dish",
-  "instructions": "Step 1: ...\nStep 2: ...",
-  "servings": ${servings},
-  "prepTime": <minutes>,
-  "cookTime": <minutes>,
-  "cuisineType": "cuisine type",
-  "estimatedCalories": <per serving>,
-  "ingredients": [
-    {
-      "name": "ingredient name",
-      "quantity": <number>,
-      "unit": "g" | "ml" | "count" | "tbsp" | "tsp" | "cup",
-      "optional": false,
-      "notes": "optional preparation notes"
-    }
-  ]
-}`);
+		parts.push(`\n${STEPS_RULES}`);
+		parts.push(`\nRespond with JSON in this exact format:\n${RECIPE_JSON_FORMAT(servings)}`);
 
 		return parts.join('\n');
 	}
@@ -405,26 +562,6 @@ Respond with JSON:
 		return score;
 	}
 
-	private validateRecipe(recipe: GeneratedRecipe, context: RecipeContext): GeneratedRecipe {
-		// Ensure required fields
-		if (!recipe.title) recipe.title = 'Untitled Recipe';
-		if (!recipe.instructions) recipe.instructions = '';
-		if (!recipe.servings)
-			recipe.servings = context.servings || context.preferences.defaultServings || 2;
-		if (!recipe.ingredients) recipe.ingredients = [];
-
-		// Ensure ingredient structure
-		recipe.ingredients = recipe.ingredients.map((ing) => ({
-			name: ing.name || 'Unknown',
-			quantity: ing.quantity || 1,
-			unit: ing.unit || 'count',
-			optional: ing.optional || false,
-			notes: ing.notes
-		}));
-
-		return recipe;
-	}
-
 	async adjustRecipe(
 		currentRecipe: GeneratedRecipe,
 		instruction: string
@@ -448,11 +585,13 @@ ${currentRecipe.instructions}
 
 Apply the requested changes while keeping the recipe coherent and delicious. Maintain the same JSON format.
 
+${STEPS_RULES}
+
 Respond with JSON in this exact format:
 {
   "title": "Recipe Name",
   "description": "Brief description",
-  "instructions": "Step 1: ...\\nStep 2: ...",
+  "steps": [{ "verb": "Sweat" | null, "text": "...", "minutes": <number or null> }],
   "servings": <number>,
   "prepTime": <minutes>,
   "cookTime": <minutes>,
@@ -512,7 +651,13 @@ Respond with JSON in this exact format:
 		// Basic validation
 		if (!adjustedRecipe.title) adjustedRecipe.title = currentRecipe.title;
 		if (!adjustedRecipe.ingredients) adjustedRecipe.ingredients = currentRecipe.ingredients;
-		if (!adjustedRecipe.instructions) adjustedRecipe.instructions = currentRecipe.instructions;
+
+		const steps = stepsFromGenerated({
+			steps: adjustedStepsSchema.parse(adjustedRecipe.steps),
+			instructions: adjustedRecipe.instructions || currentRecipe.instructions
+		});
+		adjustedRecipe.steps = steps.map(({ verb, text, minutes }) => ({ verb, text, minutes }));
+		adjustedRecipe.instructions = formatInstructions(steps);
 
 		return adjustedRecipe;
 	}

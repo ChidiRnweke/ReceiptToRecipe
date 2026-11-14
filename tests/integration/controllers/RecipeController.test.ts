@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { RecipeController } from '../../../src/lib/controllers/RecipeController';
+import { RecipeBookService } from '../../../src/lib/services/RecipeBookService';
+import { InMemoryRecipeStepRepository } from '../../fakes/InMemoryRecipeStepRepository';
 import type { RecipeContext } from '../../../src/lib/services/interfaces/ICulinaryIntelligence';
 import {
 	MockCulinaryIntelligence,
@@ -29,6 +31,7 @@ describe('RecipeController', () => {
 	let mockUserPreferencesRepository: MockUserPreferencesRepository;
 	let mockReceiptItemRepository: MockReceiptItemRepository;
 	let mockJobQueue: MockJobQueue;
+	let recipeSteps: InMemoryRecipeStepRepository;
 
 	const userId = 'user-123';
 	const actor: Actor = {
@@ -69,10 +72,10 @@ describe('RecipeController', () => {
 		mockUserPreferencesRepository = new MockUserPreferencesRepository();
 		mockReceiptItemRepository = new MockReceiptItemRepository();
 		mockJobQueue = new MockJobQueue();
+		recipeSteps = new InMemoryRecipeStepRepository();
 
 		controller = new RecipeController(
 			mockCulinaryIntelligence,
-			mockImageGenerator,
 			mockVectorService,
 			mockTasteProfileService,
 			mockRecipeRepository,
@@ -80,7 +83,13 @@ describe('RecipeController', () => {
 			mockSavedRecipeRepository,
 			mockUserPreferencesRepository,
 			mockReceiptItemRepository,
-			mockJobQueue
+			new RecipeBookService(
+				mockRecipeRepository,
+				mockRecipeIngredientRepository,
+				recipeSteps,
+				mockImageGenerator,
+				mockJobQueue
+			)
 		);
 	});
 
@@ -963,6 +972,58 @@ describe('RecipeController', () => {
 
 			const meat = ingredients.find((i) => i.name === 'Meat')!;
 			expect(meat.unitType).toBe('WEIGHT');
+		});
+	});
+
+	describe('steps', () => {
+		async function recipeWith(instructions: string) {
+			return mockRecipeRepository.create({
+				userId,
+				householdId: actor.householdId,
+				title: 'Soup',
+				instructions,
+				servings: 2
+			});
+		}
+
+		it('reads the instructions as steps when a recipe has no step rows', async () => {
+			const recipe = await recipeWith('Step 1: Sweat the onion\nStep 2: Simmer 10 min');
+
+			const result = await controller.getRecipe(recipe.id, actor);
+
+			expect(result?.steps.map((step) => step.verb)).toEqual(['Sweat', 'Simmer']);
+		});
+
+		it('saves the steps of a generated recipe', async () => {
+			const result = await controller.generateRecipe({ actor, customIngredients: ['eggs'] });
+
+			expect((await recipeSteps.findByRecipeId(result.id)).length).toBeGreaterThan(0);
+		});
+
+		it('replaces the steps with the adjusted ones', async () => {
+			const recipe = await recipeWith('Boil the pasta.');
+			mockCulinaryIntelligence.adjustRecipe = async (current) => ({
+				...current,
+				instructions: 'Reduce the sauce.',
+				steps: [{ verb: 'Reduce', text: 'the sauce.', minutes: 2 }]
+			});
+
+			const result = await controller.adjustRecipeWithAi(recipe.id, actor, 'Make a sauce');
+
+			expect(result.steps.map((step) => step.verb)).toEqual(['Reduce']);
+		});
+
+		it('writes the adjusted steps back into the instructions', async () => {
+			const recipe = await recipeWith('Boil the pasta.');
+			mockCulinaryIntelligence.adjustRecipe = async (current) => ({
+				...current,
+				instructions: '',
+				steps: [{ verb: 'Reduce', text: 'the sauce.', minutes: 2 }]
+			});
+
+			const result = await controller.adjustRecipeWithAi(recipe.id, actor, 'Make a sauce');
+
+			expect(result.instructions).toBe('Reduce the sauce.');
 		});
 	});
 });

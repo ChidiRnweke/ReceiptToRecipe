@@ -24,7 +24,7 @@ export const processingStatusEnum = pgEnum('processing_status', [
 	'FAILED'
 ]);
 
-export const recipeSourceEnum = pgEnum('recipe_source', ['GENERATED', 'RAG', 'USER']);
+export const recipeSourceEnum = pgEnum('recipe_source', ['GENERATED', 'RAG', 'USER', 'SNAPPED']);
 
 export const userRoleEnum = pgEnum('user_role', ['WAITING', 'USER', 'ADMIN']);
 
@@ -248,6 +248,25 @@ export const recipeIngredients = pgTable('recipe_ingredients', {
 	notes: text('notes'),
 	orderIndex: integer('order_index').notNull().default(0)
 });
+
+// Recipe Steps: one row per step, in the app's cooking vocabulary. recipes.instructions still
+// holds the same steps joined as text, for code that reads it.
+export const recipeSteps = pgTable(
+	'recipe_steps',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		recipeId: uuid('recipe_id')
+			.notNull()
+			.references(() => recipes.id, { onDelete: 'cascade' }),
+		position: integer('position').notNull(),
+		verb: text('verb'), // a technique verb such as Sweat or Simmer; null for a plain step
+		text: text('text').notNull(), // the step without its verb
+		minutes: integer('minutes'),
+		techniqueKey: text('technique_key'),
+		createdAt: timestamp('created_at').notNull().defaultNow()
+	},
+	(t) => [index('recipe_steps_recipe_position_idx').on(t.recipeId, t.position)]
+);
 
 // Shopping Lists
 export const shoppingLists = pgTable(
@@ -714,6 +733,7 @@ export const recipesRelations = relations(recipes, ({ one, many }) => ({
 		references: [receipts.id]
 	}),
 	ingredients: many(recipeIngredients),
+	steps: many(recipeSteps),
 	mealLogs: many(mealLogs),
 	plannedMeals: many(plannedMeals),
 	savedBy: many(savedRecipes),
@@ -742,6 +762,13 @@ export const plannedMealsRelations = relations(plannedMeals, ({ one }) => ({
 	}),
 	recipe: one(recipes, {
 		fields: [plannedMeals.recipeId],
+		references: [recipes.id]
+	})
+}));
+
+export const recipeStepsRelations = relations(recipeSteps, ({ one }) => ({
+	recipe: one(recipes, {
+		fields: [recipeSteps.recipeId],
 		references: [recipes.id]
 	})
 }));
@@ -830,6 +857,8 @@ export type Recipe = typeof recipes.$inferSelect;
 export type NewRecipe = typeof recipes.$inferInsert;
 export type RecipeIngredient = typeof recipeIngredients.$inferSelect;
 export type NewRecipeIngredient = typeof recipeIngredients.$inferInsert;
+export type RecipeStepRow = typeof recipeSteps.$inferSelect;
+export type NewRecipeStepRow = typeof recipeSteps.$inferInsert;
 export type ShoppingList = typeof shoppingLists.$inferSelect;
 export type NewShoppingList = typeof shoppingLists.$inferInsert;
 export type MealLog = typeof mealLogs.$inferSelect;

@@ -1,3 +1,5 @@
+import type { RecipeSource, TechniqueVerb } from '$lib/models/recipes';
+
 export interface RecipeDao {
 	id: string;
 	userId: string;
@@ -11,7 +13,7 @@ export interface RecipeDao {
 	cookTime: number | null;
 	imageUrl: string | null;
 	imageStatus: 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED';
-	source: 'GENERATED' | 'RAG' | 'USER';
+	source: RecipeSource;
 	cuisineType: string | null;
 	estimatedCalories: number | null;
 	isPublic: boolean;
@@ -31,7 +33,9 @@ export interface NewRecipeDao {
 	cookTime?: number | null;
 	cuisineType?: string | null;
 	estimatedCalories?: number | null;
-	source?: 'GENERATED' | 'RAG' | 'USER';
+	source?: RecipeSource;
+	imageUrl?: string | null;
+	imageStatus?: 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED';
 }
 
 export interface UpdateRecipeDao {
@@ -96,4 +100,21 @@ export interface RecipeImageStatusDao {
 export interface RecipeCountByReceiptDao {
 	receiptId: string;
 	count: number;
+}
+
+export interface RecipeStepDao {
+	id: string;
+	recipeId: string;
+	position: number;
+	verb: TechniqueVerb | null;
+	text: string;
+	minutes: number | null;
+	techniqueKey: string | null;
+}
+
+export interface NewRecipeStepDao {
+	position: number;
+	verb: TechniqueVerb | null;
+	text: string;
+	minutes: number | null;
 }
