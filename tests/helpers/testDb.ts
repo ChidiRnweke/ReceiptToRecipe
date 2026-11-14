@@ -44,6 +44,7 @@ export async function cleanTables() {
 	// Truncate all tables in correct order
 	// Note: we don't truncate enums or internal migration tables
 	await _db.execute(sql`TRUNCATE 
+    kitchen_events, household_habit_answers,
     household_invites, household_members, households,
     planned_meals,
     shopping_list_items, shopping_lists,
