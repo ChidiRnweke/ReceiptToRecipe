@@ -2,6 +2,10 @@ import { redirect, error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { TasteProfileController } from '$lib/controllers';
 import { AppFactory } from '$lib/factories';
+import type { RecipeSource } from '$lib/models/recipes';
+
+/** How many recipes get kitchen-match and compatibility notes on the door. */
+const MATCHED_RECIPE_LIMIT = 200;
 
 type DeletedRecipeIngredientInput = {
 	name: string;
@@ -22,7 +26,7 @@ type DeletedRecipeInput = {
 	cookTime?: number | null;
 	cuisineType?: string | null;
 	estimatedCalories?: number | null;
-	source?: 'GENERATED' | 'RAG' | 'USER';
+	source?: RecipeSource;
 	sourceReceiptId?: string | null;
 	imageUrl?: string | null;
 	imageStatus?: 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED';
@@ -92,7 +96,10 @@ function parseDeletedRecipeInput(raw: FormDataEntryValue | null): DeletedRecipeI
 					? parsed.estimatedCalories
 					: null,
 			source:
-				parsed.source === 'GENERATED' || parsed.source === 'RAG' || parsed.source === 'USER'
+				parsed.source === 'GENERATED' ||
+				parsed.source === 'RAG' ||
+				parsed.source === 'USER' ||
+				parsed.source === 'SNAPPED'
 					? parsed.source
 					: 'USER',
 			sourceReceiptId: typeof parsed.sourceReceiptId === 'string' ? parsed.sourceReceiptId : null,
@@ -112,76 +119,57 @@ function parseDeletedRecipeInput(raw: FormDataEntryValue | null): DeletedRecipeI
 	}
 }
 
+/** Per recipe: how much of it the kitchen holds and whether it suits the person. */
+export interface RecipeFit {
+	matchPercentage: number;
+	missingIngredients: string[];
+	compatible: boolean;
+	notes: string[];
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.actor) {
 		throw redirect(302, '/login');
 	}
+	const actor = locals.actor;
 
 	const recipeController = AppFactory.getRecipeController();
 	const pantryController = AppFactory.getPantryController();
-	const receiptRepo = AppFactory.getReceiptRepository();
+	const tasteProfileController = new TasteProfileController(AppFactory.getTasteProfileService());
 
-	// Start all async operations in parallel, don't await yet
-	const recipesPromise = recipeController.getHouseholdRecipesWithIngredients(locals.actor);
-	const pantryPromise = pantryController.getHouseholdPantry(locals.actor);
-	const receiptCountPromise = receiptRepo.countByHouseholdId(locals.actor.householdId);
-
-	// Return promises for streaming - page shell renders immediately
-	return {
-		streamed: {
-			recipesData: Promise.all([recipesPromise, pantryPromise]).then(async ([recipes, pantry]) => {
-				const tasteProfileController = new TasteProfileController(
-					AppFactory.getTasteProfileService()
+	const fitPromise = Promise.all([
+		recipeController.getHouseholdRecipesWithIngredients(actor, MATCHED_RECIPE_LIMIT),
+		pantryController.getHouseholdPantry(actor)
+	]).then(async ([recipes, pantry]) => {
+		const pantryNames = pantry.map((item) => item.itemName.toLowerCase());
+		const entries = await Promise.all(
+			recipes.map(async (recipe): Promise<[string, RecipeFit]> => {
+				const missingIngredients = recipe.ingredients
+					.map((ing) => ing.name)
+					.filter((name) => {
+						const lower = name.toLowerCase();
+						return !pantryNames.some((item) => item.includes(lower) || lower.includes(item));
+					});
+				const total = recipe.ingredients.length;
+				const compatibility = await tasteProfileController.checkCompatibility(
+					actor.userId,
+					recipe.id
 				);
-				const pantrySet = new Set(pantry.map((i) => i.itemName.toLowerCase()));
-
-				// Augment recipes with suggestion data
-				const augmentedRecipes = await Promise.all(
-					recipes.map(async (recipe) => {
-						let matchCount = 0;
-						const totalIngredients = recipe.ingredients.length;
-						const missingIngredients = [];
-
-						for (const ing of recipe.ingredients) {
-							const ingName = ing.name.toLowerCase();
-							const isMatch = Array.from(pantrySet).some(
-								(pItem) => pItem.includes(ingName) || ingName.includes(pItem)
-							);
-
-							if (isMatch) {
-								matchCount++;
-							} else {
-								missingIngredients.push(ing.name);
-							}
-						}
-
-						const matchPercentage = totalIngredients > 0 ? matchCount / totalIngredients : 0;
-
-						// Check compatibility
-						const compatibility = await tasteProfileController.checkCompatibility(
-							locals.actor!.userId,
-							recipe.id
-						);
-
-						return {
-							...recipe,
-							matchCount,
-							totalIngredients,
-							matchPercentage,
-							missingIngredients,
-							compatibility,
-							isSuggested: matchPercentage >= 0.7
-						};
-					})
-				);
-
-				return {
-					recipes: augmentedRecipes,
-					receiptCount: await receiptCountPromise
-				};
+				return [
+					recipe.id,
+					{
+						matchPercentage: total > 0 ? (total - missingIngredients.length) / total : 0,
+						missingIngredients,
+						compatible: compatibility.compatible,
+						notes: compatibility.compatible ? compatibility.warnings : compatibility.blockers
+					}
+				];
 			})
-		}
-	};
+		);
+		return Object.fromEntries(entries) as Record<string, RecipeFit>;
+	});
+
+	return { streamed: { fit: fitPromise } };
 };
 
 export const actions: Actions = {

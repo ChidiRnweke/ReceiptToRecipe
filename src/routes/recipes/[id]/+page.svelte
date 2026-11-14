@@ -26,6 +26,8 @@
 	import { workflowStore } from '$lib/state/workflow.svelte';
 	import RecipeNarrator from '$lib/components/RecipeNarrator.svelte';
 	import RecipeAdjuster from '$lib/components/RecipeAdjuster.svelte';
+	import RecipeSteps from '$lib/components/recipes/RecipeSteps.svelte';
+	import { formatInstructions } from '$lib/services/recipes';
 
 	import type { PageData } from './$types';
 
@@ -108,12 +110,8 @@
 	});
 
 	const scaleFactor = $derived(servings / (recipe?.servings ?? 1));
-	const steps = $derived(
-		recipe?.instructions
-			?.split('\n')
-			.map((s: string) => s.trim())
-			.filter((s: string) => s.length > 0) ?? []
-	);
+	const steps = $derived(recipe?.steps ?? []);
+	const spokenSteps = $derived(steps.map((step) => formatInstructions([step])));
 
 	const pantrySet = $derived(
 		new Set(Object.keys(pantryMatches).map((i: string) => i.toLowerCase()))
@@ -566,7 +564,7 @@
 							<RecipeNarrator
 								title={recipe.title}
 								ingredients={recipe.ingredients}
-								instructions={recipe.instructions}
+								steps={spokenSteps}
 								{servings}
 							/>
 						</div>
@@ -575,32 +573,7 @@
 						{/if}
 					</div>
 
-					<div class="space-y-6 md:space-y-10">
-						{#each steps as step, i (i)}
-							<button class="group flex w-full gap-6 text-left" onclick={() => toggleStep(i)}>
-								<div class="flex shrink-0 flex-col items-center gap-1 pt-1">
-									<span
-										class="font-display text-4xl leading-none transition-colors {completedSteps.has(
-											i
-										)
-											? 'text-primary-300'
-											: 'text-border group-hover:text-border/80'}">{i + 1}</span
-									>
-								</div>
-								<div class="w-full border-b border-border/50 pb-8 group-last:border-0">
-									<p
-										class="font-body text-lg leading-relaxed transition-colors {completedSteps.has(
-											i
-										)
-											? 'text-text-muted line-through decoration-border'
-											: 'text-text-primary group-hover:text-text-secondary'}"
-									>
-										{step}
-									</p>
-								</div>
-							</button>
-						{/each}
-					</div>
+					<RecipeSteps {steps} explain done={completedSteps} ontoggle={toggleStep} />
 
 					<!-- Footer Notes -->
 					<div

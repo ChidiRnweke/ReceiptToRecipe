@@ -2,600 +2,315 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { Button } from '$lib/components/ui/button';
-	import { Skeleton } from '$lib/components/ui/skeleton';
+	import { page } from '$app/state';
+	import { Loader2, Search, ShoppingCart, Trash2 } from 'lucide-svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import {
-		ChefHat,
-		Trash2,
-		Sparkles,
-		ShoppingCart,
-		Loader2,
-		AlertTriangle,
-		ShieldAlert,
-		SlidersHorizontal,
-		CalendarDays
-	} from 'lucide-svelte';
-	import { slide } from 'svelte/transition';
-	import { workflowStore } from '$lib/state/workflow.svelte';
-	import { undoToastState } from '$lib/state/undoToast.svelte';
-	import WashiTape from '$lib/components/WashiTape.svelte';
+	import * as Tabs from '$lib/components/ui/tabs';
+	import { Button } from '$lib/components/ui/button';
 	import { Checkbox } from '$lib/components/ui/checkbox';
+	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import EmptyState from '$lib/components/EmptyState.svelte';
+	import { CameraTile, DoorHeader, IndexCardTile } from '$lib/components/doors';
+	import MakeSomethingNewSheet from '$lib/components/recipes/MakeSomethingNewSheet.svelte';
+	import RecipePicture from '$lib/components/recipes/RecipePicture.svelte';
+	import SnapRecipeSheet from '$lib/components/recipes/SnapRecipeSheet.svelte';
+	import type { MyRecipeRow, MyRecipesTab } from '$lib/models/recipes';
+	import { listMine } from '$lib/remote/recipes/recipes.remote';
+	import { greetingFor } from '$lib/services/doors';
+	import { recipeMeta } from '$lib/services/recipes';
+	import { undoToastState } from '$lib/state/undoToast.svelte';
+	import { workflowStore } from '$lib/state/workflow.svelte';
+	import type { RecipeFit } from './+page.server';
 
 	let { data } = $props();
-	let deletingId = $state<string | null>(null);
-	let addingToShoppingId = $state<string | null>(null);
 
-	// Dialog state
+	const TABS: { key: MyRecipesTab; label: string }[] = [
+		{ key: 'made', label: 'Made' },
+		{ key: 'saved', label: 'Saved' },
+		{ key: 'added', label: 'Added' },
+		{ key: 'all', label: 'Everything' }
+	];
+
+	const EMPTY: Record<MyRecipesTab, { title: string; description: string }> = {
+		made: { title: 'Nothing made yet', description: 'Cook a recipe and it lands here.' },
+		saved: { title: 'Nothing saved yet', description: 'Tap Save on any recipe and it lands here.' },
+		added: { title: 'Nothing added yet', description: 'Make one up, or snap a cookbook page.' },
+		all: { title: 'No recipes yet', description: 'Make one up, or snap a cookbook page.' }
+	};
+
+	let tab = $state<MyRecipesTab>('made');
+	let newOpen = $state(false);
+	let snapOpen = $state(false);
+	let search = $state('');
+	let hideUnsuited = $state(false);
+	let fit = $state<Record<string, RecipeFit>>({});
+	let addingToShoppingId = $state<string | null>(null);
+	let deletingId = $state<string | null>(null);
 	let deleteDialogOpen = $state(false);
 	let recipeToDelete = $state<string | null>(null);
-	let showAllSuggested = $state(false);
 
-	// Filters
-	let hideIncompatible = $state(false);
-	let showFilters = $state(false);
+	const now = new Date();
+	const firstName = $derived(page.data.user?.name?.split(' ')[0] ?? 'there');
+	const anyUnsuited = $derived(Object.values(fit).some((entry) => !entry.compatible));
 
-	const quotes = [
-		'Cooking is like love. It should be entered into with abandon or not at all.',
-		'The secret ingredient is always love.',
-		'Good food is the foundation of genuine happiness.',
-		'Life is too short for boring meals.'
-	];
-	const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+	$effect(() => {
+		data.streamed.fit.then((value) => (fit = value)).catch(() => (fit = {}));
+	});
 
-	function formatTime(minutes: number | null) {
-		if (!minutes) return null;
-		if (minutes < 60) return `${minutes}m`;
-		const hours = Math.floor(minutes / 60);
-		const mins = minutes % 60;
-		return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+	function shown(rows: MyRecipeRow[]): MyRecipeRow[] {
+		const needle = search.trim().toLowerCase();
+		return rows.filter(
+			(row) =>
+				(!needle || row.title.toLowerCase().includes(needle)) &&
+				(!hideUnsuited || fit[row.id]?.compatible !== false)
+		);
 	}
 
-	function confirmDelete(id: string) {
-		recipeToDelete = id;
-		deleteDialogOpen = true;
+	function refreshLists() {
+		listMine(tab).refresh();
+	}
+
+	function openSnap() {
+		newOpen = false;
+		snapOpen = true;
 	}
 
 	async function restoreDeletedRecipe(snapshot: unknown) {
 		const formData = new FormData();
 		formData.set('recipe', JSON.stringify(snapshot));
-
-		const response = await fetch('?/restore', {
-			method: 'POST',
-			body: formData
-		});
-
-		if (!response.ok) {
-			throw new Error('Failed to restore recipe');
-		}
-
+		const response = await fetch('?/restore', { method: 'POST', body: formData });
+		if (!response.ok) throw new Error('Failed to restore recipe');
 		await invalidateAll();
+		refreshLists();
 	}
 </script>
 
 <svelte:head>
-	<title>Cookbook - Receipt2Recipe</title>
+	<title>Recipes - Receipt2Recipe</title>
 </svelte:head>
 
-<div
-	class="paper-card relative min-h-screen overflow-hidden rounded-4xl border border-sand bg-bg-paper shadow-[0_30px_80px_-50px_rgba(45,55,72,0.6)]"
->
-	<!-- Radial gradient background -->
-	<div
-		class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(113,128,150,0.08),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(237,137,54,0.08),transparent_28%)]"
-	></div>
+<div class="mx-auto grid w-full max-w-2xl gap-6">
+	<DoorHeader greeting={greetingFor(now.getHours(), firstName)} question="What shall we *cook*?" />
 
-	<!-- Main Content -->
-	<main class="relative z-10 min-h-screen bg-white">
-		<div class="mx-auto w-full max-w-6xl px-6 py-8 sm:px-10">
-			<!-- Header -->
-			<div class="mb-10 flex flex-wrap items-end justify-between gap-4">
-				<div>
-					<p class="font-hand mb-1 text-lg text-text-secondary">Your culinary collection</p>
-					<h1
-						class="font-display text-4xl leading-[1.1] text-text-primary drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
-					>
-						Recipe <span class="marker-highlight">Scrapbook</span>
-					</h1>
-					<div class="mt-2 flex items-center gap-4">
-						{#await data.streamed.recipesData}
-							<Skeleton class="h-3 w-28" />
-						{:then recipesData}
-							<p class="font-ui text-xs tracking-widest text-text-muted uppercase">
-								{recipesData.recipes.length}
-								{recipesData.recipes.length === 1 ? 'recipe' : 'recipes'} saved
-							</p>
-						{:catch}
-							<p class="font-ui text-xs tracking-widest text-text-muted uppercase">0 recipes</p>
-						{/await}
-						<!-- Mobile: Collapsible filter -->
-						<div class="md:hidden">
-							<Button
-								variant="ghost"
-								size="sm"
-								onclick={() => (showFilters = !showFilters)}
-								class="flex items-center gap-1 text-xs font-medium text-text-muted"
-							>
-								<SlidersHorizontal class="h-3 w-3" />
-								Filters
-							</Button>
-						</div>
-						<!-- Desktop: Always visible filter -->
-						<div class="hidden items-center gap-2 md:flex">
-							<Checkbox id="hide-incompatible" bind:checked={hideIncompatible} class="h-4 w-4" />
-							<Label
-								for="hide-incompatible"
-								class="cursor-pointer text-xs font-medium text-text-muted">Hide Incompatible</Label
-							>
-						</div>
-					</div>
+	<div class="grid grid-cols-2 gap-3">
+		<IndexCardTile label="Make something new" tilt={-0.8} onclick={() => (newOpen = true)} />
+		<CameraTile
+			subject="recipe"
+			label="Snap a recipe"
+			tilt={0.8}
+			onclick={() => (snapOpen = true)}
+		/>
+	</div>
 
-					<!-- Mobile: Expandable filter panel -->
-					{#if showFilters}
-						<div
-							class="mt-3 rounded-lg border border-border bg-white p-3 md:hidden"
-							transition:slide
+	<section aria-labelledby="my-recipes" class="grid gap-3">
+		<h2 id="my-recipes" class="text-xs font-bold tracking-wider text-text-muted uppercase">
+			My recipes
+		</h2>
+
+		<svelte:boundary>
+			{@const mine = await listMine(tab)}
+			<Tabs.Root bind:value={tab} class="flex-col gap-3">
+				<Tabs.List class="h-9 w-full bg-paper-dark">
+					{#each TABS as item (item.key)}
+						<Tabs.Trigger
+							value={item.key}
+							class="text-[12.5px] font-semibold data-[state=active]:bg-white data-[state=active]:text-sage-800 data-[state=active]:shadow-sm"
 						>
-							<div class="flex items-center gap-2">
-								<Checkbox
-									id="hide-incompatible-mobile"
-									bind:checked={hideIncompatible}
-									class="h-4 w-4"
-								/>
-								<Label
-									for="hide-incompatible-mobile"
-									class="cursor-pointer text-sm font-medium text-text-muted"
-									>Hide Incompatible</Label
-								>
-							</div>
-						</div>
-					{/if}
-				</div>
-
-				<div class="flex items-center gap-2">
-					<Button
-						href="/plan"
-						variant="ghost"
-						class="group relative h-10 overflow-hidden rounded-lg border border-border bg-white px-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:bg-bg-card hover:shadow-md active:scale-95"
-					>
-						<div class="flex items-center gap-2">
-							<CalendarDays
-								class="h-4 w-4 text-text-muted transition-colors group-hover:text-primary-600"
-							/>
-							<span
-								class="font-display text-sm font-medium text-text-secondary group-hover:text-text-primary"
-								>Plan Week</span
-							>
-						</div>
-					</Button>
-					<Button
-						href="/recipes/generate"
-						class="group relative inline-flex h-10 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95"
-					>
-						<div class="flex items-center gap-2">
-							<Sparkles
-								class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
-							/>
-							<span class="font-display text-base font-medium text-text-primary">New Recipe</span>
-						</div>
-					</Button>
-				</div>
-			</div>
-
-			{#await data.streamed.recipesData}
-				<!-- Recipe Cards Skeleton Grid -->
-				<div class="mb-8 flex items-baseline justify-between border-b border-border pb-3">
-					<Skeleton class="h-8 w-48" />
-					<Skeleton class="h-4 w-24" />
-				</div>
-
-				<div class="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 lg:gap-10">
-					{#each { length: 6 }, i (i)}
-						<div class="group mt-0">
-							<Skeleton class="mb-3 h-9 w-32 rounded-full" />
-							<div class="relative bg-white p-2 pb-16 shadow-md">
-								<Skeleton class="aspect-square w-full" />
-								<div class="absolute right-0 bottom-0 left-0 h-14 px-3 py-1.5">
-									<Skeleton class="mb-2 h-4 w-full" />
-									<Skeleton class="h-3 w-24" />
-								</div>
-							</div>
-						</div>
+							{item.label}
+							<span class="font-medium text-text-muted">{mine.counts[item.key]}</span>
+						</Tabs.Trigger>
 					{/each}
-				</div>
-			{:then recipesData}
-				{@const recipes = recipesData.recipes}
-				{@const suggestedRecipes = recipes.filter(
-					(r) => r.isSuggested && (!hideIncompatible || (r.compatibility?.compatible ?? true))
-				)}
-				{@const otherRecipes = recipes.filter(
-					(r) => !r.isSuggested && (!hideIncompatible || (r.compatibility?.compatible ?? true))
-				)}
+				</Tabs.List>
 
-				<!-- Suggested Recipes -->
-				{#if suggestedRecipes.length > 0}
-					<div class="mb-16">
-						<div class="mb-8 flex items-baseline justify-between border-b border-border pb-3">
-							<h2 class="font-display text-2xl text-text-primary">
-								Made for <span class="marker-highlight">Your Kitchen</span>
-							</h2>
-							<span class="font-ui text-[10px] tracking-widest text-primary-600 uppercase">
-								<Sparkles class="mr-1 inline h-3 w-3" />
-								AI Suggested
-							</span>
+				{#if mine.rows.length > 0}
+					<div class="flex flex-wrap items-center gap-3">
+						<div class="relative min-w-0 flex-1">
+							<Search
+								class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-text-muted"
+							/>
+							<Input
+								bind:value={search}
+								type="search"
+								placeholder="Find a recipe"
+								aria-label="Find a recipe"
+								class="h-9 bg-white pl-8"
+							/>
 						</div>
-
-						<!-- 3 cards per row for suggested -->
-						<div class="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 lg:gap-10">
-							{#each showAllSuggested ? suggestedRecipes : suggestedRecipes.slice(0, 3) as recipe, i (recipe.id)}
-								{@const rotations = ['-rotate-2', 'rotate-2', '-rotate-1']}
-								{@const marginTops = ['mt-0', 'mt-6', 'mt-3']}
-								<div class="group {marginTops[i % marginTops.length]}">
-									<!-- Action button on top -->
-									<div class="mb-3 flex items-center justify-center">
-										<form
-											method="POST"
-											action="?/addToShopping"
-											use:enhance={() => {
-												addingToShoppingId = recipe.id;
-												workflowStore.incrementShopping();
-												return async ({ result }) => {
-													addingToShoppingId = null;
-													if (result.type === 'failure') workflowStore.decrementShopping();
-													else await invalidateAll();
-												};
-											}}
-										>
-											<input type="hidden" name="recipeId" value={recipe.id} />
-											<Button
-												type="submit"
-												variant="secondary"
-												size="sm"
-												disabled={addingToShoppingId === recipe.id}
-												class="gap-1.5 rounded-full"
-											>
-												{#if addingToShoppingId === recipe.id}
-													<Loader2 class="h-3.5 w-3.5 animate-spin" />
-												{:else}
-													<ShoppingCart class="h-3.5 w-3.5" />
-												{/if}
-												Shop Ingredients
-											</Button>
-										</form>
-									</div>
-
-									<!-- Photo Frame -->
-									<a href={resolve('/recipes/[id]', { id: recipe.id })} class="block">
-										<div
-											class="
-                    relative bg-white p-2 pb-16
-                    shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.08)]
-                    transition-all duration-300 ease-out
-                    {rotations[i % rotations.length]}
-                    group-hover:z-50 group-hover:-translate-y-2 group-hover:rotate-0 group-hover:shadow-[0_12px_28px_rgba(0,0,0,0.18)]
-                  "
-										>
-											<!-- Washi Tape -->
-											<WashiTape
-												color="sage"
-												class="absolute -top-2 left-1/2 z-10 w-16 -translate-x-1/2"
-											/>
-
-											<!-- Photo -->
-											<div class="relative aspect-square overflow-hidden bg-bg-card">
-												{#if recipe.imageUrl}
-													<img
-														src={recipe.imageUrl}
-														alt={recipe.title}
-														class="h-full w-full object-cover"
-													/>
-												{:else}
-													<div class="flex h-full w-full items-center justify-center bg-bg-card">
-														<ChefHat class="h-12 w-12 text-text-muted" />
-													</div>
-												{/if}
-												<!-- Match badge -->
-												<div
-													class="absolute right-2 bottom-2 rounded-full bg-emerald-500 px-2 py-0.5 text-xs font-bold text-white shadow-sm"
-												>
-													{Math.round(recipe.matchPercentage * 100)}%
-												</div>
-											</div>
-
-											<!-- Caption area -->
-											<div
-												class="absolute right-0 bottom-0 left-0 flex h-14 flex-col justify-center px-3 py-1.5"
-											>
-												<p
-													class="font-display truncate text-center text-base leading-tight text-text-primary"
-													title={recipe.title}
-												>
-													{recipe.title}
-												</p>
-
-												<!-- Compatibility Badge / Metadata -->
-												<div class="mt-0.5 flex items-center justify-center gap-2">
-													{#if recipe.compatibility && !recipe.compatibility.compatible}
-														<span
-															class="inline-flex items-center rounded border border-red-100 bg-red-50 px-1.5 text-[10px] font-bold text-red-600"
-															title={recipe.compatibility.blockers.join(', ')}
-														>
-															<ShieldAlert class="mr-1 h-3 w-3" />
-															Avoid
-														</span>
-													{:else if recipe.compatibility && recipe.compatibility.warnings.length > 0}
-														<span
-															class="inline-flex items-center rounded border border-amber-100 bg-amber-50 px-1.5 text-[10px] font-bold text-amber-600"
-															title={recipe.compatibility.warnings.join(', ')}
-														>
-															<AlertTriangle class="mr-1 h-3 w-3" />
-															Warning
-														</span>
-													{:else}
-														<p
-															class="font-ui text-center text-xs tracking-wide text-text-muted uppercase"
-														>
-															{formatTime((recipe.prepTime || 0) + (recipe.cookTime || 0)) || '?'} · {recipe.servings}
-															servings
-														</p>
-													{/if}
-												</div>
-											</div>
-
-											<!-- Full title tooltip on hover -->
-											<div
-												class="pointer-events-none absolute -bottom-10 left-1/2 z-30 -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100"
-											>
-												<div
-													class="max-w-65 rounded bg-text-primary px-3 py-1.5 text-center text-sm whitespace-normal text-white shadow-lg"
-												>
-													{recipe.title}
-												</div>
-											</div>
-										</div>
-									</a>
-								</div>
-							{/each}
-						</div>
-						{#if suggestedRecipes.length > 3}
-							<div class="mt-6 text-center md:hidden">
-								<Button
-									variant="link"
-									size="sm"
-									onclick={() => (showAllSuggested = !showAllSuggested)}
-									class="text-sm font-medium"
-								>
-									{showAllSuggested
-										? 'Show less'
-										: `See all ${suggestedRecipes.length} suggestions`}
-								</Button>
+						{#if anyUnsuited}
+							<div class="flex items-center gap-2">
+								<Checkbox id="hide-unsuited" bind:checked={hideUnsuited} />
+								<Label for="hide-unsuited" class="text-xs text-text-muted">
+									Hide what doesn’t suit me
+								</Label>
 							</div>
 						{/if}
 					</div>
 				{/if}
 
-				<!-- All Recipes -->
-				{#if otherRecipes.length > 0}
-					<div class="mt-8">
-						<div class="mb-8 flex items-baseline justify-between border-b border-border pb-3">
-							<h2 class="font-display text-2xl text-text-primary">All Recipes</h2>
-							<span class="font-ui text-[10px] tracking-widest text-text-muted uppercase">
-								{otherRecipes.length} saved
-							</span>
-						</div>
-
-						<!-- 3 cards per row -->
-						<div class="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 lg:gap-10">
-							{#each otherRecipes as recipe, i (recipe.id)}
-								{@const rotations = ['-rotate-2', 'rotate-2', '-rotate-1']}
-								{@const marginTops = ['mt-0', 'mt-6', 'mt-3']}
-								<div class="group {marginTops[i % marginTops.length]}">
-									<!-- Action buttons on top -->
-									<div class="mb-3 flex items-center justify-center gap-2">
-										<form
-											method="POST"
-											action="?/addToShopping"
-											use:enhance={() => {
-												addingToShoppingId = recipe.id;
-												workflowStore.incrementShopping();
-												return async ({ result }) => {
-													addingToShoppingId = null;
-													if (result.type === 'failure') workflowStore.decrementShopping();
-													else await invalidateAll();
-												};
-											}}
+				{#each TABS as item (item.key)}
+					<Tabs.Content value={item.key}>
+						{#if item.key === mine.tab}
+							{@const rows = shown(mine.rows)}
+							{#if mine.rows.length === 0}
+								<EmptyState
+									art="book"
+									title={EMPTY[item.key].title}
+									description={EMPTY[item.key].description}
+								/>
+							{:else if rows.length === 0}
+								<p class="py-6 text-center text-sm text-text-muted">Nothing matches that.</p>
+							{:else}
+								<ul class="grid gap-2">
+									{#each rows as row (row.id)}
+										{@const rowFit = fit[row.id]}
+										<li
+											class="flex items-center gap-2 rounded-2xl border border-border bg-white p-2"
 										>
-											<input type="hidden" name="recipeId" value={recipe.id} />
-											<Button
-												type="submit"
-												variant="secondary"
-												size="icon"
-												disabled={addingToShoppingId === recipe.id}
-												title="Add to shopping list"
-												class="rounded-full"
+											<a
+												href={resolve('/recipes/[id]', { id: row.id })}
+												class="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 											>
-												{#if addingToShoppingId === recipe.id}
-													<Loader2 class="h-4 w-4 animate-spin" />
+												<RecipePicture
+													title={row.title}
+													imageUrl={row.imageUrl}
+													class="size-14 shrink-0 rounded-xl"
+												/>
+												<span class="grid min-w-0 gap-0.5">
+													<span class="truncate text-[14.5px] font-semibold text-ink"
+														>{row.title}</span
+													>
+													<span class="text-[12.5px] text-text-muted">{recipeMeta(row, now)}</span>
+													{#if rowFit && !rowFit.compatible}
+														<span
+															class="justify-self-start rounded-full bg-danger-50 px-2 text-[11px] font-semibold text-danger-600"
+															title={rowFit.notes.join(', ')}>Doesn’t suit you</span
+														>
+													{:else if rowFit && rowFit.matchPercentage >= 0.7}
+														<span
+															class="justify-self-start rounded-full bg-sage-100 px-2 text-[11px] font-semibold text-sage-800"
+															>You have {Math.round(rowFit.matchPercentage * 100)}% of it</span
+														>
+													{/if}
+												</span>
+											</a>
+											<form
+												method="POST"
+												action="?/addToShopping"
+												use:enhance={() => {
+													addingToShoppingId = row.id;
+													workflowStore.incrementShopping();
+													return async ({ result }) => {
+														addingToShoppingId = null;
+														if (result.type === 'failure') workflowStore.decrementShopping();
+														else await invalidateAll();
+													};
+												}}
+											>
+												<input type="hidden" name="recipeId" value={row.id} />
+												<Button
+													type="submit"
+													variant="ghost"
+													size="icon"
+													class="size-8 rounded-full text-text-muted"
+													disabled={addingToShoppingId === row.id}
+													aria-label="Add the ingredients of {row.title} to the shopping list"
+												>
+													{#if addingToShoppingId === row.id}
+														<Loader2 class="size-4 animate-spin" />
+													{:else}
+														<ShoppingCart class="size-4" />
+													{/if}
+												</Button>
+											</form>
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon"
+												class="size-8 rounded-full text-text-muted hover:bg-danger-50 hover:text-danger-600"
+												disabled={deletingId === row.id}
+												aria-label="Delete {row.title}"
+												onclick={() => {
+													recipeToDelete = row.id;
+													deleteDialogOpen = true;
+												}}
+											>
+												{#if deletingId === row.id}
+													<Loader2 class="size-4 animate-spin" />
 												{:else}
-													<ShoppingCart class="h-4 w-4" />
+													<Trash2 class="size-4" />
 												{/if}
 											</Button>
-										</form>
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						{/if}
+					</Tabs.Content>
+				{/each}
+			</Tabs.Root>
 
-										<Button
-											type="button"
-											variant="ghost"
-											size="icon"
-											onclick={(e) => {
-												e.stopPropagation();
-												e.preventDefault();
-												confirmDelete(recipe.id);
-											}}
-											disabled={deletingId === recipe.id}
-											title="Delete recipe"
-											class="rounded-full hover:bg-danger-500 hover:text-white"
-										>
-											{#if deletingId === recipe.id}
-												<Loader2 class="h-4 w-4 animate-spin" />
-											{:else}
-												<Trash2 class="h-4 w-4" />
-											{/if}
-										</Button>
-									</div>
-
-									<!-- Photo Frame -->
-									<a href={resolve('/recipes/[id]', { id: recipe.id })} class="block">
-										<div
-											class="
-                    relative bg-white p-2 pb-16
-                    shadow-[0_2px_6px_rgba(0,0,0,0.1),0_1px_3px_rgba(0,0,0,0.06)]
-                    transition-all duration-300 ease-out
-                    {rotations[i % rotations.length]}
-                    group-hover:z-10 group-hover:-translate-y-2 group-hover:rotate-0
-                    group-hover:shadow-[0_12px_24px_rgba(0,0,0,0.15)]
-                  "
-										>
-											<!-- Photo -->
-											<div class="relative aspect-square overflow-hidden bg-bg-card">
-												{#if recipe.imageUrl}
-													<img
-														src={recipe.imageUrl}
-														alt={recipe.title}
-														class="h-full w-full object-cover"
-													/>
-												{:else}
-													<div class="flex h-full w-full items-center justify-center bg-bg-card">
-														<ChefHat class="h-10 w-10 text-text-muted" />
-													</div>
-												{/if}
-											</div>
-
-											<!-- Caption area -->
-											<div
-												class="absolute right-0 bottom-0 left-0 flex h-14 flex-col justify-center px-2 py-1.5"
-											>
-												<p
-													class="font-display truncate text-center text-sm leading-tight text-text-primary"
-													title={recipe.title}
-												>
-													{recipe.title}
-												</p>
-												<p
-													class="font-ui mt-0.5 text-center text-[10px] tracking-wide text-text-muted uppercase"
-												>
-													{#if recipe.cuisineType}{recipe.cuisineType}{:else}{formatTime(
-															(recipe.prepTime || 0) + (recipe.cookTime || 0)
-														) || ''}{/if}
-												</p>
-											</div>
-
-											<!-- Full title tooltip on hover -->
-											<div
-												class="pointer-events-none absolute -bottom-10 left-1/2 z-30 -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100"
-											>
-												<div
-													class="max-w-55 rounded bg-text-primary px-3 py-1.5 text-center text-xs whitespace-normal text-white shadow-lg"
-												>
-													{recipe.title}
-												</div>
-											</div>
-										</div>
-									</a>
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
-
-				{#if recipes.length === 0}
-					<div class="flex flex-col items-center justify-center py-20">
-						<!-- Empty photo frame -->
-						<div
-							class="relative mb-8 rotate-2 bg-white p-1.5 pb-12 shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
-						>
-							<div class="flex h-44 w-44 items-center justify-center bg-bg-card">
-								<ChefHat class="h-12 w-12 text-text-muted" />
-							</div>
-							<p
-								class="font-display absolute right-0 bottom-2 left-0 text-center text-sm text-text-muted"
-							>
-								Your first recipe?
-							</p>
-						</div>
-						<h2 class="font-display mb-2 text-2xl text-text-primary">No recipes yet</h2>
-						<p class="mb-8 max-w-xs text-center font-serif text-base text-text-muted italic">
-							"{randomQuote}"
-						</p>
-						<Button
-							href="/recipes/generate"
-							class="group relative h-12 overflow-hidden rounded-lg border border-primary-300 bg-white px-8 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95"
-						>
-							<div class="flex items-center gap-2">
-								<Sparkles
-									class="h-4 w-4 text-primary-600 transition-transform duration-500 group-hover:rotate-12 group-hover:text-primary-700"
-								/>
-								<span class="font-display text-base font-medium text-text-primary"
-									>Create Your First Recipe</span
-								>
-							</div>
-						</Button>
-					</div>
-				{/if}
-			{:catch error}
-				<!-- Error State -->
-				<div class="flex min-h-[40vh] items-center justify-center">
-					<div class="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
-						<p class="text-red-600">Failed to load recipes</p>
-						<p class="mt-2 text-sm text-red-500">{error.message}</p>
-					</div>
+			{#snippet pending()}
+				<div class="grid gap-2" aria-busy="true">
+					<Skeleton class="h-8 w-full rounded-lg" />
+					{#each { length: 3 }, i (i)}
+						<Skeleton class="h-18 w-full rounded-2xl" />
+					{/each}
 				</div>
-			{/await}
-		</div>
-	</main>
-
-	<AlertDialog.Root bind:open={deleteDialogOpen}>
-		<AlertDialog.Content>
-			<AlertDialog.Header>
-				<AlertDialog.Title>Are you sure?</AlertDialog.Title>
-				<AlertDialog.Description>
-					Delete this recipe from your cookbook? You can restore it from the undo toast for a few
-					seconds.
-				</AlertDialog.Description>
-			</AlertDialog.Header>
-			<AlertDialog.Footer>
-				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-				<form
-					method="POST"
-					action="?/delete"
-					use:enhance={() => {
-						deleteDialogOpen = false;
-						if (recipeToDelete) deletingId = recipeToDelete;
-						return async ({ result, update }) => {
-							deletingId = null;
-							await update();
-
-							if (result.type !== 'success') return;
-
-							const payload = (result.data as { deletedRecipe?: unknown } | undefined)
-								?.deletedRecipe;
-							if (!payload) return;
-
-							undoToastState.show({
-								message: 'Recipe deleted from your cookbook.',
-								label: 'Restore',
-								onUndo: async () => {
-									await restoreDeletedRecipe(payload);
-								}
-							});
-						};
-					}}
-					class="inline-block"
-				>
-					<input type="hidden" name="recipeId" value={recipeToDelete} />
-					<AlertDialog.Action type="submit" class="btn-danger">Delete</AlertDialog.Action>
-				</form>
-			</AlertDialog.Footer>
-		</AlertDialog.Content>
-	</AlertDialog.Root>
+			{/snippet}
+			{#snippet failed(error, reset)}
+				<div class="border-danger-200 rounded-xl border bg-danger-50 p-4 text-sm text-danger-600">
+					<p>Your recipes did not load.</p>
+					{#if error instanceof Error}<p class="mt-1 text-xs opacity-80">{error.message}</p>{/if}
+					<Button variant="outline" size="sm" class="mt-2" onclick={reset}>Try again</Button>
+				</div>
+			{/snippet}
+		</svelte:boundary>
+	</section>
 </div>
+
+<MakeSomethingNewSheet bind:open={newOpen} onsnap={openSnap} onchange={refreshLists} />
+<SnapRecipeSheet bind:open={snapOpen} onchange={refreshLists} />
+
+<AlertDialog.Root bind:open={deleteDialogOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Delete this recipe?</AlertDialog.Title>
+			<AlertDialog.Description>
+				It leaves the household’s recipes. You can bring it back from the undo note for a few
+				seconds.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+			<form
+				method="POST"
+				action="?/delete"
+				use:enhance={() => {
+					deleteDialogOpen = false;
+					if (recipeToDelete) deletingId = recipeToDelete;
+					return async ({ result, update }) => {
+						deletingId = null;
+						await update();
+						refreshLists();
+						if (result.type !== 'success') return;
+						const payload = (result.data as { deletedRecipe?: unknown } | undefined)?.deletedRecipe;
+						if (!payload) return;
+						undoToastState.show({
+							message: 'Recipe deleted.',
+							label: 'Restore',
+							onUndo: async () => {
+								await restoreDeletedRecipe(payload);
+							}
+						});
+					};
+				}}
+				class="inline-block"
+			>
+				<input type="hidden" name="recipeId" value={recipeToDelete} />
+				<AlertDialog.Action type="submit" class="btn-danger">Delete</AlertDialog.Action>
+			</form>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
