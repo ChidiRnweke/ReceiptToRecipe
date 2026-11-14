@@ -2,7 +2,13 @@ import { command, form, getRequestEvent, query } from '$app/server';
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
 import { AppFactory } from '$lib/factories';
-import type { ConfirmResult, GotEverythingResult, ReceiptResult, ShopView } from '$lib/models/shop';
+import type {
+	ConfirmResult,
+	GotEverythingResult,
+	ReceiptResult,
+	RemovedItem,
+	ShopView
+} from '$lib/models/shop';
 import { requireActor } from '../actor';
 
 /** Receipt photos up to 10 MB, the same limit as the receipts page. */
@@ -15,6 +21,13 @@ const addInput = z.object({
 	unit: z.string().trim().max(20).nullish()
 });
 const itemInput = z.object({ itemId: z.uuid() });
+const removedInput = z.object({
+	name: z.string().trim().min(1).max(120),
+	quantity: z.number().positive().max(100_000).nullable(),
+	unit: z.string().trim().max(20).nullable(),
+	checked: z.boolean()
+});
+const undoInput = z.object({ undoId: z.uuid() });
 const gotInput = z.object({ ideas: z.array(z.uuid()).max(10).default([]) });
 const receiptInput = z.object({ receiptId: z.uuid() });
 const photoInput = z.object({
@@ -51,9 +64,18 @@ export const addItem = command(addInput, async (input): Promise<void> => {
 	getShop().refresh();
 });
 
-/** Removes an item that was added by hand. */
-export const removeItem = command(itemInput, async ({ itemId }): Promise<void> => {
-	await AppFactory.getShopController().removeItem(requireActor(), itemId).catch(notFound);
+/** Removes an item that was added by hand, and returns it for the undo toast. */
+export const removeItem = command(itemInput, async ({ itemId }): Promise<RemovedItem> => {
+	const removed = await AppFactory.getShopController()
+		.removeItem(requireActor(), itemId)
+		.catch(notFound);
+	getShop().refresh();
+	return removed;
+});
+
+/** Undo for removeItem: puts the item back on the list. */
+export const restoreItem = command(removedInput, async (item): Promise<void> => {
+	await AppFactory.getShopController().restoreItem(requireActor(), item);
 	getShop().refresh();
 });
 
@@ -64,6 +86,12 @@ export const gotEverything = command(gotInput, async ({ ideas }): Promise<GotEve
 		.catch(notFound);
 	getShop().refresh();
 	return result;
+});
+
+/** Undo for "Got everything": the items are back on the list and out of the kitchen. */
+export const undoGotEverything = command(undoInput, async ({ undoId }): Promise<void> => {
+	await AppFactory.getShopController().undoGotEverything(requireActor(), undoId).catch(notFound);
+	getShop().refresh();
 });
 
 /** "Snap the receipt": uploads the photo and starts reading it. */

@@ -10,11 +10,14 @@
 		getShop,
 		gotEverything,
 		removeItem,
-		toggleItem
+		restoreItem,
+		toggleItem,
+		undoGotEverything
 	} from '$lib/remote/shop/shop.remote';
 	import { AT_HOME_NOTE, ideaList, thingsCount } from '$lib/services/shop';
 	import { formatAmount } from '$lib/services/tonight';
 	import { notice } from '$lib/state/notice.svelte';
+	import { undoToastState } from '$lib/state/undoToast.svelte';
 	import IdeaPick from './IdeaPick.svelte';
 	import ReceiptSheet from './ReceiptSheet.svelte';
 	import ShopEnd from './ShopEnd.svelte';
@@ -71,9 +74,33 @@
 			(result) => {
 				ticks = {};
 				picked = [];
-				notice.show(result.message);
+				const { undoId } = result;
+				if (!undoId) return notice.show(result.message);
+				undoToastState.show({
+					message: result.message,
+					onUndo: () => undo(() => undoGotEverything({ undoId }))
+				});
 			}
 		);
+	}
+
+	function remove(itemId: string) {
+		run(
+			() => removeItem({ itemId }),
+			(removed) =>
+				undoToastState.show({
+					message: `${removed.name} is off the list.`,
+					onUndo: () => undo(() => restoreItem(removed))
+				})
+		);
+	}
+
+	async function undo(action: () => Promise<void>) {
+		try {
+			await action();
+		} catch {
+			notice.show('That couldn’t be undone. Try again in a moment.');
+		}
 	}
 
 	function add(event: SubmitEvent) {
@@ -235,13 +262,7 @@
 						note={item.atHome ? AT_HOME_NOTE : undefined}
 						checked={isTicked(item.id, item.checked)}
 						ontoggle={(checked) => tick(item.id, checked)}
-						onremove={item.source === 'MANUAL'
-							? () =>
-									run(
-										() => removeItem({ itemId: item.id }),
-										() => {}
-									)
-							: undefined}
+						onremove={item.source === 'MANUAL' ? () => remove(item.id) : undefined}
 					/>
 				{/each}
 			</ul>

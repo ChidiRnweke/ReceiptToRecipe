@@ -85,7 +85,10 @@ export interface IKitchenService {
 	timeZoneOf(householdId: string): Promise<string>;
 	recordCooked(input: RecordCookedInput): Promise<KitchenEvent>;
 	correct(input: CorrectionInput): Promise<KitchenEvent>;
-	/** One BOUGHT per item, then the SHOP_DONE that closes the shop. */
+	/**
+	 * One BOUGHT per item, then the SHOP_DONE that closes the shop. Every event of the shop
+	 * carries the same `shopId` in its payload, so the shop can be found and forgotten as one.
+	 */
 	recordShopDone(input: RecordShopDoneInput): Promise<KitchenEvent[]>;
 	/** Only the SHOP_DONE that closes a shop whose BOUGHT events are recorded separately. */
 	recordShopClosed(input: RecordShopClosedInput): Promise<KitchenEvent>;
@@ -96,6 +99,10 @@ export interface IKitchenService {
 		at: Date,
 		source: string
 	): Promise<KitchenEvent[]>;
+	/** The SHOP_DONE of a shop recorded with `recordShopDone`, or null. */
+	findShop(householdId: string, shopId: string): Promise<KitchenEvent | null>;
+	/** Forgets a shop: its BOUGHT events and its SHOP_DONE, as if it never happened. */
+	forgetShop(householdId: string, shopId: string): Promise<void>;
 	/** Removes the purchases of deleted receipt lines. */
 	forgetReceiptItems(householdId: string, receiptItemIds: string[]): Promise<void>;
 	/**

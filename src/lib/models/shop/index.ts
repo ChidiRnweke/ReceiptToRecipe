@@ -218,6 +218,35 @@ export interface ShopView {
 export interface GotEverythingResult {
 	recorded: number;
 	message: string;
+	/** Undoes this "Got everything", or null when it cannot be undone (dinners were planned). */
+	undoId: string | null;
+}
+
+/** A list item as it was before it left the list, to put it back. */
+export interface RestorableItem {
+	name: string;
+	source: ShoppingItemSource;
+	mergeKey: string | null;
+	quantity: number | null;
+	unit: string | null;
+	checked: boolean;
+	/** ISO time, as it is kept in the kitchen log. */
+	heldUntil: string | null;
+	forPlannedMealIds: string[];
+}
+
+/** An item added by hand that was removed, as the page offers to put it back. */
+export interface RemovedItem {
+	name: string;
+	quantity: number | null;
+	unit: string | null;
+	checked: boolean;
+}
+
+/** How a purchase-history row was before a shop counted in it; null `before` for a new row. */
+export interface PurchaseUndo {
+	id: string;
+	before: { lastPurchased: string; purchaseCount: number; avgFrequencyDays: number | null } | null;
 }
 
 export type ReceiptStatus = 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED';

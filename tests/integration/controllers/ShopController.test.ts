@@ -197,6 +197,74 @@ describe('ShopController', () => {
 		});
 	});
 
+	describe('undoing Got everything', () => {
+		async function gotItAndUndo() {
+			await shop.controller.getShop(shopper, NOW, TZ);
+			const { undoId } = await shop.controller.gotEverything(shopper, NOW, TZ);
+			await shop.controller.undoGotEverything(shopper, undoId!);
+		}
+
+		const tickShops = () =>
+			shop.events
+				.all(shopper.householdId)
+				.filter((event) => event.kind === 'SHOP_DONE' && event.method === 'TICK');
+
+		it('puts the items back on the list', async () => {
+			await gotItAndUndo();
+			const names = shop.items.getAllStored().map((item) => item.name);
+			expect(names.sort()).toEqual(['Coriander', 'Mushrooms', 'Paneer', 'Spinach']);
+		});
+
+		it('keeps a ticked item ticked', async () => {
+			const items = await openItems(shop);
+			await shop.controller.toggleItem(shopper, items.find((i) => i.name === 'Spinach')!.id, true);
+			const { undoId } = await shop.controller.gotEverything(shopper, NOW, TZ);
+			await shop.controller.undoGotEverything(shopper, undoId!);
+			const spinach = shop.items.getAllStored().find((item) => item.name === 'Spinach');
+			expect(spinach?.checked).toBe(true);
+		});
+
+		it('takes the items out of the kitchen', async () => {
+			await gotItAndUndo();
+			expect(bought(shop)).toEqual([]);
+		});
+
+		it('forgets the shop', async () => {
+			await gotItAndUndo();
+			expect(tickShops()).toEqual([]);
+		});
+
+		it('takes the purchases out of the purchase history', async () => {
+			await gotItAndUndo();
+			expect(shop.history.getAll()).toEqual([]);
+		});
+
+		it('puts an earlier purchase count back', async () => {
+			await shop.controller.getShop(shopper, NOW, TZ);
+			await shop.controller.gotEverything(shopper, NOW, TZ);
+			await shop.controller.addItem(shopper, { name: 'Paneer' });
+			const { undoId } = await shop.controller.gotEverything(shopper, at(3, 18), TZ);
+			await shop.controller.undoGotEverything(shopper, undoId!);
+			const paneer = shop.history.getAll().find((entry) => entry.itemName === 'Paneer');
+			expect(paneer?.purchaseCount).toBe(1);
+		});
+
+		it('refuses the shop of another household', async () => {
+			await shop.controller.getShop(shopper, NOW, TZ);
+			const { undoId } = await shop.controller.gotEverything(shopper, NOW, TZ);
+			await expect(shop.controller.undoGotEverything(stranger, undoId!)).rejects.toThrow(
+				'Shop not found'
+			);
+		});
+
+		it('is not offered when dinners were planned from ideas', async () => {
+			const lea = createShop();
+			const omelette = await lea.addRecipe('Omelette', [{ name: 'eggs', quantity: 3, unit: '' }]);
+			const result = await lea.controller.gotEverything(shopper, NOW, TZ, [omelette.id]);
+			expect(result.undoId).toBeNull();
+		});
+	});
+
 	describe('a snapped receipt', () => {
 		async function snapSpinachAndYogurt() {
 			await shop.controller.getShop(shopper, NOW, TZ);
@@ -290,6 +358,15 @@ describe('ShopController', () => {
 			const [soap] = shop.items.getAllStored();
 			await shop.controller.removeItem(shopper, soap.id);
 			expect(shop.items.getAllStored()).toEqual([]);
+		});
+
+		it('puts a removed item back with its undo', async () => {
+			await shop.controller.addItem(shopper, { name: 'Dish soap', quantity: 2 });
+			const [soap] = shop.items.getAllStored();
+			const removed = await shop.controller.removeItem(shopper, soap.id);
+			await shop.controller.restoreItem(shopper, removed);
+			const view = await shop.controller.getShop(shopper, NOW, TZ);
+			expect(view.manual.map((item) => `${item.name} ${item.amount}`)).toEqual(['Dish soap 2']);
 		});
 
 		it('refuses to remove an item the plan wrote', async () => {

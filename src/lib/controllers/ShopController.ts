@@ -23,7 +23,10 @@ import type {
 	HeldItemView,
 	IdeaIngredient,
 	ListItem,
+	PurchaseUndo,
 	ReceiptResult,
+	RemovedItem,
+	RestorableItem,
 	ShopGroupView,
 	ShopIdeaView,
 	ShopItemView,
@@ -101,6 +104,25 @@ function amountOf(quantity: number | null, unit: string | null): string {
 
 function keyOf(item: ListItem): string {
 	return item.mergeKey ?? normalizeItemKey(item.name);
+}
+
+function restorable(item: ListItem): RestorableItem {
+	return {
+		name: item.name,
+		source: item.source,
+		mergeKey: item.mergeKey,
+		quantity: item.quantity,
+		unit: item.unit,
+		checked: item.checked,
+		heldUntil: item.heldUntil?.toISOString() ?? null,
+		forPlannedMealIds: item.forPlannedMealIds
+	};
+}
+
+/** What "Got everything" keeps on its SHOP_DONE, to undo it. */
+interface GotEverythingUndo {
+	items: RestorableItem[];
+	purchases: PurchaseUndo[];
 }
 
 /** The items the shop is for: everything not held back for a later shop. */
@@ -186,8 +208,24 @@ export class ShopController {
 		await this.shopService.addManual(actor, item);
 	}
 
-	async removeItem(actor: Actor, itemId: string): Promise<void> {
-		await this.shopService.removeManual(actor, itemId);
+	/** Removes an item added by hand, and returns it so the page can offer to put it back. */
+	async removeItem(actor: Actor, itemId: string): Promise<RemovedItem> {
+		const item = await this.shopService.removeManual(actor, itemId);
+		return { name: item.name, quantity: item.quantity, unit: item.unit, checked: item.checked };
+	}
+
+	/** Undo for `removeItem`: the item is back on the list, as added by hand. */
+	async restoreItem(actor: Actor, item: RemovedItem): Promise<void> {
+		await this.shopService.restoreItems(actor, [
+			{
+				...item,
+				name: item.name.trim(),
+				source: 'MANUAL',
+				mergeKey: normalizeItemKey(item.name),
+				heldUntil: null,
+				forPlannedMealIds: []
+			}
+		]);
 	}
 
 	/**
@@ -217,8 +255,14 @@ export class ShopController {
 		}
 
 		const bought = [...fromList, ...ideaLines];
+		let undoId: string | null = null;
 		if (bought.length) {
-			await this.kitchenService.recordShopDone({
+			const purchases = await this.shopService.recordPurchases(actor, bought, now);
+			// Dinners planned from ideas are not taken back, so that shop cannot be undone.
+			const undo: GotEverythingUndo | null = ideaIds.length
+				? null
+				: { items: fromList.map(restorable), purchases };
+			const events = await this.kitchenService.recordShopDone({
 				author: actor,
 				method: 'TICK',
 				items: bought.map((item) => ({
@@ -227,18 +271,33 @@ export class ShopController {
 					unit: item.unit
 				})),
 				at: now,
-				details: { shoppingListId: list.id }
+				details: { shoppingListId: list.id, ...(undo ? { undo } : {}) }
 			});
-			await this.shopService.recordPurchases(actor, bought, now);
 			await this.shopService.removeItems(
 				actor,
 				fromList.map((item) => item.id)
 			);
+			const shopId = events.find((event) => event.kind === 'SHOP_DONE')?.payload?.shopId;
+			undoId = undo && typeof shopId === 'string' ? shopId : null;
 		}
 		return {
 			recorded: bought.length,
-			message: gotEverythingMessage(tracks, ideaIds.length > 0)
+			message: gotEverythingMessage(tracks, ideaIds.length > 0),
+			undoId
 		};
+	}
+
+	/**
+	 * Undo for "Got everything": the items are back on the list as they were, the purchase
+	 * history counts as before, and the kitchen forgets the shop and what it bought.
+	 */
+	async undoGotEverything(actor: Actor, undoId: string): Promise<void> {
+		const shop = await this.kitchenService.findShop(actor.householdId, undoId);
+		const undo = shop?.method === 'TICK' ? (shop.payload?.undo as GotEverythingUndo) : undefined;
+		if (!undo) throw new Error('Shop not found');
+		await this.shopService.restoreItems(actor, undo.items);
+		await this.shopService.undoPurchases(actor, undo.purchases);
+		await this.kitchenService.forgetShop(actor.householdId, undoId);
 	}
 
 	/**
