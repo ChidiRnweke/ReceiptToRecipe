@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
 	calculateStockConfidencePure,
 	calculateDepletionDatePure,
@@ -216,6 +216,15 @@ describe('pantryCalculations', () => {
 
 describe('PantryService.calculateStockConfidenceWithOverrides', () => {
 	const service = new PantryService();
+
+	// The service reads the clock itself. Freezing it keeps "today" in the test and in the
+	// service the same instant, so an item bought today is exactly zero days old.
+	beforeEach(() => {
+		vi.useFakeTimers({ now: new Date('2026-03-10T12:00:00Z'), toFake: ['Date'] });
+	});
+	afterEach(() => {
+		vi.useRealTimers();
+	});
 
 	// Helper to create a date N days ago
 	function daysAgo(n: number): Date {
