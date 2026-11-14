@@ -40,15 +40,17 @@ export class MockShoppingListRepository implements IShoppingListRepository {
 		return { ...list, items };
 	}
 
-	async findActiveByUserId(userId: string): Promise<ShoppingListWithItemsDao | null> {
-		const list = Array.from(this.lists.values()).find((l) => l.userId === userId && l.isActive);
+	async findActiveByHouseholdId(householdId: string): Promise<ShoppingListWithItemsDao | null> {
+		const list = Array.from(this.lists.values()).find(
+			(l) => l.householdId === householdId && l.isActive
+		);
 		if (!list) return null;
 		return this.findByIdWithItems(list.id);
 	}
 
-	async findByUserId(userId: string): Promise<ShoppingListWithItemsDao[]> {
+	async findByHouseholdId(householdId: string): Promise<ShoppingListWithItemsDao[]> {
 		const lists = Array.from(this.lists.values())
-			.filter((l) => l.userId === userId)
+			.filter((l) => l.householdId === householdId)
 			.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
 		return Promise.all(lists.map((l) => this.findByIdWithItems(l.id))).then((results) =>
@@ -61,6 +63,7 @@ export class MockShoppingListRepository implements IShoppingListRepository {
 		const created: ShoppingListDao = {
 			id: uuidv4(),
 			userId: list.userId,
+			householdId: list.householdId,
 			name: list.name,
 			isActive: list.isActive ?? true,
 			createdAt: now,
@@ -79,6 +82,7 @@ export class MockShoppingListRepository implements IShoppingListRepository {
 			...list,
 			id: existing.id,
 			userId: existing.userId,
+			householdId: existing.householdId,
 			createdAt: existing.createdAt,
 			updatedAt: new Date()
 		};
@@ -90,9 +94,9 @@ export class MockShoppingListRepository implements IShoppingListRepository {
 		this.lists.delete(id);
 	}
 
-	async deactivateAllByUserId(userId: string): Promise<void> {
+	async deactivateAllByHouseholdId(householdId: string): Promise<void> {
 		for (const list of this.lists.values()) {
-			if (list.userId === userId && list.isActive) {
+			if (list.householdId === householdId && list.isActive) {
 				list.isActive = false;
 				list.updatedAt = new Date();
 			}

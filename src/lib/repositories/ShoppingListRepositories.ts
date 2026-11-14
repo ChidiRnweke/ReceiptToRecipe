@@ -36,9 +36,12 @@ export class ShoppingListRepository implements IShoppingListRepository {
 		};
 	}
 
-	async findActiveByUserId(userId: string): Promise<ShoppingListWithItemsDao | null> {
+	async findActiveByHouseholdId(householdId: string): Promise<ShoppingListWithItemsDao | null> {
 		const list = await this.db.query.shoppingLists.findFirst({
-			where: and(eq(schema.shoppingLists.userId, userId), eq(schema.shoppingLists.isActive, true)),
+			where: and(
+				eq(schema.shoppingLists.householdId, householdId),
+				eq(schema.shoppingLists.isActive, true)
+			),
 			with: { items: { orderBy: [schema.shoppingListItems.orderIndex] } }
 		});
 
@@ -50,9 +53,9 @@ export class ShoppingListRepository implements IShoppingListRepository {
 		};
 	}
 
-	async findByUserId(userId: string): Promise<ShoppingListWithItemsDao[]> {
+	async findByHouseholdId(householdId: string): Promise<ShoppingListWithItemsDao[]> {
 		const lists = await this.db.query.shoppingLists.findMany({
-			where: eq(schema.shoppingLists.userId, userId),
+			where: eq(schema.shoppingLists.householdId, householdId),
 			orderBy: [desc(schema.shoppingLists.createdAt)],
 			with: { items: { orderBy: [schema.shoppingListItems.orderIndex] } }
 		});
@@ -68,6 +71,7 @@ export class ShoppingListRepository implements IShoppingListRepository {
 			.insert(schema.shoppingLists)
 			.values({
 				userId: list.userId,
+				householdId: list.householdId,
 				name: list.name,
 				isActive: list.isActive ?? true
 			})
@@ -91,17 +95,18 @@ export class ShoppingListRepository implements IShoppingListRepository {
 		await this.db.delete(schema.shoppingLists).where(eq(schema.shoppingLists.id, id));
 	}
 
-	async deactivateAllByUserId(userId: string): Promise<void> {
+	async deactivateAllByHouseholdId(householdId: string): Promise<void> {
 		await this.db
 			.update(schema.shoppingLists)
 			.set({ isActive: false })
-			.where(eq(schema.shoppingLists.userId, userId));
+			.where(eq(schema.shoppingLists.householdId, householdId));
 	}
 
 	private toDao(list: typeof schema.shoppingLists.$inferSelect): ShoppingListDao {
 		return {
 			id: list.id,
 			userId: list.userId,
+			householdId: list.householdId,
 			name: list.name,
 			isActive: list.isActive ?? true,
 			createdAt: list.createdAt,

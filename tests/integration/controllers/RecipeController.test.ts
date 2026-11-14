@@ -10,10 +10,12 @@ import {
 	MockSavedRecipeRepository,
 	MockUserPreferencesRepository,
 	MockReceiptItemRepository,
+	MockReceiptRepository,
 	MockJobQueue,
 	MockTasteProfileService
 } from '../../mocks';
 import type { GeneratedRecipe } from '../../../src/lib/services/interfaces/ICulinaryIntelligence';
+import type { Actor } from '../../../src/lib/models/household';
 
 describe('RecipeController', () => {
 	let controller: RecipeController;
@@ -29,6 +31,29 @@ describe('RecipeController', () => {
 	let mockJobQueue: MockJobQueue;
 
 	const userId = 'user-123';
+	const actor: Actor = {
+		userId,
+		householdId: 'household-1',
+		memberId: 'member-1',
+		displayName: 'Test',
+		roles: { plans: true, shops: true, cooks: true }
+	};
+	// Lives in the same household as `actor`
+	const housemate: Actor = {
+		userId: 'user-housemate',
+		householdId: actor.householdId,
+		memberId: 'member-2',
+		displayName: 'Housemate',
+		roles: { plans: true, shops: true, cooks: true }
+	};
+	// Lives in a different household
+	const otherActor: Actor = {
+		userId: 'other-user',
+		householdId: 'household-2',
+		memberId: 'member-3',
+		displayName: 'Other',
+		roles: { plans: true, shops: true, cooks: true }
+	};
 
 	beforeEach(() => {
 		mockCulinaryIntelligence = new MockCulinaryIntelligence();
@@ -59,7 +84,7 @@ describe('RecipeController', () => {
 	describe('generateRecipe', () => {
 		it('should generate a recipe from custom ingredients', async () => {
 			const result = await controller.generateRecipe({
-				userId,
+				actor,
 				customIngredients: ['pasta', 'tomatoes'],
 				servings: 2
 			});
@@ -71,15 +96,13 @@ describe('RecipeController', () => {
 		});
 
 		it('should throw when no ingredients are provided', async () => {
-			await expect(controller.generateRecipe({ userId })).rejects.toThrow(
-				'No ingredients provided'
-			);
+			await expect(controller.generateRecipe({ actor })).rejects.toThrow('No ingredients provided');
 		});
 
 		it('should throw when empty ingredient arrays are provided', async () => {
 			await expect(
 				controller.generateRecipe({
-					userId,
+					actor,
 					customIngredients: [],
 					ingredientIds: []
 				})
@@ -98,7 +121,7 @@ describe('RecipeController', () => {
 			});
 
 			const result = await controller.generateRecipe({
-				userId,
+				actor,
 				ingredientIds: [item.id]
 			});
 
@@ -125,7 +148,7 @@ describe('RecipeController', () => {
 			};
 
 			await controller.generateRecipe({
-				userId,
+				actor,
 				ingredientIds: [item.id],
 				customIngredients: ['chicken']
 			});
@@ -143,7 +166,7 @@ describe('RecipeController', () => {
 			};
 
 			await controller.generateRecipe({
-				userId,
+				actor,
 				ingredientIds: ['nonexistent-id'],
 				customIngredients: ['butter']
 			});
@@ -166,7 +189,7 @@ describe('RecipeController', () => {
 			};
 
 			await controller.generateRecipe({
-				userId,
+				actor,
 				customIngredients: ['tofu']
 				// No servings specified - should use preferences default
 			});
@@ -183,7 +206,7 @@ describe('RecipeController', () => {
 			};
 
 			await controller.generateRecipe({
-				userId,
+				actor,
 				customIngredients: ['noodles'],
 				cuisineHint: 'Japanese'
 			});
@@ -207,7 +230,7 @@ describe('RecipeController', () => {
 			};
 
 			const result = await controller.generateRecipe({
-				userId,
+				actor,
 				customIngredients: ['tomato', 'garlic'],
 				useRag: true
 			});
@@ -243,7 +266,7 @@ describe('RecipeController', () => {
 			mockCulinaryIntelligence.setMockRecipe('parmesan,pasta,zucchini', mockRecipe);
 
 			const result = await controller.generateRecipe({
-				userId,
+				actor,
 				customIngredients: ['pasta', 'zucchini', 'parmesan'],
 				servings: 4
 			});
@@ -264,7 +287,7 @@ describe('RecipeController', () => {
 
 		it('should queue image generation job', async () => {
 			await controller.generateRecipe({
-				userId,
+				actor,
 				customIngredients: ['eggs', 'cheese']
 			});
 
@@ -279,7 +302,7 @@ describe('RecipeController', () => {
 
 		it('should set sourceReceiptId when provided', async () => {
 			const result = await controller.generateRecipe({
-				userId,
+				actor,
 				customIngredients: ['flour', 'sugar'],
 				sourceReceiptId: 'receipt-abc'
 			});
@@ -304,7 +327,7 @@ describe('RecipeController', () => {
 			};
 
 			await controller.generateRecipe({
-				userId,
+				actor,
 				customIngredients: ['tofu']
 			});
 
@@ -317,6 +340,7 @@ describe('RecipeController', () => {
 		it('should return recipe with ingredients for owner', async () => {
 			const recipe = await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'Test Recipe',
 				instructions: 'Do stuff',
 				servings: 2
@@ -336,46 +360,49 @@ describe('RecipeController', () => {
 			// Note: MockRecipeRepository.findByIdWithIngredients returns empty ingredients[]
 			// because it doesn't cross-reference the ingredient repo.
 			// We test the controller calls through, not the mock data shape.
-			const result = await controller.getRecipe(recipe.id, userId);
+			const result = await controller.getRecipe(recipe.id, actor);
 			expect(result).not.toBeNull();
 			expect(result!.id).toBe(recipe.id);
 			expect(result!.title).toBe('Test Recipe');
 		});
 
 		it('should return null for non-existent recipe', async () => {
-			const result = await controller.getRecipe('nonexistent', userId);
+			const result = await controller.getRecipe('nonexistent', actor);
 			expect(result).toBeNull();
 		});
 
 		it('should return null for private recipe owned by another user', async () => {
 			const recipe = await mockRecipeRepository.create({
-				userId: 'other-user',
+				userId: otherActor.userId,
+				householdId: otherActor.householdId,
 				title: 'Private Recipe',
 				instructions: 'Secret',
 				servings: 2
 			});
 
-			const result = await controller.getRecipe(recipe.id, userId);
+			const result = await controller.getRecipe(recipe.id, actor);
 			expect(result).toBeNull();
 		});
 
 		it('should return public recipe owned by another user', async () => {
 			const recipe = await mockRecipeRepository.create({
-				userId: 'other-user',
+				userId: otherActor.userId,
+				householdId: otherActor.householdId,
 				title: 'Public Recipe',
 				instructions: 'Available',
 				servings: 2
 			});
 			await mockRecipeRepository.togglePublic(recipe.id);
 
-			const result = await controller.getRecipe(recipe.id, userId);
+			const result = await controller.getRecipe(recipe.id, actor);
 			expect(result).not.toBeNull();
 			expect(result!.title).toBe('Public Recipe');
 		});
 
-		it('should return null for private recipe when no userId provided', async () => {
+		it('should return null for private recipe when no actor provided', async () => {
 			const recipe = await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'My Private Recipe',
 				instructions: 'Only for me',
 				servings: 2
@@ -390,6 +417,7 @@ describe('RecipeController', () => {
 		it('should scale ingredient quantities', async () => {
 			const recipe = await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'Scaled Recipe',
 				instructions: 'Cook it',
 				servings: 2
@@ -397,77 +425,84 @@ describe('RecipeController', () => {
 			// Since mock findByIdWithIngredients returns empty ingredients,
 			// we test that the method returns null for nonexistent and handles the scale logic.
 			// For a more complete test, let's seed the mock properly.
-			const result = await controller.getRecipeWithServings(recipe.id, 4, userId);
+			const result = await controller.getRecipeWithServings(recipe.id, 4, actor);
 			expect(result).not.toBeNull();
 			expect(result!.servings).toBe(4);
 		});
 
 		it('should return null for non-existent recipe', async () => {
-			const result = await controller.getRecipeWithServings('nope', 4, userId);
+			const result = await controller.getRecipeWithServings('nope', 4, actor);
 			expect(result).toBeNull();
 		});
 	});
 
-	describe('getUserRecipes', () => {
+	describe('getHouseholdRecipes', () => {
 		it('should return recipes for user', async () => {
 			await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'R1',
 				instructions: 'Do',
 				servings: 2
 			});
 			await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'R2',
 				instructions: 'Do',
 				servings: 2
 			});
 			await mockRecipeRepository.create({
-				userId: 'other',
+				userId: otherActor.userId,
+				householdId: otherActor.householdId,
 				title: 'R3',
 				instructions: 'Do',
 				servings: 2
 			});
 
-			const result = await controller.getUserRecipes(userId);
+			const result = await controller.getHouseholdRecipes(actor);
 			expect(result).toHaveLength(2);
 		});
 
 		it('should respect limit parameter', async () => {
 			await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'R1',
 				instructions: 'Do',
 				servings: 2
 			});
 			await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'R2',
 				instructions: 'Do',
 				servings: 2
 			});
 			await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'R3',
 				instructions: 'Do',
 				servings: 2
 			});
 
-			const result = await controller.getUserRecipes(userId, 2);
+			const result = await controller.getHouseholdRecipes(actor, 2);
 			expect(result).toHaveLength(2);
 		});
 	});
 
-	describe('getUserRecipesWithIngredients', () => {
+	describe('getHouseholdRecipesWithIngredients', () => {
 		it('should return recipes with ingredients for user', async () => {
 			await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'R1',
 				instructions: 'Do',
 				servings: 2
 			});
 
-			const result = await controller.getUserRecipesWithIngredients(userId);
+			const result = await controller.getHouseholdRecipesWithIngredients(actor);
 			expect(result).toHaveLength(1);
 			expect(result[0]).toHaveProperty('ingredients');
 		});
@@ -476,54 +511,83 @@ describe('RecipeController', () => {
 	describe('saveRecipe', () => {
 		it('should save a recipe for a user', async () => {
 			const recipe = await mockRecipeRepository.create({
-				userId: 'other-user',
+				userId: housemate.userId,
+				householdId: housemate.householdId,
 				title: 'Saveable',
 				instructions: 'Make',
 				servings: 2
 			});
 
-			await controller.saveRecipe(userId, recipe.id);
+			await controller.saveRecipe(actor, recipe.id);
 
-			const isSaved = await controller.isSaved(userId, recipe.id);
+			const isSaved = await controller.isSaved(actor, recipe.id);
 			expect(isSaved).toBe(true);
 		});
 
 		it('should not duplicate save', async () => {
 			const recipe = await mockRecipeRepository.create({
-				userId: 'other-user',
+				userId: housemate.userId,
+				householdId: housemate.householdId,
 				title: 'Saveable',
 				instructions: 'Make',
 				servings: 2
 			});
 
-			await controller.saveRecipe(userId, recipe.id);
-			await controller.saveRecipe(userId, recipe.id); // second save
+			await controller.saveRecipe(actor, recipe.id);
+			await controller.saveRecipe(actor, recipe.id); // second save
 
 			const saved = await mockSavedRecipeRepository.findByUserId(userId);
 			expect(saved).toHaveLength(1);
 		});
 	});
 
+	it('refuses to save a private recipe from another household', async () => {
+		const recipe = await mockRecipeRepository.create({
+			userId: otherActor.userId,
+			householdId: otherActor.householdId,
+			title: 'Private',
+			instructions: 'Make',
+			servings: 2
+		});
+
+		await expect(controller.saveRecipe(actor, recipe.id)).rejects.toThrow('Recipe not found');
+	});
+
+	it('keeps saved recipes per person, not per household', async () => {
+		const recipe = await mockRecipeRepository.create({
+			userId: housemate.userId,
+			householdId: housemate.householdId,
+			title: 'Saveable',
+			instructions: 'Make',
+			servings: 2
+		});
+
+		await controller.saveRecipe(actor, recipe.id);
+
+		expect(await controller.isSaved(housemate, recipe.id)).toBe(false);
+	});
+
 	describe('unsaveRecipe', () => {
 		it('should remove a saved recipe', async () => {
 			const recipe = await mockRecipeRepository.create({
-				userId: 'other-user',
+				userId: housemate.userId,
+				householdId: housemate.householdId,
 				title: 'Saveable',
 				instructions: 'Make',
 				servings: 2
 			});
 
-			await controller.saveRecipe(userId, recipe.id);
-			expect(await controller.isSaved(userId, recipe.id)).toBe(true);
+			await controller.saveRecipe(actor, recipe.id);
+			expect(await controller.isSaved(actor, recipe.id)).toBe(true);
 
-			await controller.unsaveRecipe(userId, recipe.id);
-			expect(await controller.isSaved(userId, recipe.id)).toBe(false);
+			await controller.unsaveRecipe(actor, recipe.id);
+			expect(await controller.isSaved(actor, recipe.id)).toBe(false);
 		});
 	});
 
 	describe('isSaved', () => {
 		it('should return false for unsaved recipe', async () => {
-			const result = await controller.isSaved(userId, 'some-recipe');
+			const result = await controller.isSaved(actor, 'some-recipe');
 			expect(result).toBe(false);
 		});
 	});
@@ -531,27 +595,29 @@ describe('RecipeController', () => {
 	describe('getSavedRecipes', () => {
 		it('should return saved recipes', async () => {
 			const r1 = await mockRecipeRepository.create({
-				userId: 'other',
+				userId: housemate.userId,
+				householdId: housemate.householdId,
 				title: 'R1',
 				instructions: 'Do',
 				servings: 2
 			});
 			const r2 = await mockRecipeRepository.create({
-				userId: 'other',
+				userId: housemate.userId,
+				householdId: housemate.householdId,
 				title: 'R2',
 				instructions: 'Do',
 				servings: 2
 			});
 
-			await controller.saveRecipe(userId, r1.id);
-			await controller.saveRecipe(userId, r2.id);
+			await controller.saveRecipe(actor, r1.id);
+			await controller.saveRecipe(actor, r2.id);
 
-			const result = await controller.getSavedRecipes(userId);
+			const result = await controller.getSavedRecipes(actor);
 			expect(result).toHaveLength(2);
 		});
 
 		it('should return empty array when no saved recipes', async () => {
-			const result = await controller.getSavedRecipes(userId);
+			const result = await controller.getSavedRecipes(actor);
 			expect(result).toEqual([]);
 		});
 	});
@@ -560,31 +626,33 @@ describe('RecipeController', () => {
 		it('should toggle recipe public status', async () => {
 			const recipe = await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'Toggle Me',
 				instructions: 'Public test',
 				servings: 2
 			});
 
-			const isPublic = await controller.togglePublic(recipe.id, userId);
+			const isPublic = await controller.togglePublic(recipe.id, actor);
 			expect(isPublic).toBe(true);
 
-			const isPublic2 = await controller.togglePublic(recipe.id, userId);
+			const isPublic2 = await controller.togglePublic(recipe.id, actor);
 			expect(isPublic2).toBe(false);
 		});
 
 		it('should throw for non-existent recipe', async () => {
-			await expect(controller.togglePublic('nope', userId)).rejects.toThrow('Recipe not found');
+			await expect(controller.togglePublic('nope', actor)).rejects.toThrow('Recipe not found');
 		});
 
 		it('should throw for recipe owned by another user', async () => {
 			const recipe = await mockRecipeRepository.create({
-				userId: 'other-user',
+				userId: otherActor.userId,
+				householdId: otherActor.householdId,
 				title: 'Not Mine',
 				instructions: 'Nope',
 				servings: 2
 			});
 
-			await expect(controller.togglePublic(recipe.id, userId)).rejects.toThrow('Recipe not found');
+			await expect(controller.togglePublic(recipe.id, actor)).rejects.toThrow('Recipe not found');
 		});
 	});
 
@@ -592,29 +660,31 @@ describe('RecipeController', () => {
 		it('should delete a recipe owned by user', async () => {
 			const recipe = await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'Delete Me',
 				instructions: 'Goodbye',
 				servings: 2
 			});
 
-			await controller.deleteRecipe(recipe.id, userId);
+			await controller.deleteRecipe(recipe.id, actor);
 			const stored = mockRecipeRepository.getStored(recipe.id);
 			expect(stored).toBeUndefined();
 		});
 
 		it('should throw for recipe not found', async () => {
-			await expect(controller.deleteRecipe('nope', userId)).rejects.toThrow('Recipe not found');
+			await expect(controller.deleteRecipe('nope', actor)).rejects.toThrow('Recipe not found');
 		});
 
 		it('should throw for recipe owned by another user', async () => {
 			const recipe = await mockRecipeRepository.create({
-				userId: 'other-user',
+				userId: otherActor.userId,
+				householdId: otherActor.householdId,
 				title: 'Not Mine',
 				instructions: 'Nope',
 				servings: 2
 			});
 
-			await expect(controller.deleteRecipe(recipe.id, userId)).rejects.toThrow('Recipe not found');
+			await expect(controller.deleteRecipe(recipe.id, actor)).rejects.toThrow('Recipe not found');
 		});
 	});
 
@@ -622,12 +692,13 @@ describe('RecipeController', () => {
 		it('should return image status for existing recipe', async () => {
 			const recipe = await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'Image Test',
 				instructions: 'Test',
 				servings: 2
 			});
 
-			const status = await controller.getImageStatus(recipe.id);
+			const status = await controller.getImageStatus(recipe.id, actor);
 			expect(status).toEqual({
 				imageStatus: 'QUEUED',
 				imageUrl: null
@@ -644,12 +715,13 @@ describe('RecipeController', () => {
 		it('should update recipe title and description', async () => {
 			const recipe = await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'Original',
 				instructions: 'Old instructions',
 				servings: 2
 			});
 
-			const updated = await controller.updateRecipe(recipe.id, userId, {
+			const updated = await controller.updateRecipe(recipe.id, actor, {
 				title: 'Updated Title',
 				description: 'New description'
 			});
@@ -660,6 +732,7 @@ describe('RecipeController', () => {
 		it('should replace ingredients when provided', async () => {
 			const recipe = await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'Update Ings',
 				instructions: 'Test',
 				servings: 2
@@ -676,7 +749,7 @@ describe('RecipeController', () => {
 				}
 			]);
 
-			await controller.updateRecipe(recipe.id, userId, {
+			await controller.updateRecipe(recipe.id, actor, {
 				ingredients: [{ name: 'NewIngredient', quantity: '2', unit: 'tbsp' }]
 			});
 
@@ -687,19 +760,20 @@ describe('RecipeController', () => {
 
 		it('should throw for recipe not owned by user', async () => {
 			const recipe = await mockRecipeRepository.create({
-				userId: 'other-user',
+				userId: otherActor.userId,
+				householdId: otherActor.householdId,
 				title: 'Not Mine',
 				instructions: 'Nope',
 				servings: 2
 			});
 
-			await expect(controller.updateRecipe(recipe.id, userId, { title: 'Hacked' })).rejects.toThrow(
+			await expect(controller.updateRecipe(recipe.id, actor, { title: 'Hacked' })).rejects.toThrow(
 				'Recipe not found or not authorized'
 			);
 		});
 
 		it('should throw for non-existent recipe', async () => {
-			await expect(controller.updateRecipe('nope', userId, { title: 'Nope' })).rejects.toThrow(
+			await expect(controller.updateRecipe('nope', actor, { title: 'Nope' })).rejects.toThrow(
 				'Recipe not found or not authorized'
 			);
 		});
@@ -709,34 +783,138 @@ describe('RecipeController', () => {
 		it('should adjust recipe via AI and persist changes', async () => {
 			const recipe = await mockRecipeRepository.create({
 				userId,
+				householdId: actor.householdId,
 				title: 'Original Recipe',
 				instructions: 'Original instructions',
 				servings: 2
 			});
 
-			const result = await controller.adjustRecipeWithAi(recipe.id, userId, 'Make it spicy');
+			const result = await controller.adjustRecipeWithAi(recipe.id, actor, 'Make it spicy');
 
 			// The mock adjustRecipe appends "(Adjusted)" to title
 			expect(result.title).toContain('Adjusted');
 		});
 
 		it('should throw for recipe not found', async () => {
-			await expect(controller.adjustRecipeWithAi('nope', userId, 'Make it vegan')).rejects.toThrow(
+			await expect(controller.adjustRecipeWithAi('nope', actor, 'Make it vegan')).rejects.toThrow(
 				'Recipe not found or not authorized'
 			);
 		});
 
 		it('should throw for recipe owned by another user', async () => {
 			const recipe = await mockRecipeRepository.create({
-				userId: 'other-user',
+				userId: otherActor.userId,
+				householdId: otherActor.householdId,
 				title: 'Not Mine',
 				instructions: 'Nope',
 				servings: 2
 			});
 
 			await expect(
-				controller.adjustRecipeWithAi(recipe.id, userId, 'Make it vegan')
+				controller.adjustRecipeWithAi(recipe.id, actor, 'Make it vegan')
 			).rejects.toThrow('Recipe not found or not authorized');
+		});
+	});
+
+	describe('household sharing', () => {
+		async function createPrivateRecipe(owner: Actor) {
+			return mockRecipeRepository.create({
+				userId: owner.userId,
+				householdId: owner.householdId,
+				title: 'Family Stew',
+				instructions: 'Simmer',
+				servings: 4
+			});
+		}
+
+		it('lets a second member of the household read a private recipe', async () => {
+			const recipe = await createPrivateRecipe(actor);
+
+			const result = await controller.getRecipe(recipe.id, housemate);
+
+			expect(result?.id).toBe(recipe.id);
+		});
+
+		it('hides a private recipe from another household', async () => {
+			const recipe = await createPrivateRecipe(actor);
+
+			const result = await controller.getRecipe(recipe.id, otherActor);
+
+			expect(result).toBeNull();
+		});
+
+		it('lets another household read a public recipe', async () => {
+			const recipe = await createPrivateRecipe(actor);
+			await mockRecipeRepository.togglePublic(recipe.id);
+
+			const result = await controller.getRecipe(recipe.id, otherActor);
+
+			expect(result?.id).toBe(recipe.id);
+		});
+
+		it('lets a second member of the household delete a recipe', async () => {
+			const recipe = await createPrivateRecipe(actor);
+
+			await controller.deleteRecipe(recipe.id, housemate);
+
+			expect(mockRecipeRepository.getStored(recipe.id)).toBeUndefined();
+		});
+
+		it('rejects deleting a recipe from another household', async () => {
+			const recipe = await createPrivateRecipe(actor);
+
+			await expect(controller.deleteRecipe(recipe.id, otherActor)).rejects.toThrow(
+				'Recipe not found'
+			);
+		});
+
+		it('rejects adjusting a public recipe from another household', async () => {
+			const recipe = await createPrivateRecipe(actor);
+			await mockRecipeRepository.togglePublic(recipe.id);
+
+			await expect(
+				controller.adjustRecipeWithAi(recipe.id, otherActor, 'Make it vegan')
+			).rejects.toThrow('Recipe not found or not authorized');
+		});
+
+		it('hides the image status of a private recipe from another household', async () => {
+			const recipe = await createPrivateRecipe(actor);
+
+			const status = await controller.getImageStatus(recipe.id, otherActor);
+
+			expect(status).toBeNull();
+		});
+
+		it('uses only receipt items from the actor household as ingredients', async () => {
+			const receiptRepo = new MockReceiptRepository();
+			mockReceiptItemRepository.setReceiptRepository(receiptRepo);
+			const foreignReceipt = await receiptRepo.create({
+				userId: otherActor.userId,
+				householdId: otherActor.householdId,
+				imageUrl: 'x'
+			});
+			const foreignItem = await mockReceiptItemRepository.create({
+				receiptId: foreignReceipt.id,
+				rawName: 'Caviar',
+				normalizedName: 'caviar',
+				quantity: '1',
+				unit: 'count',
+				unitType: 'COUNT'
+			});
+			let capturedContext!: RecipeContext;
+			const original = mockCulinaryIntelligence.generateRecipe.bind(mockCulinaryIntelligence);
+			mockCulinaryIntelligence.generateRecipe = async (context) => {
+				capturedContext = context;
+				return original(context);
+			};
+
+			await controller.generateRecipe({
+				actor,
+				ingredientIds: [foreignItem.id],
+				customIngredients: ['butter']
+			});
+
+			expect(capturedContext.availableIngredients).toEqual(['butter']);
 		});
 	});
 
@@ -761,7 +939,7 @@ describe('RecipeController', () => {
 			mockCulinaryIntelligence.setMockRecipe('butter,eggs,flour,meat,milk', mockRecipe);
 
 			const result = await controller.generateRecipe({
-				userId,
+				actor,
 				customIngredients: ['flour', 'milk', 'eggs', 'butter', 'meat']
 			});
 

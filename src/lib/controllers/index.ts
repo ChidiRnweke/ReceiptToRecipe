@@ -22,3 +22,4 @@ export {
 	type UpdateItemInput
 } from './PantryController';
 export { TasteProfileController } from './TasteProfileController';
+export { HouseholdController, type HouseholdOverview } from './HouseholdController';

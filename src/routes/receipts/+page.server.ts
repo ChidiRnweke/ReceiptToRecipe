@@ -3,14 +3,14 @@ import type { PageServerLoad, Actions } from './$types';
 import { AppFactory } from '$lib/factories';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) {
+	if (!locals.actor) {
 		throw redirect(302, '/login');
 	}
 
 	const receiptController = AppFactory.getReceiptController();
 
 	// Stream receipts and recipe counts - page renders immediately with skeleton
-	const receiptsPromise = receiptController.getUserReceipts(locals.user.id);
+	const receiptsPromise = receiptController.getHouseholdReceipts(locals.actor);
 
 	const recipeCountsPromise = receiptsPromise.then((receipts) => {
 		const receiptIds = receipts.map((r) => r.id);
@@ -31,7 +31,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	addToShopping: async ({ locals, request }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -44,8 +44,8 @@ export const actions: Actions = {
 
 		try {
 			const listController = AppFactory.getShoppingListController();
-			const list = await listController.getActiveList(locals.user.id);
-			await listController.addReceiptItems(locals.user.id, list.id, receiptId);
+			const list = await listController.getActiveList(locals.actor);
+			await listController.addReceiptItems(locals.actor, list.id, receiptId);
 			return { success: true, listId: list.id };
 		} catch (err) {
 			return fail(500, {
@@ -55,7 +55,7 @@ export const actions: Actions = {
 	},
 
 	delete: async ({ locals, request }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -68,7 +68,7 @@ export const actions: Actions = {
 
 		try {
 			const receiptController = AppFactory.getReceiptController();
-			await receiptController.deleteReceipt(receiptId, locals.user.id);
+			await receiptController.deleteReceipt(receiptId, locals.actor);
 			return { success: true };
 		} catch (err) {
 			console.error('Delete error:', err);

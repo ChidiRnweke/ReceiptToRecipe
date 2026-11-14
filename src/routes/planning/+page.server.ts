@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { AppFactory } from '$lib/factories';
+import type { Actor } from '$lib/models/household';
 
 type RecipeCalorieEstimate = {
 	recipeId: string;
@@ -139,14 +140,14 @@ function buildSeedIngredients(pantryItems: string[], seedIndex: number): string[
 	return selected;
 }
 
-async function ensureRecipePool(userId: string, minimumPoolSize: number) {
+async function ensureRecipePool(actor: Actor, minimumPoolSize: number) {
 	const recipeController = AppFactory.getRecipeController();
-	let recipes = await recipeController.getUserRecipesWithIngredients(userId, 250);
+	let recipes = await recipeController.getHouseholdRecipesWithIngredients(actor, 250);
 
 	if (recipes.length >= minimumPoolSize) return recipes;
 
 	const pantryController = AppFactory.getPantryController();
-	const pantry = await pantryController.getUserPantry(userId);
+	const pantry = await pantryController.getHouseholdPantry(actor);
 	const pantryNames = pantry
 		.map((p) => p.itemName)
 		.filter(Boolean)
@@ -159,7 +160,7 @@ async function ensureRecipePool(userId: string, minimumPoolSize: number) {
 		const customIngredients = buildSeedIngredients(pantryNames, i);
 		try {
 			await recipeController.generateRecipe({
-				userId,
+				actor,
 				customIngredients,
 				servings: 2,
 				useRag: true,
@@ -170,18 +171,22 @@ async function ensureRecipePool(userId: string, minimumPoolSize: number) {
 		}
 	}
 
-	recipes = await recipeController.getUserRecipesWithIngredients(userId, 250);
+	recipes = await recipeController.getHouseholdRecipesWithIngredients(actor, 250);
 	return recipes;
 }
 
-async function getPlanningData(userId: string) {
+async function getPlanningData(householdId: string) {
 	const plannedMealRepo = AppFactory.getPlannedMealRepository();
 	const recipeRepo = AppFactory.getRecipeRepository();
 
 	const rangeStart = startOfWeek(new Date());
 	const rangeEnd = endOfPlanningWindow(rangeStart, 14);
 
-	const plannedMeals = await plannedMealRepo.findByUserIdAndRange(userId, rangeStart, rangeEnd);
+	const plannedMeals = await plannedMealRepo.findByHouseholdIdAndRange(
+		householdId,
+		rangeStart,
+		rangeEnd
+	);
 	const recipeIds = [
 		...new Set(plannedMeals.map((meal) => meal.recipeId).filter((id): id is string => !!id))
 	];
@@ -227,13 +232,13 @@ async function getPlanningData(userId: string) {
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) throw redirect(302, '/login');
-	return getPlanningData(locals.user.id);
+	if (!locals.actor) throw redirect(302, '/login');
+	return getPlanningData(locals.actor.householdId);
 };
 
 export const actions: Actions = {
 	generatePlan: async ({ locals, request }) => {
-		if (!locals.user) throw redirect(302, '/login');
+		if (!locals.actor) throw redirect(302, '/login');
 
 		const formData = await request.formData();
 		const calorieLimit = parsePositiveInt(formData.get('calorieLimit'), 2000);
@@ -248,7 +253,7 @@ export const actions: Actions = {
 		}
 
 		const totalMeals = weekdayKeys.length * 3;
-		const recipes = await ensureRecipePool(locals.user.id, Math.min(totalMeals, 10));
+		const recipes = await ensureRecipePool(locals.actor, Math.min(totalMeals, 10));
 		if (recipes.length === 0) {
 			return fail(400, {
 				error: 'Could not generate a recipe pool yet. Add pantry items or try again.'
@@ -258,7 +263,11 @@ export const actions: Actions = {
 		const chosen = pickRecipes(recipes, totalMeals, calorieLimit);
 
 		// Clear old plan for the full window, then fill only visible days
-		await plannedMealRepo.deleteByUserIdAndRange(locals.user.id, rangeStart, rangeEnd);
+		await plannedMealRepo.deleteByHouseholdIdAndRange(
+			locals.actor.householdId,
+			rangeStart,
+			rangeEnd
+		);
 
 		const mealTypes = ['BREAKFAST', 'LUNCH', 'DINNER'] as const;
 		let idx = 0;
@@ -267,7 +276,8 @@ export const actions: Actions = {
 			for (const mealType of mealTypes) {
 				const selected = chosen[idx % chosen.length];
 				await plannedMealRepo.create({
-					userId: locals.user.id,
+					userId: locals.actor.userId,
+					householdId: locals.actor.householdId,
 					recipeId: selected.recipeId,
 					mealName: selected.title,
 					plannedDate: date,
@@ -282,7 +292,7 @@ export const actions: Actions = {
 	},
 
 	generateForDay: async ({ locals, request }) => {
-		if (!locals.user) throw redirect(302, '/login');
+		if (!locals.actor) throw redirect(302, '/login');
 
 		const formData = await request.formData();
 		const day = parseDateKey(formData.get('plannedDate'));
@@ -295,7 +305,7 @@ export const actions: Actions = {
 
 		const calorieLimit = parsePositiveInt(formData.get('calorieLimit'), 2000);
 		const plannedMealRepo = AppFactory.getPlannedMealRepository();
-		const recipes = await ensureRecipePool(locals.user.id, 3);
+		const recipes = await ensureRecipePool(locals.actor, 3);
 		if (recipes.length === 0) {
 			return fail(400, {
 				error: 'Could not generate recipes for this day yet. Add pantry items or try again.'
@@ -305,7 +315,11 @@ export const actions: Actions = {
 		const chosen = pickRecipes(recipes, 3, calorieLimit);
 
 		// Clear existing meals for this single day
-		await plannedMealRepo.deleteByUserIdAndRange(locals.user.id, startOfDay(day), endOfDay(day));
+		await plannedMealRepo.deleteByHouseholdIdAndRange(
+			locals.actor.householdId,
+			startOfDay(day),
+			endOfDay(day)
+		);
 
 		// Store at noon to avoid any midnight timezone drift when read back
 		const noonDate = new Date(day);
@@ -315,7 +329,8 @@ export const actions: Actions = {
 		for (let i = 0; i < 3; i++) {
 			const selected = chosen[i];
 			await plannedMealRepo.create({
-				userId: locals.user.id,
+				userId: locals.actor.userId,
+				householdId: locals.actor.householdId,
 				recipeId: selected.recipeId,
 				mealName: selected.title,
 				plannedDate: noonDate,
@@ -328,14 +343,14 @@ export const actions: Actions = {
 	},
 
 	addPlanToShopping: async ({ locals }) => {
-		if (!locals.user) throw redirect(302, '/login');
+		if (!locals.actor) throw redirect(302, '/login');
 
 		const plannedMealRepo = AppFactory.getPlannedMealRepository();
 		const shoppingListController = AppFactory.getShoppingListController();
 		const rangeStart = startOfWeek(new Date());
 		const rangeEnd = endOfPlanningWindow(rangeStart, 14);
-		const plannedMeals = await plannedMealRepo.findByUserIdAndRange(
-			locals.user.id,
+		const plannedMeals = await plannedMealRepo.findByHouseholdIdAndRange(
+			locals.actor.householdId,
 			rangeStart,
 			rangeEnd
 		);
@@ -347,11 +362,11 @@ export const actions: Actions = {
 			return fail(400, { error: 'No planned recipes to add yet.' });
 		}
 
-		const activeList = await shoppingListController.getActiveList(locals.user.id);
+		const activeList = await shoppingListController.getActiveList(locals.actor);
 		let addedItems = 0;
 		for (const recipeId of recipeIds) {
 			const added = await shoppingListController.addRecipeIngredients(
-				locals.user.id,
+				locals.actor,
 				activeList.id,
 				recipeId,
 				false,
@@ -364,12 +379,16 @@ export const actions: Actions = {
 	},
 
 	clearPlan: async ({ locals }) => {
-		if (!locals.user) throw redirect(302, '/login');
+		if (!locals.actor) throw redirect(302, '/login');
 
 		const plannedMealRepo = AppFactory.getPlannedMealRepository();
 		const rangeStart = startOfWeek(new Date());
 		const rangeEnd = endOfPlanningWindow(rangeStart, 14);
-		await plannedMealRepo.deleteByUserIdAndRange(locals.user.id, rangeStart, rangeEnd);
+		await plannedMealRepo.deleteByHouseholdIdAndRange(
+			locals.actor.householdId,
+			rangeStart,
+			rangeEnd
+		);
 
 		return { success: true };
 	}

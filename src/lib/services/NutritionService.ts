@@ -12,6 +12,7 @@ import type {
 	NutritionStreak,
 	NutritionWeekSummary
 } from './interfaces/INutritionService';
+import type { Actor } from '$lib/models/household';
 
 const DEFAULT_ADHERENCE_WINDOW = 14;
 const DEFAULT_TOLERANCE_PERCENT = 10;
@@ -23,17 +24,22 @@ export class NutritionService implements INutritionService {
 		private userPreferencesRepo: IUserPreferencesRepository
 	) {}
 
+	/**
+	 * Meal logs and the calorie goal are the person's own; the planned calories come from the
+	 * household's shared meal plan.
+	 */
 	async getAggregates(
-		userId: string,
+		actor: Actor,
 		options: NutritionAggregateOptions = {}
 	): Promise<NutritionAggregates> {
+		const { userId, householdId } = actor;
 		const referenceDate = options.referenceDate ?? new Date();
 		const goalCalories = await this.resolveCalorieGoal(userId, options.goalCalories);
 		const tolerancePercent = options.tolerancePercent ?? DEFAULT_TOLERANCE_PERCENT;
 		const adherenceWindowDays = options.adherenceWindowDays ?? DEFAULT_ADHERENCE_WINDOW;
 
 		const today = await this.getDailySummary(userId, referenceDate, goalCalories);
-		const week = await this.getWeeklySummary(userId, referenceDate, goalCalories);
+		const week = await this.getWeeklySummary(userId, householdId, referenceDate, goalCalories);
 		const streak = await this.getStreak(userId, referenceDate, goalCalories, tolerancePercent);
 		const adherence = await this.getAdherence(
 			userId,
@@ -87,13 +93,14 @@ export class NutritionService implements INutritionService {
 
 	private async getWeeklySummary(
 		userId: string,
+		householdId: string,
 		date: Date,
 		goalCalories: number | null
 	): Promise<NutritionWeekSummary> {
 		const { start, end } = this.weekRange(date);
 		const [consumedGrouped, plannedGrouped] = await Promise.all([
 			this.mealLogRepo.findDailyCaloriesByUserIdAndRange(userId, start, end),
-			this.plannedMealRepo.findDailyCaloriesByUserIdAndRange(userId, start, end)
+			this.plannedMealRepo.findDailyCaloriesByHouseholdIdAndRange(householdId, start, end)
 		]);
 		const consumedMap = new Map(consumedGrouped.map((day) => [day.date, day.calories]));
 		const plannedMap = new Map(plannedGrouped.map((day) => [day.date, day.calories]));

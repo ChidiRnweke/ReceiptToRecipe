@@ -8,7 +8,8 @@ import {
 	boolean,
 	jsonb,
 	pgEnum,
-	vector
+	vector,
+	index
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -40,6 +41,54 @@ export const users = pgTable('users', {
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
+
+// Households: the shared kitchen that receipts, recipes, cupboard, plan and lists belong to
+export const households = pgTable('households', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	name: text('name').notNull(),
+	createdAt: timestamp('created_at').notNull().defaultNow(),
+	updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+export const householdMembers = pgTable(
+	'household_members',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.unique()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		displayName: text('display_name').notNull(),
+		color: text('color'),
+		plans: boolean('plans').notNull().default(true),
+		shops: boolean('shops').notNull().default(true),
+		cooks: boolean('cooks').notNull().default(true),
+		joinedAt: timestamp('joined_at').notNull().defaultNow()
+	},
+	(t) => [index('household_members_household_id_idx').on(t.householdId)]
+);
+
+export const householdInvites = pgTable(
+	'household_invites',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		token: text('token').notNull().unique(),
+		createdBy: uuid('created_by')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		expiresAt: timestamp('expires_at').notNull(),
+		usedAt: timestamp('used_at'),
+		usedBy: uuid('used_by').references(() => users.id, { onDelete: 'set null' }),
+		createdAt: timestamp('created_at').notNull().defaultNow()
+	},
+	(t) => [index('household_invites_household_id_idx').on(t.householdId)]
+);
 
 // Waitlist Users
 export const waitlistUsers = pgTable('waitlist_users', {
@@ -78,22 +127,29 @@ export const userPreferences = pgTable('user_preferences', {
 });
 
 // Receipts
-export const receipts = pgTable('receipts', {
-	id: uuid('id').primaryKey().defaultRandom(),
-	userId: uuid('user_id')
-		.notNull()
-		.references(() => users.id, { onDelete: 'cascade' }),
-	imageUrl: text('image_url').notNull(),
-	status: processingStatusEnum('status').notNull().default('QUEUED'),
-	rawOcrData: jsonb('raw_ocr_data'),
-	storeName: text('store_name'),
-	purchaseDate: timestamp('purchase_date'),
-	totalAmount: decimal('total_amount', { precision: 10, scale: 2 }),
-	currency: text('currency').default('USD'),
-	errorMessage: text('error_message'),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	updatedAt: timestamp('updated_at').notNull().defaultNow()
-});
+export const receipts = pgTable(
+	'receipts',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		imageUrl: text('image_url').notNull(),
+		status: processingStatusEnum('status').notNull().default('QUEUED'),
+		rawOcrData: jsonb('raw_ocr_data'),
+		storeName: text('store_name'),
+		purchaseDate: timestamp('purchase_date'),
+		totalAmount: decimal('total_amount', { precision: 10, scale: 2 }),
+		currency: text('currency').default('USD'),
+		errorMessage: text('error_message'),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+		updatedAt: timestamp('updated_at').notNull().defaultNow()
+	},
+	(t) => [index('receipts_household_id_idx').on(t.householdId)]
+);
 
 // Receipt Items (normalized)
 export const receiptItems = pgTable('receipt_items', {
@@ -113,29 +169,36 @@ export const receiptItems = pgTable('receipt_items', {
 });
 
 // Recipes
-export const recipes = pgTable('recipes', {
-	id: uuid('id').primaryKey().defaultRandom(),
-	userId: uuid('user_id')
-		.notNull()
-		.references(() => users.id, { onDelete: 'cascade' }),
-	sourceReceiptId: uuid('source_receipt_id').references(() => receipts.id, {
-		onDelete: 'set null'
-	}),
-	title: text('title').notNull(),
-	description: text('description'),
-	instructions: text('instructions').notNull(),
-	servings: integer('servings').notNull().default(2),
-	prepTime: integer('prep_time'), // in minutes
-	cookTime: integer('cook_time'), // in minutes
-	imageUrl: text('image_url'),
-	imageStatus: processingStatusEnum('image_status').default('QUEUED'),
-	source: recipeSourceEnum('source').notNull().default('GENERATED'),
-	cuisineType: text('cuisine_type'),
-	estimatedCalories: integer('estimated_calories'),
-	isPublic: boolean('is_public').default(false),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	updatedAt: timestamp('updated_at').notNull().defaultNow()
-});
+export const recipes = pgTable(
+	'recipes',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		sourceReceiptId: uuid('source_receipt_id').references(() => receipts.id, {
+			onDelete: 'set null'
+		}),
+		title: text('title').notNull(),
+		description: text('description'),
+		instructions: text('instructions').notNull(),
+		servings: integer('servings').notNull().default(2),
+		prepTime: integer('prep_time'), // in minutes
+		cookTime: integer('cook_time'), // in minutes
+		imageUrl: text('image_url'),
+		imageStatus: processingStatusEnum('image_status').default('QUEUED'),
+		source: recipeSourceEnum('source').notNull().default('GENERATED'),
+		cuisineType: text('cuisine_type'),
+		estimatedCalories: integer('estimated_calories'),
+		isPublic: boolean('is_public').default(false),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+		updatedAt: timestamp('updated_at').notNull().defaultNow()
+	},
+	(t) => [index('recipes_household_id_idx').on(t.householdId)]
+);
 
 // Recipe Ingredients
 export const recipeIngredients = pgTable('recipe_ingredients', {
@@ -153,16 +216,23 @@ export const recipeIngredients = pgTable('recipe_ingredients', {
 });
 
 // Shopping Lists
-export const shoppingLists = pgTable('shopping_lists', {
-	id: uuid('id').primaryKey().defaultRandom(),
-	userId: uuid('user_id')
-		.notNull()
-		.references(() => users.id, { onDelete: 'cascade' }),
-	name: text('name').notNull(),
-	isActive: boolean('is_active').default(true),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	updatedAt: timestamp('updated_at').notNull().defaultNow()
-});
+export const shoppingLists = pgTable(
+	'shopping_lists',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		isActive: boolean('is_active').default(true),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+		updatedAt: timestamp('updated_at').notNull().defaultNow()
+	},
+	(t) => [index('shopping_lists_household_id_idx').on(t.householdId)]
+);
 
 // Meal Logs (nutrition tracking)
 export const mealLogs = pgTable('meal_logs', {
@@ -180,19 +250,26 @@ export const mealLogs = pgTable('meal_logs', {
 });
 
 // Planned Meals (meal planning link for nutrition)
-export const plannedMeals = pgTable('planned_meals', {
-	id: uuid('id').primaryKey().defaultRandom(),
-	userId: uuid('user_id')
-		.notNull()
-		.references(() => users.id, { onDelete: 'cascade' }),
-	recipeId: uuid('recipe_id').references(() => recipes.id, { onDelete: 'set null' }),
-	mealName: text('meal_name').notNull(),
-	plannedDate: timestamp('planned_date').notNull(),
-	plannedCalories: integer('planned_calories').notNull(),
-	mealType: mealTypeEnum('meal_type').notNull(),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	updatedAt: timestamp('updated_at').notNull().defaultNow()
-});
+export const plannedMeals = pgTable(
+	'planned_meals',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		recipeId: uuid('recipe_id').references(() => recipes.id, { onDelete: 'set null' }),
+		mealName: text('meal_name').notNull(),
+		plannedDate: timestamp('planned_date').notNull(),
+		plannedCalories: integer('planned_calories').notNull(),
+		mealType: mealTypeEnum('meal_type').notNull(),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+		updatedAt: timestamp('updated_at').notNull().defaultNow()
+	},
+	(t) => [index('planned_meals_household_id_idx').on(t.householdId)]
+);
 
 // Shopping List Items
 export const shoppingListItems = pgTable('shopping_list_items', {
@@ -213,43 +290,57 @@ export const shoppingListItems = pgTable('shopping_list_items', {
 });
 
 // Purchase History (for smart suggestions)
-export const purchaseHistory = pgTable('purchase_history', {
-	id: uuid('id').primaryKey().defaultRandom(),
-	userId: uuid('user_id')
-		.notNull()
-		.references(() => users.id, { onDelete: 'cascade' }),
-	itemName: text('item_name').notNull(), // normalized name
-	lastPurchased: timestamp('last_purchased').notNull(),
-	purchaseCount: integer('purchase_count').notNull().default(1),
-	avgQuantity: decimal('avg_quantity', { precision: 10, scale: 3 }),
-	avgFrequencyDays: integer('avg_frequency_days'),
-	estimatedDepleteDate: timestamp('estimated_deplete_date'),
-	// User override fields for cupboard
-	userOverrideDate: timestamp('user_override_date'), // When user confirmed "I still have this"
-	userShelfLifeDays: integer('user_shelf_life_days'), // Custom shelf life override
-	userQuantityOverride: decimal('user_quantity_override', { precision: 10, scale: 3 }), // Corrected quantity
-	isDepleted: boolean('is_depleted').notNull().default(false), // User marked as "used up"
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	updatedAt: timestamp('updated_at').notNull().defaultNow()
-});
+export const purchaseHistory = pgTable(
+	'purchase_history',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		itemName: text('item_name').notNull(), // normalized name
+		lastPurchased: timestamp('last_purchased').notNull(),
+		purchaseCount: integer('purchase_count').notNull().default(1),
+		avgQuantity: decimal('avg_quantity', { precision: 10, scale: 3 }),
+		avgFrequencyDays: integer('avg_frequency_days'),
+		estimatedDepleteDate: timestamp('estimated_deplete_date'),
+		// User override fields for cupboard
+		userOverrideDate: timestamp('user_override_date'), // When user confirmed "I still have this"
+		userShelfLifeDays: integer('user_shelf_life_days'), // Custom shelf life override
+		userQuantityOverride: decimal('user_quantity_override', { precision: 10, scale: 3 }), // Corrected quantity
+		isDepleted: boolean('is_depleted').notNull().default(false), // User marked as "used up"
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+		updatedAt: timestamp('updated_at').notNull().defaultNow()
+	},
+	(t) => [index('purchase_history_household_id_idx').on(t.householdId)]
+);
 
 // Cupboard Items (manually added by user, not from receipts)
-export const cupboardItems = pgTable('cupboard_items', {
-	id: uuid('id').primaryKey().defaultRandom(),
-	userId: uuid('user_id')
-		.notNull()
-		.references(() => users.id, { onDelete: 'cascade' }),
-	itemName: text('item_name').notNull(),
-	quantity: decimal('quantity', { precision: 10, scale: 3 }),
-	unit: text('unit'),
-	category: text('category'),
-	addedDate: timestamp('added_date').notNull().defaultNow(), // Acts as "purchase date" for confidence
-	shelfLifeDays: integer('shelf_life_days'), // User-specified, null = system default
-	isDepleted: boolean('is_depleted').notNull().default(false),
-	notes: text('notes'),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	updatedAt: timestamp('updated_at').notNull().defaultNow()
-});
+export const cupboardItems = pgTable(
+	'cupboard_items',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		itemName: text('item_name').notNull(),
+		quantity: decimal('quantity', { precision: 10, scale: 3 }),
+		unit: text('unit'),
+		category: text('category'),
+		addedDate: timestamp('added_date').notNull().defaultNow(), // Acts as "purchase date" for confidence
+		shelfLifeDays: integer('shelf_life_days'), // User-specified, null = system default
+		isDepleted: boolean('is_depleted').notNull().default(false),
+		notes: text('notes'),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+		updatedAt: timestamp('updated_at').notNull().defaultNow()
+	},
+	(t) => [index('cupboard_items_household_id_idx').on(t.householdId)]
+);
 
 // Category Shelf Life (for stock estimation)
 export const categoryShelfLife = pgTable('category_shelf_life', {
@@ -370,7 +461,40 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 	plannedMeals: many(plannedMeals),
 	purchaseHistory: many(purchaseHistory),
 	cupboardItems: many(cupboardItems),
-	savedRecipes: many(savedRecipes)
+	savedRecipes: many(savedRecipes),
+	householdMembership: one(householdMembers, {
+		fields: [users.id],
+		references: [householdMembers.userId]
+	})
+}));
+
+export const householdsRelations = relations(households, ({ many }) => ({
+	members: many(householdMembers),
+	invites: many(householdInvites),
+	receipts: many(receipts),
+	recipes: many(recipes),
+	shoppingLists: many(shoppingLists),
+	plannedMeals: many(plannedMeals),
+	purchaseHistory: many(purchaseHistory),
+	cupboardItems: many(cupboardItems)
+}));
+
+export const householdMembersRelations = relations(householdMembers, ({ one }) => ({
+	household: one(households, {
+		fields: [householdMembers.householdId],
+		references: [households.id]
+	}),
+	user: one(users, {
+		fields: [householdMembers.userId],
+		references: [users.id]
+	})
+}));
+
+export const householdInvitesRelations = relations(householdInvites, ({ one }) => ({
+	household: one(households, {
+		fields: [householdInvites.householdId],
+		references: [households.id]
+	})
 }));
 
 export const userDietaryProfilesRelations = relations(userDietaryProfiles, ({ one }) => ({
@@ -419,6 +543,10 @@ export const userPreferencesRelations = relations(userPreferences, ({ one }) => 
 }));
 
 export const receiptsRelations = relations(receipts, ({ one, many }) => ({
+	household: one(households, {
+		fields: [receipts.householdId],
+		references: [households.id]
+	}),
 	user: one(users, {
 		fields: [receipts.userId],
 		references: [users.id]
@@ -435,6 +563,10 @@ export const receiptItemsRelations = relations(receiptItems, ({ one }) => ({
 }));
 
 export const recipesRelations = relations(recipes, ({ one, many }) => ({
+	household: one(households, {
+		fields: [recipes.householdId],
+		references: [households.id]
+	}),
 	user: one(users, {
 		fields: [recipes.userId],
 		references: [users.id]
@@ -462,6 +594,10 @@ export const mealLogsRelations = relations(mealLogs, ({ one }) => ({
 }));
 
 export const plannedMealsRelations = relations(plannedMeals, ({ one }) => ({
+	household: one(households, {
+		fields: [plannedMeals.householdId],
+		references: [households.id]
+	}),
 	user: one(users, {
 		fields: [plannedMeals.userId],
 		references: [users.id]
@@ -480,6 +616,10 @@ export const recipeIngredientsRelations = relations(recipeIngredients, ({ one })
 }));
 
 export const shoppingListsRelations = relations(shoppingLists, ({ one, many }) => ({
+	household: one(households, {
+		fields: [shoppingLists.householdId],
+		references: [households.id]
+	}),
 	user: one(users, {
 		fields: [shoppingLists.userId],
 		references: [users.id]
@@ -499,6 +639,10 @@ export const shoppingListItemsRelations = relations(shoppingListItems, ({ one })
 }));
 
 export const purchaseHistoryRelations = relations(purchaseHistory, ({ one }) => ({
+	household: one(households, {
+		fields: [purchaseHistory.householdId],
+		references: [households.id]
+	}),
 	user: one(users, {
 		fields: [purchaseHistory.userId],
 		references: [users.id]
@@ -506,6 +650,10 @@ export const purchaseHistoryRelations = relations(purchaseHistory, ({ one }) => 
 }));
 
 export const cupboardItemsRelations = relations(cupboardItems, ({ one }) => ({
+	household: one(households, {
+		fields: [cupboardItems.householdId],
+		references: [households.id]
+	}),
 	user: one(users, {
 		fields: [cupboardItems.userId],
 		references: [users.id]
@@ -526,6 +674,12 @@ export const savedRecipesRelations = relations(savedRecipes, ({ one }) => ({
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type Household = typeof households.$inferSelect;
+export type NewHousehold = typeof households.$inferInsert;
+export type HouseholdMember = typeof householdMembers.$inferSelect;
+export type NewHouseholdMember = typeof householdMembers.$inferInsert;
+export type HouseholdInvite = typeof householdInvites.$inferSelect;
+export type NewHouseholdInvite = typeof householdInvites.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type UserPreferences = typeof userPreferences.$inferSelect;

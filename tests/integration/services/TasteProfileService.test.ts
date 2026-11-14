@@ -225,6 +225,7 @@ describe('TasteProfileService', () => {
 		it('should return fully compatible for a recipe with no conflicts', async () => {
 			const recipe = await recipeRepo.create({
 				userId,
+				householdId: 'household-1',
 				title: 'Simple Salad',
 				instructions: 'Mix everything.',
 				cuisineType: 'Mediterranean'
@@ -265,6 +266,7 @@ describe('TasteProfileService', () => {
 
 			const recipe = await recipeRepo.create({
 				userId,
+				householdId: 'household-1',
 				title: 'Peanut Butter Sandwich',
 				instructions: 'Spread peanut butter.'
 			});
@@ -303,6 +305,7 @@ describe('TasteProfileService', () => {
 
 			const recipe = await recipeRepo.create({
 				userId,
+				householdId: 'household-1',
 				title: 'Cheese Pizza',
 				instructions: 'Bake pizza.'
 			});
@@ -333,6 +336,7 @@ describe('TasteProfileService', () => {
 
 			const recipe = await recipeRepo.create({
 				userId,
+				householdId: 'household-1',
 				title: 'Peanut Salad',
 				instructions: 'Mix.'
 			});
@@ -363,6 +367,7 @@ describe('TasteProfileService', () => {
 
 			const recipe = await recipeRepo.create({
 				userId,
+				householdId: 'household-1',
 				title: 'Cilantro Rice',
 				instructions: 'Cook rice.'
 			});
@@ -401,6 +406,7 @@ describe('TasteProfileService', () => {
 
 			const recipe = await recipeRepo.create({
 				userId,
+				householdId: 'household-1',
 				title: 'Mushroom Soup',
 				instructions: 'Cook.'
 			});
@@ -432,6 +438,7 @@ describe('TasteProfileService', () => {
 
 			const recipe = await recipeRepo.create({
 				userId,
+				householdId: 'household-1',
 				title: 'Garlic Bread',
 				instructions: 'Bake.'
 			});
@@ -471,6 +478,7 @@ describe('TasteProfileService', () => {
 
 			const recipe = await recipeRepo.create({
 				userId,
+				householdId: 'household-1',
 				title: 'Pasta',
 				instructions: 'Cook pasta.',
 				cuisineType: 'Italian'
@@ -502,6 +510,7 @@ describe('TasteProfileService', () => {
 
 			const recipe = await recipeRepo.create({
 				userId,
+				householdId: 'household-1',
 				title: 'Tacos',
 				instructions: 'Assemble.',
 				cuisineType: 'Mexican'
@@ -527,6 +536,7 @@ describe('TasteProfileService', () => {
 
 			const recipe = await recipeRepo.create({
 				userId,
+				householdId: 'household-1',
 				title: 'Steak Dinner',
 				instructions: 'Grill steak.'
 			});
@@ -561,6 +571,7 @@ describe('TasteProfileService', () => {
 
 			const recipe = await recipeRepo.create({
 				userId,
+				householdId: 'household-1',
 				title: 'Omelette',
 				instructions: 'Cook.'
 			});
@@ -596,6 +607,7 @@ describe('TasteProfileService', () => {
 
 			const recipe = await recipeRepo.create({
 				userId,
+				householdId: 'household-1',
 				title: 'Salmon Bowl',
 				instructions: 'Cook salmon.'
 			});
@@ -641,6 +653,7 @@ describe('TasteProfileService', () => {
 
 			const recipe = await recipeRepo.create({
 				userId,
+				householdId: 'household-1',
 				title: 'Paneer Curry',
 				instructions: 'Cook.',
 				cuisineType: 'Indian'
@@ -685,6 +698,7 @@ describe('TasteProfileService', () => {
 
 			const recipe = await recipeRepo.create({
 				userId,
+				householdId: 'household-1',
 				title: 'Steak',
 				instructions: 'Grill.'
 			});

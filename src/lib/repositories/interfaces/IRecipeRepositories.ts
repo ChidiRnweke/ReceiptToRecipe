@@ -15,8 +15,11 @@ export interface IRecipeRepository {
 	findById(id: string): Promise<RecipeDao | null>;
 	findByIdWithIngredients(id: string): Promise<RecipeWithIngredientsDao | null>;
 	findByIds(ids: string[]): Promise<RecipeDao[]>;
-	findByUserId(userId: string, limit?: number): Promise<RecipeDao[]>;
-	findByUserIdWithIngredients(userId: string, limit?: number): Promise<RecipeWithIngredientsDao[]>;
+	findByHouseholdId(householdId: string, limit?: number): Promise<RecipeDao[]>;
+	findByHouseholdIdWithIngredients(
+		householdId: string,
+		limit?: number
+	): Promise<RecipeWithIngredientsDao[]>;
 	findByReceiptId(receiptId: string): Promise<RecipeDao[]>;
 	create(recipe: NewRecipeDao): Promise<RecipeDao>;
 	update(id: string, recipe: UpdateRecipeDao): Promise<RecipeDao>;
@@ -24,7 +27,7 @@ export interface IRecipeRepository {
 	togglePublic(id: string): Promise<boolean>;
 	getImageStatus(id: string): Promise<RecipeImageStatusDao | null>;
 	countByReceiptIds(receiptIds: string[]): Promise<RecipeCountByReceiptDao[]>;
-	countByUserId(userId: string): Promise<number>;
+	countByHouseholdId(householdId: string): Promise<number>;
 }
 
 export interface IRecipeIngredientRepository {

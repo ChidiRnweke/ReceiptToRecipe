@@ -1,6 +1,7 @@
 export interface CupboardItemDao {
 	id: string;
 	userId: string;
+	householdId: string;
 	itemName: string;
 	quantity: string | null;
 	unit: string | null;
@@ -15,6 +16,7 @@ export interface CupboardItemDao {
 
 export interface NewCupboardItemDao {
 	userId: string;
+	householdId: string;
 	itemName: string;
 	quantity?: string | null;
 	unit?: string | null;

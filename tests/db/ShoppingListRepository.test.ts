@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { setupTestDb, cleanTables, teardownTestDb } from '../helpers/testDb';
+import { setupTestDb, cleanTables, teardownTestDb, createHouseholdFor } from '../helpers/testDb';
 import {
 	ShoppingListItemRepository,
 	ShoppingListRepository
@@ -11,6 +11,7 @@ describe('ShoppingListRepository (DB)', () => {
 	let listRepo: ShoppingListRepository;
 	let itemRepo: ShoppingListItemRepository;
 	let userId: string;
+	let householdId: string;
 
 	beforeEach(async () => {
 		const db = await setupTestDb();
@@ -26,6 +27,7 @@ describe('ShoppingListRepository (DB)', () => {
 			name: 'Test User'
 		});
 		userId = user.id;
+		householdId = await createHouseholdFor(userId);
 	});
 
 	afterAll(async () => {
@@ -36,7 +38,7 @@ describe('ShoppingListRepository (DB)', () => {
 
 	describe('create', () => {
 		it('should create a list with isActive defaulting to true', async () => {
-			const list = await listRepo.create({ userId, name: 'Groceries' });
+			const list = await listRepo.create({ userId, householdId, name: 'Groceries' });
 
 			expect(list.id).toBeDefined();
 			expect(list.userId).toBe(userId);
@@ -48,6 +50,7 @@ describe('ShoppingListRepository (DB)', () => {
 		it('should create an inactive list when specified', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Old List',
 				isActive: false
 			});
@@ -57,7 +60,7 @@ describe('ShoppingListRepository (DB)', () => {
 
 	describe('findById', () => {
 		it('should find a list by ID', async () => {
-			const created = await listRepo.create({ userId, name: 'Find Me' });
+			const created = await listRepo.create({ userId, householdId, name: 'Find Me' });
 			const found = await listRepo.findById(created.id);
 
 			expect(found).not.toBeNull();
@@ -73,7 +76,7 @@ describe('ShoppingListRepository (DB)', () => {
 
 	describe('findByIdWithItems', () => {
 		it('should return list with items sorted by orderIndex', async () => {
-			const list = await listRepo.create({ userId, name: 'With Items' });
+			const list = await listRepo.create({ userId, householdId, name: 'With Items' });
 
 			// Insert items in non-sequential order
 			await itemRepo.create({
@@ -102,7 +105,7 @@ describe('ShoppingListRepository (DB)', () => {
 		});
 
 		it('should return empty items array for list with no items', async () => {
-			const list = await listRepo.create({ userId, name: 'Empty' });
+			const list = await listRepo.create({ userId, householdId, name: 'Empty' });
 			const found = await listRepo.findByIdWithItems(list.id);
 
 			expect(found).not.toBeNull();
@@ -115,12 +118,12 @@ describe('ShoppingListRepository (DB)', () => {
 		});
 	});
 
-	describe('findActiveByUserId', () => {
+	describe('findActiveByHouseholdId', () => {
 		it('should return the active list for a user', async () => {
-			await listRepo.create({ userId, name: 'Active List', isActive: true });
-			await listRepo.create({ userId, name: 'Inactive', isActive: false });
+			await listRepo.create({ userId, householdId, name: 'Active List', isActive: true });
+			await listRepo.create({ userId, householdId, name: 'Inactive', isActive: false });
 
-			const found = await listRepo.findActiveByUserId(userId);
+			const found = await listRepo.findActiveByHouseholdId(householdId);
 
 			expect(found).not.toBeNull();
 			expect(found!.name).toBe('Active List');
@@ -128,15 +131,16 @@ describe('ShoppingListRepository (DB)', () => {
 		});
 
 		it('should return null when no active list exists', async () => {
-			await listRepo.create({ userId, name: 'Inactive', isActive: false });
+			await listRepo.create({ userId, householdId, name: 'Inactive', isActive: false });
 
-			const found = await listRepo.findActiveByUserId(userId);
+			const found = await listRepo.findActiveByHouseholdId(householdId);
 			expect(found).toBeNull();
 		});
 
 		it('should include items sorted by orderIndex', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Active',
 				isActive: true
 			});
@@ -151,20 +155,20 @@ describe('ShoppingListRepository (DB)', () => {
 				orderIndex: 0
 			});
 
-			const found = await listRepo.findActiveByUserId(userId);
+			const found = await listRepo.findActiveByHouseholdId(householdId);
 
 			expect(found!.items[0].name).toBe('A');
 			expect(found!.items[1].name).toBe('B');
 		});
 	});
 
-	describe('findByUserId', () => {
+	describe('findByHouseholdId', () => {
 		it('should return all lists for a user sorted by createdAt descending', async () => {
-			await listRepo.create({ userId, name: 'First' });
-			await listRepo.create({ userId, name: 'Second' });
-			await listRepo.create({ userId, name: 'Third' });
+			await listRepo.create({ userId, householdId, name: 'First' });
+			await listRepo.create({ userId, householdId, name: 'Second' });
+			await listRepo.create({ userId, householdId, name: 'Third' });
 
-			const lists = await listRepo.findByUserId(userId);
+			const lists = await listRepo.findByHouseholdId(householdId);
 
 			expect(lists.length).toBe(3);
 			// Most recent first
@@ -174,29 +178,47 @@ describe('ShoppingListRepository (DB)', () => {
 		});
 
 		it('should return empty array for user with no lists', async () => {
-			const lists = await listRepo.findByUserId(userId);
+			const lists = await listRepo.findByHouseholdId(householdId);
 			expect(lists).toEqual([]);
 		});
 
-		it('should not return lists from other users', async () => {
+		it('should not return lists from other households', async () => {
 			const otherUser = await userRepo.create({
 				email: 'other@example.com',
 				name: 'Other',
 				authProviderId: 'oauth-other'
 			});
+			const otherHouseholdId = await createHouseholdFor(otherUser.id);
 
-			await listRepo.create({ userId, name: 'My List' });
-			await listRepo.create({ userId: otherUser.id, name: 'Their List' });
+			await listRepo.create({ userId, householdId, name: 'My List' });
+			await listRepo.create({
+				userId: otherUser.id,
+				householdId: otherHouseholdId,
+				name: 'Their List'
+			});
 
-			const myLists = await listRepo.findByUserId(userId);
+			const myLists = await listRepo.findByHouseholdId(householdId);
 			expect(myLists.length).toBe(1);
 			expect(myLists[0].name).toBe('My List');
+		});
+
+		it('returns lists another member of the household created', async () => {
+			const housemate = await userRepo.create({
+				email: 'housemate@example.com',
+				name: 'Housemate',
+				authProviderId: 'oauth-housemate'
+			});
+			await listRepo.create({ userId: housemate.id, householdId, name: 'Shared List' });
+
+			const lists = await listRepo.findByHouseholdId(householdId);
+
+			expect(lists.map((list) => list.name)).toEqual(['Shared List']);
 		});
 	});
 
 	describe('update', () => {
 		it('should update a list name', async () => {
-			const list = await listRepo.create({ userId, name: 'Original' });
+			const list = await listRepo.create({ userId, householdId, name: 'Original' });
 			const updated = await listRepo.update(list.id, { name: 'Updated' });
 
 			expect(updated.name).toBe('Updated');
@@ -204,7 +226,7 @@ describe('ShoppingListRepository (DB)', () => {
 		});
 
 		it('should deactivate a list', async () => {
-			const list = await listRepo.create({ userId, name: 'Active' });
+			const list = await listRepo.create({ userId, householdId, name: 'Active' });
 			const updated = await listRepo.update(list.id, { isActive: false });
 
 			expect(updated.isActive).toBe(false);
@@ -213,7 +235,7 @@ describe('ShoppingListRepository (DB)', () => {
 
 	describe('delete', () => {
 		it('should delete a list', async () => {
-			const list = await listRepo.create({ userId, name: 'Delete Me' });
+			const list = await listRepo.create({ userId, householdId, name: 'Delete Me' });
 			await listRepo.delete(list.id);
 
 			const found = await listRepo.findById(list.id);
@@ -221,14 +243,14 @@ describe('ShoppingListRepository (DB)', () => {
 		});
 	});
 
-	describe('deactivateAllByUserId', () => {
+	describe('deactivateAllByHouseholdId', () => {
 		it('should deactivate all lists for a user', async () => {
-			await listRepo.create({ userId, name: 'List 1', isActive: true });
-			await listRepo.create({ userId, name: 'List 2', isActive: true });
+			await listRepo.create({ userId, householdId, name: 'List 1', isActive: true });
+			await listRepo.create({ userId, householdId, name: 'List 2', isActive: true });
 
-			await listRepo.deactivateAllByUserId(userId);
+			await listRepo.deactivateAllByHouseholdId(householdId);
 
-			const lists = await listRepo.findByUserId(userId);
+			const lists = await listRepo.findByHouseholdId(householdId);
 			expect(lists.every((l) => l.isActive === false)).toBe(true);
 		});
 
@@ -238,17 +260,19 @@ describe('ShoppingListRepository (DB)', () => {
 				name: 'Other',
 				authProviderId: 'oauth-other2'
 			});
+			const otherHouseholdId = await createHouseholdFor(otherUser.id);
 
-			await listRepo.create({ userId, name: 'My List', isActive: true });
+			await listRepo.create({ userId, householdId, name: 'My List', isActive: true });
 			await listRepo.create({
 				userId: otherUser.id,
+				householdId: otherHouseholdId,
 				name: 'Their List',
 				isActive: true
 			});
 
-			await listRepo.deactivateAllByUserId(userId);
+			await listRepo.deactivateAllByHouseholdId(householdId);
 
-			const otherLists = await listRepo.findActiveByUserId(otherUser.id);
+			const otherLists = await listRepo.findActiveByHouseholdId(otherHouseholdId);
 			expect(otherLists).not.toBeNull();
 			expect(otherLists!.isActive).toBe(true);
 		});
@@ -260,7 +284,7 @@ describe('ShoppingListRepository (DB)', () => {
 		let listId: string;
 
 		beforeEach(async () => {
-			const list = await listRepo.create({ userId, name: 'Item Test List' });
+			const list = await listRepo.create({ userId, householdId, name: 'Item Test List' });
 			listId = list.id;
 		});
 
@@ -456,7 +480,7 @@ describe('ShoppingListRepository (DB)', () => {
 			});
 
 			it('should not affect items in other lists', async () => {
-				const otherList = await listRepo.create({ userId, name: 'Other List' });
+				const otherList = await listRepo.create({ userId, householdId, name: 'Other List' });
 				await itemRepo.create({
 					shoppingListId: listId,
 					name: 'Check 1',

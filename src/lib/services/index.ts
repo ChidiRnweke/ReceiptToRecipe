@@ -62,6 +62,10 @@ export type {
 	NutritionAdherence,
 	NutritionAggregates,
 	NutritionAggregateOptions,
+	IHouseholdService,
+	HouseholdUser,
+	InvitePreview,
+	InviteStatus,
 	// OAuth interfaces
 	IOAuthService,
 	Auth0Tokens,
@@ -98,6 +102,7 @@ export { TasteProfileService } from './TasteProfileService';
 export { DashboardService } from './DashboardService';
 export { NutritionService } from './NutritionService';
 export { GlobalSearchService } from './GlobalSearchService';
+export { HouseholdService } from './HouseholdService';
 export {
 	AppriseNotificationService,
 	MockNotificationService,

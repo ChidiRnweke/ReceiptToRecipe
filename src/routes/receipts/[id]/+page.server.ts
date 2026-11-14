@@ -3,12 +3,12 @@ import type { Actions, PageServerLoad } from './$types';
 import { AppFactory } from '$lib/factories';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-	if (!locals.user) {
+	if (!locals.actor) {
 		throw redirect(302, '/login');
 	}
 
 	const receiptController = AppFactory.getReceiptController();
-	const receipt = await receiptController.getReceipt(params.id, locals.user.id);
+	const receipt = await receiptController.getReceipt(params.id, locals.actor);
 
 	if (!receipt) {
 		throw error(404, 'Receipt not found');
@@ -27,14 +27,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
 	addToShopping: async ({ locals, params }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
 		try {
 			const listController = AppFactory.getShoppingListController();
-			const list = await listController.getActiveList(locals.user.id);
-			await listController.addReceiptItems(locals.user.id, list.id, params.id);
+			const list = await listController.getActiveList(locals.actor);
+			await listController.addReceiptItems(locals.actor, list.id, params.id);
 			return { success: true, listId: list.id };
 		} catch (err) {
 			return fail(500, {
@@ -44,7 +44,7 @@ export const actions: Actions = {
 	},
 
 	addSingleItemToShopping: async ({ locals, request }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -61,8 +61,8 @@ export const actions: Actions = {
 
 		try {
 			const listController = AppFactory.getShoppingListController();
-			const list = await listController.getActiveList(locals.user.id);
-			await listController.addItem(locals.user.id, list.id, {
+			const list = await listController.getActiveList(locals.actor);
+			await listController.addItem(locals.actor, list.id, {
 				name,
 				quantity,
 				unit: unit || undefined
@@ -76,7 +76,7 @@ export const actions: Actions = {
 	},
 
 	updateItem: async ({ locals, params, request }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -94,7 +94,7 @@ export const actions: Actions = {
 
 		try {
 			const receiptController = AppFactory.getReceiptController();
-			await receiptController.updateReceiptItem(params.id, locals.user.id, itemId, {
+			await receiptController.updateReceiptItem(params.id, locals.actor, itemId, {
 				name,
 				quantity,
 				unit,
@@ -110,7 +110,7 @@ export const actions: Actions = {
 	},
 
 	addItem: async ({ locals, params, request }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -127,7 +127,7 @@ export const actions: Actions = {
 
 		try {
 			const receiptController = AppFactory.getReceiptController();
-			await receiptController.addManualItem(params.id, locals.user.id, {
+			await receiptController.addManualItem(params.id, locals.actor, {
 				name,
 				quantity,
 				unit,
@@ -143,7 +143,7 @@ export const actions: Actions = {
 	},
 
 	deleteItem: async ({ locals, params, request }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -153,7 +153,7 @@ export const actions: Actions = {
 
 		try {
 			const receiptController = AppFactory.getReceiptController();
-			await receiptController.deleteReceiptItem(params.id, locals.user.id, itemId);
+			await receiptController.deleteReceiptItem(params.id, locals.actor, itemId);
 			return { success: true };
 		} catch (err) {
 			return fail(500, {

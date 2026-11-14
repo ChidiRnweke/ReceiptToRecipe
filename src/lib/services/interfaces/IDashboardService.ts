@@ -1,5 +1,6 @@
 import type { ReceiptDao, RecipeWithIngredientsDao, ShoppingListWithItemsDao } from '$repositories';
 import type { PantryItem } from './IPantryService';
+import type { Actor } from '$lib/models/household';
 
 export interface SmartSuggestion {
 	itemName: string;
@@ -39,5 +40,5 @@ export interface DashboardData {
 }
 
 export interface IDashboardService {
-	getDashboardData(userId: string): Promise<DashboardData>;
+	getDashboardData(actor: Actor): Promise<DashboardData>;
 }

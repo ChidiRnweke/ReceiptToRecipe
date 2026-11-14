@@ -5,9 +5,16 @@ import {
 	MockShoppingListItemRepository
 } from '../../mocks/MockShoppingListRepositories';
 import { MockPurchaseHistoryRepository } from '../../mocks/MockPurchaseHistoryRepository';
-import { MockRecipeIngredientRepository } from '../../mocks/MockRecipeRepositories';
-import { MockReceiptItemRepository } from '../../mocks/MockReceiptRepositories';
+import {
+	MockRecipeIngredientRepository,
+	MockRecipeRepository
+} from '../../mocks/MockRecipeRepositories';
+import {
+	MockReceiptItemRepository,
+	MockReceiptRepository
+} from '../../mocks/MockReceiptRepositories';
 import { MockCulinaryIntelligence } from '../../mocks/MockCulinaryIntelligence';
+import type { Actor } from '../../../src/lib/models/household';
 
 describe('ShoppingListController', () => {
 	let controller: ShoppingListController;
@@ -16,8 +23,43 @@ describe('ShoppingListController', () => {
 	let purchaseHistoryRepo: MockPurchaseHistoryRepository;
 	let recipeIngredientRepo: MockRecipeIngredientRepository;
 	let receiptItemRepo: MockReceiptItemRepository;
+	let recipeRepo: MockRecipeRepository;
+	let receiptRepo: MockReceiptRepository;
 
 	const userId = 'user-123';
+	const householdId = 'household-1';
+	const otherHouseholdId = 'household-2';
+	const actor: Actor = {
+		userId,
+		householdId,
+		memberId: 'member-1',
+		displayName: 'Test',
+		roles: { plans: true, shops: true, cooks: true }
+	};
+	const housemate: Actor = {
+		userId: 'user-789',
+		householdId,
+		memberId: 'member-2',
+		displayName: 'Housemate',
+		roles: { plans: true, shops: true, cooks: true }
+	};
+
+	async function createRecipe(owner: { userId: string; householdId: string } = actor) {
+		return recipeRepo.create({
+			userId: owner.userId,
+			householdId: owner.householdId,
+			title: 'Test recipe',
+			instructions: 'Cook.'
+		});
+	}
+
+	async function createReceipt(owner: { userId: string; householdId: string } = actor) {
+		return receiptRepo.create({
+			userId: owner.userId,
+			householdId: owner.householdId,
+			imageUrl: 'https://example.com/receipt.jpg'
+		});
+	}
 
 	beforeEach(() => {
 		listRepo = new MockShoppingListRepository();
@@ -25,6 +67,8 @@ describe('ShoppingListController', () => {
 		purchaseHistoryRepo = new MockPurchaseHistoryRepository();
 		recipeIngredientRepo = new MockRecipeIngredientRepository();
 		receiptItemRepo = new MockReceiptItemRepository();
+		recipeRepo = new MockRecipeRepository();
+		receiptRepo = new MockReceiptRepository();
 
 		// Wire the item repo into the list repo so findByIdWithItems works
 		listRepo.setItemRepository(itemRepo);
@@ -34,13 +78,15 @@ describe('ShoppingListController', () => {
 			itemRepo,
 			purchaseHistoryRepo,
 			recipeIngredientRepo,
-			receiptItemRepo
+			receiptItemRepo,
+			recipeRepo,
+			receiptRepo
 		);
 	});
 
 	describe('getActiveList', () => {
 		it('should create a new list when none exists', async () => {
-			const result = await controller.getActiveList(userId);
+			const result = await controller.getActiveList(actor);
 
 			expect(result.userId).toBe(userId);
 			expect(result.name).toBe('Shopping List');
@@ -51,20 +97,21 @@ describe('ShoppingListController', () => {
 		it('should return existing active list', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'My List',
 				isActive: true
 			});
 
-			const result = await controller.getActiveList(userId);
+			const result = await controller.getActiveList(actor);
 
 			expect(result.id).toBe(list.id);
 			expect(result.name).toBe('My List');
 		});
 
 		it('should not return inactive lists', async () => {
-			await listRepo.create({ userId, name: 'Old List', isActive: false });
+			await listRepo.create({ userId, householdId, name: 'Old List', isActive: false });
 
-			const result = await controller.getActiveList(userId);
+			const result = await controller.getActiveList(actor);
 
 			// Should create a new one since none is active
 			expect(result.name).toBe('Shopping List');
@@ -74,6 +121,7 @@ describe('ShoppingListController', () => {
 		it('should return list with its items', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'My List',
 				isActive: true
 			});
@@ -85,33 +133,55 @@ describe('ShoppingListController', () => {
 				orderIndex: 0
 			});
 
-			const result = await controller.getActiveList(userId);
+			const result = await controller.getActiveList(actor);
 
 			expect(result.items.length).toBe(1);
 			expect(result.items[0].name).toBe('Milk');
 		});
 	});
 
-	describe('getUserLists', () => {
+	describe('household sharing', () => {
+		it('shows a second member of the household the same active list', async () => {
+			const list = await controller.getActiveList(actor);
+
+			const seenByHousemate = await controller.getActiveList(housemate);
+
+			expect(seenByHousemate.id).toBe(list.id);
+		});
+
+		it("lets a second member of the household add to the household's list", async () => {
+			const list = await controller.getActiveList(actor);
+
+			const item = await controller.addItem(housemate, list.id, { name: 'Bread' });
+
+			expect(item.shoppingListId).toBe(list.id);
+		});
+	});
+
+	describe('getHouseholdLists', () => {
 		it('should return empty array when no lists', async () => {
-			const result = await controller.getUserLists(userId);
+			const result = await controller.getHouseholdLists(actor);
 			expect(result).toEqual([]);
 		});
 
 		it('should return all lists for user', async () => {
-			await listRepo.create({ userId, name: 'List 1' });
-			await listRepo.create({ userId, name: 'List 2' });
+			await listRepo.create({ userId, householdId, name: 'List 1' });
+			await listRepo.create({ userId, householdId, name: 'List 2' });
 
-			const result = await controller.getUserLists(userId);
+			const result = await controller.getHouseholdLists(actor);
 
 			expect(result.length).toBe(2);
 		});
 
 		it('should not return lists from other users', async () => {
-			await listRepo.create({ userId, name: 'My List' });
-			await listRepo.create({ userId: 'other-user', name: 'Other List' });
+			await listRepo.create({ userId, householdId, name: 'My List' });
+			await listRepo.create({
+				userId: 'other-user',
+				householdId: otherHouseholdId,
+				name: 'Other List'
+			});
 
-			const result = await controller.getUserLists(userId);
+			const result = await controller.getHouseholdLists(actor);
 
 			expect(result.length).toBe(1);
 			expect(result[0].name).toBe('My List');
@@ -120,7 +190,7 @@ describe('ShoppingListController', () => {
 
 	describe('createList', () => {
 		it('should create a new active list', async () => {
-			const result = await controller.createList(userId, 'Groceries');
+			const result = await controller.createList(actor, 'Groceries');
 
 			expect(result.userId).toBe(userId);
 			expect(result.name).toBe('Groceries');
@@ -128,10 +198,10 @@ describe('ShoppingListController', () => {
 		});
 
 		it('should deactivate existing lists when creating a new one', async () => {
-			const old = await controller.createList(userId, 'Old List');
+			const old = await controller.createList(actor, 'Old List');
 			expect(old.isActive).toBe(true);
 
-			await controller.createList(userId, 'New List');
+			await controller.createList(actor, 'New List');
 
 			const oldStored = listRepo.getStored(old.id);
 			expect(oldStored!.isActive).toBe(false);
@@ -142,11 +212,12 @@ describe('ShoppingListController', () => {
 		it('should add an item to the list', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
 
-			const item = await controller.addItem(userId, list.id, { name: 'Eggs' });
+			const item = await controller.addItem(actor, list.id, { name: 'Eggs' });
 
 			expect(item.name).toBe('Eggs');
 			expect(item.shoppingListId).toBe(list.id);
@@ -156,15 +227,16 @@ describe('ShoppingListController', () => {
 		it('should auto-increment order index', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
 
-			const item1 = await controller.addItem(userId, list.id, { name: 'Eggs' });
-			const item2 = await controller.addItem(userId, list.id, {
+			const item1 = await controller.addItem(actor, list.id, { name: 'Eggs' });
+			const item2 = await controller.addItem(actor, list.id, {
 				name: 'Bread'
 			});
-			const item3 = await controller.addItem(userId, list.id, { name: 'Milk' });
+			const item3 = await controller.addItem(actor, list.id, { name: 'Milk' });
 
 			expect(item1.orderIndex).toBe(0);
 			expect(item2.orderIndex).toBe(1);
@@ -174,11 +246,12 @@ describe('ShoppingListController', () => {
 		it('should set optional fields when provided', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
 
-			const item = await controller.addItem(userId, list.id, {
+			const item = await controller.addItem(actor, list.id, {
 				name: 'Chicken',
 				quantity: '2',
 				unit: 'lbs',
@@ -195,10 +268,11 @@ describe('ShoppingListController', () => {
 		it('should default checked to false', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const item = await controller.addItem(userId, list.id, { name: 'Sugar' });
+			const item = await controller.addItem(actor, list.id, { name: 'Sugar' });
 			expect(item.checked).toBe(false);
 		});
 	});
@@ -207,10 +281,11 @@ describe('ShoppingListController', () => {
 		it('should add all ingredients from a recipe', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const recipeId = 'recipe-1';
+			const recipeId = (await createRecipe()).id;
 
 			await recipeIngredientRepo.createMany([
 				{
@@ -242,7 +317,7 @@ describe('ShoppingListController', () => {
 				}
 			]);
 
-			const items = await controller.addRecipeIngredients(userId, list.id, recipeId);
+			const items = await controller.addRecipeIngredients(actor, list.id, recipeId);
 
 			expect(items.length).toBe(3);
 			expect(items[0].name).toBe('Flour');
@@ -254,10 +329,11 @@ describe('ShoppingListController', () => {
 		it('should exclude items in pantry when excludeInStock is true', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const recipeId = 'recipe-2';
+			const recipeId = (await createRecipe()).id;
 
 			await recipeIngredientRepo.createMany([
 				{
@@ -290,7 +366,7 @@ describe('ShoppingListController', () => {
 			]);
 
 			const items = await controller.addRecipeIngredients(
-				userId,
+				actor,
 				list.id,
 				recipeId,
 				true,
@@ -304,10 +380,11 @@ describe('ShoppingListController', () => {
 		it('should add all when excludeInStock is false', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const recipeId = 'recipe-3';
+			const recipeId = (await createRecipe()).id;
 
 			await recipeIngredientRepo.createMany([
 				{
@@ -330,7 +407,7 @@ describe('ShoppingListController', () => {
 				}
 			]);
 
-			const items = await controller.addRecipeIngredients(userId, list.id, recipeId, false, [
+			const items = await controller.addRecipeIngredients(actor, list.id, recipeId, false, [
 				'flour'
 			]);
 
@@ -340,13 +417,54 @@ describe('ShoppingListController', () => {
 		it('should return empty array when recipe has no ingredients', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
 
-			const items = await controller.addRecipeIngredients(userId, list.id, 'nonexistent-recipe');
+			const recipe = await createRecipe();
+
+			const items = await controller.addRecipeIngredients(actor, list.id, recipe.id);
 
 			expect(items).toEqual([]);
+		});
+
+		it('rejects a recipe that does not exist', async () => {
+			const list = await listRepo.create({ userId, householdId, name: 'Test', isActive: true });
+
+			await expect(
+				controller.addRecipeIngredients(actor, list.id, 'nonexistent-recipe')
+			).rejects.toThrow('Recipe not found');
+		});
+
+		it("rejects another household's private recipe", async () => {
+			const list = await listRepo.create({ userId, householdId, name: 'Test', isActive: true });
+			const recipe = await createRecipe({ userId: 'other-user', householdId: otherHouseholdId });
+
+			await expect(controller.addRecipeIngredients(actor, list.id, recipe.id)).rejects.toThrow(
+				'Recipe not found'
+			);
+		});
+
+		it("adds ingredients from another household's public recipe", async () => {
+			const list = await listRepo.create({ userId, householdId, name: 'Test', isActive: true });
+			const recipe = await createRecipe({ userId: 'other-user', householdId: otherHouseholdId });
+			await recipeRepo.togglePublic(recipe.id);
+			await recipeIngredientRepo.createMany([
+				{
+					recipeId: recipe.id,
+					name: 'Basil',
+					quantity: '1',
+					unit: 'bunch',
+					unitType: 'COUNT',
+					optional: false,
+					orderIndex: 0
+				}
+			]);
+
+			const items = await controller.addRecipeIngredients(actor, list.id, recipe.id);
+
+			expect(items.map((item) => item.name)).toEqual(['Basil']);
 		});
 	});
 
@@ -354,10 +472,11 @@ describe('ShoppingListController', () => {
 		it('should add all receipt items to the shopping list', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const receiptId = 'receipt-1';
+			const receiptId = (await createReceipt()).id;
 
 			await receiptItemRepo.create({
 				receiptId,
@@ -376,7 +495,7 @@ describe('ShoppingListController', () => {
 				unitType: 'COUNT'
 			});
 
-			const items = await controller.addReceiptItems(userId, list.id, receiptId);
+			const items = await controller.addReceiptItems(actor, list.id, receiptId);
 
 			expect(items.length).toBe(2);
 			expect(items[0].name).toBe('milk');
@@ -388,13 +507,25 @@ describe('ShoppingListController', () => {
 		it('should return empty array when receipt has no items', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
 
-			const items = await controller.addReceiptItems(userId, list.id, 'empty-receipt');
+			const receipt = await createReceipt();
+
+			const items = await controller.addReceiptItems(actor, list.id, receipt.id);
 
 			expect(items).toEqual([]);
+		});
+
+		it("rejects another household's receipt", async () => {
+			const list = await listRepo.create({ userId, householdId, name: 'Test', isActive: true });
+			const receipt = await createReceipt({ userId: 'other-user', householdId: otherHouseholdId });
+
+			await expect(controller.addReceiptItems(actor, list.id, receipt.id)).rejects.toThrow(
+				'Receipt not found'
+			);
 		});
 	});
 
@@ -402,47 +533,50 @@ describe('ShoppingListController', () => {
 		it('should toggle item from unchecked to checked', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const item = await controller.addItem(userId, list.id, { name: 'Milk' });
+			const item = await controller.addItem(actor, list.id, { name: 'Milk' });
 
 			expect(item.checked).toBe(false);
 
-			const toggled = await controller.toggleItem(userId, item.id);
+			const toggled = await controller.toggleItem(actor, item.id);
 			expect(toggled.checked).toBe(true);
 		});
 
 		it('should toggle item from checked to unchecked', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const item = await controller.addItem(userId, list.id, { name: 'Milk' });
+			const item = await controller.addItem(actor, list.id, { name: 'Milk' });
 
-			await controller.toggleItem(userId, item.id); // check
-			const toggled = await controller.toggleItem(userId, item.id); // uncheck
+			await controller.toggleItem(actor, item.id); // check
+			const toggled = await controller.toggleItem(actor, item.id); // uncheck
 			expect(toggled.checked).toBe(false);
 		});
 
 		it('should set explicit checked value when provided', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const item = await controller.addItem(userId, list.id, { name: 'Milk' });
+			const item = await controller.addItem(actor, list.id, { name: 'Milk' });
 
-			const result = await controller.toggleItem(userId, item.id, true);
+			const result = await controller.toggleItem(actor, item.id, true);
 			expect(result.checked).toBe(true);
 
-			const result2 = await controller.toggleItem(userId, item.id, true);
+			const result2 = await controller.toggleItem(actor, item.id, true);
 			expect(result2.checked).toBe(true); // Still true, not toggled
 		});
 
 		it('should throw when item not found', async () => {
-			await expect(controller.toggleItem(userId, 'nonexistent')).rejects.toThrow('Item not found');
+			await expect(controller.toggleItem(actor, 'nonexistent')).rejects.toThrow('Item not found');
 		});
 	});
 
@@ -450,12 +584,13 @@ describe('ShoppingListController', () => {
 		it('should remove an item from the list', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const item = await controller.addItem(userId, list.id, { name: 'Milk' });
+			const item = await controller.addItem(actor, list.id, { name: 'Milk' });
 
-			await controller.removeItem(userId, item.id);
+			await controller.removeItem(actor, item.id);
 
 			const remaining = await itemRepo.findByListId(list.id);
 			expect(remaining.length).toBe(0);
@@ -466,19 +601,20 @@ describe('ShoppingListController', () => {
 		it('should remove only checked items', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const item1 = await controller.addItem(userId, list.id, { name: 'Milk' });
-			await controller.addItem(userId, list.id, {
+			const item1 = await controller.addItem(actor, list.id, { name: 'Milk' });
+			await controller.addItem(actor, list.id, {
 				name: 'Bread'
 			});
-			const item3 = await controller.addItem(userId, list.id, { name: 'Eggs' });
+			const item3 = await controller.addItem(actor, list.id, { name: 'Eggs' });
 
-			await controller.toggleItem(userId, item1.id, true);
-			await controller.toggleItem(userId, item3.id, true);
+			await controller.toggleItem(actor, item1.id, true);
+			await controller.toggleItem(actor, item3.id, true);
 
-			await controller.clearCheckedItems(userId, list.id);
+			await controller.clearCheckedItems(actor, list.id);
 
 			const remaining = await itemRepo.findByListId(list.id);
 			expect(remaining.length).toBe(1);
@@ -488,12 +624,13 @@ describe('ShoppingListController', () => {
 		it('should do nothing when no items are checked', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			await controller.addItem(userId, list.id, { name: 'Milk' });
+			await controller.addItem(actor, list.id, { name: 'Milk' });
 
-			await controller.clearCheckedItems(userId, list.id);
+			await controller.clearCheckedItems(actor, list.id);
 
 			const remaining = await itemRepo.findByListId(list.id);
 			expect(remaining.length).toBe(1);
@@ -504,18 +641,19 @@ describe('ShoppingListController', () => {
 		it('should create purchase history for checked items', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const item = await controller.addItem(userId, list.id, {
+			const item = await controller.addItem(actor, list.id, {
 				name: 'Milk',
 				quantity: '1'
 			});
-			await controller.toggleItem(userId, item.id, true);
+			await controller.toggleItem(actor, item.id, true);
 
-			await controller.completeShopping(userId, list.id);
+			await controller.completeShopping(actor, list.id);
 
-			const history = await purchaseHistoryRepo.findByUserId(userId);
+			const history = await purchaseHistoryRepo.findByHouseholdId(householdId);
 			expect(history.length).toBe(1);
 			expect(history[0].itemName).toBe('Milk');
 			expect(history[0].purchaseCount).toBe(1);
@@ -526,6 +664,7 @@ describe('ShoppingListController', () => {
 			// Create initial purchase history
 			const existing = await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Milk',
 				lastPurchased: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
 				purchaseCount: 3,
@@ -534,13 +673,14 @@ describe('ShoppingListController', () => {
 
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const item = await controller.addItem(userId, list.id, { name: 'Milk' });
-			await controller.toggleItem(userId, item.id, true);
+			const item = await controller.addItem(actor, list.id, { name: 'Milk' });
+			await controller.toggleItem(actor, item.id, true);
 
-			await controller.completeShopping(userId, list.id);
+			await controller.completeShopping(actor, list.id);
 
 			const updated = await purchaseHistoryRepo.findById(existing.id);
 			expect(updated!.purchaseCount).toBe(4);
@@ -550,16 +690,17 @@ describe('ShoppingListController', () => {
 		it('should clear checked items after completing', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const item1 = await controller.addItem(userId, list.id, { name: 'Milk' });
-			await controller.addItem(userId, list.id, {
+			const item1 = await controller.addItem(actor, list.id, { name: 'Milk' });
+			await controller.addItem(actor, list.id, {
 				name: 'Bread'
 			});
-			await controller.toggleItem(userId, item1.id, true);
+			await controller.toggleItem(actor, item1.id, true);
 
-			await controller.completeShopping(userId, list.id);
+			await controller.completeShopping(actor, list.id);
 
 			const remaining = await itemRepo.findByListId(list.id);
 			expect(remaining.length).toBe(1);
@@ -569,20 +710,22 @@ describe('ShoppingListController', () => {
 		it('should do nothing when no items are checked', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			await controller.addItem(userId, list.id, { name: 'Milk' });
+			await controller.addItem(actor, list.id, { name: 'Milk' });
 
-			await controller.completeShopping(userId, list.id);
+			await controller.completeShopping(actor, list.id);
 
-			const history = await purchaseHistoryRepo.findByUserId(userId);
+			const history = await purchaseHistoryRepo.findByHouseholdId(householdId);
 			expect(history.length).toBe(0);
 		});
 
 		it('should calculate average frequency when updating existing history', async () => {
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Milk',
 				lastPurchased: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
 				purchaseCount: 2,
@@ -591,15 +734,16 @@ describe('ShoppingListController', () => {
 
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const item = await controller.addItem(userId, list.id, { name: 'Milk' });
-			await controller.toggleItem(userId, item.id, true);
+			const item = await controller.addItem(actor, list.id, { name: 'Milk' });
+			await controller.toggleItem(actor, item.id, true);
 
-			await controller.completeShopping(userId, list.id);
+			await controller.completeShopping(actor, list.id);
 
-			const history = await purchaseHistoryRepo.findByUserAndItem(userId, 'Milk');
+			const history = await purchaseHistoryRepo.findByHouseholdAndItem(householdId, 'Milk');
 			// New frequency = Math.round((14 + 10) / 2) = 12
 			expect(history!.avgFrequencyDays).toBe(12);
 		});
@@ -609,6 +753,7 @@ describe('ShoppingListController', () => {
 		it('should return suggestions for items due for repurchase', async () => {
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Milk',
 				lastPurchased: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
 				purchaseCount: 5,
@@ -616,7 +761,7 @@ describe('ShoppingListController', () => {
 				avgQuantity: '1'
 			});
 
-			const suggestions = await controller.getSmartSuggestions(userId);
+			const suggestions = await controller.getSmartSuggestions(actor);
 
 			expect(suggestions.length).toBe(1);
 			expect(suggestions[0].itemName).toBe('Milk');
@@ -625,6 +770,7 @@ describe('ShoppingListController', () => {
 		it('should not suggest items not yet due', async () => {
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Flour',
 				lastPurchased: new Date(), // just now
 				purchaseCount: 3,
@@ -632,7 +778,7 @@ describe('ShoppingListController', () => {
 				avgQuantity: '2'
 			});
 
-			const suggestions = await controller.getSmartSuggestions(userId);
+			const suggestions = await controller.getSmartSuggestions(actor);
 			expect(suggestions.length).toBe(0);
 		});
 
@@ -640,6 +786,7 @@ describe('ShoppingListController', () => {
 			for (let i = 0; i < 5; i++) {
 				await purchaseHistoryRepo.create({
 					userId,
+					householdId,
 					itemName: `Item ${i}`,
 					lastPurchased: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
 					purchaseCount: 3,
@@ -648,12 +795,12 @@ describe('ShoppingListController', () => {
 				});
 			}
 
-			const suggestions = await controller.getSmartSuggestions(userId, 3);
+			const suggestions = await controller.getSmartSuggestions(actor, 3);
 			expect(suggestions.length).toBe(3);
 		});
 
 		it('should return empty array when no purchase history', async () => {
-			const suggestions = await controller.getSmartSuggestions(userId);
+			const suggestions = await controller.getSmartSuggestions(actor);
 			expect(suggestions).toEqual([]);
 		});
 	});
@@ -662,11 +809,12 @@ describe('ShoppingListController', () => {
 		it('should add a suggestion as a shopping list item', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
 
-			const item = await controller.addSuggestion(userId, list.id, {
+			const item = await controller.addSuggestion(actor, list.id, {
 				itemName: 'Milk',
 				lastPurchased: new Date(),
 				avgFrequencyDays: 7,
@@ -682,11 +830,12 @@ describe('ShoppingListController', () => {
 		it('should handle null suggested quantity', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
 
-			const item = await controller.addSuggestion(userId, list.id, {
+			const item = await controller.addSuggestion(actor, list.id, {
 				itemName: 'Salt',
 				lastPurchased: new Date(),
 				avgFrequencyDays: 90,
@@ -703,7 +852,7 @@ describe('ShoppingListController', () => {
 		it('should throw when no purchase history exists', async () => {
 			const culinaryIntelligence = new MockCulinaryIntelligence();
 
-			await expect(controller.createRestockList(userId, culinaryIntelligence)).rejects.toThrow(
+			await expect(controller.createRestockList(actor, culinaryIntelligence)).rejects.toThrow(
 				'No purchase history yet'
 			);
 		});
@@ -711,6 +860,7 @@ describe('ShoppingListController', () => {
 		it('should create a restock list using AI decisions', async () => {
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Milk',
 				lastPurchased: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
 				purchaseCount: 5,
@@ -719,6 +869,7 @@ describe('ShoppingListController', () => {
 			});
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Bread',
 				lastPurchased: new Date(),
 				purchaseCount: 3,
@@ -748,7 +899,7 @@ describe('ShoppingListController', () => {
 				]);
 			};
 
-			const result = await controller.createRestockList(userId, culinaryIntelligence);
+			const result = await controller.createRestockList(actor, culinaryIntelligence);
 
 			expect(result.name).toContain('Restock');
 			expect(result.items.length).toBe(1); // Only Milk (Bread has restock: false)
@@ -760,6 +911,7 @@ describe('ShoppingListController', () => {
 			// Create items that are overdue
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Milk',
 				lastPurchased: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
 				purchaseCount: 5,
@@ -773,7 +925,7 @@ describe('ShoppingListController', () => {
 				throw new Error('AI unavailable');
 			};
 
-			const result = await controller.createRestockList(userId, culinaryIntelligence);
+			const result = await controller.createRestockList(actor, culinaryIntelligence);
 
 			expect(result.name).toContain('Restock');
 			// Should fall back to smart suggestions
@@ -784,6 +936,7 @@ describe('ShoppingListController', () => {
 		it('should deactivate previous lists when creating restock list', async () => {
 			await purchaseHistoryRepo.create({
 				userId,
+				householdId,
 				itemName: 'Milk',
 				lastPurchased: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
 				purchaseCount: 5,
@@ -793,6 +946,7 @@ describe('ShoppingListController', () => {
 
 			const oldList = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Old List',
 				isActive: true
 			});
@@ -802,7 +956,7 @@ describe('ShoppingListController', () => {
 				return JSON.stringify([{ itemName: 'Milk', restock: true, quantity: '1', note: 'Needed' }]);
 			};
 
-			await controller.createRestockList(userId, culinaryIntelligence);
+			await controller.createRestockList(actor, culinaryIntelligence);
 
 			const oldStored = listRepo.getStored(oldList.id);
 			expect(oldStored!.isActive).toBe(false);
@@ -813,15 +967,16 @@ describe('ShoppingListController', () => {
 		it('should update order indices', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
-			const item1 = await controller.addItem(userId, list.id, { name: 'A' });
-			const item2 = await controller.addItem(userId, list.id, { name: 'B' });
-			const item3 = await controller.addItem(userId, list.id, { name: 'C' });
+			const item1 = await controller.addItem(actor, list.id, { name: 'A' });
+			const item2 = await controller.addItem(actor, list.id, { name: 'B' });
+			const item3 = await controller.addItem(actor, list.id, { name: 'C' });
 
 			// Reverse the order
-			await controller.reorderItems(userId, list.id, [item3.id, item2.id, item1.id]);
+			await controller.reorderItems(actor, list.id, [item3.id, item2.id, item1.id]);
 
 			const items = await itemRepo.findByListId(list.id);
 			expect(items[0].name).toBe('C');
@@ -831,24 +986,41 @@ describe('ShoppingListController', () => {
 			expect(items[2].name).toBe('A');
 			expect(items[2].orderIndex).toBe(2);
 		});
+
+		it('rejects an item that belongs to a different list', async () => {
+			const list = await listRepo.create({ userId, householdId, name: 'Test', isActive: true });
+			const otherList = await listRepo.create({
+				userId,
+				householdId,
+				name: 'Other',
+				isActive: false
+			});
+			const item = await controller.addItem(actor, list.id, { name: 'A' });
+			const strayItem = await controller.addItem(actor, otherList.id, { name: 'B' });
+
+			await expect(
+				controller.reorderItems(actor, list.id, [strayItem.id, item.id])
+			).rejects.toThrow('Item not found');
+		});
 	});
 
 	describe('deleteList', () => {
 		it('should delete a list belonging to the user', async () => {
 			const list = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Test',
 				isActive: true
 			});
 
-			await controller.deleteList(list.id, userId);
+			await controller.deleteList(list.id, actor);
 
 			const stored = listRepo.getStored(list.id);
 			expect(stored).toBeUndefined();
 		});
 
 		it('should throw when list not found', async () => {
-			await expect(controller.deleteList('nonexistent', userId)).rejects.toThrow(
+			await expect(controller.deleteList('nonexistent', actor)).rejects.toThrow(
 				'Shopping list not found'
 			);
 		});
@@ -856,11 +1028,12 @@ describe('ShoppingListController', () => {
 		it('should throw when list belongs to different user', async () => {
 			const list = await listRepo.create({
 				userId: 'other-user',
+				householdId: otherHouseholdId,
 				name: 'Other List',
 				isActive: true
 			});
 
-			await expect(controller.deleteList(list.id, userId)).rejects.toThrow(
+			await expect(controller.deleteList(list.id, actor)).rejects.toThrow(
 				'Shopping list not found'
 			);
 		});
@@ -868,8 +1041,8 @@ describe('ShoppingListController', () => {
 
 	describe('generateFromRecipes', () => {
 		it('should create a list with ingredients from multiple recipes', async () => {
-			const recipeId1 = 'recipe-a';
-			const recipeId2 = 'recipe-b';
+			const recipeId1 = (await createRecipe()).id;
+			const recipeId2 = (await createRecipe()).id;
 
 			await recipeIngredientRepo.createMany([
 				{
@@ -914,7 +1087,7 @@ describe('ShoppingListController', () => {
 			]);
 
 			const result = await controller.generateFromRecipes(
-				userId,
+				actor,
 				[recipeId1, recipeId2],
 				'Meal Prep'
 			);
@@ -929,7 +1102,8 @@ describe('ShoppingListController', () => {
 		});
 
 		it('should create empty list when recipes have no ingredients', async () => {
-			const result = await controller.generateFromRecipes(userId, ['empty-recipe'], 'Empty');
+			const emptyRecipe = await createRecipe();
+			const result = await controller.generateFromRecipes(actor, [emptyRecipe.id], 'Empty');
 
 			expect(result.name).toBe('Empty');
 			expect(result.items).toEqual([]);
@@ -938,11 +1112,12 @@ describe('ShoppingListController', () => {
 		it('should deactivate previous lists', async () => {
 			const oldList = await listRepo.create({
 				userId,
+				householdId,
 				name: 'Old',
 				isActive: true
 			});
 
-			await controller.generateFromRecipes(userId, [], 'New');
+			await controller.generateFromRecipes(actor, [], 'New');
 
 			const oldStored = listRepo.getStored(oldList.id);
 			expect(oldStored!.isActive).toBe(false);
@@ -955,10 +1130,11 @@ describe('ShoppingListController', () => {
 		it('should prevent adding item to another user list', async () => {
 			const list = await listRepo.create({
 				userId: otherUserId,
+				householdId: otherHouseholdId,
 				name: 'Other',
 				isActive: true
 			});
-			await expect(controller.addItem(userId, list.id, { name: 'Milk' })).rejects.toThrow(
+			await expect(controller.addItem(actor, list.id, { name: 'Milk' })).rejects.toThrow(
 				'Unauthorized access to shopping list'
 			);
 		});
@@ -966,6 +1142,7 @@ describe('ShoppingListController', () => {
 		it('should prevent toggling item in another user list', async () => {
 			const list = await listRepo.create({
 				userId: otherUserId,
+				householdId: otherHouseholdId,
 				name: 'Other',
 				isActive: true
 			});
@@ -975,7 +1152,7 @@ describe('ShoppingListController', () => {
 				orderIndex: 0
 			});
 
-			await expect(controller.toggleItem(userId, item.id)).rejects.toThrow(
+			await expect(controller.toggleItem(actor, item.id)).rejects.toThrow(
 				'Unauthorized access to shopping list'
 			);
 		});
@@ -983,6 +1160,7 @@ describe('ShoppingListController', () => {
 		it('should prevent removing item from another user list', async () => {
 			const list = await listRepo.create({
 				userId: otherUserId,
+				householdId: otherHouseholdId,
 				name: 'Other',
 				isActive: true
 			});
@@ -992,7 +1170,7 @@ describe('ShoppingListController', () => {
 				orderIndex: 0
 			});
 
-			await expect(controller.removeItem(userId, item.id)).rejects.toThrow(
+			await expect(controller.removeItem(actor, item.id)).rejects.toThrow(
 				'Unauthorized access to shopping list'
 			);
 		});
@@ -1000,6 +1178,7 @@ describe('ShoppingListController', () => {
 		it('should prevent reordering items in another user list', async () => {
 			const list = await listRepo.create({
 				userId: otherUserId,
+				householdId: otherHouseholdId,
 				name: 'Other',
 				isActive: true
 			});
@@ -1009,7 +1188,7 @@ describe('ShoppingListController', () => {
 				orderIndex: 0
 			});
 
-			await expect(controller.reorderItems(userId, list.id, [item.id])).rejects.toThrow(
+			await expect(controller.reorderItems(actor, list.id, [item.id])).rejects.toThrow(
 				'Unauthorized access to shopping list'
 			);
 		});
@@ -1017,10 +1196,11 @@ describe('ShoppingListController', () => {
 		it('should prevent clearing items in another user list', async () => {
 			const list = await listRepo.create({
 				userId: otherUserId,
+				householdId: otherHouseholdId,
 				name: 'Other',
 				isActive: true
 			});
-			await expect(controller.clearCheckedItems(userId, list.id)).rejects.toThrow(
+			await expect(controller.clearCheckedItems(actor, list.id)).rejects.toThrow(
 				'Unauthorized access to shopping list'
 			);
 		});

@@ -7,10 +7,10 @@ import type { CupboardItemDao, NewCupboardItemDao, UpdateCupboardItemDao } from 
 export class CupboardItemRepository implements ICupboardItemRepository {
 	constructor(private db: Database) {}
 
-	async findByUserId(userId: string): Promise<CupboardItemDao[]> {
+	async findByHouseholdId(householdId: string): Promise<CupboardItemDao[]> {
 		const items = await this.db.query.cupboardItems.findMany({
 			where: and(
-				eq(schema.cupboardItems.userId, userId),
+				eq(schema.cupboardItems.householdId, householdId),
 				eq(schema.cupboardItems.isDepleted, false)
 			),
 			orderBy: [desc(schema.cupboardItems.addedDate)]
@@ -25,10 +25,13 @@ export class CupboardItemRepository implements ICupboardItemRepository {
 		return item ? this.toDao(item) : null;
 	}
 
-	async findByUserAndItem(userId: string, itemName: string): Promise<CupboardItemDao | null> {
+	async findByHouseholdAndItem(
+		householdId: string,
+		itemName: string
+	): Promise<CupboardItemDao | null> {
 		const item = await this.db.query.cupboardItems.findFirst({
 			where: and(
-				eq(schema.cupboardItems.userId, userId),
+				eq(schema.cupboardItems.householdId, householdId),
 				eq(schema.cupboardItems.itemName, itemName),
 				eq(schema.cupboardItems.isDepleted, false)
 			)
@@ -41,6 +44,7 @@ export class CupboardItemRepository implements ICupboardItemRepository {
 			.insert(schema.cupboardItems)
 			.values({
 				userId: item.userId,
+				householdId: item.householdId,
 				itemName: item.itemName,
 				quantity: item.quantity ?? null,
 				unit: item.unit ?? null,
@@ -81,12 +85,15 @@ export class CupboardItemRepository implements ICupboardItemRepository {
 		await this.db.delete(schema.cupboardItems).where(eq(schema.cupboardItems.id, id));
 	}
 
-	async countByUserId(userId: string): Promise<number> {
+	async countByHouseholdId(householdId: string): Promise<number> {
 		const result = await this.db
 			.select({ count: sql<number>`count(*)::int` })
 			.from(schema.cupboardItems)
 			.where(
-				and(eq(schema.cupboardItems.userId, userId), eq(schema.cupboardItems.isDepleted, false))
+				and(
+					eq(schema.cupboardItems.householdId, householdId),
+					eq(schema.cupboardItems.isDepleted, false)
+				)
 			);
 		return result[0]?.count ?? 0;
 	}
@@ -95,6 +102,7 @@ export class CupboardItemRepository implements ICupboardItemRepository {
 		return {
 			id: item.id,
 			userId: item.userId,
+			householdId: item.householdId,
 			itemName: item.itemName,
 			quantity: item.quantity,
 			unit: item.unit,

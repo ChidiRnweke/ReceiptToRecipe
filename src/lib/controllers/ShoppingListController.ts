@@ -2,6 +2,8 @@ import type { IShoppingListRepository, IShoppingListItemRepository } from '$repo
 import type { IPurchaseHistoryRepository } from '$repositories';
 import type { IRecipeIngredientRepository } from '$repositories';
 import type { IReceiptItemRepository } from '$repositories';
+import type { IRecipeRepository, IReceiptRepository } from '$repositories';
+import type { Actor } from '$lib/models/household';
 import type { ICulinaryIntelligence } from '$lib/services';
 import type {
 	ShoppingListDao,
@@ -33,16 +35,18 @@ export class ShoppingListController {
 		private shoppingListItemRepo: IShoppingListItemRepository,
 		private purchaseHistoryRepo: IPurchaseHistoryRepository,
 		private recipeIngredientRepo: IRecipeIngredientRepository,
-		private receiptItemRepo: IReceiptItemRepository
+		private receiptItemRepo: IReceiptItemRepository,
+		private recipeRepo: IRecipeRepository,
+		private receiptRepo: IReceiptRepository
 	) {}
 
 	/**
 	 * Helper to verify list ownership
 	 */
-	private async verifyListOwnership(userId: string, listId: string): Promise<void> {
+	private async verifyListOwnership(actor: Actor, listId: string): Promise<void> {
 		const list = await this.shoppingListRepo.findById(listId);
 		if (!list) throw new Error('List not found');
-		if (list.userId !== userId) {
+		if (list.householdId !== actor.householdId) {
 			throw new Error('Unauthorized access to shopping list');
 		}
 	}
@@ -50,21 +54,22 @@ export class ShoppingListController {
 	/**
 	 * Helper to verify item ownership (via list)
 	 */
-	private async verifyItemOwnership(userId: string, itemId: string): Promise<void> {
+	private async verifyItemOwnership(actor: Actor, itemId: string): Promise<void> {
 		const item = await this.shoppingListItemRepo.findById(itemId);
 		if (!item) throw new Error('Item not found');
-		await this.verifyListOwnership(userId, item.shoppingListId);
+		await this.verifyListOwnership(actor, item.shoppingListId);
 	}
 
 	/**
-	 * Get or create the active shopping list for a user
+	 * Get or create the household's active shopping list
 	 */
-	async getActiveList(userId: string): Promise<ShoppingListWithItemsDao> {
-		const existing = await this.shoppingListRepo.findActiveByUserId(userId);
+	async getActiveList(actor: Actor): Promise<ShoppingListWithItemsDao> {
+		const existing = await this.shoppingListRepo.findActiveByHouseholdId(actor.householdId);
 		if (existing) return existing;
 
 		const newList = await this.shoppingListRepo.create({
-			userId,
+			userId: actor.userId,
+			householdId: actor.householdId,
 			name: 'Shopping List',
 			isActive: true
 		});
@@ -73,21 +78,22 @@ export class ShoppingListController {
 	}
 
 	/**
-	 * Get all shopping lists for a user
+	 * Get all of the household's shopping lists
 	 */
-	async getUserLists(userId: string): Promise<ShoppingListWithItemsDao[]> {
-		return this.shoppingListRepo.findByUserId(userId);
+	async getHouseholdLists(actor: Actor): Promise<ShoppingListWithItemsDao[]> {
+		return this.shoppingListRepo.findByHouseholdId(actor.householdId);
 	}
 
 	/**
 	 * Create a new shopping list
 	 */
-	async createList(userId: string, name: string): Promise<ShoppingListDao> {
+	async createList(actor: Actor, name: string): Promise<ShoppingListDao> {
 		// Deactivate existing lists
-		await this.shoppingListRepo.deactivateAllByUserId(userId);
+		await this.shoppingListRepo.deactivateAllByHouseholdId(actor.householdId);
 
 		return this.shoppingListRepo.create({
-			userId,
+			userId: actor.userId,
+			householdId: actor.householdId,
 			name,
 			isActive: true
 		});
@@ -96,8 +102,8 @@ export class ShoppingListController {
 	/**
 	 * Add an item to the shopping list
 	 */
-	async addItem(userId: string, listId: string, input: AddItemInput): Promise<ShoppingListItemDao> {
-		await this.verifyListOwnership(userId, listId);
+	async addItem(actor: Actor, listId: string, input: AddItemInput): Promise<ShoppingListItemDao> {
+		await this.verifyListOwnership(actor, listId);
 
 		const maxOrder = await this.shoppingListItemRepo.getMaxOrderIndex(listId);
 		const nextOrder = maxOrder + 1;
@@ -118,13 +124,18 @@ export class ShoppingListController {
 	 * Optionally exclude items that are likely in stock
 	 */
 	async addRecipeIngredients(
-		userId: string,
+		actor: Actor,
 		listId: string,
 		recipeId: string,
 		excludeInStock: boolean = false,
 		pantryItems: string[] = []
 	): Promise<ShoppingListItemDao[]> {
-		await this.verifyListOwnership(userId, listId);
+		await this.verifyListOwnership(actor, listId);
+
+		const recipe = await this.recipeRepo.findById(recipeId);
+		if (!recipe || (!recipe.isPublic && recipe.householdId !== actor.householdId)) {
+			throw new Error('Recipe not found');
+		}
 
 		const ingredients = await this.recipeIngredientRepo.findByRecipeId(recipeId);
 
@@ -140,7 +151,7 @@ export class ShoppingListController {
 				if (inStock) continue;
 			}
 
-			const item = await this.addItem(userId, listId, {
+			const item = await this.addItem(actor, listId, {
 				name: ing.name,
 				quantity: ing.quantity,
 				unit: ing.unit,
@@ -156,17 +167,22 @@ export class ShoppingListController {
 	 * Add all receipt items to a shopping list
 	 */
 	async addReceiptItems(
-		userId: string,
+		actor: Actor,
 		listId: string,
 		receiptId: string
 	): Promise<ShoppingListItemDao[]> {
-		await this.verifyListOwnership(userId, listId);
+		await this.verifyListOwnership(actor, listId);
+
+		const receipt = await this.receiptRepo.findById(receiptId);
+		if (!receipt || receipt.householdId !== actor.householdId) {
+			throw new Error('Receipt not found');
+		}
 
 		const items = await this.receiptItemRepo.findByReceiptId(receiptId);
 
 		const results: ShoppingListItemDao[] = [];
 		for (const item of items) {
-			const created = await this.addItem(userId, listId, {
+			const created = await this.addItem(actor, listId, {
 				name: item.normalizedName,
 				quantity: item.quantity,
 				unit: item.unit
@@ -179,12 +195,8 @@ export class ShoppingListController {
 	/**
 	 * Toggle item checked status
 	 */
-	async toggleItem(
-		userId: string,
-		itemId: string,
-		checked?: boolean
-	): Promise<ShoppingListItemDao> {
-		await this.verifyItemOwnership(userId, itemId);
+	async toggleItem(actor: Actor, itemId: string, checked?: boolean): Promise<ShoppingListItemDao> {
+		await this.verifyItemOwnership(actor, itemId);
 
 		const item = await this.shoppingListItemRepo.findById(itemId);
 
@@ -200,24 +212,24 @@ export class ShoppingListController {
 	/**
 	 * Remove an item from the shopping list
 	 */
-	async removeItem(userId: string, itemId: string): Promise<void> {
-		await this.verifyItemOwnership(userId, itemId);
+	async removeItem(actor: Actor, itemId: string): Promise<void> {
+		await this.verifyItemOwnership(actor, itemId);
 		await this.shoppingListItemRepo.delete(itemId);
 	}
 
 	/**
 	 * Clear all checked items from a list
 	 */
-	async clearCheckedItems(userId: string, listId: string): Promise<void> {
-		await this.verifyListOwnership(userId, listId);
+	async clearCheckedItems(actor: Actor, listId: string): Promise<void> {
+		await this.verifyListOwnership(actor, listId);
 		await this.shoppingListItemRepo.deleteCheckedByListId(listId);
 	}
 
 	/**
 	 * Complete shopping: move checked items to purchase history and clear them
 	 */
-	async completeShopping(userId: string, listId: string): Promise<void> {
-		await this.verifyListOwnership(userId, listId);
+	async completeShopping(actor: Actor, listId: string): Promise<void> {
+		await this.verifyListOwnership(actor, listId);
 
 		const checkedItems = await this.shoppingListItemRepo.findCheckedByListId(listId);
 
@@ -227,7 +239,10 @@ export class ShoppingListController {
 
 		// Update purchase history
 		for (const item of checkedItems) {
-			const existing = await this.purchaseHistoryRepo.findByUserAndItem(userId, item.name);
+			const existing = await this.purchaseHistoryRepo.findByHouseholdAndItem(
+				actor.householdId,
+				item.name
+			);
 
 			if (existing) {
 				const daysSinceLastPurchase = Math.floor(
@@ -246,7 +261,8 @@ export class ShoppingListController {
 				});
 			} else {
 				await this.purchaseHistoryRepo.create({
-					userId,
+					userId: actor.userId,
+					householdId: actor.householdId,
 					itemName: item.name,
 					lastPurchased: now,
 					purchaseCount: 1,
@@ -257,14 +273,14 @@ export class ShoppingListController {
 		}
 
 		// Clear checked items
-		await this.clearCheckedItems(userId, listId);
+		await this.clearCheckedItems(actor, listId);
 	}
 
 	/**
 	 * Get smart suggestions based on purchase history
 	 */
-	async getSmartSuggestions(userId: string, limit: number = 10): Promise<SmartSuggestion[]> {
-		const suggestions = await this.purchaseHistoryRepo.findSuggestions(userId, limit);
+	async getSmartSuggestions(actor: Actor, limit: number = 10): Promise<SmartSuggestion[]> {
+		const suggestions = await this.purchaseHistoryRepo.findSuggestions(actor.householdId, limit);
 		return suggestions;
 	}
 
@@ -272,11 +288,11 @@ export class ShoppingListController {
 	 * Add a suggested item to the shopping list
 	 */
 	async addSuggestion(
-		userId: string,
+		actor: Actor,
 		listId: string,
 		suggestion: SmartSuggestion
 	): Promise<ShoppingListItemDao> {
-		return this.addItem(userId, listId, {
+		return this.addItem(actor, listId, {
 			name: suggestion.itemName,
 			quantity: suggestion.suggestedQuantity || undefined,
 			notes: `Suggested based on ~${suggestion.avgFrequencyDays} day purchase cycle`
@@ -287,17 +303,17 @@ export class ShoppingListController {
 	 * Build a restock shopping list using history and culinary intelligence reasoning
 	 */
 	async createRestockList(
-		userId: string,
+		actor: Actor,
 		culinaryIntelligence: ICulinaryIntelligence
 	): Promise<ShoppingListWithItemsDao> {
-		const history = await this.purchaseHistoryRepo.findByUserId(userId);
+		const history = await this.purchaseHistoryRepo.findByHouseholdId(actor.householdId);
 
 		if (history.length === 0) {
 			throw new Error('No purchase history yet');
 		}
 
 		const name = `Restock · ${new Date().toLocaleDateString()}`;
-		const list = await this.createList(userId, name);
+		const list = await this.createList(actor, name);
 
 		const prompt = `You are planning a grocery restock.
 Given purchase history entries with last purchase date, average frequency days, and average quantity, decide which items likely need replenishing today.
@@ -342,7 +358,7 @@ ${history
 		}
 
 		if (!decisions.length) {
-			const suggestions = await this.getSmartSuggestions(userId, 15);
+			const suggestions = await this.getSmartSuggestions(actor, 15);
 			decisions = suggestions.map((s) => ({
 				itemName: s.itemName,
 				restock: true,
@@ -372,8 +388,14 @@ ${history
 	/**
 	 * Reorder items in a list
 	 */
-	async reorderItems(userId: string, listId: string, itemIds: string[]): Promise<void> {
-		await this.verifyListOwnership(userId, listId);
+	async reorderItems(actor: Actor, listId: string, itemIds: string[]): Promise<void> {
+		await this.verifyListOwnership(actor, listId);
+		const listItemIds = new Set(
+			(await this.shoppingListItemRepo.findByListId(listId)).map((item) => item.id)
+		);
+		if (itemIds.some((itemId) => !listItemIds.has(itemId))) {
+			throw new Error('Item not found');
+		}
 		for (let i = 0; i < itemIds.length; i++) {
 			await this.shoppingListItemRepo.updateOrderIndex(itemIds[i], i);
 		}
@@ -382,10 +404,10 @@ ${history
 	/**
 	 * Delete a shopping list
 	 */
-	async deleteList(listId: string, userId: string): Promise<void> {
+	async deleteList(listId: string, actor: Actor): Promise<void> {
 		const list = await this.shoppingListRepo.findById(listId);
 
-		if (!list || list.userId !== userId) {
+		if (!list || list.householdId !== actor.householdId) {
 			throw new Error('Shopping list not found');
 		}
 
@@ -396,14 +418,14 @@ ${history
 	 * Create a shopping list from one or more recipes
 	 */
 	async generateFromRecipes(
-		userId: string,
+		actor: Actor,
 		recipeIds: string[],
 		name: string
 	): Promise<ShoppingListWithItemsDao> {
-		const list = await this.createList(userId, name);
+		const list = await this.createList(actor, name);
 
 		for (const recipeId of recipeIds) {
-			await this.addRecipeIngredients(userId, list.id, recipeId);
+			await this.addRecipeIngredients(actor, list.id, recipeId);
 		}
 
 		const items = await this.shoppingListItemRepo.findByListId(list.id);

@@ -63,15 +63,15 @@ function itemFingerprint(item: RestorableItemInput): string {
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) {
+	if (!locals.actor) {
 		throw redirect(302, '/login');
 	}
 
 	const shoppingListController = AppFactory.getShoppingListController();
 	const pantryController = AppFactory.getPantryController();
 
-	const activeListPromise = shoppingListController.getActiveList(locals.user.id);
-	const userListsPromise = shoppingListController.getUserLists(locals.user.id);
+	const activeListPromise = shoppingListController.getActiveList(locals.actor);
+	const userListsPromise = shoppingListController.getHouseholdLists(locals.actor);
 
 	// Process other lists once we have both (to exclude active list)
 	const otherListsPromise = Promise.all([activeListPromise, userListsPromise]).then(
@@ -107,10 +107,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	// Non-critical data
 	const recipeRepo = AppFactory.getRecipeRepository();
-	const recipeCountPromise = recipeRepo.countByUserId(locals.user.id);
-	const suggestionsPromise = shoppingListController.getSmartSuggestions(locals.user.id);
+	const recipeCountPromise = recipeRepo.countByHouseholdId(locals.actor.householdId);
+	const suggestionsPromise = shoppingListController.getSmartSuggestions(locals.actor);
 
-	const pantryPromise = pantryController.getUserPantry(locals.user.id).then((pantry) => {
+	const pantryPromise = pantryController.getHouseholdPantry(locals.actor).then((pantry) => {
 		const pantryLookup: Record<
 			string,
 			{ confidence: number; lastPurchased: Date; daysSincePurchase: number }
@@ -142,7 +142,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	restoreItem: async ({ request, locals }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -155,7 +155,7 @@ export const actions: Actions = {
 		}
 
 		const shoppingListController = AppFactory.getShoppingListController();
-		const userLists = await shoppingListController.getUserLists(locals.user.id);
+		const userLists = await shoppingListController.getHouseholdLists(locals.actor);
 		const targetList = userLists.find((list) => list.id === listId);
 
 		if (!targetList) {
@@ -197,7 +197,7 @@ export const actions: Actions = {
 	},
 
 	restoreCheckedItems: async ({ request, locals }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -214,7 +214,7 @@ export const actions: Actions = {
 		}
 
 		const shoppingListController = AppFactory.getShoppingListController();
-		const userLists = await shoppingListController.getUserLists(locals.user.id);
+		const userLists = await shoppingListController.getHouseholdLists(locals.actor);
 		const targetList = userLists.find((list) => list.id === listId);
 
 		if (!targetList) {
@@ -266,7 +266,7 @@ export const actions: Actions = {
 	},
 
 	completeShopping: async ({ request, locals }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -279,7 +279,7 @@ export const actions: Actions = {
 
 		try {
 			const shoppingListController = AppFactory.getShoppingListController();
-			await shoppingListController.completeShopping(locals.user.id, listId);
+			await shoppingListController.completeShopping(locals.actor, listId);
 			return { success: true };
 		} catch (error) {
 			return fail(500, {
@@ -289,7 +289,7 @@ export const actions: Actions = {
 	},
 
 	createList: async ({ request, locals }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -298,7 +298,7 @@ export const actions: Actions = {
 
 		try {
 			const shoppingListController = AppFactory.getShoppingListController();
-			const list = await shoppingListController.createList(locals.user.id, name);
+			const list = await shoppingListController.createList(locals.actor, name);
 			return { success: true, listId: list.id };
 		} catch (error) {
 			return fail(500, {
@@ -308,14 +308,14 @@ export const actions: Actions = {
 	},
 
 	generateRestock: async ({ locals }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
 		try {
 			const shoppingListController = AppFactory.getShoppingListController();
 			const list = await shoppingListController.createRestockList(
-				locals.user.id,
+				locals.actor,
 				AppFactory.getLlmService()
 			);
 			return { success: true, listId: list.id };
@@ -327,7 +327,7 @@ export const actions: Actions = {
 	},
 
 	addItem: async ({ request, locals }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -346,7 +346,7 @@ export const actions: Actions = {
 			// Check pantry for duplicates unless user explicitly wants to add anyway
 			if (!skipPantryCheck) {
 				const pantryCtrl = AppFactory.getPantryController();
-				const pantry = await pantryCtrl.getUserPantry(locals.user.id);
+				const pantry = await pantryCtrl.getHouseholdPantry(locals.actor);
 
 				const nameLC = name.toLowerCase();
 				const pantryMatch = pantry.find(
@@ -379,7 +379,7 @@ export const actions: Actions = {
 			}
 
 			const shoppingListController = AppFactory.getShoppingListController();
-			await shoppingListController.addItem(locals.user.id, listId, {
+			await shoppingListController.addItem(locals.actor, listId, {
 				name,
 				quantity: quantity || '1',
 				unit: unit || 'count'
@@ -393,7 +393,7 @@ export const actions: Actions = {
 	},
 
 	toggleItem: async ({ request, locals }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -407,7 +407,7 @@ export const actions: Actions = {
 
 		try {
 			const shoppingListController = AppFactory.getShoppingListController();
-			await shoppingListController.toggleItem(locals.user.id, itemId, checked);
+			await shoppingListController.toggleItem(locals.actor, itemId, checked);
 			return { success: true };
 		} catch (error) {
 			return fail(500, {
@@ -417,7 +417,7 @@ export const actions: Actions = {
 	},
 
 	deleteItem: async ({ request, locals }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -430,7 +430,7 @@ export const actions: Actions = {
 
 		try {
 			const shoppingListController = AppFactory.getShoppingListController();
-			await shoppingListController.removeItem(locals.user.id, itemId);
+			await shoppingListController.removeItem(locals.actor, itemId);
 			return { success: true };
 		} catch (error) {
 			return fail(500, {
@@ -440,7 +440,7 @@ export const actions: Actions = {
 	},
 
 	deleteList: async ({ request, locals }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -453,7 +453,7 @@ export const actions: Actions = {
 
 		try {
 			const shoppingListController = AppFactory.getShoppingListController();
-			await shoppingListController.deleteList(listId, locals.user.id);
+			await shoppingListController.deleteList(listId, locals.actor);
 			return { success: true };
 		} catch (error) {
 			return fail(500, {
@@ -463,7 +463,7 @@ export const actions: Actions = {
 	},
 
 	generateFromRecipes: async ({ request, locals }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -480,7 +480,7 @@ export const actions: Actions = {
 		try {
 			const shoppingListController = AppFactory.getShoppingListController();
 			const list = await shoppingListController.generateFromRecipes(
-				locals.user.id,
+				locals.actor,
 				recipeIds,
 				listName
 			);
@@ -493,7 +493,7 @@ export const actions: Actions = {
 	},
 
 	addSuggestion: async ({ request, locals }) => {
-		if (!locals.user) {
+		if (!locals.actor) {
 			throw redirect(302, '/login');
 		}
 
@@ -515,7 +515,7 @@ export const actions: Actions = {
 
 		try {
 			const shoppingListController = AppFactory.getShoppingListController();
-			await shoppingListController.addSuggestion(locals.user.id, listId, {
+			await shoppingListController.addSuggestion(locals.actor, listId, {
 				itemName,
 				suggestedQuantity,
 				avgFrequencyDays,

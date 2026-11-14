@@ -54,3 +54,9 @@ export type { IAuthService, AuthResult } from '../AuthService';
 
 // OAuth interfaces
 export type { IOAuthService, Auth0Tokens, Auth0UserInfo, PKCEChallenge } from './IOAuthService';
+export type {
+	IHouseholdService,
+	HouseholdUser,
+	InvitePreview,
+	InviteStatus
+} from './IHouseholdService';
