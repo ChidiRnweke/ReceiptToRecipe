@@ -3,9 +3,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import WorkflowNav from '$lib/components/WorkflowNav.svelte';
-	import MobileBottomNav from '$lib/components/MobileBottomNav.svelte';
-	import { Settings, LogOut, CalendarDays, Search, Clock3, Users } from 'lucide-svelte';
+	import DoorNav from '$lib/components/doors/DoorNav.svelte';
+	import { Settings, LogOut, Receipt, Search, Clock3, Users } from 'lucide-svelte';
 	import { workflowStore } from '$lib/state/workflow.svelte';
 	import logo from '$lib/assets/logo.svg';
 	import favicon from '$lib/assets/favicon.svg';
@@ -15,6 +14,7 @@
 	import { resolve } from '$app/paths';
 	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
 	import UndoToast from '$lib/components/UndoToast.svelte';
+	import { getMe } from '$lib/remote/household/household.remote';
 
 	let { data, children } = $props();
 
@@ -54,7 +54,7 @@
 
 	const hasSearchResults = $derived(flattenedSearchResults.length > 0);
 
-	// Sync state when data changes (e.g. after navigation)
+	// Pages still read these counts from the store (the home page, cupboard and shopping list).
 	$effect(() => {
 		if (data.workflowCounts) {
 			workflowStore.sync(data.workflowCounts);
@@ -215,6 +215,10 @@
 		return flattenedSearchResults[selectedIndex] === item;
 	}
 
+	function householdLine(me: { householdName: string; memberCount: number }): string {
+		return `${me.householdName} · ${me.memberCount} ${me.memberCount === 1 ? 'member' : 'members'}`;
+	}
+
 	function handleSearchBlur() {
 		setTimeout(() => {
 			searchOpen = false;
@@ -251,16 +255,16 @@
 					alt="Receipt2Recipe Logo"
 					class="h-8 w-8 transition-transform duration-500 group-hover:rotate-6"
 				/>
-				<span class="font-serif text-2xl font-medium tracking-tight text-text-primary"
-					>Receipt2Recipe</span
+				<span
+					class="font-serif text-2xl font-medium tracking-tight text-text-primary {data.user
+						? 'md:hidden lg:inline'
+						: ''}">Receipt2Recipe</span
 				>
 			</a>
 
 			<!-- Desktop Navigation -->
 			{#if data.user}
-				<div class="hidden md:block">
-					<WorkflowNav />
-				</div>
+				<DoorNav placement="header" class="hidden md:flex" />
 			{/if}
 
 			{#if data.user}
@@ -425,13 +429,22 @@
 									<p class="text-xs leading-none text-text-muted">
 										{data.user.email}
 									</p>
+									<svelte:boundary>
+										<p class="font-hand pt-1 text-sm leading-none text-text-secondary">
+											{householdLine(await getMe())}
+										</p>
+										{#snippet pending()}
+											<p class="pt-1 text-sm leading-none text-text-muted">…</p>
+										{/snippet}
+										{#snippet failed()}{/snippet}
+									</svelte:boundary>
 								</div>
 							</DropdownMenu.Label>
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item>
-								<a href={resolve('/planning')} class="flex w-full items-center">
-									<CalendarDays class="mr-2 h-4 w-4" />
-									Meal planning
+								<a href={resolve('/receipts')} class="flex w-full items-center">
+									<Receipt class="mr-2 h-4 w-4" />
+									Receipts
 								</a>
 							</DropdownMenu.Item>
 							<DropdownMenu.Item>
@@ -532,9 +545,9 @@
 	<UndoToast />
 {/if}
 
-<!-- Mobile Bottom Navigation -->
+<!-- Mobile door bar -->
 {#if data.user}
-	<MobileBottomNav />
+	<DoorNav placement="bottom" class="md:hidden" />
 {/if}
 
 <!-- Load ReloadPrompt dynamically to avoid SSR issues -->
