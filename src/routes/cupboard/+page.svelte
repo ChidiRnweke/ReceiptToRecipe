@@ -344,7 +344,7 @@
 			<Button
 				variant="ghost"
 				class="w-full justify-start gap-2 text-ink-muted hover:text-ink"
-				href="/shopping"
+				href="/shop"
 			>
 				<ShoppingCart class="h-4 w-4" />
 				Shopping List ({workflowStore.shoppingItems})

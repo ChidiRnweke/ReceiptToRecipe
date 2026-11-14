@@ -37,7 +37,7 @@ describe('the door bar', () => {
 	});
 
 	it('lights Shop on the shopping list', () => {
-		expect(activeDoor('/shopping')).toBe('shop');
+		expect(activeDoor('/shop')).toBe('shop');
 	});
 
 	it('lights Plan on the planner', () => {

@@ -90,7 +90,7 @@
 				'Missing ingredients can be added to your shopping list in one click while planning meals.',
 			cta: 'Keep shopping fast and focused.',
 			actionLabel: 'Open shopping list',
-			actionHref: '/shopping'
+			actionHref: '/shop'
 		}
 	];
 
@@ -206,7 +206,7 @@
 						<ArrowRight class="ml-2 h-4 w-4" />
 					</Button>
 				{:else}
-					<Button href="/shopping" onclick={completeOnboarding}>
+					<Button href="/shop" onclick={completeOnboarding}>
 						<ShoppingCart class="mr-2 h-4 w-4" />
 						Finish tour
 					</Button>
