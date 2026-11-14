@@ -7,6 +7,7 @@ import type {
 	IShoppingListItemRepository
 } from '$repositories';
 import type { Actor } from '$lib/models/household';
+import { normalizeItemKey } from '$lib/services/kitchen/itemKey';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -505,6 +506,7 @@ export class PantryController {
 			quantity: quantity || null,
 			unit: unit || null,
 			notes: 'Added from Cupboard',
+			mergeKey: normalizeItemKey(itemName),
 			orderIndex: maxOrder + 1
 		});
 	}

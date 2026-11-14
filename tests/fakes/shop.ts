@@ -21,7 +21,8 @@ import {
 	MockSavedRecipeRepository,
 	MockShoppingListItemRepository,
 	MockShoppingListRepository,
-	MockStorageService
+	MockStorageService,
+	MockTasteProfileService
 } from '../mocks';
 import { InMemoryHabitAnswerRepository } from './InMemoryHabitAnswerRepository';
 import { InMemoryHouseholdRepository } from './InMemoryHouseholdRepository';
@@ -34,7 +35,8 @@ export const shopper: Actor = {
 	householdId: 'household-1',
 	memberId: 'member-1',
 	displayName: 'Noor Haddad',
-	roles: { plans: true, shops: true, cooks: true }
+	roles: { plans: true, shops: true, cooks: true },
+	timeZone: 'UTC'
 };
 
 export const stranger: Actor = {
@@ -42,7 +44,8 @@ export const stranger: Actor = {
 	householdId: 'household-9',
 	memberId: 'member-9',
 	displayName: 'Someone Else',
-	roles: { plans: true, shops: true, cooks: true }
+	roles: { plans: true, shops: true, cooks: true },
+	timeZone: 'UTC'
 };
 
 export interface IngredientSpec {
@@ -77,14 +80,17 @@ export function createShop() {
 		recipes,
 		ingredients,
 		new MockSavedRecipeRepository(),
-		events
+		events,
+		households,
+		new MockTasteProfileService()
 	);
 	const kitchen = new KitchenService(
 		events,
 		recipes,
 		ingredients,
 		plannedMeals,
-		new InMemoryMealLogRepository()
+		new InMemoryMealLogRepository(),
+		households
 	);
 	const habits = new HabitService(
 		events,

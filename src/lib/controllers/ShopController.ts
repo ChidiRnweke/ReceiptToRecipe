@@ -14,7 +14,8 @@ import type {
 	ReceiptWithItemsDao
 } from '$repositories';
 import type { Actor } from '$lib/models/household';
-import { normalizeItemKey, type Habits } from '$lib/models/kitchen';
+import type { Habits } from '$lib/models/kitchen';
+import { canonicalItemKey, normalizeItemKey } from '$lib/services/kitchen/itemKey';
 import { MEAL_HOUR } from '$lib/models/plan';
 import type {
 	CameHomeView,
@@ -43,7 +44,7 @@ import {
 	weekdayOf,
 	weekdayOfDay
 } from '$lib/services/kitchen';
-import { comingStretch, hasDinner, unplannedDinners } from '$lib/services/plan';
+import { defaultStretch, findGaps, hasDinner } from '$lib/services/plan';
 import {
 	buildShopNeeds,
 	cameHomeMessage,
@@ -103,7 +104,7 @@ function amountOf(quantity: number | null, unit: string | null): string {
 }
 
 function keyOf(item: ListItem): string {
-	return item.mergeKey ?? normalizeItemKey(item.name);
+	return item.mergeKey ? canonicalItemKey(item.mergeKey) : normalizeItemKey(item.name);
 }
 
 function restorable(item: ListItem): RestorableItem {
@@ -173,7 +174,8 @@ export class ShopController {
 		const count = grouped.size + usuals.length + manual.length;
 
 		const mode = this.ideasMode(ctx) ? 'ideas' : 'list';
-		const gaps = unplannedDinners(ctx.meals, comingStretch(ctx.habits, now, timeZone), timeZone);
+		const stretch = defaultStretch(ctx.habits, now, timeZone);
+		const gaps = findGaps(ctx.meals, stretch, ['DINNER'], timeZone);
 		const planFirst = gaps.length >= PLAN_FIRST_GAPS && ctx.habits.planningStyle !== 'none';
 		const empty =
 			mode === 'list' && !groups.length && (planFirst || count === 0)

@@ -8,8 +8,8 @@ export const WEDNESDAY_EVENING = at(2, 18);
 
 /** The household shops on Mondays and Thursdays at 10:00. */
 export const MON_THU: ShopDay[] = [
-	{ weekday: 0, hour: 10 },
-	{ weekday: 3, hour: 10 }
+	{ weekday: 0, hour: 10, confirmed: false },
+	{ weekday: 3, hour: 10, confirmed: false }
 ];
 
 export function need(itemKey: string, quantity: number, unit: string): ShopIngredient {

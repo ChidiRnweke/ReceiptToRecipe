@@ -1,5 +1,4 @@
 import { eq, and, inArray, sql } from 'drizzle-orm';
-import { normalizeItemKey } from '$lib/models/kitchen';
 import type { Database } from '$db/client';
 import * as schema from '$db/schema';
 import type { IShoppingListRepository, IShoppingListItemRepository } from './interfaces';
@@ -146,7 +145,7 @@ export class ShoppingListItemRepository implements IShoppingListItemRepository {
 				notes: item.notes ?? null,
 				orderIndex: item.orderIndex ?? 0,
 				forPlannedMealIds: item.forPlannedMealIds ?? [],
-				mergeKey: item.mergeKey ?? normalizeItemKey(item.name),
+				mergeKey: item.mergeKey ?? null,
 				heldUntil: item.heldUntil ?? null,
 				source: item.source ?? 'MANUAL'
 			})
@@ -182,7 +181,7 @@ export class ShoppingListItemRepository implements IShoppingListItemRepository {
 	private toRow(item: NewShoppingListItemDao): typeof schema.shoppingListItems.$inferInsert {
 		return {
 			...item,
-			mergeKey: item.mergeKey ?? normalizeItemKey(item.name),
+			mergeKey: item.mergeKey ?? null,
 			forPlannedMealIds: item.forPlannedMealIds ?? []
 		};
 	}

@@ -165,7 +165,7 @@ describe('ShopController', () => {
 		it('records the whole list as bought when nothing is ticked', async () => {
 			await shop.controller.getShop(shopper, NOW, TZ);
 			await shop.controller.gotEverything(shopper, NOW, TZ);
-			expect(bought(shop)).toEqual(['mushrooms', 'paneer', 'spinach']);
+			expect(bought(shop)).toEqual(['mushroom', 'paneer', 'spinach']);
 		});
 
 		it('records only the ticked items when some are ticked', async () => {
@@ -345,7 +345,7 @@ describe('ShopController', () => {
 		it('records each receipt line as bought once, with the OCR job and Looks right', async () => {
 			const receiptId = await snapSpinachAndYogurt();
 			await shop.controller.confirmWhatCameHome(shopper, receiptId);
-			expect(bought(shop)).toEqual(['mushrooms', 'spinach', 'yogurt']);
+			expect(bought(shop)).toEqual(['mushroom', 'spinach', 'yogurt']);
 		});
 
 		it('closes the shop once, with method RECEIPT', async () => {

@@ -389,9 +389,13 @@ describe('ShoppingListRepository (DB)', () => {
 			expect(item.source).toBe('MANUAL');
 		});
 
-		it('derives the merge key from the name', async () => {
+		it('stores the merge key it is given', async () => {
 			const list = await listRepo.create({ userId, householdId, name: 'List' });
-			const item = await itemRepo.create({ shoppingListId: list.id, name: ' Baby  Spinach' });
+			const item = await itemRepo.create({
+				shoppingListId: list.id,
+				name: ' Baby  Spinach',
+				mergeKey: 'baby spinach'
+			});
 			expect(item.mergeKey).toBe('baby spinach');
 		});
 
@@ -415,7 +419,13 @@ describe('ShoppingListRepository (DB)', () => {
 
 		it('skips a plan row the list already holds', async () => {
 			const list = await listRepo.create({ userId, householdId, name: 'List' });
-			const row = { shoppingListId: list.id, name: 'Spinach', unit: 'g', source: 'PLAN' as const };
+			const row = {
+				shoppingListId: list.id,
+				name: 'Spinach',
+				mergeKey: 'spinach',
+				unit: 'g',
+				source: 'PLAN' as const
+			};
 			await itemRepo.createNeeds([row]);
 			await itemRepo.createNeeds([row]);
 			expect(await itemRepo.findByListId(list.id)).toHaveLength(1);

@@ -12,7 +12,6 @@ import type {
 	UpdateShoppingListItemDao
 } from '../../src/lib/repositories/daos';
 import { v4 as uuidv4 } from 'uuid';
-import { normalizeItemKey } from '../../src/lib/models/kitchen';
 
 /**
  * Mock implementation of IShoppingListRepository for testing
@@ -128,7 +127,7 @@ export class MockShoppingListItemRepository implements IShoppingListItemReposito
 			orderIndex: item.orderIndex ?? 0,
 			createdAt: new Date(),
 			forPlannedMealIds: item.forPlannedMealIds ?? [],
-			mergeKey: item.mergeKey ?? normalizeItemKey(item.name),
+			mergeKey: item.mergeKey ?? null,
 			heldUntil: item.heldUntil ?? null,
 			source: item.source ?? 'MANUAL'
 		};

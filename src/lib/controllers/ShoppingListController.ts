@@ -3,6 +3,7 @@ import type { IRecipeIngredientRepository } from '$repositories';
 import type { IReceiptItemRepository } from '$repositories';
 import type { IRecipeRepository, IReceiptRepository } from '$repositories';
 import type { Actor } from '$lib/models/household';
+import { normalizeItemKey } from '$lib/services/kitchen/itemKey';
 import type { ShoppingListItemDao, ShoppingListWithItemsDao } from '$lib/repositories/daos';
 
 export type { ShoppingListWithItemsDao as ShoppingListWithItems };
@@ -69,6 +70,7 @@ export class ShoppingListController {
 			unit: input.unit,
 			fromRecipeId: input.fromRecipeId,
 			notes: input.notes,
+			mergeKey: normalizeItemKey(input.name),
 			orderIndex: nextOrder
 		});
 	}

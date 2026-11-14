@@ -5,7 +5,7 @@ import type {
 	ShoppingListItemDao
 } from '$repositories';
 import type { Actor } from '$lib/models/household';
-import { normalizeItemKey } from '$lib/models/kitchen';
+import { normalizeItemKey } from './kitchen/itemKey';
 import type {
 	ListItem,
 	Purchase,
