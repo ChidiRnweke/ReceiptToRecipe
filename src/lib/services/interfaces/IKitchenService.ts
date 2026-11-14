@@ -9,6 +9,10 @@ export interface KitchenPicture {
 	day: number;
 	lots: Lot[];
 	stock: StockItem[];
+	/** The household records purchases: it has at least one BOUGHT event. */
+	tracks: boolean;
+	/** When the last shop was closed, or null. */
+	lastShopDoneAt: Date | null;
 }
 
 export interface BoughtItem {

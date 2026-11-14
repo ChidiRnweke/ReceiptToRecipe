@@ -7,7 +7,22 @@ import { ConfigService } from '$lib/services/ConfigService';
 // Top-level await is supported in Node 22
 await ConfigService.getInstance().init();
 
+/** Used until the browser has reported its time zone. */
+const DEFAULT_TIME_ZONE = 'Europe/Brussels';
+
+/** The browser's IANA time zone from the `tz` cookie, when it names a real zone. */
+function timeZoneFrom(value: string | undefined): string {
+	if (!value) return DEFAULT_TIME_ZONE;
+	try {
+		new Intl.DateTimeFormat('en', { timeZone: value });
+		return value;
+	} catch {
+		return DEFAULT_TIME_ZONE;
+	}
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
+	event.locals.timeZone = timeZoneFrom(event.cookies.get('tz'));
 	const sessionId = getSessionCookie(event.cookies);
 
 	if (sessionId) {

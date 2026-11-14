@@ -8,7 +8,7 @@ export { default as DayStrip } from './DayStrip.svelte';
 export { default as FreshnessDots } from './FreshnessDots.svelte';
 export { default as SlimState } from './SlimState.svelte';
 export { default as DoorArt } from './DoorArt.svelte';
-export { DOORS, activeDoor, type Door, type DoorKey, type DoorHref } from './doors';
+export { DOORS, activeDoor, doorFor, type Door, type DoorKey, type DoorHref } from './doors';
 export type { DoorArtName, EmptyArtName } from './art';
 export type { ReceiptLine } from './ReceiptSlip.svelte';
 export type { StripDay } from './DayStrip.svelte';

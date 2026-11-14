@@ -16,6 +16,14 @@ describe('the door bar', () => {
 		expect(activeDoor('/')).toBe('tonight');
 	});
 
+	it('lights Tonight on its own page', () => {
+		expect(activeDoor('/tonight')).toBe('tonight');
+	});
+
+	it('links Tonight to its own page', () => {
+		expect(DOORS[0].href).toBe('/tonight');
+	});
+
 	it('does not light Tonight on another page', () => {
 		expect(activeDoor('/preferences')).toBeNull();
 	});

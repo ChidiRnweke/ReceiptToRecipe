@@ -63,3 +63,16 @@ export function localHour(date: Date, timeZone: string): number {
 	const { hour, minute } = localParts(date, timeZone);
 	return hour + minute / 60;
 }
+
+/** The moment local day `day` reaches `hour` (e.g. 12 for noon) in `timeZone`. */
+export function atLocalHour(day: number, hour: number, timeZone: string): Date {
+	const target = day * DAY_MS + hour * 60 * 60 * 1000;
+	let guess = target;
+	// Two corrections settle any offset, including the hour a DST change moves.
+	for (let i = 0; i < 2; i++) {
+		const date = new Date(guess);
+		const seen = dayNumber(date, timeZone) * DAY_MS + localHour(date, timeZone) * 60 * 60 * 1000;
+		guess += target - seen;
+	}
+	return new Date(guess);
+}

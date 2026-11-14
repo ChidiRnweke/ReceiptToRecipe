@@ -52,6 +52,15 @@ export interface NutritionAggregateOptions {
 	tolerancePercent?: number;
 }
 
+export interface CaloriesToday {
+	/** The member's daily calorie goal, or null without one. */
+	goal: number | null;
+	/** Calories the member logged on today's local day. */
+	eaten: number;
+}
+
 export interface INutritionService {
 	getAggregates(actor: Actor, options?: NutritionAggregateOptions): Promise<NutritionAggregates>;
+	/** The member's goal and what they logged today, on the local day of `timeZone`. */
+	getCaloriesToday(actor: Actor, now: Date, timeZone: string): Promise<CaloriesToday>;
 }

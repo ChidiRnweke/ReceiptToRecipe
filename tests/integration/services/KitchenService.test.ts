@@ -178,6 +178,32 @@ describe('KitchenService', () => {
 			expect(picture.stock.map((item) => item.itemKey)).toEqual(['rice']);
 		});
 
+		it('says a household with purchases tracks its kitchen', async () => {
+			await kitchen.service.recordBought(actor, [{ name: 'Milk' }], MONDAY_EVENING, 'manual');
+			const picture = await kitchen.service.getPicture(actor.householdId, MONDAY_EVENING, 'UTC');
+			expect(picture.tracks).toBe(true);
+		});
+
+		it('says a household without purchases does not track its kitchen', async () => {
+			const picture = await kitchen.service.getPicture(actor.householdId, MONDAY_EVENING, 'UTC');
+			expect(picture.tracks).toBe(false);
+		});
+
+		it('gives the time of the last closed shop', async () => {
+			await kitchen.service.recordShopDone({
+				author: actor,
+				method: 'TICK',
+				items: [{ name: 'Milk' }],
+				at: MONDAY_EVENING
+			});
+			const picture = await kitchen.service.getPicture(
+				actor.householdId,
+				new Date('2026-11-10T12:00:00Z'),
+				'UTC'
+			);
+			expect(picture.lastShopDoneAt).toEqual(MONDAY_EVENING);
+		});
+
 		it('still holds a long-lived purchase older than 90 days', async () => {
 			await kitchen.service.recordBought(
 				actor,
