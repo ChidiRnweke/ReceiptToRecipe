@@ -79,7 +79,10 @@ describe('chooseDoor', () => {
 	});
 
 	describe('before a shop', () => {
-		const mondayShop = { ...NO_HABITS, shopDays: [{ weekday: 0 as const, hour: 18 }] };
+		const mondayShop = {
+			...NO_HABITS,
+			shopDays: [{ weekday: 0 as const, hour: 18, confirmed: false }]
+		};
 
 		it('opens Shop for the shopper within 90 minutes of the usual shop time', () => {
 			expect(chooseDoor(context({ habits: mondayShop })).door).toBe('shop');
@@ -136,7 +139,7 @@ describe('chooseDoor', () => {
 	it('reads the hour in the household time zone', () => {
 		// 16:00 UTC is 17:00 in Brussels, so the 18:00 shop is within the hour there.
 		const ctx = context({
-			habits: { ...NO_HABITS, shopDays: [{ weekday: 0, hour: 18 }] },
+			habits: { ...NO_HABITS, shopDays: [{ weekday: 0, hour: 18, confirmed: false }] },
 			now: at(0, 16),
 			timeZone: 'Europe/Brussels'
 		});

@@ -57,7 +57,7 @@ describe('PlanService', () => {
 			await t.events.append(bought('mushrooms', 250, 'g', 0, { expiresInDays: 2 }));
 			const meal = await t.planOn(risotto, DAY0);
 			const result = await move(meal.id);
-			expect(result.keptBy?.itemKey).toBe('mushrooms');
+			expect(result.keptBy?.itemKey).toBe('mushroom');
 		});
 
 		it('skips the meal when no day in the next three is free', async () => {

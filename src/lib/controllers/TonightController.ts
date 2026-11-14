@@ -8,7 +8,8 @@ import type {
 } from '$services';
 import type { PlannedMealDao, RecipeWithIngredientsDao } from '$repositories';
 import type { Actor } from '$lib/models/household';
-import { normalizeItemKey, type Habits, type MealNeed } from '$lib/models/kitchen';
+import type { Habits, MealNeed } from '$lib/models/kitchen';
+import { normalizeItemKey } from '$lib/services/kitchen/itemKey';
 import { MEAL_HOUR, type MealType, type PlanRecipe } from '$lib/models/plan';
 import type {
 	CookIngredient,
@@ -254,7 +255,13 @@ export class TonightController {
 			movedToDays: move.movedTo ? dayNumber(move.movedTo, timeZone) - today : null,
 			movedToWeekday: move.movedTo ? weekdayOf(move.movedTo, timeZone) : null,
 			keptBy: move.keptBy
-				? { itemKey: move.keptBy.itemKey, weekday: weekdayOf(move.keptBy.until, timeZone) }
+				? {
+						itemKey: spokenName(
+							move.keptBy.itemKey,
+							ctx.recipes.find((r) => r.id === dinner.recipeId)?.source.ingredients ?? []
+						),
+						weekday: weekdayOf(move.keptBy.until, timeZone)
+					}
 				: null,
 			firstInLine: null
 		};
@@ -366,8 +373,8 @@ export class TonightController {
 			imageUrl: source.imageUrl,
 			minutes: minutesOf(source),
 			calories: source.estimatedCalories,
-			uses,
-			missing,
+			uses: uses.map((key) => spokenName(key, source.ingredients)),
+			missing: missing.map((key) => spokenName(key, source.ingredients)),
 			servings,
 			ingredients,
 			steps: splitSteps(source.instructions)
@@ -434,4 +441,13 @@ export class TonightController {
 			everythingHome: ctx.picture.tracks && (missingByMeal.get(dinner.id) ?? []).length === 0
 		};
 	}
+}
+
+/**
+ * Item keys are stored singular ("mushroom") so every source merges; people read the name the
+ * recipe uses ("mushrooms"). Falls back to the key when no ingredient matches.
+ */
+function spokenName(key: string, ingredients: readonly { name: string }[]): string {
+	const match = ingredients.find((ingredient) => normalizeItemKey(ingredient.name) === key);
+	return match ? match.name.trim().toLowerCase() : key;
 }

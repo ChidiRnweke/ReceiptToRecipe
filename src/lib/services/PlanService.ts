@@ -7,7 +7,7 @@ import type {
 	PlannedMealDao
 } from '$repositories';
 import type { Actor } from '$lib/models/household';
-import { normalizeItemKey } from '$lib/models/kitchen';
+import { normalizeItemKey } from './kitchen/itemKey';
 import { MOVE_MAX_DAYS, PLANNED_MEAL_HOUR, type MealType, type MoveResult } from '$lib/models/plan';
 import type {
 	Cookbook,

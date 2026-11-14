@@ -24,6 +24,7 @@ export const actor: Actor = {
 	householdId: 'household-1',
 	memberId: 'member-1',
 	displayName: 'Noor Haddad',
+	timeZone: 'UTC',
 	roles: { plans: true, shops: true, cooks: true }
 };
 
@@ -45,7 +46,14 @@ export function createTonight() {
 	const preferences = new MockUserPreferencesRepository();
 
 	const plan = new PlanService(plannedMeals, recipes, ingredients, saved, events);
-	const kitchen = new KitchenService(events, recipes, ingredients, plannedMeals, mealLogs);
+	const kitchen = new KitchenService(
+		events,
+		recipes,
+		ingredients,
+		plannedMeals,
+		mealLogs,
+		new InMemoryHouseholdRepository()
+	);
 	const habits = new HabitService(
 		events,
 		new InMemoryHabitAnswerRepository(),
