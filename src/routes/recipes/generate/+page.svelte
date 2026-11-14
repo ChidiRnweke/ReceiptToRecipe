@@ -423,7 +423,7 @@
 				<!-- Submit -->
 				<div class="pt-2">
 					<div
-						class="fixed right-0 bottom-0 left-0 z-40 hidden border-t border-border bg-white p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:block lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
+						class="md:fixed md:right-0 md:bottom-0 md:left-0 md:z-40 md:border-t md:border-border md:bg-white md:p-4 md:shadow-[0_-4px_20px_rgba(0,0,0,0.1)] lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
 					>
 						<Button
 							type="submit"

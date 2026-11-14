@@ -51,13 +51,6 @@
 		showItemDetail = true;
 	}
 
-	// Listen for mobile bottom nav CTA event
-	$effect(() => {
-		const handler = () => (showAddModal = true);
-		window.addEventListener('cupboard-add-item', handler);
-		return () => window.removeEventListener('cupboard-add-item', handler);
-	});
-
 	// Filter & Sort State (no more activeFilter — the lanes ARE the filter)
 	let searchQuery = $state('');
 	let sortBy = $state('confidence');

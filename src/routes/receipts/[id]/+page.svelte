@@ -67,7 +67,7 @@
 <div class="min-h-screen bg-bg-paper p-6 font-sans md:p-8">
 	<div class="mx-auto max-w-7xl">
 		<!-- Header with Typewriter Action -->
-		<div class="mb-8 flex items-center justify-between">
+		<div class="mb-8 flex flex-wrap items-center justify-between gap-4">
 			<div class="flex items-center gap-4">
 				<Button
 					variant="ghost"
@@ -93,7 +93,7 @@
 				</div>
 			</div>
 
-			<div class="hidden lg:block">
+			<div>
 				<Button
 					href={`/recipes/generate?receiptId=${data.receipt.id}`}
 					class="group relative h-11 overflow-hidden rounded-lg border border-sage-300 bg-white px-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sage-400 hover:bg-[#fafaf9] hover:shadow-md active:scale-95 disabled:opacity-50"

@@ -171,7 +171,7 @@
 					</Button>
 					<Button
 						href="/recipes/generate"
-						class="group relative hidden h-10 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95 md:inline-flex"
+						class="group relative inline-flex h-10 overflow-hidden rounded-lg border border-primary-300 bg-white px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-400 hover:bg-bg-card hover:shadow-md active:scale-95"
 					>
 						<div class="flex items-center gap-2">
 							<Sparkles
