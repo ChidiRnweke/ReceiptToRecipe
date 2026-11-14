@@ -4,7 +4,7 @@ import pg from 'pg';
 import { applyMigration, applyMigrationsUpTo, migrationTag } from '../helpers/migrations';
 
 /**
- * Runs the shop door migration (0014) against a list that already holds items, and checks they
+ * Runs the shop door migration (0015) against a list that already holds items, and checks they
  * become items a person added, with the kitchen's item key as their merge key.
  */
 describe('shop door migration backfill', () => {
@@ -27,7 +27,7 @@ describe('shop door migration backfill', () => {
 		pool = new pg.Pool({ connectionString: container.getConnectionUri() });
 		await pool.query('CREATE EXTENSION IF NOT EXISTS vector');
 
-		await applyMigrationsUpTo(pool, '0013');
+		await applyMigrationsUpTo(pool, '0014');
 
 		const user = await pool.query<{ id: string }>(
 			`INSERT INTO users (email, name, auth_provider_id) VALUES ('noor@example.com', 'Noor', 'oauth-noor') RETURNING id`
@@ -50,7 +50,7 @@ describe('shop door migration backfill', () => {
 			);
 		}
 
-		await applyMigration(pool, migrationTag('0014'));
+		await applyMigration(pool, migrationTag('0015'));
 	});
 
 	afterAll(async () => {
