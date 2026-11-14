@@ -11,9 +11,10 @@ import {
 	vector,
 	index,
 	unique,
+	uniqueIndex,
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 
 // Enums
 export const processingStatusEnum = pgEnum('processing_status', [
@@ -48,6 +49,14 @@ export const kitchenEventKindEnum = pgEnum('kitchen_event_kind', [
 ]);
 
 export const shopMethodEnum = pgEnum('shop_method', ['RECEIPT', 'TICK']);
+
+/** Who put an item on the shopping list: the plan, a running-low usual, a person, or an agent. */
+export const shoppingItemSourceEnum = pgEnum('shopping_item_source', [
+	'PLAN',
+	'USUAL',
+	'MANUAL',
+	'AGENT'
+]);
 
 // Users
 export const users = pgTable('users', {
@@ -166,6 +175,10 @@ export const receipts = pgTable(
 		totalAmount: decimal('total_amount', { precision: 10, scale: 2 }),
 		currency: text('currency').default('USD'),
 		errorMessage: text('error_message'),
+		/** When the OCR job counted the receipt's shop: its SHOP_DONE and purchase history. */
+		shopRecordedAt: timestamp('shop_recorded_at'),
+		/** The open shopping list items when the receipt was snapped, to match the receipt against. */
+		listSnapshot: jsonb('list_snapshot').$type<{ id: string; name: string; itemKey: string }[]>(),
 		createdAt: timestamp('created_at').notNull().defaultNow(),
 		updatedAt: timestamp('updated_at').notNull().defaultNow()
 	},
@@ -303,22 +316,48 @@ export const plannedMeals = pgTable(
 );
 
 // Shopping List Items
-export const shoppingListItems = pgTable('shopping_list_items', {
-	id: uuid('id').primaryKey().defaultRandom(),
-	shoppingListId: uuid('shopping_list_id')
-		.notNull()
-		.references(() => shoppingLists.id, { onDelete: 'cascade' }),
-	name: text('name').notNull(),
-	quantity: decimal('quantity', { precision: 10, scale: 3 }),
-	unit: text('unit'),
-	checked: boolean('checked').default(false),
-	fromRecipeId: uuid('from_recipe_id').references(() => recipes.id, {
-		onDelete: 'set null'
-	}),
-	notes: text('notes'),
-	orderIndex: integer('order_index').notNull().default(0),
-	createdAt: timestamp('created_at').notNull().defaultNow()
-});
+export const shoppingListItems = pgTable(
+	'shopping_list_items',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		shoppingListId: uuid('shopping_list_id')
+			.notNull()
+			.references(() => shoppingLists.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		quantity: decimal('quantity', { precision: 10, scale: 3 }),
+		unit: text('unit'),
+		checked: boolean('checked').default(false),
+		fromRecipeId: uuid('from_recipe_id').references(() => recipes.id, {
+			onDelete: 'set null'
+		}),
+		notes: text('notes'),
+		orderIndex: integer('order_index').notNull().default(0),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+		/** Planned meals the item is bought for; the first one is the dish it is listed under. */
+		forPlannedMealIds: uuid('for_planned_meal_ids')
+			.array()
+			.notNull()
+			.default(sql`'{}'::uuid[]`),
+		/** The kitchen's item key of the name, so the same item from several dishes merges. */
+		mergeKey: text('merge_key'),
+		/** Held back for a later shop: not needed before then, so it stays fresh. */
+		heldUntil: timestamp('held_until'),
+		source: shoppingItemSourceEnum('source').notNull().default('MANUAL')
+	},
+	(t) => [
+		// One plan or usual row per item, unit and hold, so two members opening the list at once
+		// cannot add the same need twice.
+		uniqueIndex('shopping_list_items_need_idx')
+			.on(
+				t.shoppingListId,
+				t.source,
+				t.mergeKey,
+				sql`coalesce(${t.unit}, '')`,
+				sql`(${t.heldUntil} is not null)`
+			)
+			.where(sql`${t.source} in ('PLAN', 'USUAL')`)
+	]
+);
 
 // Purchase History (for smart suggestions)
 export const purchaseHistory = pgTable(

@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import type { Database } from '$db/client';
 import * as schema from '$db/schema';
 import type { IShoppingListRepository, IShoppingListItemRepository } from './interfaces';
@@ -53,19 +53,6 @@ export class ShoppingListRepository implements IShoppingListRepository {
 		};
 	}
 
-	async findByHouseholdId(householdId: string): Promise<ShoppingListWithItemsDao[]> {
-		const lists = await this.db.query.shoppingLists.findMany({
-			where: eq(schema.shoppingLists.householdId, householdId),
-			orderBy: [desc(schema.shoppingLists.createdAt)],
-			with: { items: { orderBy: [schema.shoppingListItems.orderIndex] } }
-		});
-
-		return lists.map((list) => ({
-			...this.toDao(list),
-			items: list.items.map((item) => this.itemToDao(item))
-		}));
-	}
-
 	async create(list: NewShoppingListDao): Promise<ShoppingListDao> {
 		const [created] = await this.db
 			.insert(schema.shoppingLists)
@@ -95,13 +82,6 @@ export class ShoppingListRepository implements IShoppingListRepository {
 		await this.db.delete(schema.shoppingLists).where(eq(schema.shoppingLists.id, id));
 	}
 
-	async deactivateAllByHouseholdId(householdId: string): Promise<void> {
-		await this.db
-			.update(schema.shoppingLists)
-			.set({ isActive: false })
-			.where(eq(schema.shoppingLists.householdId, householdId));
-	}
-
 	private toDao(list: typeof schema.shoppingLists.$inferSelect): ShoppingListDao {
 		return {
 			id: list.id,
@@ -125,7 +105,11 @@ export class ShoppingListRepository implements IShoppingListRepository {
 			fromRecipeId: item.fromRecipeId,
 			notes: item.notes,
 			orderIndex: item.orderIndex,
-			createdAt: item.createdAt
+			createdAt: item.createdAt,
+			forPlannedMealIds: item.forPlannedMealIds,
+			mergeKey: item.mergeKey,
+			heldUntil: item.heldUntil,
+			source: item.source
 		};
 	}
 }
@@ -148,16 +132,6 @@ export class ShoppingListItemRepository implements IShoppingListItemRepository {
 		return items.map((i) => this.toDao(i));
 	}
 
-	async findCheckedByListId(listId: string): Promise<ShoppingListItemDao[]> {
-		const items = await this.db.query.shoppingListItems.findMany({
-			where: and(
-				eq(schema.shoppingListItems.shoppingListId, listId),
-				eq(schema.shoppingListItems.checked, true)
-			)
-		});
-		return items.map((i) => this.toDao(i));
-	}
-
 	async create(item: NewShoppingListItemDao): Promise<ShoppingListItemDao> {
 		const [created] = await this.db
 			.insert(schema.shoppingListItems)
@@ -169,7 +143,11 @@ export class ShoppingListItemRepository implements IShoppingListItemRepository {
 				checked: item.checked ?? false,
 				fromRecipeId: item.fromRecipeId ?? null,
 				notes: item.notes ?? null,
-				orderIndex: item.orderIndex ?? 0
+				orderIndex: item.orderIndex ?? 0,
+				forPlannedMealIds: item.forPlannedMealIds ?? [],
+				mergeKey: item.mergeKey ?? null,
+				heldUntil: item.heldUntil ?? null,
+				source: item.source ?? 'MANUAL'
 			})
 			.returning();
 		return this.toDao(created);
@@ -177,8 +155,35 @@ export class ShoppingListItemRepository implements IShoppingListItemRepository {
 
 	async createMany(items: NewShoppingListItemDao[]): Promise<ShoppingListItemDao[]> {
 		if (items.length === 0) return [];
-		const created = await this.db.insert(schema.shoppingListItems).values(items).returning();
+		const created = await this.db
+			.insert(schema.shoppingListItems)
+			.values(items.map((item) => this.toRow(item)))
+			.returning();
 		return created.map((i) => this.toDao(i));
+	}
+
+	async createNeeds(items: NewShoppingListItemDao[]): Promise<ShoppingListItemDao[]> {
+		if (items.length === 0) return [];
+		// The unique need index turns a row another request already added into a no-op.
+		const created = await this.db
+			.insert(schema.shoppingListItems)
+			.values(items.map((item) => this.toRow(item)))
+			.onConflictDoNothing()
+			.returning();
+		return created.map((i) => this.toDao(i));
+	}
+
+	async deleteMany(ids: string[]): Promise<void> {
+		if (ids.length === 0) return;
+		await this.db.delete(schema.shoppingListItems).where(inArray(schema.shoppingListItems.id, ids));
+	}
+
+	private toRow(item: NewShoppingListItemDao): typeof schema.shoppingListItems.$inferInsert {
+		return {
+			...item,
+			mergeKey: item.mergeKey ?? null,
+			forPlannedMealIds: item.forPlannedMealIds ?? []
+		};
 	}
 
 	async update(id: string, item: UpdateShoppingListItemDao): Promise<ShoppingListItemDao> {
@@ -194,17 +199,6 @@ export class ShoppingListItemRepository implements IShoppingListItemRepository {
 		await this.db.delete(schema.shoppingListItems).where(eq(schema.shoppingListItems.id, id));
 	}
 
-	async deleteCheckedByListId(listId: string): Promise<void> {
-		await this.db
-			.delete(schema.shoppingListItems)
-			.where(
-				and(
-					eq(schema.shoppingListItems.shoppingListId, listId),
-					eq(schema.shoppingListItems.checked, true)
-				)
-			);
-	}
-
 	async getMaxOrderIndex(listId: string): Promise<number> {
 		const result = await this.db
 			.select({
@@ -218,13 +212,6 @@ export class ShoppingListItemRepository implements IShoppingListItemRepository {
 		return result[0]?.maxOrder ?? -1;
 	}
 
-	async updateOrderIndex(id: string, orderIndex: number): Promise<void> {
-		await this.db
-			.update(schema.shoppingListItems)
-			.set({ orderIndex })
-			.where(eq(schema.shoppingListItems.id, id));
-	}
-
 	private toDao(item: typeof schema.shoppingListItems.$inferSelect): ShoppingListItemDao {
 		return {
 			id: item.id,
@@ -236,7 +223,11 @@ export class ShoppingListItemRepository implements IShoppingListItemRepository {
 			fromRecipeId: item.fromRecipeId,
 			notes: item.notes,
 			orderIndex: item.orderIndex,
-			createdAt: item.createdAt
+			createdAt: item.createdAt,
+			forPlannedMealIds: item.forPlannedMealIds,
+			mergeKey: item.mergeKey,
+			heldUntil: item.heldUntil,
+			source: item.source
 		};
 	}
 }

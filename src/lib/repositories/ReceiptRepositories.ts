@@ -1,4 +1,4 @@
-import { eq, and, desc, inArray, sql } from 'drizzle-orm';
+import { eq, and, desc, inArray, isNull, sql } from 'drizzle-orm';
 import type { Database } from '$db/client';
 import * as schema from '$db/schema';
 import type { IReceiptRepository, IReceiptItemRepository } from './interfaces';
@@ -46,6 +46,15 @@ export class ReceiptRepository implements IReceiptRepository {
 		return receipts.map((r) => this.toDao(r));
 	}
 
+	async findByStatuses(statuses: ReceiptDao['status'][]): Promise<ReceiptDao[]> {
+		if (statuses.length === 0) return [];
+		const receipts = await this.db.query.receipts.findMany({
+			where: inArray(schema.receipts.status, statuses),
+			orderBy: [schema.receipts.createdAt]
+		});
+		return receipts.map((r) => this.toDao(r));
+	}
+
 	async findByHouseholdIdWithItems(
 		householdId: string,
 		limit = 20
@@ -74,7 +83,8 @@ export class ReceiptRepository implements IReceiptRepository {
 				storeName: receipt.storeName || null,
 				purchaseDate: receipt.purchaseDate || null,
 				totalAmount: receipt.totalAmount || null,
-				currency: receipt.currency || 'USD'
+				currency: receipt.currency || 'USD',
+				listSnapshot: receipt.listSnapshot ?? null
 			})
 			.returning();
 		return this.toDao(created);
@@ -94,6 +104,15 @@ export class ReceiptRepository implements IReceiptRepository {
 
 	async delete(id: string): Promise<void> {
 		await this.db.delete(schema.receipts).where(eq(schema.receipts.id, id));
+	}
+
+	async claimShopRecording(id: string, at: Date): Promise<boolean> {
+		const claimed = await this.db
+			.update(schema.receipts)
+			.set({ shopRecordedAt: at })
+			.where(and(eq(schema.receipts.id, id), isNull(schema.receipts.shopRecordedAt)))
+			.returning({ id: schema.receipts.id });
+		return claimed.length > 0;
 	}
 
 	async getStatus(id: string): Promise<ReceiptStatusDao | null> {
@@ -132,6 +151,8 @@ export class ReceiptRepository implements IReceiptRepository {
 			totalAmount: receipt.totalAmount,
 			currency: receipt.currency ?? 'USD',
 			errorMessage: receipt.errorMessage,
+			shopRecordedAt: receipt.shopRecordedAt,
+			listSnapshot: receipt.listSnapshot ?? null,
 			createdAt: receipt.createdAt,
 			updatedAt: receipt.updatedAt
 		};
@@ -207,6 +228,21 @@ export class ReceiptItemRepository implements IReceiptItemRepository {
 
 	async delete(id: string): Promise<void> {
 		await this.db.delete(schema.receiptItems).where(eq(schema.receiptItems.id, id));
+	}
+
+	async replaceForReceipt(
+		receiptId: string,
+		items: NewReceiptItemDao[]
+	): Promise<ReceiptItemDao[]> {
+		return this.db.transaction(async (tx) => {
+			await tx.delete(schema.receiptItems).where(eq(schema.receiptItems.receiptId, receiptId));
+			if (items.length === 0) return [];
+			const created = await tx
+				.insert(schema.receiptItems)
+				.values(items.map((item) => ({ ...item, receiptId })))
+				.returning();
+			return created.map((i) => this.toDao(i));
+		});
 	}
 
 	async findLatestByNormalizedName(

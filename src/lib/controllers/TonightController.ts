@@ -1,13 +1,14 @@
 import type {
 	Cookbook,
 	IHabitService,
+	IHouseholdService,
 	IKitchenService,
 	INutritionService,
 	IPlanService,
 	KitchenPicture
 } from '$services';
 import type { PlannedMealDao, RecipeWithIngredientsDao } from '$repositories';
-import type { Actor } from '$lib/models/household';
+import type { Actor, HouseholdMember } from '$lib/models/household';
 import type { Habits, MealNeed } from '$lib/models/kitchen';
 import { normalizeItemKey } from '$lib/services/kitchen/itemKey';
 import { MEAL_HOUR, type MealType, type PlanRecipe } from '$lib/models/plan';
@@ -73,6 +74,8 @@ interface TonightContext {
 	stock: RankStock[];
 	habits: Habits;
 	target: TonightTarget<PlannedMealDao>;
+	/** Who shops, when it is someone else in a household of several; else null. */
+	shopper: string | null;
 }
 
 export type CookTarget = { plannedMealId: string } | { recipeId: string };
@@ -96,6 +99,13 @@ function toCookRecipe(recipe: RecipeWithIngredientsDao, stockKeys: string[]): Co
 	};
 }
 
+/** In a household of several, the first name of the member who shops when the viewer does not. */
+function otherShopper(actor: Actor, members: HouseholdMember[]): string | null {
+	if (members.length < 2 || actor.roles.shops) return null;
+	const shopper = members.find((member) => member.roles.shops && member.userId !== actor.userId);
+	return shopper ? firstName(shopper.displayName) : null;
+}
+
 function minutesOf(recipe: RecipeWithIngredientsDao): number | null {
 	if (recipe.prepTime === null && recipe.cookTime === null) return null;
 	return (recipe.prepTime ?? 0) + (recipe.cookTime ?? 0);
@@ -107,7 +117,8 @@ export class TonightController {
 		private planService: IPlanService,
 		private kitchenService: IKitchenService,
 		private habitService: IHabitService,
-		private nutritionService: INutritionService
+		private nutritionService: INutritionService,
+		private householdService: IHouseholdService
 	) {}
 
 	async getTonight(actor: Actor, now: Date, timeZone: string): Promise<TonightView> {
@@ -271,11 +282,12 @@ export class TonightController {
 
 	private async load(actor: Actor, now: Date, timeZone: string): Promise<TonightContext> {
 		const today = dayNumber(now, timeZone);
-		const [meals, cookbook, picture, habits] = await Promise.all([
+		const [meals, cookbook, picture, habits, members] = await Promise.all([
 			this.planService.listMeals(actor.householdId, today, today + PLAN_AHEAD_DAYS, timeZone),
 			this.planService.getCookbook(actor, now),
 			this.kitchenService.getPicture(actor.householdId, now, timeZone),
-			this.habitService.getHabits(actor.householdId, now, timeZone)
+			this.habitService.getHabits(actor.householdId, now, timeZone),
+			this.householdService.listMembers(actor)
 		]);
 		const stockKeys = picture.stock.map((item) => item.itemKey);
 		return {
@@ -287,7 +299,8 @@ export class TonightController {
 			picture,
 			stock: withPerishable(picture.stock, picture.lots, today),
 			habits,
-			target: tonightTarget(meals, now, timeZone)
+			target: tonightTarget(meals, now, timeZone),
+			shopper: otherShopper(actor, members)
 		};
 	}
 
@@ -420,7 +433,9 @@ export class TonightController {
 		const shop = upcomingShops(ctx.habits.shopDays, now, timeZone).find(
 			(s) => s.hoursAway > 0 && s.hoursAway < mealHoursAway
 		);
-		return shop ? { weekday: weekdayOfDay(shop.day), daysAway: shop.day - ctx.today } : null;
+		return shop
+			? { weekday: weekdayOfDay(shop.day), daysAway: shop.day - ctx.today, shopper: ctx.shopper }
+			: null;
 	}
 
 	private tomorrowLine(

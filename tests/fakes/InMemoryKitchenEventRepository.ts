@@ -56,6 +56,18 @@ export class InMemoryKitchenEventRepository implements IKitchenEventRepository {
 		);
 	}
 
+	async listByShopId(householdId: string, shopId: string): Promise<KitchenEvent[]> {
+		return this.sorted().filter(
+			(event) => event.householdId === householdId && event.payload?.shopId === shopId
+		);
+	}
+
+	async deleteByIds(householdId: string, ids: string[]): Promise<void> {
+		this.events = this.events.filter(
+			(event) => event.householdId !== householdId || !ids.includes(event.id)
+		);
+	}
+
 	async deleteByReceiptItemIds(householdId: string, receiptItemIds: string[]): Promise<void> {
 		this.events = this.events.filter(
 			(event) =>

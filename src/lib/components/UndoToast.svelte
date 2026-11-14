@@ -12,12 +12,14 @@
 </script>
 
 {#if undoToastState.visible}
-	<div class="pointer-events-none fixed inset-x-0 bottom-4 z-[70] flex justify-center px-4">
+	<div
+		class="pointer-events-none fixed inset-x-0 bottom-20 z-[70] flex justify-center px-4 md:bottom-4"
+	>
 		<div
 			class="pointer-events-auto flex w-full max-w-lg items-center justify-between gap-3 rounded-lg border border-border bg-white px-4 py-3 shadow-[0_10px_24px_-12px_rgba(0,0,0,0.45)]"
 		>
 			<div class="min-w-0 flex-1">
-				<p class="truncate text-sm text-text-primary">{undoToastState.message}</p>
+				<p class="line-clamp-2 text-sm text-text-primary">{undoToastState.message}</p>
 			</div>
 
 			<div class="flex items-center gap-2">

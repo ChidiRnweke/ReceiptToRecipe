@@ -48,16 +48,6 @@ export class MockShoppingListRepository implements IShoppingListRepository {
 		return this.findByIdWithItems(list.id);
 	}
 
-	async findByHouseholdId(householdId: string): Promise<ShoppingListWithItemsDao[]> {
-		const lists = Array.from(this.lists.values())
-			.filter((l) => l.householdId === householdId)
-			.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-		return Promise.all(lists.map((l) => this.findByIdWithItems(l.id))).then((results) =>
-			results.filter((l): l is ShoppingListWithItemsDao => !!l)
-		);
-	}
-
 	async create(list: NewShoppingListDao): Promise<ShoppingListDao> {
 		const now = new Date();
 		const created: ShoppingListDao = {
@@ -94,15 +84,6 @@ export class MockShoppingListRepository implements IShoppingListRepository {
 		this.lists.delete(id);
 	}
 
-	async deactivateAllByHouseholdId(householdId: string): Promise<void> {
-		for (const list of this.lists.values()) {
-			if (list.householdId === householdId && list.isActive) {
-				list.isActive = false;
-				list.updatedAt = new Date();
-			}
-		}
-	}
-
 	// Test helpers
 	getStored(id: string): ShoppingListDao | undefined {
 		return this.lists.get(id);
@@ -133,10 +114,6 @@ export class MockShoppingListItemRepository implements IShoppingListItemReposito
 			.sort((a, b) => a.orderIndex - b.orderIndex);
 	}
 
-	async findCheckedByListId(listId: string): Promise<ShoppingListItemDao[]> {
-		return (await this.findByListId(listId)).filter((i) => i.checked);
-	}
-
 	async create(item: NewShoppingListItemDao): Promise<ShoppingListItemDao> {
 		const created: ShoppingListItemDao = {
 			id: uuidv4(),
@@ -148,7 +125,11 @@ export class MockShoppingListItemRepository implements IShoppingListItemReposito
 			fromRecipeId: item.fromRecipeId ?? null,
 			notes: item.notes ?? null,
 			orderIndex: item.orderIndex ?? 0,
-			createdAt: new Date()
+			createdAt: new Date(),
+			forPlannedMealIds: item.forPlannedMealIds ?? [],
+			mergeKey: item.mergeKey ?? null,
+			heldUntil: item.heldUntil ?? null,
+			source: item.source ?? 'MANUAL'
 		};
 		this.items.set(created.id, created);
 		return created;
@@ -160,6 +141,30 @@ export class MockShoppingListItemRepository implements IShoppingListItemReposito
 			created.push(await this.create(item));
 		}
 		return created;
+	}
+
+	/** Like the unique need index: one plan or usual row per list, source, item, unit and hold. */
+	async createNeeds(items: NewShoppingListItemDao[]): Promise<ShoppingListItemDao[]> {
+		const key = (i: {
+			shoppingListId: string;
+			source?: string;
+			mergeKey?: string | null;
+			unit?: string | null;
+			heldUntil?: Date | null;
+		}) => [i.shoppingListId, i.source, i.mergeKey, i.unit ?? '', i.heldUntil != null].join('|');
+		const created: ShoppingListItemDao[] = [];
+		for (const item of items) {
+			const taken = [...this.items.values()].some(
+				(existing) =>
+					(existing.source === 'PLAN' || existing.source === 'USUAL') && key(existing) === key(item)
+			);
+			if (!taken) created.push(await this.create(item));
+		}
+		return created;
+	}
+
+	async deleteMany(ids: string[]): Promise<void> {
+		for (const id of ids) this.items.delete(id);
 	}
 
 	async update(id: string, item: UpdateShoppingListItemDao): Promise<ShoppingListItemDao> {
@@ -181,25 +186,10 @@ export class MockShoppingListItemRepository implements IShoppingListItemReposito
 		this.items.delete(id);
 	}
 
-	async deleteCheckedByListId(listId: string): Promise<void> {
-		for (const [id, item] of this.items) {
-			if (item.shoppingListId === listId && item.checked) {
-				this.items.delete(id);
-			}
-		}
-	}
-
 	async getMaxOrderIndex(listId: string): Promise<number> {
 		const items = await this.findByListId(listId);
 		if (items.length === 0) return -1;
 		return Math.max(...items.map((i) => i.orderIndex));
-	}
-
-	async updateOrderIndex(id: string, orderIndex: number): Promise<void> {
-		const item = this.items.get(id);
-		if (item) {
-			item.orderIndex = orderIndex;
-		}
 	}
 
 	// Test helpers

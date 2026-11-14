@@ -85,6 +85,8 @@ export type {
 	TwoDaysResult,
 	BatchPrepResult,
 	IdeaOptions,
+	IShopService,
+	NewManualItem,
 	// OAuth interfaces
 	IOAuthService,
 	Auth0Tokens,
@@ -124,6 +126,7 @@ export { HouseholdService } from './HouseholdService';
 export { KitchenService } from './KitchenService';
 export { HabitService } from './HabitService';
 export { PlanService } from './PlanService';
+export { ShopService } from './ShopService';
 export {
 	AppriseNotificationService,
 	MockNotificationService,

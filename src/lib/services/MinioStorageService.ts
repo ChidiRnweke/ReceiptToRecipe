@@ -1,6 +1,6 @@
 import { Client } from 'minio';
 import { v4 as uuidv4 } from 'uuid';
-import type { IStorageService, UploadResult } from './interfaces';
+import type { IStorageService, StoredFile, UploadResult } from './interfaces';
 
 export interface MinioConfig {
 	endPoint: string;
@@ -112,6 +112,16 @@ export class MinioStorageService implements IStorageService {
 		return {
 			contentType: stat.metaData['content-type'],
 			size: stat.size
+		};
+	}
+
+	async read(key: string): Promise<StoredFile> {
+		const [stream, stat] = await Promise.all([this.getObject(key), this.getObjectStat(key)]);
+		const chunks: Buffer[] = [];
+		for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+		return {
+			data: Buffer.concat(chunks),
+			contentType: stat.contentType ?? 'application/octet-stream'
 		};
 	}
 

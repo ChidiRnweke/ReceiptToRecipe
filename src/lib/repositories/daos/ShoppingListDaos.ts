@@ -1,3 +1,5 @@
+import type { ShoppingItemSource } from '$lib/models/shop';
+
 export interface ShoppingListDao {
 	id: string;
 	userId: string;
@@ -31,6 +33,13 @@ export interface ShoppingListItemDao {
 	notes: string | null;
 	orderIndex: number;
 	createdAt: Date;
+	/** Planned meals the item is bought for; the first is the dish it is listed under. */
+	forPlannedMealIds: string[];
+	/** Item key of the name, so the same item from several dishes merges. */
+	mergeKey: string | null;
+	/** Held back for a later shop. */
+	heldUntil: Date | null;
+	source: ShoppingItemSource;
 }
 
 export interface NewShoppingListItemDao {
@@ -42,6 +51,10 @@ export interface NewShoppingListItemDao {
 	fromRecipeId?: string | null;
 	notes?: string | null;
 	orderIndex?: number;
+	forPlannedMealIds?: string[];
+	mergeKey?: string | null;
+	heldUntil?: Date | null;
+	source?: ShoppingItemSource;
 }
 
 export interface UpdateShoppingListItemDao {
@@ -51,6 +64,8 @@ export interface UpdateShoppingListItemDao {
 	checked?: boolean;
 	notes?: string | null;
 	orderIndex?: number;
+	forPlannedMealIds?: string[];
+	heldUntil?: Date | null;
 }
 
 export interface ShoppingListWithItemsDao extends ShoppingListDao {

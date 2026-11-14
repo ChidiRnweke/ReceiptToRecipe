@@ -15,6 +15,7 @@ import type {
 	KitchenAuthor,
 	KitchenPicture,
 	RecordCookedInput,
+	RecordShopClosedInput,
 	RecordShopDoneInput,
 	WithdrawCupboardItemInput
 } from './interfaces/IKitchenService';
@@ -42,6 +43,10 @@ export class KitchenService implements IKitchenService {
 		private mealLogRepository: IMealLogRepository,
 		private householdRepository: Pick<IHouseholdRepository, 'findHouseholdById'>
 	) {}
+
+	timeZoneOf(householdId: string): Promise<string> {
+		return householdTimeZone(this.householdRepository, householdId);
+	}
 
 	async getPicture(householdId: string, now: Date, zone?: string): Promise<KitchenPicture> {
 		const timeZone = zone ?? (await householdTimeZone(this.householdRepository, householdId));
@@ -151,23 +156,49 @@ export class KitchenService implements IKitchenService {
 	}
 
 	async recordShopDone(input: RecordShopDoneInput): Promise<KitchenEvent[]> {
+		const shopId = crypto.randomUUID();
 		const bought = this.boughtEvents(
 			input.author,
 			input.items,
 			input.at,
 			input.method.toLowerCase()
-		);
+		).map((event) => ({ ...event, payload: { ...event.payload, shopId } }));
 		return this.kitchenEventRepository.appendMany([
 			...bought,
-			{
-				householdId: input.author.householdId,
-				actorUserId: input.author.userId,
-				occurredAt: input.at,
-				kind: 'SHOP_DONE',
-				method: input.method,
-				payload: { ...input.details, itemCount: bought.length }
-			}
+			this.shopDoneEvent({
+				...input,
+				details: { ...input.details, shopId },
+				itemCount: bought.length
+			})
 		]);
+	}
+
+	async findShop(householdId: string, shopId: string): Promise<KitchenEvent | null> {
+		const events = await this.kitchenEventRepository.listByShopId(householdId, shopId);
+		return events.find((event) => event.kind === 'SHOP_DONE') ?? null;
+	}
+
+	async forgetShop(householdId: string, shopId: string): Promise<void> {
+		const events = await this.kitchenEventRepository.listByShopId(householdId, shopId);
+		await this.kitchenEventRepository.deleteByIds(
+			householdId,
+			events.map((event) => event.id)
+		);
+	}
+
+	async recordShopClosed(input: RecordShopClosedInput): Promise<KitchenEvent> {
+		return this.kitchenEventRepository.append(this.shopDoneEvent(input));
+	}
+
+	private shopDoneEvent(input: RecordShopClosedInput): NewKitchenEvent {
+		return {
+			householdId: input.author.householdId,
+			actorUserId: input.author.userId,
+			occurredAt: input.at,
+			kind: 'SHOP_DONE',
+			method: input.method,
+			payload: { ...input.details, itemCount: input.itemCount }
+		};
 	}
 
 	async recordBought(

@@ -34,8 +34,14 @@ describe('Tonight copy', () => {
 	});
 
 	it('names the shop that brings what is missing', () => {
-		expect(availabilityLine(['coriander'], { weekday: 3, daysAway: 2 })).toBe(
+		expect(availabilityLine(['coriander'], { weekday: 3, daysAway: 2, shopper: null })).toBe(
 			'coriander comes in Thursday’s shop'
+		);
+	});
+
+	it('names the member who shops when it is someone else', () => {
+		expect(availabilityLine(['coriander'], { weekday: 3, daysAway: 2, shopper: 'Sam' })).toBe(
+			'coriander comes in Sam’s shop'
 		);
 	});
 

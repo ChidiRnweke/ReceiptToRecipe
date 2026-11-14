@@ -1,4 +1,5 @@
-import { redirect, type Handle } from '@sveltejs/kit';
+import { redirect, type Handle, type ServerInit } from '@sveltejs/kit';
+import { building } from '$app/environment';
 import { AppFactory } from '$lib/factories';
 import { getSessionCookie } from '$lib/services/AuthService';
 import { ConfigService } from '$lib/services/ConfigService';
@@ -20,6 +21,21 @@ function timeZoneFrom(value: string | undefined): string {
 		return DEFAULT_TIME_ZONE;
 	}
 }
+
+/**
+ * The OCR job queue lives in memory, so a restart loses the receipts it was reading. Once the
+ * server is up, their OCR is queued again. This runs in the background: a failure is logged and
+ * does not stop the server from starting.
+ */
+export const init: ServerInit = async () => {
+	if (building) return;
+	void Promise.resolve()
+		.then(() => AppFactory.getReceiptController().resumePendingReceipts())
+		.then((ids) => {
+			if (ids.length) console.info(`Queued OCR again for ${ids.length} receipt(s) after start.`);
+		})
+		.catch((error) => console.error('Could not queue pending receipts again after start:', error));
+};
 
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.timeZone = timeZoneFrom(event.cookies.get('tz'));

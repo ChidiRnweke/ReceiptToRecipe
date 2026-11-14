@@ -93,6 +93,29 @@ describe('KitchenEventRepository (DB)', () => {
 		expect(shops.map((event) => event.method)).toEqual(['RECEIPT']);
 	});
 
+	it('lists the events of one shop by its shop id', async () => {
+		await repo.appendMany([
+			{ ...boughtAt('2026-11-11T10:00:00Z', 'milk'), payload: { shopId: 'shop-1' } },
+			{ ...boughtAt('2026-11-11T10:00:00Z', 'eggs'), payload: { shopId: 'shop-2' } }
+		]);
+
+		const events = await repo.listByShopId(householdId, 'shop-1');
+
+		expect(events.map((event) => event.itemKey)).toEqual(['milk']);
+	});
+
+	it('deletes events by id only in the household', async () => {
+		const [own] = await repo.appendMany([boughtAt('2026-11-11T10:00:00Z', 'milk')]);
+		const [other] = await repo.appendMany([
+			boughtAt('2026-11-11T10:00:00Z', 'eggs', otherHouseholdId)
+		]);
+
+		await repo.deleteByIds(householdId, [own.id, other.id]);
+
+		const left = await repo.listByHouseholdSince(otherHouseholdId, new Date('2026-11-01'));
+		expect(left.map((event) => event.itemKey)).toEqual(['eggs']);
+	});
+
 	it('keeps one answer per household and offer', async () => {
 		const base = { householdId, key: 'shopDay:3', answeredBy: userId };
 		await answers.save({

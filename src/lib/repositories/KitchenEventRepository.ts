@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, sql } from 'drizzle-orm';
 import type { Database } from '$db/client';
 import * as schema from '$db/schema';
 import type { IKitchenEventRepository } from './interfaces';
@@ -51,6 +51,29 @@ export class KitchenEventRepository implements IKitchenEventRepository {
 			orderBy: [asc(schema.kitchenEvents.occurredAt), asc(schema.kitchenEvents.createdAt)]
 		});
 		return rows.map((row) => this.toEvent(row));
+	}
+
+	async listByShopId(householdId: string, shopId: string): Promise<KitchenEvent[]> {
+		const rows = await this.db.query.kitchenEvents.findMany({
+			where: and(
+				eq(schema.kitchenEvents.householdId, householdId),
+				sql`${schema.kitchenEvents.payload}->>'shopId' = ${shopId}`
+			),
+			orderBy: [asc(schema.kitchenEvents.occurredAt), asc(schema.kitchenEvents.createdAt)]
+		});
+		return rows.map((row) => this.toEvent(row));
+	}
+
+	async deleteByIds(householdId: string, ids: string[]): Promise<void> {
+		if (ids.length === 0) return;
+		await this.db
+			.delete(schema.kitchenEvents)
+			.where(
+				and(
+					eq(schema.kitchenEvents.householdId, householdId),
+					inArray(schema.kitchenEvents.id, ids)
+				)
+			);
 	}
 
 	async deleteByReceiptItemIds(householdId: string, receiptItemIds: string[]): Promise<void> {

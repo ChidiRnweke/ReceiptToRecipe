@@ -38,11 +38,3 @@ export interface UpdatePurchaseHistoryDao {
 	userQuantityOverride?: string | null;
 	isDepleted?: boolean;
 }
-
-export interface SmartSuggestionDao {
-	itemName: string;
-	lastPurchased: Date;
-	avgFrequencyDays: number | null;
-	daysSinceLastPurchase: number;
-	suggestedQuantity: string | null;
-}

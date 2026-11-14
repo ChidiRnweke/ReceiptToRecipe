@@ -1,9 +1,4 @@
-import type {
-	PurchaseHistoryDao,
-	NewPurchaseHistoryDao,
-	UpdatePurchaseHistoryDao,
-	SmartSuggestionDao
-} from '../daos';
+import type { PurchaseHistoryDao, NewPurchaseHistoryDao, UpdatePurchaseHistoryDao } from '../daos';
 
 export interface IPurchaseHistoryRepository {
 	findById(id: string): Promise<PurchaseHistoryDao | null>;
@@ -12,7 +7,6 @@ export interface IPurchaseHistoryRepository {
 	create(history: NewPurchaseHistoryDao): Promise<PurchaseHistoryDao>;
 	update(id: string, history: UpdatePurchaseHistoryDao): Promise<PurchaseHistoryDao>;
 	delete(id: string): Promise<void>;
-	findSuggestions(householdId: string, limit: number): Promise<SmartSuggestionDao[]>;
 	markDepleted(id: string): Promise<PurchaseHistoryDao>;
 	clearDepleted(id: string): Promise<PurchaseHistoryDao>;
 	countActiveByHouseholdId(householdId: string): Promise<number>;

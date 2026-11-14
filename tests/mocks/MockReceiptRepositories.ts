@@ -47,6 +47,12 @@ export class MockReceiptRepository implements IReceiptRepository {
 		return limit ? results.slice(0, limit) : results;
 	}
 
+	async findByStatuses(statuses: ReceiptDao['status'][]): Promise<ReceiptDao[]> {
+		return Array.from(this.receipts.values())
+			.filter((r) => statuses.includes(r.status))
+			.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+	}
+
 	async findByHouseholdIdWithItems(
 		householdId: string,
 		limit?: number
@@ -77,6 +83,8 @@ export class MockReceiptRepository implements IReceiptRepository {
 			totalAmount: receipt.totalAmount || null,
 			currency: receipt.currency || 'USD',
 			errorMessage: null,
+			shopRecordedAt: null,
+			listSnapshot: receipt.listSnapshot ?? null,
 			createdAt: now,
 			updatedAt: now
 		};
@@ -104,6 +112,13 @@ export class MockReceiptRepository implements IReceiptRepository {
 
 	async delete(id: string): Promise<void> {
 		this.receipts.delete(id);
+	}
+
+	async claimShopRecording(id: string, at: Date): Promise<boolean> {
+		const receipt = this.receipts.get(id);
+		if (!receipt || receipt.shopRecordedAt) return false;
+		this.receipts.set(id, { ...receipt, shopRecordedAt: at });
+		return true;
 	}
 
 	async getStatus(id: string): Promise<ReceiptStatusDao | null> {
@@ -150,6 +165,8 @@ export class MockReceiptRepository implements IReceiptRepository {
 			totalAmount: receipt.totalAmount || null,
 			currency: receipt.currency || 'USD',
 			errorMessage: null,
+			shopRecordedAt: null,
+			listSnapshot: receipt.listSnapshot ?? null,
 			createdAt: createdAt,
 			updatedAt: now
 		};
@@ -240,6 +257,14 @@ export class MockReceiptItemRepository implements IReceiptItemRepository {
 
 	async delete(id: string): Promise<void> {
 		this.items.delete(id);
+	}
+
+	async replaceForReceipt(
+		receiptId: string,
+		items: NewReceiptItemDao[]
+	): Promise<ReceiptItemDao[]> {
+		for (const [id, item] of this.items) if (item.receiptId === receiptId) this.items.delete(id);
+		return this.createMany(items.map((item) => ({ ...item, receiptId })));
 	}
 
 	async findLatestByNormalizedName(

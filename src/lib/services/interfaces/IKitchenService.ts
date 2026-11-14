@@ -69,16 +69,29 @@ export interface RecordShopDoneInput {
 	details?: Record<string, unknown>;
 }
 
+/** A shop whose purchases were recorded on their own, e.g. a receipt's lines as they are read. */
+export interface RecordShopClosedInput extends Omit<RecordShopDoneInput, 'items'> {
+	/** How many things the shop bought. */
+	itemCount: number;
+}
+
 export interface IKitchenService {
 	/**
 	 * What the household's kitchen holds now, projected from its events. Local days use
 	 * `timeZone`, or the household's stored time zone when it is left out.
 	 */
 	getPicture(householdId: string, now: Date, timeZone?: string): Promise<KitchenPicture>;
+	/** The household's stored IANA time zone, for background work that has no actor. */
+	timeZoneOf(householdId: string): Promise<string>;
 	recordCooked(input: RecordCookedInput): Promise<KitchenEvent>;
 	correct(input: CorrectionInput): Promise<KitchenEvent>;
-	/** One BOUGHT per item, then the SHOP_DONE that closes the shop. */
+	/**
+	 * One BOUGHT per item, then the SHOP_DONE that closes the shop. Every event of the shop
+	 * carries the same `shopId` in its payload, so the shop can be found and forgotten as one.
+	 */
 	recordShopDone(input: RecordShopDoneInput): Promise<KitchenEvent[]>;
+	/** Only the SHOP_DONE that closes a shop whose BOUGHT events are recorded separately. */
+	recordShopClosed(input: RecordShopClosedInput): Promise<KitchenEvent>;
 	/** BOUGHT events outside a shop, such as an item added to the cupboard by hand. */
 	recordBought(
 		author: KitchenAuthor,
@@ -86,6 +99,10 @@ export interface IKitchenService {
 		at: Date,
 		source: string
 	): Promise<KitchenEvent[]>;
+	/** The SHOP_DONE of a shop recorded with `recordShopDone`, or null. */
+	findShop(householdId: string, shopId: string): Promise<KitchenEvent | null>;
+	/** Forgets a shop: its BOUGHT events and its SHOP_DONE, as if it never happened. */
+	forgetShop(householdId: string, shopId: string): Promise<void>;
 	/** Removes the purchases of deleted receipt lines. */
 	forgetReceiptItems(householdId: string, receiptItemIds: string[]): Promise<void>;
 	/**

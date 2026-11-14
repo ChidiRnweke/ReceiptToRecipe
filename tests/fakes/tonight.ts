@@ -1,5 +1,6 @@
 import { TonightController } from '../../src/lib/controllers/TonightController';
 import { HabitService } from '../../src/lib/services/HabitService';
+import { HouseholdService } from '../../src/lib/services/HouseholdService';
 import { KitchenService } from '../../src/lib/services/KitchenService';
 import { NutritionService } from '../../src/lib/services/NutritionService';
 import { PlanService } from '../../src/lib/services/PlanService';
@@ -75,7 +76,13 @@ export function createTonight(recipeMaker: RecipeMaker | null = null) {
 		households
 	);
 	const nutrition = new NutritionService(mealLogs, plannedMeals, preferences);
-	const controller = new TonightController(plan, kitchen, habits, nutrition);
+	const controller = new TonightController(
+		plan,
+		kitchen,
+		habits,
+		nutrition,
+		new HouseholdService(households)
+	);
 
 	async function addRecipe(
 		title: string,

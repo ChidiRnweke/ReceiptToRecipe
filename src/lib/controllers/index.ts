@@ -12,7 +12,6 @@ export { PreferencesController, type UpdatePreferencesInput } from './Preference
 export {
 	ShoppingListController,
 	type ShoppingListWithItems,
-	type SmartSuggestion,
 	type AddItemInput
 } from './ShoppingListController';
 export {
@@ -38,3 +37,4 @@ export {
 	type BatchPrepInput,
 	type DiscoverResult
 } from './PlanController';
+export { ShopController, type ReceiptIntake } from './ShopController';

@@ -40,6 +40,9 @@ export function availabilityLine(missing: string[], shopBefore: ShopBefore | nul
 	if (missing.length === 0) return 'everything’s home';
 	const names = listNames(missing);
 	if (shopBefore) {
+		if (shopBefore.shopper) {
+			return `${names} ${missing.length > 1 ? 'come' : 'comes'} in ${shopBefore.shopper}’s shop`;
+		}
 		const when =
 			shopBefore.daysAway === 0
 				? 'today'

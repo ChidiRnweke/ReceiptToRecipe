@@ -1,7 +1,16 @@
-import { mkdir, writeFile, unlink, stat } from 'fs/promises';
+import { mkdir, writeFile, readFile, unlink, stat } from 'fs/promises';
 import { join, dirname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import type { IStorageService, UploadResult } from './interfaces';
+import type { IStorageService, StoredFile, UploadResult } from './interfaces';
+
+const CONTENT_TYPES: Record<string, string> = {
+	jpg: 'image/jpeg',
+	jpeg: 'image/jpeg',
+	png: 'image/png',
+	webp: 'image/webp',
+	gif: 'image/gif',
+	heic: 'image/heic'
+};
 
 export class FileSystemStorageService implements IStorageService {
 	private uploadDir: string;
@@ -40,6 +49,14 @@ export class FileSystemStorageService implements IStorageService {
 
 	getPublicUrl(key: string): string {
 		return `${this.baseUrl}/${key}`;
+	}
+
+	async read(key: string): Promise<StoredFile> {
+		const extension = key.split('.').pop()?.toLowerCase() ?? '';
+		return {
+			data: await readFile(join(this.uploadDir, key)),
+			contentType: CONTENT_TYPES[extension] ?? 'application/octet-stream'
+		};
 	}
 
 	async delete(key: string): Promise<void> {

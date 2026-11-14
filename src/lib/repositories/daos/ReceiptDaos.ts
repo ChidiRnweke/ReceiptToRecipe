@@ -1,3 +1,10 @@
+/** A shopping list item as it stood when its receipt was snapped. */
+export interface ReceiptListItemDao {
+	id: string;
+	name: string;
+	itemKey: string;
+}
+
 export interface ReceiptDao {
 	id: string;
 	userId: string;
@@ -10,6 +17,10 @@ export interface ReceiptDao {
 	totalAmount: string | null;
 	currency: string | null;
 	errorMessage: string | null;
+	/** When the OCR job counted this receipt's shop. Null until then. */
+	shopRecordedAt: Date | null;
+	/** The open list items when the receipt was snapped on the Shop door, else null. */
+	listSnapshot: ReceiptListItemDao[] | null;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -23,6 +34,7 @@ export interface NewReceiptDao {
 	purchaseDate?: Date | null;
 	totalAmount?: string | null;
 	currency?: string;
+	listSnapshot?: ReceiptListItemDao[] | null;
 }
 
 export interface UpdateReceiptDao {

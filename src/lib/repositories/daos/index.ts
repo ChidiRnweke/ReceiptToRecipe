@@ -16,7 +16,8 @@ export type {
 	NewReceiptItemDao,
 	UpdateReceiptItemDao,
 	ReceiptWithItemsDao,
-	ReceiptStatusDao
+	ReceiptStatusDao,
+	ReceiptListItemDao
 } from './ReceiptDaos';
 
 export type {
@@ -46,8 +47,7 @@ export type {
 export type {
 	PurchaseHistoryDao,
 	NewPurchaseHistoryDao,
-	UpdatePurchaseHistoryDao,
-	SmartSuggestionDao
+	UpdatePurchaseHistoryDao
 } from './PurchaseHistoryDaos';
 
 export type {
