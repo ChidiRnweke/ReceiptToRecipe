@@ -47,6 +47,12 @@ export class MockReceiptRepository implements IReceiptRepository {
 		return limit ? results.slice(0, limit) : results;
 	}
 
+	async findByStatuses(statuses: ReceiptDao['status'][]): Promise<ReceiptDao[]> {
+		return Array.from(this.receipts.values())
+			.filter((r) => statuses.includes(r.status))
+			.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+	}
+
 	async findByHouseholdIdWithItems(
 		householdId: string,
 		limit?: number

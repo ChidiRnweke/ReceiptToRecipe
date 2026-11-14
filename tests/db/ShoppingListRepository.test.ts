@@ -559,4 +559,61 @@ describe('ShoppingListRepository (DB)', () => {
 			});
 		});
 	});
+
+	// ─── Plan and usual rows ───────────────────────────────────────────
+
+	describe('the shop door columns', () => {
+		it('gives an item added by hand the MANUAL source', async () => {
+			const list = await listRepo.create({ userId, householdId, name: 'List' });
+			const item = await itemRepo.create({ shoppingListId: list.id, name: 'Eggs' });
+			expect(item.source).toBe('MANUAL');
+		});
+
+		it('derives the merge key from the name', async () => {
+			const list = await listRepo.create({ userId, householdId, name: 'List' });
+			const item = await itemRepo.create({ shoppingListId: list.id, name: ' Baby  Spinach' });
+			expect(item.mergeKey).toBe('baby spinach');
+		});
+
+		it('stores the planned meals an item is for', async () => {
+			const list = await listRepo.create({ userId, householdId, name: 'List' });
+			const mealId = '11111111-1111-4111-8111-111111111111';
+			const [item] = await itemRepo.createNeeds([
+				{ shoppingListId: list.id, name: 'Spinach', source: 'PLAN', forPlannedMealIds: [mealId] }
+			]);
+			expect(item.forPlannedMealIds).toEqual([mealId]);
+		});
+
+		it('stores when a held item is needed', async () => {
+			const list = await listRepo.create({ userId, householdId, name: 'List' });
+			const heldUntil = new Date('2026-11-09T10:00:00Z');
+			const [item] = await itemRepo.createNeeds([
+				{ shoppingListId: list.id, name: 'Coriander', source: 'PLAN', heldUntil }
+			]);
+			expect(item.heldUntil?.getTime()).toBe(heldUntil.getTime());
+		});
+
+		it('skips a plan row the list already holds', async () => {
+			const list = await listRepo.create({ userId, householdId, name: 'List' });
+			const row = { shoppingListId: list.id, name: 'Spinach', unit: 'g', source: 'PLAN' as const };
+			await itemRepo.createNeeds([row]);
+			await itemRepo.createNeeds([row]);
+			expect(await itemRepo.findByListId(list.id)).toHaveLength(1);
+		});
+
+		it('allows the same item twice when a person adds it', async () => {
+			const list = await listRepo.create({ userId, householdId, name: 'List' });
+			await itemRepo.create({ shoppingListId: list.id, name: 'Spinach' });
+			await itemRepo.create({ shoppingListId: list.id, name: 'Spinach' });
+			expect(await itemRepo.findByListId(list.id)).toHaveLength(2);
+		});
+
+		it('deletes several items at once', async () => {
+			const list = await listRepo.create({ userId, householdId, name: 'List' });
+			const a = await itemRepo.create({ shoppingListId: list.id, name: 'A' });
+			const b = await itemRepo.create({ shoppingListId: list.id, name: 'B' });
+			await itemRepo.deleteMany([a.id, b.id]);
+			expect(await itemRepo.findByListId(list.id)).toEqual([]);
+		});
+	});
 });

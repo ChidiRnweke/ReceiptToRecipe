@@ -46,6 +46,15 @@ export class ReceiptRepository implements IReceiptRepository {
 		return receipts.map((r) => this.toDao(r));
 	}
 
+	async findByStatuses(statuses: ReceiptDao['status'][]): Promise<ReceiptDao[]> {
+		if (statuses.length === 0) return [];
+		const receipts = await this.db.query.receipts.findMany({
+			where: inArray(schema.receipts.status, statuses),
+			orderBy: [schema.receipts.createdAt]
+		});
+		return receipts.map((r) => this.toDao(r));
+	}
+
 	async findByHouseholdIdWithItems(
 		householdId: string,
 		limit = 20

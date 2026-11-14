@@ -11,6 +11,8 @@ export interface IReceiptRepository {
 	findByIdWithItems(id: string): Promise<ReceiptWithItemsDao | null>;
 	findByHouseholdId(householdId: string, limit?: number): Promise<ReceiptDao[]>;
 	findByHouseholdIdWithItems(householdId: string, limit?: number): Promise<ReceiptWithItemsDao[]>;
+	/** Receipts of every household in the given states, oldest first. */
+	findByStatuses(statuses: ReceiptDao['status'][]): Promise<ReceiptDao[]>;
 	create(receipt: NewReceiptDao): Promise<ReceiptDao>;
 	update(id: string, receipt: UpdateReceiptDao): Promise<ReceiptDao>;
 	delete(id: string): Promise<void>;

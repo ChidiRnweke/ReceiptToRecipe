@@ -25,6 +25,9 @@ export interface IShoppingListItemRepository {
 	findCheckedByListId(listId: string): Promise<ShoppingListItemDao[]>;
 	create(item: NewShoppingListItemDao): Promise<ShoppingListItemDao>;
 	createMany(items: NewShoppingListItemDao[]): Promise<ShoppingListItemDao[]>;
+	/** Adds plan and usual rows; a row the unique need index already holds is skipped. */
+	createNeeds(items: NewShoppingListItemDao[]): Promise<ShoppingListItemDao[]>;
+	deleteMany(ids: string[]): Promise<void>;
 	update(id: string, item: UpdateShoppingListItemDao): Promise<ShoppingListItemDao>;
 	delete(id: string): Promise<void>;
 	deleteCheckedByListId(listId: string): Promise<void>;

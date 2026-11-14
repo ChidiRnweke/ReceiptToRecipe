@@ -1,4 +1,5 @@
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, inArray, sql } from 'drizzle-orm';
+import { normalizeItemKey } from '$lib/models/kitchen';
 import type { Database } from '$db/client';
 import * as schema from '$db/schema';
 import type { IShoppingListRepository, IShoppingListItemRepository } from './interfaces';
@@ -125,7 +126,11 @@ export class ShoppingListRepository implements IShoppingListRepository {
 			fromRecipeId: item.fromRecipeId,
 			notes: item.notes,
 			orderIndex: item.orderIndex,
-			createdAt: item.createdAt
+			createdAt: item.createdAt,
+			forPlannedMealIds: item.forPlannedMealIds,
+			mergeKey: item.mergeKey,
+			heldUntil: item.heldUntil,
+			source: item.source
 		};
 	}
 }
@@ -169,7 +174,11 @@ export class ShoppingListItemRepository implements IShoppingListItemRepository {
 				checked: item.checked ?? false,
 				fromRecipeId: item.fromRecipeId ?? null,
 				notes: item.notes ?? null,
-				orderIndex: item.orderIndex ?? 0
+				orderIndex: item.orderIndex ?? 0,
+				forPlannedMealIds: item.forPlannedMealIds ?? [],
+				mergeKey: item.mergeKey ?? normalizeItemKey(item.name),
+				heldUntil: item.heldUntil ?? null,
+				source: item.source ?? 'MANUAL'
 			})
 			.returning();
 		return this.toDao(created);
@@ -177,8 +186,35 @@ export class ShoppingListItemRepository implements IShoppingListItemRepository {
 
 	async createMany(items: NewShoppingListItemDao[]): Promise<ShoppingListItemDao[]> {
 		if (items.length === 0) return [];
-		const created = await this.db.insert(schema.shoppingListItems).values(items).returning();
+		const created = await this.db
+			.insert(schema.shoppingListItems)
+			.values(items.map((item) => this.toRow(item)))
+			.returning();
 		return created.map((i) => this.toDao(i));
+	}
+
+	async createNeeds(items: NewShoppingListItemDao[]): Promise<ShoppingListItemDao[]> {
+		if (items.length === 0) return [];
+		// The unique need index turns a row another request already added into a no-op.
+		const created = await this.db
+			.insert(schema.shoppingListItems)
+			.values(items.map((item) => this.toRow(item)))
+			.onConflictDoNothing()
+			.returning();
+		return created.map((i) => this.toDao(i));
+	}
+
+	async deleteMany(ids: string[]): Promise<void> {
+		if (ids.length === 0) return;
+		await this.db.delete(schema.shoppingListItems).where(inArray(schema.shoppingListItems.id, ids));
+	}
+
+	private toRow(item: NewShoppingListItemDao): typeof schema.shoppingListItems.$inferInsert {
+		return {
+			...item,
+			mergeKey: item.mergeKey ?? normalizeItemKey(item.name),
+			forPlannedMealIds: item.forPlannedMealIds ?? []
+		};
 	}
 
 	async update(id: string, item: UpdateShoppingListItemDao): Promise<ShoppingListItemDao> {
@@ -236,7 +272,11 @@ export class ShoppingListItemRepository implements IShoppingListItemRepository {
 			fromRecipeId: item.fromRecipeId,
 			notes: item.notes,
 			orderIndex: item.orderIndex,
-			createdAt: item.createdAt
+			createdAt: item.createdAt,
+			forPlannedMealIds: item.forPlannedMealIds,
+			mergeKey: item.mergeKey,
+			heldUntil: item.heldUntil,
+			source: item.source
 		};
 	}
 }

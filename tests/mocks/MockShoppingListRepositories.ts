@@ -12,6 +12,7 @@ import type {
 	UpdateShoppingListItemDao
 } from '../../src/lib/repositories/daos';
 import { v4 as uuidv4 } from 'uuid';
+import { normalizeItemKey } from '../../src/lib/models/kitchen';
 
 /**
  * Mock implementation of IShoppingListRepository for testing
@@ -148,7 +149,11 @@ export class MockShoppingListItemRepository implements IShoppingListItemReposito
 			fromRecipeId: item.fromRecipeId ?? null,
 			notes: item.notes ?? null,
 			orderIndex: item.orderIndex ?? 0,
-			createdAt: new Date()
+			createdAt: new Date(),
+			forPlannedMealIds: item.forPlannedMealIds ?? [],
+			mergeKey: item.mergeKey ?? normalizeItemKey(item.name),
+			heldUntil: item.heldUntil ?? null,
+			source: item.source ?? 'MANUAL'
 		};
 		this.items.set(created.id, created);
 		return created;
@@ -160,6 +165,30 @@ export class MockShoppingListItemRepository implements IShoppingListItemReposito
 			created.push(await this.create(item));
 		}
 		return created;
+	}
+
+	/** Like the unique need index: one plan or usual row per list, source, item, unit and hold. */
+	async createNeeds(items: NewShoppingListItemDao[]): Promise<ShoppingListItemDao[]> {
+		const key = (i: {
+			shoppingListId: string;
+			source?: string;
+			mergeKey?: string | null;
+			unit?: string | null;
+			heldUntil?: Date | null;
+		}) => [i.shoppingListId, i.source, i.mergeKey, i.unit ?? '', i.heldUntil != null].join('|');
+		const created: ShoppingListItemDao[] = [];
+		for (const item of items) {
+			const taken = [...this.items.values()].some(
+				(existing) =>
+					(existing.source === 'PLAN' || existing.source === 'USUAL') && key(existing) === key(item)
+			);
+			if (!taken) created.push(await this.create(item));
+		}
+		return created;
+	}
+
+	async deleteMany(ids: string[]): Promise<void> {
+		for (const id of ids) this.items.delete(id);
 	}
 
 	async update(id: string, item: UpdateShoppingListItemDao): Promise<ShoppingListItemDao> {
