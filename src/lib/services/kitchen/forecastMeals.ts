@@ -1,4 +1,5 @@
 import type { Lot, MealForecast, MealNeed, Quantity } from '$lib/models/kitchen';
+import { canonicalItemKey } from './itemKey';
 import { consume, putAside } from './projectKitchen';
 
 /**
@@ -24,7 +25,9 @@ export function forecastMeals(
 		const missing: Quantity[] = [];
 		for (const need of meal.ingredients) {
 			const short = consume(simulated, need.itemKey, need.quantity, need.unit, meal.day, false);
-			if (short > 0) missing.push({ itemKey: need.itemKey, quantity: short, unit: need.unit });
+			if (short > 0) {
+				missing.push({ itemKey: canonicalItemKey(need.itemKey), quantity: short, unit: need.unit });
+			}
 		}
 		putAside(simulated, meal.id, meal.portions ?? 0, meal.day);
 		return { meal, missing };

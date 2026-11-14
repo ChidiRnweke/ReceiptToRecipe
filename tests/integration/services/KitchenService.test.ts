@@ -1,13 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createKitchen } from '../../fakes/kitchen';
 import type { Actor } from '../../../src/lib/models/household';
+import { dayNumber } from '../../../src/lib/services/kitchen';
 
 const actor: Actor = {
 	userId: 'user-1',
 	householdId: 'household-1',
 	memberId: 'member-1',
 	displayName: 'Noor',
-	roles: { plans: true, shops: true, cooks: true }
+	roles: { plans: true, shops: true, cooks: true },
+	timeZone: 'UTC'
 };
 const neighbour: Actor = { ...actor, userId: 'user-2', householdId: 'household-2' };
 const MONDAY_EVENING = new Date('2026-11-09T19:00:00Z');
@@ -143,7 +145,7 @@ describe('KitchenService', () => {
 
 			expect(kitchen.events.all(actor.householdId).map((e) => [e.kind, e.itemKey])).toEqual([
 				['BOUGHT', 'milk'],
-				['BOUGHT', 'eggs'],
+				['BOUGHT', 'egg'],
 				['SHOP_DONE', null]
 			]);
 		});
@@ -186,7 +188,16 @@ describe('KitchenService', () => {
 
 			const picture = await kitchen.service.getPicture(actor.householdId, MONDAY_EVENING, 'UTC');
 
-			expect(picture.stock.map((item) => item.itemKey)).toEqual(['tinned tomatoes']);
+			expect(picture.stock.map((item) => item.itemKey)).toEqual(['tinned tomato']);
+		});
+
+		it("counts the picture's day in the household's time zone when the caller passes none", async () => {
+			kitchen.households.seedHousehold({ id: actor.householdId, timeZone: 'Pacific/Auckland' });
+
+			const picture = await kitchen.service.getPicture(actor.householdId, MONDAY_EVENING);
+
+			// Monday 19:00 UTC is already Tuesday morning in Auckland.
+			expect(picture.day).toBe(dayNumber(new Date('2026-11-10T12:00:00Z'), 'UTC'));
 		});
 	});
 });

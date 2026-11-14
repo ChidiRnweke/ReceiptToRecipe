@@ -51,7 +51,7 @@ export interface KitchenEvent {
 	actorUserId: string | null;
 	occurredAt: Date;
 	kind: KitchenEventKind;
-	/** Normalized lower-case item name. Null for SHOP_DONE and COOKED. */
+	/** The item's key (see `normalizeItemKey`). Null for SHOP_DONE and COOKED. */
 	itemKey: string | null;
 	quantity: number | null;
 	unit: string | null;
@@ -62,6 +62,8 @@ export interface KitchenEvent {
 	receiptItemId: string | null;
 	plannedMealId: string | null;
 	recipeId: string | null;
+	/** The cupboard row the event was written for, when a cupboard edit wrote it. */
+	cupboardItemId: string | null;
 	method: ShopMethod | null;
 	payload: KitchenEventPayload | null;
 	createdAt: Date;
@@ -81,6 +83,7 @@ export interface NewKitchenEvent {
 	receiptItemId?: string | null;
 	plannedMealId?: string | null;
 	recipeId?: string | null;
+	cupboardItemId?: string | null;
 	method?: ShopMethod | null;
 	payload?: KitchenEventPayload | null;
 }
@@ -145,6 +148,11 @@ export interface ShopDay {
 	weekday: Weekday;
 	/** Usual local hour of the shop, 0–23. */
 	hour: number;
+	/**
+	 * The household accepted this shop day when it was offered. A confirmed day stays a shop day
+	 * through a missed week until the household declines it, and is not offered again.
+	 */
+	confirmed: boolean;
 }
 
 export interface Habits {
@@ -179,11 +187,6 @@ export const PERISHABLE_MAX_DAYS = 7;
 
 /** A perishable lot cooked down below this share of its original quantity is finished. */
 export const SCRAP_SHARE = 0.15;
-
-/** The trimmed, single-spaced, lower-case name used as an item key. */
-export function normalizeItemKey(name: string): string {
-	return name.trim().replace(/\s+/g, ' ').toLowerCase();
-}
 
 export function leftoverKey(sourceId: string): string {
 	return `${LEFTOVER_PREFIX}${sourceId}`;

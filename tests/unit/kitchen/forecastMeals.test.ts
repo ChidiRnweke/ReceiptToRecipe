@@ -25,6 +25,23 @@ describe('forecastMeals', () => {
 		expect(forecast[1].missing).toEqual([{ itemKey: 'egg', quantity: 2, unit: 'count' }]);
 	});
 
+	it('matches a meal ingredient named in the plural to the stock', () => {
+		const forecast = forecastMeals(
+			sixEggs,
+			[
+				{
+					id: 'tue',
+					day: DAY0 + 1,
+					ingredients: [{ itemKey: 'Eggs', quantity: 4, unit: 'count' }]
+				}
+			],
+			DAY0,
+			DAY0 + 7
+		);
+
+		expect(forecast[0].missing).toEqual([]);
+	});
+
 	it('reports nothing missing when the kitchen has enough', () => {
 		const forecast = forecastMeals(sixEggs, [omelette('tue', 1, 4)], DAY0, DAY0 + 7);
 

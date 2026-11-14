@@ -1,4 +1,5 @@
 import type {
+	IHouseholdRepository,
 	IKitchenEventRepository,
 	IMealLogRepository,
 	IPlannedMealRepository,
@@ -6,12 +7,7 @@ import type {
 	IRecipeRepository,
 	PlannedMealDao
 } from '$repositories';
-import {
-	normalizeItemKey,
-	type KitchenEvent,
-	type NewKitchenEvent,
-	type UsedIngredient
-} from '$lib/models/kitchen';
+import type { KitchenEvent, NewKitchenEvent, UsedIngredient } from '$lib/models/kitchen';
 import type {
 	BoughtItem,
 	CorrectionInput,
@@ -19,9 +15,18 @@ import type {
 	KitchenAuthor,
 	KitchenPicture,
 	RecordCookedInput,
-	RecordShopDoneInput
+	RecordShopDoneInput,
+	WithdrawCupboardItemInput
 } from './interfaces/IKitchenService';
-import { dayNumber, pictureEvents, projectKitchen, stockAt, toBaseUnit } from './kitchen';
+import {
+	dayNumber,
+	normalizeItemKey,
+	pictureEvents,
+	projectKitchen,
+	stockAt,
+	toBaseUnit
+} from './kitchen';
+import { householdTimeZone } from './householdTimeZone';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -34,10 +39,12 @@ export class KitchenService implements IKitchenService {
 		private recipeRepository: IRecipeRepository,
 		private recipeIngredientRepository: IRecipeIngredientRepository,
 		private plannedMealRepository: IPlannedMealRepository,
-		private mealLogRepository: IMealLogRepository
+		private mealLogRepository: IMealLogRepository,
+		private householdRepository: Pick<IHouseholdRepository, 'findHouseholdById'>
 	) {}
 
-	async getPicture(householdId: string, now: Date, timeZone: string): Promise<KitchenPicture> {
+	async getPicture(householdId: string, now: Date, zone?: string): Promise<KitchenPicture> {
+		const timeZone = zone ?? (await householdTimeZone(this.householdRepository, householdId));
 		const since = new Date(now.getTime() - PICTURE_LOOKBACK_DAYS * DAY_MS);
 		const events = await this.kitchenEventRepository.listByHouseholdSince(householdId, since);
 		const lots = projectKitchen(pictureEvents(events, now, timeZone), now, timeZone);
@@ -111,8 +118,26 @@ export class KitchenService implements IKitchenService {
 			kind: input.kind,
 			itemKey: normalizeItemKey(input.itemKey),
 			quantity: input.kind === 'CORRECTED_QUANTITY' ? (input.quantity ?? 0) : null,
-			unit: input.unit ?? null
+			unit: input.unit ?? null,
+			cupboardItemId: input.cupboardItemId ?? null,
+			payload: input.category ? { category: input.category } : null
 		});
+	}
+
+	async withdrawCupboardItem(input: WithdrawCupboardItemInput): Promise<KitchenEvent[]> {
+		const removed = await this.kitchenEventRepository.deleteByCupboardItem(
+			input.actor.householdId,
+			input.cupboardItemId,
+			['BOUGHT', 'CORRECTED_QUANTITY']
+		);
+		if (removed.some((event) => event.kind === 'BOUGHT')) return [];
+		const gone = await this.correct({
+			actor: input.actor,
+			itemKey: input.itemName,
+			kind: 'CORRECTED_GONE',
+			at: input.at
+		});
+		return [gone];
 	}
 
 	async recordShopDone(input: RecordShopDoneInput): Promise<KitchenEvent[]> {
@@ -168,6 +193,7 @@ export class KitchenService implements IKitchenService {
 				expiresAt: item.expiresAt ?? null,
 				known: true,
 				receiptItemId: item.receiptItemId ?? null,
+				cupboardItemId: item.cupboardItemId ?? null,
 				payload: { category: item.category ?? null, source }
 			}));
 	}

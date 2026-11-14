@@ -182,6 +182,38 @@ describe('projectKitchen', () => {
 		});
 	});
 
+	describe('item identity', () => {
+		it('sums purchases stored under singular and plural names as one item', () => {
+			const stock = stockOn(
+				[bought('Tomatoes', 4, 'count', 0), bought('tomato', 2, 'count', 0)],
+				0
+			);
+
+			expect(stock.map((item) => [item.itemKey, item.quantity])).toEqual([['tomato', 6]]);
+		});
+
+		it('lets cooking with "egg" draw on eggs bought as "eggs"', () => {
+			const stock = stockOn(
+				[
+					bought('eggs', 6, 'count', 0, { category: 'dairy' }),
+					cooked(0, [{ itemKey: 'egg', quantity: 4, unit: 'count' }])
+				],
+				0
+			);
+
+			expect(stock[0]?.quantity).toBe(2);
+		});
+
+		it('lets a correction under another spelling clear the item', () => {
+			const stock = stockOn(
+				[bought('Chillies', 3, 'count', 0), corrected('CORRECTED_GONE', 'chilli', 1)],
+				1
+			);
+
+			expect(stock).toEqual([]);
+		});
+	});
+
 	it('ignores events after the moment it projects', () => {
 		const lots = projectKitchen([bought('rice', 1000, 'g', 3)], at(1), TZ);
 

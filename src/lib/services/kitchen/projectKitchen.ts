@@ -11,6 +11,7 @@ import {
 } from '$lib/models/kitchen';
 import { getShelfLifePure } from '../pantryCalculations';
 import { dayNumber } from './days';
+import { canonicalItemKey } from './itemKey';
 import { convertUnit } from './units';
 
 const EPSILON = 1e-6;
@@ -60,15 +61,16 @@ export function consume(
 	day: number,
 	mark: boolean
 ): number {
+	const key = canonicalItemKey(itemKey);
 	let remaining = quantity;
 	const fresh = lots
-		.filter((lot) => lot.itemKey === itemKey && lot.quantity > EPSILON && lot.expiresOn >= day)
+		.filter((lot) => lot.itemKey === key && lot.quantity > EPSILON && lot.expiresOn >= day)
 		.sort((a, b) => a.expiresOn - b.expiresOn);
 
 	for (const lot of fresh) {
 		if (remaining <= EPSILON) break;
 		const wanted = convertUnit(remaining, unit, lot.unit);
-		if (mark && !isLeftover(itemKey)) lot.known = false;
+		if (mark && !isLeftover(key)) lot.known = false;
 		if (wanted === null) {
 			remaining = 0;
 			break;
@@ -103,7 +105,9 @@ export function putAside(lots: Lot[], sourceId: string, portions: number, day: n
 
 function applyEvent(lots: Lot[], event: KitchenEvent, timeZone: string): void {
 	const day = dayNumber(event.occurredAt, timeZone);
-	const itemKey = event.itemKey;
+	// Keys are matched in their current normal form, so events stored under an older form
+	// ("eggs", "Baby  Spinach") merge with new ones.
+	const itemKey = event.itemKey ? canonicalItemKey(event.itemKey) : null;
 
 	switch (event.kind) {
 		case 'BOUGHT': {
@@ -124,8 +128,9 @@ function applyEvent(lots: Lot[], event: KitchenEvent, timeZone: string): void {
 		}
 		case 'COOKED': {
 			for (const used of event.payload?.ingredients ?? []) {
-				const before = lots.filter((lot) => lot.itemKey === used.itemKey);
-				consume(lots, used.itemKey, used.quantity, used.unit, day, true);
+				const usedKey = canonicalItemKey(used.itemKey);
+				const before = lots.filter((lot) => lot.itemKey === usedKey);
+				consume(lots, usedKey, used.quantity, used.unit, day, true);
 				if (used.estimate) before.forEach((lot) => (lot.known = false));
 			}
 			putAside(lots, event.plannedMealId ?? event.id, event.portions ?? 0, day);
@@ -191,9 +196,10 @@ export function stockAt(lots: Lot[], day: number): StockItem[] {
 	const byItem = new Map<string, Lot[]>();
 	for (const lot of lots) {
 		if (lot.quantity <= EPSILON) continue;
-		const group = byItem.get(lot.itemKey) ?? [];
+		const key = canonicalItemKey(lot.itemKey);
+		const group = byItem.get(key) ?? [];
 		group.push(lot);
-		byItem.set(lot.itemKey, group);
+		byItem.set(key, group);
 	}
 
 	return [...byItem.entries()].map(([itemKey, group]) => {
@@ -234,12 +240,12 @@ export function pictureEvents(
 	for (const event of events) {
 		if (event.occurredAt.getTime() >= windowStart) continue;
 		if (event.kind === 'BOUGHT' && event.itemKey && boughtExpiresOn(event, timeZone) >= today) {
-			longLived.add(event.itemKey);
+			longLived.add(canonicalItemKey(event.itemKey));
 		}
 	}
 	return events.filter(
 		(event) =>
 			event.occurredAt.getTime() >= windowStart ||
-			(event.itemKey !== null && longLived.has(event.itemKey))
+			(event.itemKey !== null && longLived.has(canonicalItemKey(event.itemKey)))
 	);
 }
