@@ -41,6 +41,21 @@ describe('ReceiptRepository (DB)', () => {
 		await teardownTestDb();
 	});
 
+	describe('listSnapshot', () => {
+		it('reads back the list kept with the receipt', async () => {
+			const receipt = await receipts.findById(receiptId);
+			const snapped = await receipts.create({
+				userId: receipt!.userId,
+				householdId: receipt!.householdId,
+				imageUrl: 'mock://receipts/s.jpg',
+				listSnapshot: [{ id: 'item-1', name: 'Spinach', itemKey: 'spinach' }]
+			});
+			expect((await receipts.findById(snapped.id))?.listSnapshot).toEqual([
+				{ id: 'item-1', name: 'Spinach', itemKey: 'spinach' }
+			]);
+		});
+	});
+
 	describe('replaceForReceipt', () => {
 		it('leaves only the new lines on the receipt', async () => {
 			await items.createMany([line('spinach'), line('milk')]);

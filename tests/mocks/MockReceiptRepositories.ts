@@ -84,6 +84,7 @@ export class MockReceiptRepository implements IReceiptRepository {
 			currency: receipt.currency || 'USD',
 			errorMessage: null,
 			shopRecordedAt: null,
+			listSnapshot: receipt.listSnapshot ?? null,
 			createdAt: now,
 			updatedAt: now
 		};
@@ -165,6 +166,7 @@ export class MockReceiptRepository implements IReceiptRepository {
 			currency: receipt.currency || 'USD',
 			errorMessage: null,
 			shopRecordedAt: null,
+			listSnapshot: receipt.listSnapshot ?? null,
 			createdAt: createdAt,
 			updatedAt: now
 		};

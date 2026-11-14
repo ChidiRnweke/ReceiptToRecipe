@@ -16,7 +16,8 @@ export type {
 	NewReceiptItemDao,
 	UpdateReceiptItemDao,
 	ReceiptWithItemsDao,
-	ReceiptStatusDao
+	ReceiptStatusDao,
+	ReceiptListItemDao
 } from './ReceiptDaos';
 
 export type {

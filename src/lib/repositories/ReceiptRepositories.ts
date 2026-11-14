@@ -83,7 +83,8 @@ export class ReceiptRepository implements IReceiptRepository {
 				storeName: receipt.storeName || null,
 				purchaseDate: receipt.purchaseDate || null,
 				totalAmount: receipt.totalAmount || null,
-				currency: receipt.currency || 'USD'
+				currency: receipt.currency || 'USD',
+				listSnapshot: receipt.listSnapshot ?? null
 			})
 			.returning();
 		return this.toDao(created);
@@ -151,6 +152,7 @@ export class ReceiptRepository implements IReceiptRepository {
 			currency: receipt.currency ?? 'USD',
 			errorMessage: receipt.errorMessage,
 			shopRecordedAt: receipt.shopRecordedAt,
+			listSnapshot: receipt.listSnapshot ?? null,
 			createdAt: receipt.createdAt,
 			updatedAt: receipt.updatedAt
 		};

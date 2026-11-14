@@ -177,6 +177,8 @@ export const receipts = pgTable(
 		errorMessage: text('error_message'),
 		/** When the OCR job counted the receipt's shop: its SHOP_DONE and purchase history. */
 		shopRecordedAt: timestamp('shop_recorded_at'),
+		/** The open shopping list items when the receipt was snapped, to match the receipt against. */
+		listSnapshot: jsonb('list_snapshot').$type<{ id: string; name: string; itemKey: string }[]>(),
 		createdAt: timestamp('created_at').notNull().defaultNow(),
 		updatedAt: timestamp('updated_at').notNull().defaultNow()
 	},

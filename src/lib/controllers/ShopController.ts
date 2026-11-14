@@ -7,7 +7,12 @@ import type {
 	KitchenPicture,
 	NewManualItem
 } from '$services';
-import type { PlannedMealDao, ReceiptDao, ReceiptWithItemsDao } from '$repositories';
+import type {
+	PlannedMealDao,
+	ReceiptDao,
+	ReceiptListItemDao,
+	ReceiptWithItemsDao
+} from '$repositories';
 import type { Actor } from '$lib/models/household';
 import { normalizeItemKey, type Habits } from '$lib/models/kitchen';
 import { MEAL_HOUR } from '$lib/models/plan';
@@ -69,7 +74,11 @@ const PLAN_FIRST_GAPS = 3;
  * and its kitchen hook stay in one place.
  */
 export interface ReceiptIntake {
-	uploadReceipt(input: { actor: Actor; file: File }): Promise<ReceiptDao>;
+	uploadReceipt(input: {
+		actor: Actor;
+		file: File;
+		listSnapshot?: ReceiptListItemDao[];
+	}): Promise<ReceiptDao>;
 	getReceipt(receiptId: string, actor: Actor): Promise<ReceiptWithItemsDao | null>;
 }
 
@@ -228,9 +237,19 @@ export class ShopController {
 		};
 	}
 
-	/** Uploads the photo and starts its OCR job. */
+	/**
+	 * Uploads the photo and starts its OCR job. The open list is kept with the receipt as it is
+	 * now, so a sync while the receipt is read (which drops what the receipt already put in the
+	 * kitchen) cannot change what the receipt is matched against.
+	 */
 	async snapReceipt(actor: Actor, file: File): Promise<{ receiptId: string }> {
-		const receipt = await this.receipts.uploadReceipt({ actor, file });
+		const list = await this.shopService.getList(actor);
+		const listSnapshot = openItems(list).map((item) => ({
+			id: item.id,
+			name: item.name,
+			itemKey: keyOf(item)
+		}));
+		const receipt = await this.receipts.uploadReceipt({ actor, file, listSnapshot });
 		return { receiptId: receipt.id };
 	}
 
@@ -267,13 +286,15 @@ export class ShopController {
 		if (receipt.status !== 'DONE') throw new Error('The receipt is still being read');
 		const list = await this.shopService.getList(actor);
 		const { match } = this.match(receipt, list);
+		// A sync since the photo may have removed items the receipt was matched against.
+		const live = new Map(list.items.map((item) => [item.id, item]));
 		await this.shopService.removeItems(
 			actor,
-			match.matched.map(({ item }) => item.id)
+			match.matched.map(({ item }) => item.id).filter((id) => live.has(id))
 		);
 		await this.shopService.untick(
 			actor,
-			match.missing.filter((item) => item.checked).map((item) => item.id)
+			match.missing.filter((item) => live.get(item.id)?.checked).map((item) => item.id)
 		);
 		return {
 			message: cameHomeMessage(
@@ -289,8 +310,14 @@ export class ShopController {
 		return receipt;
 	}
 
+	/**
+	 * Matches the receipt to the list as it was when the receipt was snapped, or to the live list
+	 * for a receipt uploaded elsewhere.
+	 */
 	private match(receipt: ReceiptWithItemsDao, list: ShopList) {
-		const open = openItems(list).map((item) => ({ ...item, itemKey: keyOf(item) }));
+		const open: ReceiptListItemDao[] =
+			receipt.listSnapshot ??
+			openItems(list).map((item) => ({ id: item.id, name: item.name, itemKey: keyOf(item) }));
 		const lines = receipt.items.map((line) => {
 			const quantity = parseFloat(line.quantity);
 			return {

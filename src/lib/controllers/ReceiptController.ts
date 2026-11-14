@@ -15,13 +15,16 @@ import type {
 	ReceiptDao,
 	ReceiptItemDao,
 	NewReceiptItemDao,
-	ReceiptWithItemsDao
+	ReceiptWithItemsDao,
+	ReceiptListItemDao
 } from '$repositories';
 import type { Actor } from '$lib/models/household';
 
 export interface UploadReceiptInput {
 	actor: Actor;
 	file: File;
+	/** The open shopping list items at the moment of the photo, kept to match the receipt to. */
+	listSnapshot?: ReceiptListItemDao[];
 }
 
 export type ReceiptWithItems = ReceiptWithItemsDao;
@@ -51,7 +54,7 @@ export class ReceiptController {
 	 * Upload a receipt image and start async OCR processing
 	 */
 	async uploadReceipt(input: UploadReceiptInput): Promise<ReceiptDao> {
-		const { actor, file } = input;
+		const { actor, file, listSnapshot } = input;
 
 		// Upload image to storage
 		const buffer = Buffer.from(await file.arrayBuffer());
@@ -63,7 +66,8 @@ export class ReceiptController {
 			userId: actor.userId,
 			householdId: actor.householdId,
 			imageUrl: uploadResult.url,
-			status: 'QUEUED'
+			status: 'QUEUED',
+			listSnapshot
 		});
 
 		// Background OCR processing - pass the original buffer so OCR

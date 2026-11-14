@@ -1,5 +1,6 @@
 CREATE TYPE "public"."shopping_item_source" AS ENUM('PLAN', 'USUAL', 'MANUAL', 'AGENT');--> statement-breakpoint
 ALTER TABLE "receipts" ADD COLUMN "shop_recorded_at" timestamp;--> statement-breakpoint
+ALTER TABLE "receipts" ADD COLUMN "list_snapshot" jsonb;--> statement-breakpoint
 ALTER TABLE "shopping_list_items" ADD COLUMN "for_planned_meal_ids" uuid[] DEFAULT '{}'::uuid[] NOT NULL;--> statement-breakpoint
 ALTER TABLE "shopping_list_items" ADD COLUMN "merge_key" text;--> statement-breakpoint
 ALTER TABLE "shopping_list_items" ADD COLUMN "held_until" timestamp;--> statement-breakpoint

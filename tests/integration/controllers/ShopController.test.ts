@@ -195,6 +195,32 @@ describe('ShopController', () => {
 			expect(result.cameHome?.matched).toBe(2);
 		});
 
+		/** What a sync in another tab does once the kitchen holds the receipt's lines. */
+		async function syncDropsTheBoughtItems() {
+			const bought = shop.items
+				.getAllStored()
+				.filter((item) => item.name === 'Spinach' || item.name === 'Mushrooms');
+			await shop.shopService.removeItems(
+				shopper,
+				bought.map((item) => item.id)
+			);
+		}
+
+		it('counts the matches against the list at the photo, after a sync while it was read', async () => {
+			const receiptId = await snapSpinachAndYogurt();
+			await syncDropsTheBoughtItems();
+			const result = await shop.controller.getReceiptResult(shopper, receiptId, TZ);
+			expect(result.cameHome?.matched).toBe(2);
+		});
+
+		it('settles the list after a sync while it was read', async () => {
+			const receiptId = await snapSpinachAndYogurt();
+			await syncDropsTheBoughtItems();
+			await shop.controller.confirmWhatCameHome(shopper, receiptId);
+			const left = shop.items.getAllStored().filter((item) => item.heldUntil === null);
+			expect(left.map((item) => item.name)).toEqual(['Paneer']);
+		});
+
 		it('names the lines that were not on the list', async () => {
 			const receiptId = await snapSpinachAndYogurt();
 			const result = await shop.controller.getReceiptResult(shopper, receiptId, TZ);
