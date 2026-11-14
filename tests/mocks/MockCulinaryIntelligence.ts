@@ -4,8 +4,14 @@ import type {
 	RecipeContext,
 	ChatMessage,
 	AllergyRiskReview,
-	AllergyRiskReviewInput
+	AllergyRiskReviewInput,
+	CravingContext,
+	ImageRecipe,
+	ImageRecipeContext,
+	RecipeImage
 } from '../../src/lib/services/interfaces/ICulinaryIntelligence';
+
+const FORMS = ['skillet', 'traybake', 'rice bowl'];
 
 /**
  * Mock implementation of ICulinaryIntelligence for testing
@@ -40,6 +46,53 @@ export class MockCulinaryIntelligence implements ICulinaryIntelligence {
 				unit: 'cup',
 				optional: false
 			}))
+		};
+	}
+
+	/** A made-up recipe named after the craving; each excluded title moves on to another form. */
+	async generateFromCraving(context: CravingContext): Promise<GeneratedRecipe> {
+		const form = FORMS[context.excludeTitles.length % FORMS.length];
+		const main = context.available[0] ?? 'chickpeas';
+		return {
+			title: `${main[0].toUpperCase()}${main.slice(1)} ${form}`,
+			description: `Made up for "${context.text}"`,
+			instructions: '',
+			steps: [
+				{ verb: 'Sweat', text: 'the onion with a pinch of salt, 5 min.', minutes: 5 },
+				{ verb: 'Sauté', text: `the ${main} until golden, 6 min.`, minutes: 6 },
+				{ verb: null, text: 'Season and serve.', minutes: null }
+			],
+			servings: context.servings,
+			prepTime: 5,
+			cookTime: 15,
+			ingredients: [
+				{ name: main, quantity: 200, unit: 'g', optional: false },
+				{ name: 'onion', quantity: 1, unit: 'count', optional: false },
+				{ name: 'salt', quantity: 1, unit: 'tsp', optional: false }
+			]
+		};
+	}
+
+	/** Reads every photo as a cookbook page with the same lemon chicken orzo. */
+	async recipeFromImage(_image: RecipeImage, context: ImageRecipeContext): Promise<ImageRecipe> {
+		return {
+			kind: 'page',
+			recipe: {
+				title: 'Lemon chicken orzo',
+				description: 'From a cookbook page',
+				instructions: '',
+				steps: [
+					{ verb: 'Sear', text: 'the chicken until golden, 5 min a side.', minutes: 10 },
+					{ verb: 'Simmer', text: 'the orzo in stock with lemon zest, 12 min.', minutes: 12 }
+				],
+				servings: context.servings,
+				prepTime: 10,
+				cookTime: 20,
+				ingredients: [
+					{ name: 'chicken thighs', quantity: 400, unit: 'g', optional: false },
+					{ name: 'orzo', quantity: 200, unit: 'g', optional: false }
+				]
+			}
 		};
 	}
 

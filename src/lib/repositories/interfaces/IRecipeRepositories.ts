@@ -8,7 +8,9 @@ import type {
 	SavedRecipeDao,
 	NewSavedRecipeDao,
 	RecipeImageStatusDao,
-	RecipeCountByReceiptDao
+	RecipeCountByReceiptDao,
+	RecipeStepDao,
+	NewRecipeStepDao
 } from '../daos';
 
 export interface IRecipeRepository {
@@ -43,4 +45,11 @@ export interface ISavedRecipeRepository {
 	create(savedRecipe: NewSavedRecipeDao): Promise<SavedRecipeDao>;
 	delete(userId: string, recipeId: string): Promise<void>;
 	countByUserId(userId: string): Promise<number>;
+}
+
+/** The structured steps of recipes, in position order. */
+export interface IRecipeStepRepository {
+	findByRecipeId(recipeId: string): Promise<RecipeStepDao[]>;
+	/** Replaces every step of the recipe with these, in one transaction. */
+	replaceForRecipe(recipeId: string, steps: NewRecipeStepDao[]): Promise<RecipeStepDao[]>;
 }

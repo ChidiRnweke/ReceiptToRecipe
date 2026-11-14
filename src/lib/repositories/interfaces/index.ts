@@ -8,6 +8,7 @@ export type { IReceiptRepository, IReceiptItemRepository } from './IReceiptRepos
 
 export type {
 	IRecipeRepository,
+	IRecipeStepRepository,
 	IRecipeIngredientRepository,
 	ISavedRecipeRepository
 } from './IRecipeRepositories';

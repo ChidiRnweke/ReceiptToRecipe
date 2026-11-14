@@ -30,7 +30,9 @@ export type {
 	SavedRecipeDao,
 	NewSavedRecipeDao,
 	RecipeImageStatusDao,
-	RecipeCountByReceiptDao
+	RecipeCountByReceiptDao,
+	RecipeStepDao,
+	NewRecipeStepDao
 } from './RecipeDaos';
 
 export type {

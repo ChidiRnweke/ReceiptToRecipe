@@ -4,11 +4,17 @@ export type {
 	ICulinaryIntelligence,
 	RecipeContext,
 	GeneratedRecipe as LlmGeneratedRecipe,
+	GeneratedStep,
+	CravingContext,
+	RecipeImage,
+	ImageRecipeContext,
+	ImageRecipe,
 	ChatMessage,
 	AllergyRiskReview,
 	AllergyRiskReviewInput,
 	AllergyRiskLevel
 } from './ICulinaryIntelligence';
+export { NoRecipeInImageError } from './ICulinaryIntelligence';
 export * from './IImageGenerator';
 export * from './IVectorService';
 export * from './INormalizationService';
@@ -62,7 +68,8 @@ export type {
 	CorrectionKind,
 	CorrectionInput,
 	RecordShopDoneInput,
-	WithdrawCupboardItemInput
+	WithdrawCupboardItemInput,
+	CookedRecipe
 } from './IKitchenService';
 export type { IHabitService } from './IHabitService';
 export type {
@@ -81,3 +88,4 @@ export type {
 	IdeaOptions
 } from './IPlanService';
 export type { IShopService, NewManualItem } from './IShopService';
+export type { IRecipeBookService, NewRecipeContent } from './IRecipeBookService';

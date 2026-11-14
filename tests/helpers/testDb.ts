@@ -48,7 +48,7 @@ export async function cleanTables() {
     household_invites, household_members, households,
     planned_meals,
     shopping_list_items, shopping_lists,
-    recipe_ingredients, saved_recipes, recipes,
+    recipe_steps, recipe_ingredients, saved_recipes, recipes,
     receipt_items, receipts,
     purchase_history, category_shelf_life,
     cupboard_items,

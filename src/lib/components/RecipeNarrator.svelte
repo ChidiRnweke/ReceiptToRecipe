@@ -6,11 +6,12 @@
 	interface Props {
 		title: string;
 		ingredients: Array<{ name: string; quantity: string; unit: string; optional?: boolean | null }>;
-		instructions: string;
+		/** The method, one sentence per step. */
+		steps: string[];
 		servings: number;
 	}
 
-	let { title, ingredients, instructions, servings }: Props = $props();
+	let { title, ingredients, steps, servings }: Props = $props();
 
 	let isPlaying = $state(false);
 	let isPaused = $state(false);
@@ -19,12 +20,6 @@
 	let voices: SpeechSynthesisVoice[] = $state([]);
 	let selectedVoice = $state<SpeechSynthesisVoice | null>(null);
 	let utterance: SpeechSynthesisUtterance | null = null;
-	let steps: string[] = $derived(
-		instructions
-			.split('\n')
-			.map((s) => s.trim())
-			.filter((s) => s.length > 0)
-	);
 
 	onMount(() => {
 		if (typeof window !== 'undefined') {

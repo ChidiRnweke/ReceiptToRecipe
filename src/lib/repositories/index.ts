@@ -6,6 +6,7 @@ export {
 	RecipeIngredientRepository,
 	SavedRecipeRepository
 } from './RecipeRepositories';
+export { RecipeStepRepository } from './RecipeStepRepository';
 export { ShoppingListRepository, ShoppingListItemRepository } from './ShoppingListRepositories';
 export { PurchaseHistoryRepository } from './PurchaseHistoryRepository';
 export { CupboardItemRepository } from './CupboardItemRepository';
@@ -32,7 +33,8 @@ export type { IReceiptRepository, IReceiptItemRepository } from './interfaces/IR
 export type {
 	IRecipeRepository,
 	IRecipeIngredientRepository,
-	ISavedRecipeRepository
+	ISavedRecipeRepository,
+	IRecipeStepRepository
 } from './interfaces/IRecipeRepositories';
 export type {
 	IShoppingListRepository,

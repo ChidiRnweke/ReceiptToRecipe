@@ -1,10 +1,20 @@
 import type { UserPreferences } from '$db/schema';
 import type { TasteProfile } from '../TasteProfileService';
 
+/** One step as the model writes it; the verb should come from the cooking vocabulary. */
+export interface GeneratedStep {
+	verb: string | null;
+	text: string;
+	minutes: number | null;
+}
+
 export interface GeneratedRecipe {
 	title: string;
 	description: string;
+	/** The steps as text, one per line. Kept for code that reads recipes.instructions. */
 	instructions: string;
+	/** The steps in the cooking vocabulary; parsed from `instructions` when absent. */
+	steps?: GeneratedStep[];
 	servings: number;
 	prepTime: number;
 	cookTime: number;
@@ -26,6 +36,36 @@ export interface RecipeContext {
 	servings?: number;
 	cuisineHint?: string;
 	cookbookContext?: string; // RAG context from cookbook
+}
+
+/** A craving or a list of what is in, turned into one recipe. */
+export interface CravingContext {
+	/** What the person typed, e.g. "something spicy, 20 minutes" or "eggs, spinach and feta". */
+	text: string;
+	/** What the kitchen holds now, by name. */
+	available: string[];
+	preferences: Partial<UserPreferences>;
+	tasteProfile?: TasteProfile;
+	/** Titles already offered for this craving, so "Another one" gives a different dish. */
+	excludeTitles: string[];
+	servings: number;
+}
+
+export interface RecipeImage {
+	bytes: Uint8Array;
+	mimeType: string;
+}
+
+export interface ImageRecipeContext {
+	preferences: Partial<UserPreferences>;
+	tasteProfile?: TasteProfile;
+	servings: number;
+}
+
+/** What a photo showed and the recipe read from it. */
+export interface ImageRecipe {
+	kind: 'page' | 'screenshot' | 'dish';
+	recipe: GeneratedRecipe;
 }
 
 export type AllergyRiskLevel = 'none' | 'low' | 'medium' | 'high';
@@ -55,6 +95,15 @@ export interface ICulinaryIntelligence {
 	 * @returns Generated recipe
 	 */
 	generateRecipe(context: RecipeContext): Promise<GeneratedRecipe>;
+
+	/** Makes up one recipe for a craving, using what the kitchen holds where it fits. */
+	generateFromCraving(context: CravingContext): Promise<GeneratedRecipe>;
+
+	/**
+	 * Reads a recipe from a photo: a cookbook page or card, a screenshot, or a dish to recreate.
+	 * Throws `NoRecipeInImageError` when the photo shows neither.
+	 */
+	recipeFromImage(image: RecipeImage, context: ImageRecipeContext): Promise<ImageRecipe>;
 
 	/**
 	 * Normalize an ingredient string to extract quantity, unit, and name
@@ -104,4 +153,12 @@ export interface ICulinaryIntelligence {
 	 * @returns Structured risk review
 	 */
 	reviewRecipeAllergyRisk(input: AllergyRiskReviewInput): Promise<AllergyRiskReview>;
+}
+
+/** The photo shows no recipe and no dish. */
+export class NoRecipeInImageError extends Error {
+	constructor() {
+		super('No recipe or dish found in the photo');
+		this.name = 'NoRecipeInImageError';
+	}
 }

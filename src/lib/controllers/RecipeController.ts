@@ -13,12 +13,13 @@ import type {
 } from '$repositories';
 import type {
 	ICulinaryIntelligence,
-	IImageGenerator,
 	IVectorService,
-	LlmGeneratedRecipe,
-	ITasteProfileService
+	ITasteProfileService,
+	IRecipeBookService
 } from '$services';
+import { stepsFromGenerated } from '$services/recipes';
 import type { Actor } from '$lib/models/household';
+import type { RecipeStep } from '$lib/models/recipes';
 
 export interface GenerateRecipeInput {
 	actor: Actor;
@@ -32,12 +33,13 @@ export interface GenerateRecipeInput {
 
 export interface RecipeWithIngredients extends RecipeDao {
 	ingredients: RecipeIngredientDao[];
+	/** The method in the cooking vocabulary, in order. */
+	steps: RecipeStep[];
 }
 
 export class RecipeController {
 	constructor(
 		private culinaryIntelligence: ICulinaryIntelligence,
-		private imageGenerator: IImageGenerator,
 		private vectorService: IVectorService,
 		private tasteProfileService: ITasteProfileService,
 		private recipeRepository: IRecipeRepository,
@@ -45,9 +47,7 @@ export class RecipeController {
 		private savedRecipeRepository: ISavedRecipeRepository,
 		private userPreferencesRepository: IUserPreferencesRepository,
 		private receiptItemRepository: IReceiptItemRepository,
-		private jobQueue?: {
-			add: (job: { name?: string; run: () => Promise<void> }) => Promise<void>;
-		}
+		private recipeBook: IRecipeBookService
 	) {}
 
 	/**
@@ -103,116 +103,12 @@ export class RecipeController {
 			cookbookContext
 		});
 
-		// Save recipe to database
-		const recipe = await this.persistRecipe(
-			actor,
-			generatedRecipe,
-			useRag ? 'RAG' : 'GENERATED',
+		// Save the recipe with its steps; its picture is generated in the background
+		return this.recipeBook.create(actor, {
+			recipe: generatedRecipe,
+			source: useRag ? 'RAG' : 'GENERATED',
 			sourceReceiptId
-		);
-
-		const task = () =>
-			this.generateRecipeImage(recipe.id, generatedRecipe).catch((error) => {
-				console.error(`Image generation failed for recipe ${recipe.id}:`, error);
-			});
-
-		if (this.jobQueue) {
-			this.jobQueue.add({ name: `recipe-image:${recipe.id}`, run: task }).catch((error) => {
-				console.error('Failed to enqueue image job', error);
-				task();
-			});
-		} else {
-			task();
-		}
-
-		return recipe;
-	}
-
-	/**
-	 * Save a generated recipe to the database
-	 */
-	private async persistRecipe(
-		actor: Actor,
-		generated: LlmGeneratedRecipe,
-		source: 'GENERATED' | 'RAG' | 'USER',
-		sourceReceiptId?: string
-	): Promise<RecipeDao> {
-		const recipe = await this.recipeRepository.create({
-			userId: actor.userId,
-			householdId: actor.householdId,
-			sourceReceiptId: sourceReceiptId || null,
-			title: generated.title,
-			description: generated.description,
-			instructions: generated.instructions,
-			servings: generated.servings,
-			prepTime: generated.prepTime,
-			cookTime: generated.cookTime,
-			cuisineType: generated.cuisineType,
-			estimatedCalories: generated.estimatedCalories,
-			source
 		});
-
-		// Save ingredients
-		if (generated.ingredients.length > 0) {
-			const ingredientValues: NewRecipeIngredientDao[] = generated.ingredients.map(
-				(
-					ing: {
-						name: string;
-						quantity: number | string;
-						unit: string;
-						optional?: boolean;
-						notes?: string;
-					},
-					index: number
-				) => ({
-					recipeId: recipe.id,
-					name: ing.name,
-					quantity: ing.quantity.toString(),
-					unit: ing.unit,
-					unitType: this.inferUnitType(ing.unit),
-					optional: ing.optional || false,
-					notes: ing.notes,
-					orderIndex: index
-				})
-			);
-
-			await this.recipeIngredientRepository.createMany(ingredientValues);
-		}
-
-		return recipe;
-	}
-
-	/**
-	 * Background image generation
-	 */
-	private async generateRecipeImage(
-		recipeId: string,
-		generated: LlmGeneratedRecipe
-	): Promise<void> {
-		try {
-			await this.recipeRepository.update(recipeId, {
-				imageStatus: 'PROCESSING'
-			});
-
-			const ingredientNames = generated.ingredients
-				.slice(0, 5)
-				.map((i: { name: string }) => i.name);
-			const result = await this.imageGenerator.generateRecipeImage(
-				generated.title,
-				generated.description,
-				ingredientNames
-			);
-
-			await this.recipeRepository.update(recipeId, {
-				imageUrl: result.url,
-				imageStatus: 'DONE'
-			});
-		} catch (error) {
-			console.error('Image generation error:', error);
-			await this.recipeRepository.update(recipeId, {
-				imageStatus: 'FAILED'
-			});
-		}
 	}
 
 	/**
@@ -247,10 +143,9 @@ export class RecipeController {
 		const recipe = await this.recipeRepository.findByIdWithIngredients(recipeId);
 
 		if (!recipe) return null;
-		if (recipe.isPublic) return recipe;
-		if (actor && recipe.householdId === actor.householdId) return recipe;
+		if (!recipe.isPublic && recipe.householdId !== actor?.householdId) return null;
 
-		return null;
+		return { ...recipe, steps: await this.recipeBook.stepsOf(recipe) };
 	}
 
 	/**
@@ -404,10 +299,15 @@ export class RecipeController {
 		const updateData: Record<string, unknown> = {};
 		if (updates.title !== undefined) updateData.title = updates.title;
 		if (updates.description !== undefined) updateData.description = updates.description;
-		if (updates.instructions !== undefined) updateData.instructions = updates.instructions;
 
 		if (Object.keys(updateData).length > 0) {
 			await this.recipeRepository.update(recipeId, updateData);
+		}
+		if (updates.instructions !== undefined) {
+			await this.recipeBook.replaceSteps(
+				recipeId,
+				stepsFromGenerated({ instructions: updates.instructions })
+			);
 		}
 
 		// Update ingredients if provided
@@ -462,6 +362,7 @@ export class RecipeController {
 			title: currentRecipe.title,
 			description: currentRecipe.description || '',
 			instructions: currentRecipe.instructions,
+			steps: currentRecipe.steps.map(({ verb, text, minutes }) => ({ verb, text, minutes })),
 			servings: currentRecipe.servings,
 			prepTime: currentRecipe.prepTime || 0,
 			cookTime: currentRecipe.cookTime || 0,
@@ -483,13 +384,14 @@ export class RecipeController {
 		await this.recipeRepository.update(recipeId, {
 			title: adjustedRecipe.title,
 			description: adjustedRecipe.description,
-			instructions: adjustedRecipe.instructions,
 			servings: adjustedRecipe.servings,
 			prepTime: adjustedRecipe.prepTime,
 			cookTime: adjustedRecipe.cookTime,
 			cuisineType: adjustedRecipe.cuisineType,
 			estimatedCalories: adjustedRecipe.estimatedCalories
 		});
+		// The adjusted method replaces the steps and the instructions written from them
+		await this.recipeBook.replaceSteps(recipeId, stepsFromGenerated(adjustedRecipe));
 
 		// Delete existing ingredients and insert new ones
 		await this.recipeIngredientRepository.deleteByRecipeId(recipeId);

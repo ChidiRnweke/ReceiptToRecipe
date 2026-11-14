@@ -75,6 +75,12 @@ export interface RecordShopClosedInput extends Omit<RecordShopDoneInput, 'items'
 	itemCount: number;
 }
 
+/** A meal the household cooked from a recipe. */
+export interface CookedRecipe {
+	recipeId: string;
+	at: Date;
+}
+
 export interface IKitchenService {
 	/**
 	 * What the household's kitchen holds now, projected from its events. Local days use
@@ -84,6 +90,8 @@ export interface IKitchenService {
 	/** The household's stored IANA time zone, for background work that has no actor. */
 	timeZoneOf(householdId: string): Promise<string>;
 	recordCooked(input: RecordCookedInput): Promise<KitchenEvent>;
+	/** The household's cooked meals that name a recipe, newest first. */
+	listCooked(householdId: string): Promise<CookedRecipe[]>;
 	correct(input: CorrectionInput): Promise<KitchenEvent>;
 	/**
 	 * One BOUGHT per item, then the SHOP_DONE that closes the shop. Every event of the shop
