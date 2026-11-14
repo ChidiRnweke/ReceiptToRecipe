@@ -15,6 +15,8 @@ import {
 } from '../../mocks/MockReceiptRepositories';
 import { MockCulinaryIntelligence } from '../../mocks/MockCulinaryIntelligence';
 import type { Actor } from '../../../src/lib/models/household';
+import { createKitchen } from '../../fakes/kitchen';
+import type { InMemoryKitchenEventRepository } from '../../fakes/InMemoryKitchenEventRepository';
 
 describe('ShoppingListController', () => {
 	let controller: ShoppingListController;
@@ -25,6 +27,7 @@ describe('ShoppingListController', () => {
 	let receiptItemRepo: MockReceiptItemRepository;
 	let recipeRepo: MockRecipeRepository;
 	let receiptRepo: MockReceiptRepository;
+	let kitchenEvents: InMemoryKitchenEventRepository;
 
 	const userId = 'user-123';
 	const householdId = 'household-1';
@@ -34,14 +37,16 @@ describe('ShoppingListController', () => {
 		householdId,
 		memberId: 'member-1',
 		displayName: 'Test',
-		roles: { plans: true, shops: true, cooks: true }
+		roles: { plans: true, shops: true, cooks: true },
+		timeZone: 'UTC'
 	};
 	const housemate: Actor = {
 		userId: 'user-789',
 		householdId,
 		memberId: 'member-2',
 		displayName: 'Housemate',
-		roles: { plans: true, shops: true, cooks: true }
+		roles: { plans: true, shops: true, cooks: true },
+		timeZone: 'UTC'
 	};
 
 	async function createRecipe(owner: { userId: string; householdId: string } = actor) {
@@ -62,6 +67,8 @@ describe('ShoppingListController', () => {
 	}
 
 	beforeEach(() => {
+		const kitchen = createKitchen();
+		kitchenEvents = kitchen.events;
 		listRepo = new MockShoppingListRepository();
 		itemRepo = new MockShoppingListItemRepository();
 		purchaseHistoryRepo = new MockPurchaseHistoryRepository();
@@ -80,7 +87,8 @@ describe('ShoppingListController', () => {
 			recipeIngredientRepo,
 			receiptItemRepo,
 			recipeRepo,
-			receiptRepo
+			receiptRepo,
+			kitchen.service
 		);
 	});
 
@@ -1203,6 +1211,21 @@ describe('ShoppingListController', () => {
 			await expect(controller.clearCheckedItems(actor, list.id)).rejects.toThrow(
 				'Unauthorized access to shopping list'
 			);
+		});
+	});
+
+	describe('kitchen log', () => {
+		it('records ticked items as bought and closes the shop by ticking', async () => {
+			const list = await listRepo.create({ userId, householdId, name: 'Test', isActive: true });
+			const item = await controller.addItem(actor, list.id, { name: 'Milk', quantity: '1' });
+			await controller.toggleItem(actor, item.id, true);
+
+			await controller.completeShopping(actor, list.id);
+
+			expect(kitchenEvents.all(householdId).map((e) => [e.kind, e.itemKey, e.method])).toEqual([
+				['BOUGHT', 'milk', null],
+				['SHOP_DONE', null, 'TICK']
+			]);
 		});
 	});
 });

@@ -23,3 +23,9 @@ export {
 } from './PantryController';
 export { TasteProfileController } from './TasteProfileController';
 export { HouseholdController, type HouseholdOverview } from './HouseholdController';
+export {
+	KitchenController,
+	type CookedInput,
+	type CorrectInput,
+	type ShopDoneInput
+} from './KitchenController';

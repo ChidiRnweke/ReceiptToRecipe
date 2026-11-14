@@ -14,6 +14,7 @@ import {
 	MockCupboardItemRepository
 } from '../../mocks';
 import type { Actor } from '../../../src/lib/models/household';
+import { createKitchen } from '../../fakes/kitchen';
 
 describe('DashboardService', () => {
 	let service: DashboardService;
@@ -39,10 +40,12 @@ describe('DashboardService', () => {
 		householdId,
 		memberId: 'member-dash-1',
 		displayName: 'Dash',
-		roles: { plans: true, shops: true, cooks: true }
+		roles: { plans: true, shops: true, cooks: true },
+		timeZone: 'UTC'
 	};
 
 	beforeEach(() => {
+		const kitchenService = createKitchen().service;
 		receiptRepo = new MockReceiptRepository();
 		receiptItemRepo = new MockReceiptItemRepository();
 		recipeRepo = new MockRecipeRepository();
@@ -67,7 +70,8 @@ describe('DashboardService', () => {
 			recipeIngredientRepo,
 			receiptItemRepo,
 			recipeRepo,
-			receiptRepo
+			receiptRepo,
+			kitchenService
 		);
 
 		service = new DashboardService(
@@ -79,7 +83,8 @@ describe('DashboardService', () => {
 			purchaseHistoryRepo,
 			receiptItemRepo,
 			shoppingListController,
-			cupboardItemRepo
+			cupboardItemRepo,
+			kitchenService
 		);
 	});
 

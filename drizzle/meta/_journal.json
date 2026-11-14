@@ -92,6 +92,13 @@
       "when": 1794682409370,
       "tag": "0012_households",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794686959986,
+      "tag": "0013_kitchen_events",
+      "breakpoints": true
     }
   ]
 }

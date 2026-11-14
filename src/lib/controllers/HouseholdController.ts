@@ -27,6 +27,10 @@ export class HouseholdController {
 		return this.householdService.setRoles(actor, memberId, roles);
 	}
 
+	async setTimeZone(actor: Actor, timeZone: string): Promise<Household> {
+		return this.householdService.setTimeZone(actor, timeZone);
+	}
+
 	async createInvite(actor: Actor): Promise<HouseholdInvite> {
 		return this.householdService.createInvite(actor);
 	}

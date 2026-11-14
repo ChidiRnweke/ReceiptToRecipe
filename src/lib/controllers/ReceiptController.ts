@@ -4,8 +4,10 @@ import type {
 	INormalizationService,
 	IProductNormalizer,
 	RawReceiptData,
-	IPantryService
+	IPantryService,
+	IKitchenService
 } from '$services';
+import { dayNumber } from '$lib/services/kitchen';
 import type {
 	IReceiptRepository,
 	IReceiptItemRepository,
@@ -34,6 +36,7 @@ export class ReceiptController {
 		private receiptRepository: IReceiptRepository,
 		private receiptItemRepository: IReceiptItemRepository,
 		private purchaseHistoryRepository: IPurchaseHistoryRepository,
+		private kitchenService: IKitchenService,
 		private jobQueue?: {
 			add: (job: { name?: string; run: () => Promise<void> }) => Promise<void>;
 		}
@@ -61,9 +64,11 @@ export class ReceiptController {
 		// Background OCR processing - pass the original buffer so OCR
 		// doesn't need to fetch from an internal/proxy URL
 		const task = () =>
-			this.processReceiptOcr(receipt.id, actor.householdId, buffer, mimeType).catch((error) => {
-				console.error(`OCR processing failed for receipt ${receipt.id}:`, error);
-			});
+			this.processReceiptOcr(receipt.id, actor.householdId, actor.timeZone, buffer, mimeType).catch(
+				(error) => {
+					console.error(`OCR processing failed for receipt ${receipt.id}:`, error);
+				}
+			);
 
 		if (this.jobQueue) {
 			this.jobQueue.add({ name: `receipt:${receipt.id}`, run: task }).catch((error) => {
@@ -85,6 +90,8 @@ export class ReceiptController {
 	private async processReceiptOcr(
 		receiptId: string,
 		householdId: string,
+		/** The household's time zone: the job counts days between purchases in it. */
+		timeZone: string,
 		imageBuffer: Buffer,
 		mimeType: string
 	): Promise<void> {
@@ -108,7 +115,13 @@ export class ReceiptController {
 			console.log('OCR Data:', ocrData);
 
 			// Normalize and save items
-			await this.saveReceiptData(receiptId, householdId, ocrData, purchaseDate);
+			const savedItems = await this.saveReceiptData(
+				receiptId,
+				householdId,
+				ocrData,
+				purchaseDate,
+				timeZone
+			);
 
 			// Update status to DONE
 			await this.receiptRepository.update(receiptId, {
@@ -119,6 +132,8 @@ export class ReceiptController {
 				totalAmount: ocrData.total?.replace(/[^0-9.]/g, '') || undefined,
 				currency: ocrData.currency || 'USD'
 			});
+
+			await this.recordReceiptShop(receipt, householdId, savedItems, purchaseDate);
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			await this.receiptRepository.update(receiptId, {
@@ -129,14 +144,48 @@ export class ReceiptController {
 	}
 
 	/**
+	 * Records the finished receipt in the kitchen log: what was bought, and that a shop happened.
+	 * The receipt is already DONE, so a failure here is logged rather than failing the receipt.
+	 */
+	private async recordReceiptShop(
+		receipt: ReceiptDao,
+		householdId: string,
+		items: ReceiptItemDao[],
+		purchaseDate: Date
+	): Promise<void> {
+		try {
+			await this.kitchenService.recordShopDone({
+				author: { userId: receipt.userId, householdId },
+				method: 'RECEIPT',
+				items: items.map((item) => this.toBoughtItem(item)),
+				at: purchaseDate,
+				details: { receiptId: receipt.id }
+			});
+		} catch (error) {
+			console.error(`Recording kitchen events failed for receipt ${receipt.id}:`, error);
+		}
+	}
+
+	private toBoughtItem(item: ReceiptItemDao) {
+		return {
+			name: item.normalizedName,
+			quantity: parseFloat(item.quantity),
+			unit: item.unit,
+			category: item.category,
+			receiptItemId: item.id
+		};
+	}
+
+	/**
 	 * Save normalized receipt items
 	 */
 	private async saveReceiptData(
 		receiptId: string,
 		householdId: string,
 		ocrData: RawReceiptData,
-		purchaseDate: Date
-	): Promise<void> {
+		purchaseDate: Date,
+		timeZone: string
+	): Promise<ReceiptItemDao[]> {
 		const receipt = await this.receiptRepository.findById(receiptId);
 
 		if (!receipt) {
@@ -174,16 +223,18 @@ export class ReceiptController {
 		// Filter out non-food items
 		const foodItems = allNormalizedItems.filter((item) => item.isFoodItem);
 
-		if (foodItems.length > 0) {
-			await this.receiptItemRepository.createMany(foodItems);
+		if (foodItems.length === 0) return [];
 
-			// Update purchase history - use receipt upload date
-			await this.updatePurchaseHistory(
-				{ userId: receipt.userId, householdId },
-				foodItems,
-				purchaseDate
-			);
-		}
+		const saved = await this.receiptItemRepository.createMany(foodItems);
+
+		// Update purchase history - use receipt upload date
+		await this.updatePurchaseHistory(
+			{ userId: receipt.userId, householdId },
+			foodItems,
+			purchaseDate,
+			timeZone
+		);
+		return saved;
 	}
 
 	/**
@@ -192,7 +243,8 @@ export class ReceiptController {
 	private async updatePurchaseHistory(
 		author: { userId: string; householdId: string },
 		items: NewReceiptItemDao[],
-		purchaseDate: Date
+		purchaseDate: Date,
+		timeZone: string
 	): Promise<void> {
 		for (const item of items) {
 			const existing = await this.purchaseHistoryRepository.findByHouseholdAndItem(
@@ -208,10 +260,9 @@ export class ReceiptController {
 			);
 
 			if (existing) {
-				// Calculate new average frequency
-				const daysSinceLastPurchase = Math.floor(
-					(purchaseDate.getTime() - existing.lastPurchased.getTime()) / (1000 * 60 * 60 * 24)
-				);
+				// Calculate new average frequency, in the household's local calendar days
+				const daysSinceLastPurchase =
+					dayNumber(purchaseDate, timeZone) - dayNumber(existing.lastPurchased, timeZone);
 
 				// Only update frequency if the purchase is newer than the last one
 				let newFrequency = existing.avgFrequencyDays;
@@ -310,6 +361,10 @@ export class ReceiptController {
 		for (const item of receipt.items) {
 			await this.removePurchaseHistoryForItem(actor.householdId, item.normalizedName);
 		}
+		await this.kitchenService.forgetReceiptItems(
+			actor.householdId,
+			receipt.items.map((item) => item.id)
+		);
 
 		// Delete from storage
 		if (receipt.imageUrl) {
@@ -361,6 +416,15 @@ export class ReceiptController {
 			category: data.category || 'other'
 		});
 
+		// The corrected line replaces what the kitchen log recorded for it.
+		await this.kitchenService.forgetReceiptItems(actor.householdId, [itemId]);
+		await this.kitchenService.recordBought(
+			actor,
+			[this.toBoughtItem(updated)],
+			receipt.purchaseDate ?? receipt.createdAt,
+			'receipt'
+		);
+
 		return updated;
 	}
 
@@ -395,6 +459,13 @@ export class ReceiptController {
 			category: data.category || 'other'
 		});
 
+		await this.kitchenService.recordBought(
+			actor,
+			[this.toBoughtItem(created)],
+			receipt.purchaseDate ?? receipt.createdAt,
+			'receipt'
+		);
+
 		return created;
 	}
 
@@ -413,6 +484,7 @@ export class ReceiptController {
 
 		// Clean up purchase history for this item
 		await this.removePurchaseHistoryForItem(actor.householdId, existingItem.normalizedName);
+		await this.kitchenService.forgetReceiptItems(actor.householdId, [itemId]);
 
 		await this.receiptItemRepository.delete(itemId);
 	}

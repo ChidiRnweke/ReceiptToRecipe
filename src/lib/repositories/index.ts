@@ -19,6 +19,8 @@ export {
 } from './TasteProfileRepositories';
 export { WaitlistRepository } from './WaitlistRepository';
 export { HouseholdRepository } from './HouseholdRepository';
+export { KitchenEventRepository } from './KitchenEventRepository';
+export { HabitAnswerRepository } from './HabitAnswerRepository';
 
 // Repository Interfaces
 export type {
@@ -48,6 +50,8 @@ export type {
 } from './interfaces/ITasteProfileRepositories';
 export type { IWaitlistRepository } from './interfaces/IWaitlistRepository';
 export type { IHouseholdRepository } from './interfaces/IHouseholdRepository';
+export type { IKitchenEventRepository } from './interfaces/IKitchenEventRepository';
+export type { IHabitAnswerRepository } from './interfaces/IHabitAnswerRepository';
 
 // DAOs
 export * from './daos';

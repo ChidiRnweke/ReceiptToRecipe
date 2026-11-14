@@ -1,7 +1,9 @@
 import type { IHouseholdRepository } from '$repositories';
 import {
+	DEFAULT_TIME_ZONE,
 	HouseholdInviteError,
 	INVITE_LIFETIME_DAYS,
+	isValidTimeZone,
 	type Actor,
 	type Household,
 	type HouseholdInvite,
@@ -28,14 +30,14 @@ export class HouseholdService implements IHouseholdService {
 	 * gets a household of one.
 	 */
 	async resolveActor(user: HouseholdUser): Promise<Actor> {
-		const existing = await this.householdRepository.findMemberByUserId(user.id);
-		if (existing) return this.toActor(existing);
-
-		const member = await this.householdRepository.createSoloHousehold(`${user.name}'s kitchen`, {
-			userId: user.id,
-			displayName: firstName(user.name)
-		});
-		return this.toActor(member);
+		const member =
+			(await this.householdRepository.findMemberByUserId(user.id)) ??
+			(await this.householdRepository.createSoloHousehold(`${user.name}'s kitchen`, {
+				userId: user.id,
+				displayName: firstName(user.name)
+			}));
+		const household = await this.householdRepository.findHouseholdById(member.householdId);
+		return this.toActor(member, household?.timeZone ?? DEFAULT_TIME_ZONE);
 	}
 
 	async getHousehold(actor: Actor): Promise<Household> {
@@ -54,6 +56,12 @@ export class HouseholdService implements IHouseholdService {
 			throw new Error('Member not found');
 		}
 		return this.householdRepository.updateMemberRoles(memberId, roles);
+	}
+
+	async setTimeZone(actor: Actor, timeZone: string): Promise<Household> {
+		const zone = timeZone.trim();
+		if (!isValidTimeZone(zone)) throw new Error(`Unknown time zone: ${timeZone}`);
+		return this.householdRepository.updateTimeZone(actor.householdId, zone);
 	}
 
 	async createInvite(actor: Actor): Promise<HouseholdInvite> {
@@ -105,13 +113,14 @@ export class HouseholdService implements IHouseholdService {
 		return 'valid';
 	}
 
-	private toActor(member: HouseholdMember): Actor {
+	private toActor(member: HouseholdMember, timeZone: string): Actor {
 		return {
 			userId: member.userId,
 			householdId: member.householdId,
 			memberId: member.id,
 			displayName: member.displayName,
-			roles: { ...member.roles }
+			roles: { ...member.roles },
+			timeZone
 		};
 	}
 }

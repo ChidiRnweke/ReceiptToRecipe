@@ -1,13 +1,14 @@
 import { v4 as uuid } from 'uuid';
 import type { IHouseholdRepository } from '../../src/lib/repositories/interfaces/IHouseholdRepository';
-import type {
-	Household,
-	HouseholdInvite,
-	HouseholdMember,
-	MemberRoles,
-	NewHousehold,
-	NewHouseholdInvite,
-	NewHouseholdMember
+import {
+	DEFAULT_TIME_ZONE,
+	type Household,
+	type HouseholdInvite,
+	type HouseholdMember,
+	type MemberRoles,
+	type NewHousehold,
+	type NewHouseholdInvite,
+	type NewHouseholdMember
 } from '../../src/lib/models/household';
 
 /**
@@ -22,7 +23,13 @@ export class InMemoryHouseholdRepository implements IHouseholdRepository {
 
 	async createHousehold(household: NewHousehold): Promise<Household> {
 		const now = new Date();
-		const created: Household = { id: uuid(), name: household.name, createdAt: now, updatedAt: now };
+		const created: Household = {
+			id: uuid(),
+			name: household.name,
+			timeZone: DEFAULT_TIME_ZONE,
+			createdAt: now,
+			updatedAt: now
+		};
 		this.households.set(created.id, created);
 		return created;
 	}
@@ -82,6 +89,14 @@ export class InMemoryHouseholdRepository implements IHouseholdRepository {
 		return updated;
 	}
 
+	async updateTimeZone(householdId: string, timeZone: string): Promise<Household> {
+		const household = this.households.get(householdId);
+		if (!household) throw new Error('Household not found');
+		const updated = { ...household, timeZone, updatedAt: new Date() };
+		this.households.set(householdId, updated);
+		return updated;
+	}
+
 	async createInvite(invite: NewHouseholdInvite): Promise<HouseholdInvite> {
 		const created: HouseholdInvite = {
 			id: uuid(),
@@ -127,6 +142,20 @@ export class InMemoryHouseholdRepository implements IHouseholdRepository {
 	}
 
 	// Test helpers
+
+	/** Stores a household as-is, so tests can use a known id and time zone. */
+	seedHousehold(household: Partial<Household> & Pick<Household, 'id'>): Household {
+		const now = new Date();
+		const seeded: Household = {
+			name: 'Test kitchen',
+			timeZone: DEFAULT_TIME_ZONE,
+			createdAt: now,
+			updatedAt: now,
+			...household
+		};
+		this.households.set(seeded.id, seeded);
+		return seeded;
+	}
 
 	/** Seeds a household-scoped row (a receipt, a cupboard item, …) for the household. */
 	addSharedRow(householdId: string): void {

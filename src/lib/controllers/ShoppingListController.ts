@@ -4,7 +4,8 @@ import type { IRecipeIngredientRepository } from '$repositories';
 import type { IReceiptItemRepository } from '$repositories';
 import type { IRecipeRepository, IReceiptRepository } from '$repositories';
 import type { Actor } from '$lib/models/household';
-import type { ICulinaryIntelligence } from '$lib/services';
+import type { ICulinaryIntelligence, IKitchenService } from '$lib/services';
+import { dayNumber } from '$lib/services/kitchen';
 import type {
 	ShoppingListDao,
 	ShoppingListItemDao,
@@ -37,7 +38,8 @@ export class ShoppingListController {
 		private recipeIngredientRepo: IRecipeIngredientRepository,
 		private receiptItemRepo: IReceiptItemRepository,
 		private recipeRepo: IRecipeRepository,
-		private receiptRepo: IReceiptRepository
+		private receiptRepo: IReceiptRepository,
+		private kitchenService: IKitchenService
 	) {}
 
 	/**
@@ -245,9 +247,9 @@ export class ShoppingListController {
 			);
 
 			if (existing) {
-				const daysSinceLastPurchase = Math.floor(
-					(now.getTime() - existing.lastPurchased.getTime()) / (1000 * 60 * 60 * 24)
-				);
+				// Days between shops count the household's local calendar days.
+				const daysSinceLastPurchase =
+					dayNumber(now, actor.timeZone) - dayNumber(existing.lastPurchased, actor.timeZone);
 				const newFrequency = existing.avgFrequencyDays
 					? Math.round((existing.avgFrequencyDays + daysSinceLastPurchase) / 2)
 					: daysSinceLastPurchase > 0
@@ -271,6 +273,19 @@ export class ShoppingListController {
 				});
 			}
 		}
+
+		// Ticking the list closes the shop: the kitchen now holds what was ticked.
+		await this.kitchenService.recordShopDone({
+			author: actor,
+			method: 'TICK',
+			items: checkedItems.map((item) => ({
+				name: item.name,
+				quantity: item.quantity ? parseFloat(item.quantity) : null,
+				unit: item.unit
+			})),
+			at: now,
+			details: { shoppingListId: listId }
+		});
 
 		// Clear checked items
 		await this.clearCheckedItems(actor, listId);

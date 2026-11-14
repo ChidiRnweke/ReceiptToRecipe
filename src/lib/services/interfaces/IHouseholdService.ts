@@ -24,6 +24,8 @@ export interface IHouseholdService {
 	getHousehold(actor: Actor): Promise<Household>;
 	listMembers(actor: Actor): Promise<HouseholdMember[]>;
 	setRoles(actor: Actor, memberId: string, roles: MemberRoles): Promise<HouseholdMember>;
+	/** Stores the household's IANA time zone. Rejects a zone the runtime does not know. */
+	setTimeZone(actor: Actor, timeZone: string): Promise<Household>;
 	createInvite(actor: Actor): Promise<HouseholdInvite>;
 	previewInvite(token: string): Promise<InvitePreview>;
 	acceptInvite(user: HouseholdUser, token: string): Promise<void>;

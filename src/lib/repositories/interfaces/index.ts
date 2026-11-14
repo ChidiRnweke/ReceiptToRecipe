@@ -31,3 +31,5 @@ export type {
 
 export type { IWaitlistRepository } from './IWaitlistRepository';
 export type { IHouseholdRepository } from './IHouseholdRepository';
+export type { IKitchenEventRepository } from './IKitchenEventRepository';
+export type { IHabitAnswerRepository } from './IHabitAnswerRepository';

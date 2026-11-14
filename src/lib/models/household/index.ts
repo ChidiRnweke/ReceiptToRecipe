@@ -18,11 +18,15 @@ export type Actor = {
 	memberId: string;
 	displayName: string;
 	roles: MemberRoles;
+	/** The household's IANA time zone; local days and weekdays are counted in it. */
+	timeZone: string;
 };
 
 export interface Household {
 	id: string;
 	name: string;
+	/** IANA time zone, e.g. `Europe/Brussels`. Background work counts local days in it. */
+	timeZone: string;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -65,6 +69,20 @@ export interface NewHouseholdInvite {
 	token: string;
 	createdBy: string;
 	expiresAt: Date;
+}
+
+/** The time zone a household starts with until a member sets its own. */
+export const DEFAULT_TIME_ZONE = 'Europe/Brussels';
+
+/** True when `timeZone` is an IANA time zone this runtime knows, such as `Europe/Brussels`. */
+export function isValidTimeZone(timeZone: string): boolean {
+	if (!timeZone) return false;
+	try {
+		new Intl.DateTimeFormat('en', { timeZone });
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 /** Invites expire one week after they are created. */

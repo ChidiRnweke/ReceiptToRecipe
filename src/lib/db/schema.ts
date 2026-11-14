@@ -9,7 +9,8 @@ import {
 	jsonb,
 	pgEnum,
 	vector,
-	index
+	index,
+	unique
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -29,6 +30,24 @@ export const unitTypeEnum = pgEnum('unit_type', ['WEIGHT', 'VOLUME', 'COUNT']);
 
 export const mealTypeEnum = pgEnum('meal_type', ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK']);
 
+export const plannedMealStatusEnum = pgEnum('planned_meal_status', [
+	'PLANNED',
+	'COOKED',
+	'SKIPPED',
+	'EATEN_OUT'
+]);
+
+export const kitchenEventKindEnum = pgEnum('kitchen_event_kind', [
+	'BOUGHT',
+	'COOKED',
+	'CORRECTED_GONE',
+	'CORRECTED_STILL_GOOD',
+	'CORRECTED_QUANTITY',
+	'SHOP_DONE'
+]);
+
+export const shopMethodEnum = pgEnum('shop_method', ['RECEIPT', 'TICK']);
+
 // Users
 export const users = pgTable('users', {
 	id: uuid('id').primaryKey().defaultRandom(),
@@ -46,6 +65,7 @@ export const users = pgTable('users', {
 export const households = pgTable('households', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	name: text('name').notNull(),
+	timeZone: text('time_zone').notNull().default('Europe/Brussels'), // IANA zone for local days
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
@@ -265,6 +285,8 @@ export const plannedMeals = pgTable(
 		plannedDate: timestamp('planned_date').notNull(),
 		plannedCalories: integer('planned_calories').notNull(),
 		mealType: mealTypeEnum('meal_type').notNull(),
+		status: plannedMealStatusEnum('status').notNull().default('PLANNED'),
+		servings: integer('servings'),
 		createdAt: timestamp('created_at').notNull().defaultNow(),
 		updatedAt: timestamp('updated_at').notNull().defaultNow()
 	},
@@ -340,6 +362,58 @@ export const cupboardItems = pgTable(
 		updatedAt: timestamp('updated_at').notNull().defaultNow()
 	},
 	(t) => [index('cupboard_items_household_id_idx').on(t.householdId)]
+);
+
+// Kitchen events: the append-only log of what was bought, cooked and corrected. The kitchen
+// picture is projected from it.
+export const kitchenEvents = pgTable(
+	'kitchen_events',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+		occurredAt: timestamp('occurred_at').notNull(),
+		kind: kitchenEventKindEnum('kind').notNull(),
+		itemKey: text('item_key'), // lower-case normalized name; null for SHOP_DONE and COOKED
+		quantity: decimal('quantity', { precision: 10, scale: 3 }),
+		unit: text('unit'),
+		expiresAt: timestamp('expires_at'),
+		known: boolean('known').notNull().default(true),
+		portions: integer('portions'),
+		receiptItemId: uuid('receipt_item_id').references(() => receiptItems.id, {
+			onDelete: 'set null'
+		}),
+		plannedMealId: uuid('planned_meal_id').references(() => plannedMeals.id, {
+			onDelete: 'set null'
+		}),
+		recipeId: uuid('recipe_id').references(() => recipes.id, { onDelete: 'set null' }),
+		// The cupboard row an event was written for, so deleting the row can take back its purchase.
+		cupboardItemId: uuid('cupboard_item_id').references(() => cupboardItems.id, {
+			onDelete: 'set null'
+		}),
+		method: shopMethodEnum('method'),
+		payload: jsonb('payload'),
+		createdAt: timestamp('created_at').notNull().defaultNow()
+	},
+	(t) => [index('kitchen_events_household_occurred_idx').on(t.householdId, t.occurredAt)]
+);
+
+// Answers to habit offers ("You seem to shop on Thursdays"), so an offer is asked once.
+export const householdHabitAnswers = pgTable(
+	'household_habit_answers',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		key: text('key').notNull(), // e.g. shopDay:4
+		answer: text('answer').notNull(), // 'accepted' | 'declined'
+		answeredBy: uuid('answered_by').references(() => users.id, { onDelete: 'set null' }),
+		answeredAt: timestamp('answered_at').notNull().defaultNow()
+	},
+	(t) => [unique('household_habit_answers_household_key_unique').on(t.householdId, t.key)]
 );
 
 // Category Shelf Life (for stock estimation)
@@ -476,7 +550,23 @@ export const householdsRelations = relations(households, ({ many }) => ({
 	shoppingLists: many(shoppingLists),
 	plannedMeals: many(plannedMeals),
 	purchaseHistory: many(purchaseHistory),
-	cupboardItems: many(cupboardItems)
+	cupboardItems: many(cupboardItems),
+	kitchenEvents: many(kitchenEvents),
+	habitAnswers: many(householdHabitAnswers)
+}));
+
+export const kitchenEventsRelations = relations(kitchenEvents, ({ one }) => ({
+	household: one(households, {
+		fields: [kitchenEvents.householdId],
+		references: [households.id]
+	})
+}));
+
+export const householdHabitAnswersRelations = relations(householdHabitAnswers, ({ one }) => ({
+	household: one(households, {
+		fields: [householdHabitAnswers.householdId],
+		references: [households.id]
+	})
 }));
 
 export const householdMembersRelations = relations(householdMembers, ({ one }) => ({
@@ -704,6 +794,9 @@ export type PurchaseHistory = typeof purchaseHistory.$inferSelect;
 export type NewPurchaseHistory = typeof purchaseHistory.$inferInsert;
 export type CupboardItem = typeof cupboardItems.$inferSelect;
 export type NewCupboardItem = typeof cupboardItems.$inferInsert;
+export type KitchenEventRow = typeof kitchenEvents.$inferSelect;
+export type NewKitchenEventRow = typeof kitchenEvents.$inferInsert;
+export type HouseholdHabitAnswerRow = typeof householdHabitAnswers.$inferSelect;
 export type CategoryShelfLife = typeof categoryShelfLife.$inferSelect;
 export type NewCategoryShelfLife = typeof categoryShelfLife.$inferInsert;
 export type CookbookEmbedding = typeof cookbookEmbeddings.$inferSelect;

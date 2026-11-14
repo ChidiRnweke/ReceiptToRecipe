@@ -60,3 +60,15 @@ export type {
 	InvitePreview,
 	InviteStatus
 } from './IHouseholdService';
+export type {
+	IKitchenService,
+	KitchenAuthor,
+	KitchenPicture,
+	BoughtItem,
+	RecordCookedInput,
+	CorrectionKind,
+	CorrectionInput,
+	RecordShopDoneInput,
+	WithdrawCupboardItemInput
+} from './IKitchenService';
+export type { IHabitService } from './IHabitService';

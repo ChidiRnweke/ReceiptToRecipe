@@ -178,4 +178,42 @@ describe('HouseholdService', () => {
 			).rejects.toThrow('Member not found');
 		});
 	});
+
+	describe('time zone', () => {
+		it('gives a new household the Brussels time zone', async () => {
+			const actor = await service.resolveActor(ada);
+
+			expect(actor.timeZone).toBe('Europe/Brussels');
+		});
+
+		it("puts the household's stored time zone on the actor", async () => {
+			const actor = await service.resolveActor(ada);
+			await service.setTimeZone(actor, 'America/New_York');
+
+			expect((await service.resolveActor(ada)).timeZone).toBe('America/New_York');
+		});
+
+		it('shares the time zone with every member of the household', async () => {
+			const inviter = await seedInvite();
+			await service.setTimeZone(inviter, 'Asia/Tokyo');
+			await service.acceptInvite(grace, 'token-1');
+
+			expect((await service.resolveActor(grace)).timeZone).toBe('Asia/Tokyo');
+		});
+
+		it('rejects a time zone the runtime does not know', async () => {
+			const actor = await service.resolveActor(ada);
+
+			await expect(service.setTimeZone(actor, 'Mars/Olympus_Mons')).rejects.toThrow(
+				'Unknown time zone'
+			);
+		});
+
+		it('keeps the stored time zone after a rejected change', async () => {
+			const actor = await service.resolveActor(ada);
+			await service.setTimeZone(actor, 'Mars/Olympus_Mons').catch(() => undefined);
+
+			expect((await service.resolveActor(ada)).timeZone).toBe('Europe/Brussels');
+		});
+	});
 });

@@ -17,6 +17,8 @@ import {
 	DashboardService,
 	NutritionService,
 	HouseholdService,
+	KitchenService,
+	HabitService,
 	type IStorageService,
 	type INormalizationService,
 	type IReceiptExtractor,
@@ -30,7 +32,9 @@ import {
 	type IDashboardService,
 	type INutritionService,
 	type INotificationService,
-	type IHouseholdService
+	type IHouseholdService,
+	type IKitchenService,
+	type IHabitService
 } from '$services';
 import { AppriseNotificationService, MockNotificationService } from '$services';
 import {
@@ -39,7 +43,8 @@ import {
 	ReceiptController,
 	PantryController,
 	ShoppingListController,
-	HouseholdController
+	HouseholdController,
+	KitchenController
 } from '$controllers';
 import {
 	UserRepository,
@@ -62,6 +67,8 @@ import {
 	UserCuisinePreferenceRepository,
 	WaitlistRepository,
 	HouseholdRepository,
+	KitchenEventRepository,
+	HabitAnswerRepository,
 	type IUserRepository,
 	type ISessionRepository,
 	type IUserPreferencesRepository,
@@ -81,7 +88,9 @@ import {
 	type IUserIngredientPreferenceRepository,
 	type IUserCuisinePreferenceRepository,
 	type IWaitlistRepository,
-	type IHouseholdRepository
+	type IHouseholdRepository,
+	type IKitchenEventRepository,
+	type IHabitAnswerRepository
 } from '$repositories';
 
 // Infrastructure Services
@@ -101,6 +110,7 @@ let receiptController: ReceiptController | null = null;
 let pantryController: PantryController | null = null;
 let shoppingListController: ShoppingListController | null = null;
 let householdController: HouseholdController | null = null;
+let kitchenController: KitchenController | null = null;
 
 // Domain Services - Using IOAuthService as the auth interface
 let oauthService: IOAuthService | null = null;
@@ -109,6 +119,8 @@ let tasteProfileService: ITasteProfileService | null = null;
 let dashboardService: IDashboardService | null = null;
 let nutritionService: INutritionService | null = null;
 let householdService: IHouseholdService | null = null;
+let kitchenService: IKitchenService | null = null;
+let habitService: IHabitService | null = null;
 
 // Repositories
 let userRepository: IUserRepository | null = null;
@@ -131,6 +143,8 @@ let userIngredientPreferenceRepository: IUserIngredientPreferenceRepository | nu
 let userCuisinePreferenceRepository: IUserCuisinePreferenceRepository | null = null;
 let waitlistRepository: IWaitlistRepository | null = null;
 let householdRepository: IHouseholdRepository | null = null;
+let kitchenEventRepository: IKitchenEventRepository | null = null;
+let habitAnswerRepository: IHabitAnswerRepository | null = null;
 let notificationService: INotificationService | null = null;
 
 /**
@@ -316,7 +330,8 @@ export class AppFactory {
 				AppFactory.getPurchaseHistoryRepository(),
 				AppFactory.getReceiptItemRepository(),
 				AppFactory.getShoppingListController(),
-				AppFactory.getCupboardItemRepository()
+				AppFactory.getCupboardItemRepository(),
+				AppFactory.getKitchenService()
 			);
 		}
 		return dashboardService;
@@ -338,6 +353,33 @@ export class AppFactory {
 			householdService = new HouseholdService(AppFactory.getHouseholdRepository());
 		}
 		return householdService;
+	}
+
+	static getKitchenService(): IKitchenService {
+		if (!kitchenService) {
+			kitchenService = new KitchenService(
+				AppFactory.getKitchenEventRepository(),
+				AppFactory.getRecipeRepository(),
+				AppFactory.getRecipeIngredientRepository(),
+				AppFactory.getPlannedMealRepository(),
+				AppFactory.getMealLogRepository(),
+				AppFactory.getHouseholdRepository()
+			);
+		}
+		return kitchenService;
+	}
+
+	static getHabitService(): IHabitService {
+		if (!habitService) {
+			habitService = new HabitService(
+				AppFactory.getKitchenEventRepository(),
+				AppFactory.getHabitAnswerRepository(),
+				AppFactory.getPlannedMealRepository(),
+				AppFactory.getPurchaseHistoryRepository(),
+				AppFactory.getHouseholdRepository()
+			);
+		}
+		return habitService;
 	}
 
 	// Controllers
@@ -377,6 +419,7 @@ export class AppFactory {
 				AppFactory.getReceiptRepository(),
 				AppFactory.getReceiptItemRepository(),
 				AppFactory.getPurchaseHistoryRepository(),
+				AppFactory.getKitchenService(),
 				AppFactory.getJobQueue()
 			);
 		}
@@ -390,6 +433,7 @@ export class AppFactory {
 				AppFactory.getPurchaseHistoryRepository(),
 				AppFactory.getReceiptItemRepository(),
 				AppFactory.getCupboardItemRepository(),
+				AppFactory.getKitchenService(),
 				AppFactory.getShoppingListRepository(),
 				AppFactory.getShoppingListItemRepository()
 			);
@@ -406,7 +450,8 @@ export class AppFactory {
 				AppFactory.getRecipeIngredientRepository(),
 				AppFactory.getReceiptItemRepository(),
 				AppFactory.getRecipeRepository(),
-				AppFactory.getReceiptRepository()
+				AppFactory.getReceiptRepository(),
+				AppFactory.getKitchenService()
 			);
 		}
 		return shoppingListController;
@@ -417,6 +462,16 @@ export class AppFactory {
 			householdController = new HouseholdController(AppFactory.getHouseholdService());
 		}
 		return householdController;
+	}
+
+	static getKitchenController(): KitchenController {
+		if (!kitchenController) {
+			kitchenController = new KitchenController(
+				AppFactory.getKitchenService(),
+				AppFactory.getHabitService()
+			);
+		}
+		return kitchenController;
 	}
 
 	// Repositories
@@ -560,6 +615,20 @@ export class AppFactory {
 		return householdRepository;
 	}
 
+	static getKitchenEventRepository(): IKitchenEventRepository {
+		if (!kitchenEventRepository) {
+			kitchenEventRepository = new KitchenEventRepository(getDb());
+		}
+		return kitchenEventRepository;
+	}
+
+	static getHabitAnswerRepository(): IHabitAnswerRepository {
+		if (!habitAnswerRepository) {
+			habitAnswerRepository = new HabitAnswerRepository(getDb());
+		}
+		return habitAnswerRepository;
+	}
+
 	static getNotificationService(): INotificationService {
 		if (!notificationService) {
 			const endpoint = ConfigService.get('NOTIFICATION_ENDPOINT');
@@ -593,6 +662,8 @@ export class AppFactory {
 		dashboardService = null;
 		nutritionService = null;
 		householdService = null;
+		kitchenService = null;
+		habitService = null;
 
 		// Controllers
 		recipeController = null;
@@ -601,6 +672,7 @@ export class AppFactory {
 		pantryController = null;
 		shoppingListController = null;
 		householdController = null;
+		kitchenController = null;
 
 		// Repositories
 		userRepository = null;
@@ -623,6 +695,8 @@ export class AppFactory {
 		userCuisinePreferenceRepository = null;
 		waitlistRepository = null;
 		householdRepository = null;
+		kitchenEventRepository = null;
+		habitAnswerRepository = null;
 		notificationService = null;
 	}
 }

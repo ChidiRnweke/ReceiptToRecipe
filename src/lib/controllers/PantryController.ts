@@ -1,4 +1,4 @@
-import type { IPantryService, PantryItem } from '$services';
+import type { IKitchenService, IPantryService, PantryItem } from '$services';
 import type {
 	IPurchaseHistoryRepository,
 	IReceiptItemRepository,
@@ -7,6 +7,15 @@ import type {
 	IShoppingListItemRepository
 } from '$repositories';
 import type { Actor } from '$lib/models/household';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** A cupboard quantity as a number, or null when it is empty or not a number. */
+function parseQuantity(quantity: string | null | undefined): number | null {
+	if (quantity === null || quantity === undefined || quantity.trim() === '') return null;
+	const value = parseFloat(quantity);
+	return Number.isFinite(value) ? value : null;
+}
 
 export interface CupboardStats {
 	totalItems: number;
@@ -38,6 +47,7 @@ export class PantryController {
 		private purchaseHistoryRepository: IPurchaseHistoryRepository,
 		private receiptItemRepository: IReceiptItemRepository,
 		private cupboardItemRepository: ICupboardItemRepository,
+		private kitchenService: IKitchenService,
 		private shoppingListRepository?: IShoppingListRepository,
 		private shoppingListItemRepository?: IShoppingListItemRepository
 	) {}
@@ -190,6 +200,24 @@ export class PantryController {
 			notes: input.notes
 		});
 
+		await this.kitchenService.recordBought(
+			actor,
+			[
+				{
+					name: created.itemName,
+					quantity: created.quantity ? parseFloat(created.quantity) : null,
+					unit: created.unit,
+					category: created.category,
+					expiresAt: created.shelfLifeDays
+						? new Date(created.addedDate.getTime() + created.shelfLifeDays * DAY_MS)
+						: null,
+					cupboardItemId: created.id
+				}
+			],
+			created.addedDate,
+			'manual'
+		);
+
 		const quantity = created.quantity ? parseFloat(created.quantity) : 1;
 		const overrides = {
 			userShelfLifeDays: created.shelfLifeDays ?? undefined,
@@ -225,14 +253,22 @@ export class PantryController {
 		};
 	}
 
+	/** The cupboard row, or an error unless it belongs to the actor's household. */
+	private async findManualItem(actor: Actor, itemId: string) {
+		const item = await this.cupboardItemRepository.findById(itemId);
+		if (!item || item.householdId !== actor.householdId) throw new Error('Item not found');
+		return item;
+	}
+
 	/**
-	 * Throws unless the cupboard or purchase-history row belongs to the actor's household
+	 * Throws unless the cupboard or purchase-history row belongs to the actor's household.
+	 * Returns the item's name.
 	 */
 	private async assertItemInHousehold(
 		actor: Actor,
 		itemId: string,
 		source: 'receipt' | 'manual'
-	): Promise<void> {
+	): Promise<string> {
 		const item =
 			source === 'manual'
 				? await this.cupboardItemRepository.findById(itemId)
@@ -241,18 +277,26 @@ export class PantryController {
 		if (!item || item.householdId !== actor.householdId) {
 			throw new Error('Item not found');
 		}
+		return item.itemName;
 	}
 
 	/**
 	 * Mark an item as "used up" (soft delete)
 	 */
 	async markItemUsedUp(actor: Actor, itemId: string, source: 'receipt' | 'manual'): Promise<void> {
-		await this.assertItemInHousehold(actor, itemId, source);
+		const itemName = await this.assertItemInHousehold(actor, itemId, source);
 		if (source === 'manual') {
 			await this.cupboardItemRepository.markDepleted(itemId);
 		} else {
 			await this.purchaseHistoryRepository.markDepleted(itemId);
 		}
+		await this.kitchenService.correct({
+			actor,
+			itemKey: itemName,
+			kind: 'CORRECTED_GONE',
+			cupboardItemId: source === 'manual' ? itemId : null,
+			at: new Date()
+		});
 	}
 
 	/**
@@ -263,7 +307,14 @@ export class PantryController {
 		itemId: string,
 		source: 'receipt' | 'manual'
 	): Promise<void> {
-		await this.assertItemInHousehold(actor, itemId, source);
+		const itemName = await this.assertItemInHousehold(actor, itemId, source);
+		await this.kitchenService.correct({
+			actor,
+			itemKey: itemName,
+			kind: 'CORRECTED_STILL_GOOD',
+			cupboardItemId: source === 'manual' ? itemId : null,
+			at: new Date()
+		});
 		if (source === 'manual') {
 			// For manual items, reset the added_date to now
 			await this.cupboardItemRepository.update(itemId, {
@@ -279,7 +330,12 @@ export class PantryController {
 	}
 
 	/**
-	 * Update item details (quantity, category, shelf life, notes)
+	 * Update item details (quantity, category, shelf life, notes).
+	 *
+	 * A new quantity is the household saying how much is left, so it is recorded in the kitchen
+	 * log as CORRECTED_QUANTITY: the item's total becomes that amount. A quantity that is cleared
+	 * or not a number says nothing about the amount and records nothing. The name cannot be
+	 * changed here, so an edit never moves the stock to another item.
 	 */
 	async updateItem(
 		actor: Actor,
@@ -287,28 +343,82 @@ export class PantryController {
 		source: 'receipt' | 'manual',
 		input: UpdateItemInput
 	): Promise<void> {
-		await this.assertItemInHousehold(actor, itemId, source);
 		if (source === 'manual') {
+			const item = await this.findManualItem(actor, itemId);
 			await this.cupboardItemRepository.update(itemId, {
 				quantity: input.quantity,
 				category: input.category,
 				shelfLifeDays: input.shelfLifeDays,
 				notes: input.notes
 			});
+			await this.recordQuantityChange(actor, {
+				itemName: item.itemName,
+				before: parseQuantity(item.quantity),
+				after: input.quantity,
+				unit: item.unit,
+				category: input.category ?? item.category,
+				cupboardItemId: item.id
+			});
 		} else {
+			const record = await this.purchaseHistoryRepository.findById(itemId);
+			if (!record || record.householdId !== actor.householdId) throw new Error('Item not found');
 			// For receipt-sourced items, use override fields
 			await this.purchaseHistoryRepository.update(itemId, {
 				userQuantityOverride: input.quantity,
 				userShelfLifeDays: input.shelfLifeDays
 			});
+			const detail = await this.receiptItemRepository.findLatestByNormalizedName(
+				actor.householdId,
+				record.itemName
+			);
+			await this.recordQuantityChange(actor, {
+				itemName: record.itemName,
+				before: parseQuantity(record.userQuantityOverride ?? record.avgQuantity),
+				after: input.quantity,
+				unit: detail?.unit ?? null,
+				category: detail?.category ?? null,
+				cupboardItemId: null
+			});
 		}
 	}
 
+	private async recordQuantityChange(
+		actor: Actor,
+		change: {
+			itemName: string;
+			before: number | null;
+			after: string | null | undefined;
+			unit: string | null;
+			category: string | null;
+			cupboardItemId: string | null;
+		}
+	): Promise<void> {
+		const quantity = parseQuantity(change.after);
+		if (quantity === null || quantity === change.before) return;
+		await this.kitchenService.correct({
+			actor,
+			itemKey: change.itemName,
+			kind: 'CORRECTED_QUANTITY',
+			quantity,
+			unit: change.unit,
+			category: change.category,
+			cupboardItemId: change.cupboardItemId,
+			at: new Date()
+		});
+	}
+
 	/**
-	 * Delete a manual cupboard item permanently
+	 * Delete a manual cupboard item permanently. The kitchen log takes back the purchase the row
+	 * recorded, or, for a row whose purchase is not linked in the log, records the item as gone.
 	 */
 	async deleteManualItem(actor: Actor, itemId: string): Promise<void> {
-		await this.assertItemInHousehold(actor, itemId, 'manual');
+		const item = await this.findManualItem(actor, itemId);
+		await this.kitchenService.withdrawCupboardItem({
+			actor,
+			cupboardItemId: item.id,
+			itemName: item.itemName,
+			at: new Date()
+		});
 		await this.cupboardItemRepository.delete(itemId);
 	}
 

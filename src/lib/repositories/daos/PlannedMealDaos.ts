@@ -1,5 +1,7 @@
 import type { MealTypeDao } from './MealLogDaos';
 
+export type PlannedMealStatusDao = 'PLANNED' | 'COOKED' | 'SKIPPED' | 'EATEN_OUT';
+
 export interface PlannedMealDao {
 	id: string;
 	userId: string;
@@ -9,6 +11,8 @@ export interface PlannedMealDao {
 	plannedDate: Date;
 	plannedCalories: number;
 	mealType: MealTypeDao;
+	status: PlannedMealStatusDao;
+	servings: number | null;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -21,6 +25,7 @@ export interface NewPlannedMealDao {
 	plannedDate: Date;
 	plannedCalories: number;
 	mealType: MealTypeDao;
+	servings?: number | null;
 }
 
 export interface UpdatePlannedMealDao {
@@ -29,6 +34,8 @@ export interface UpdatePlannedMealDao {
 	plannedDate?: Date;
 	plannedCalories?: number;
 	mealType?: MealTypeDao;
+	status?: PlannedMealStatusDao;
+	servings?: number | null;
 }
 
 export interface DailyPlannedCaloriesDao {

@@ -9,6 +9,8 @@ import {
 	MockShoppingListItemRepository
 } from '../../mocks/MockShoppingListRepositories';
 import type { Actor } from '../../../src/lib/models/household';
+import { createKitchen } from '../../fakes/kitchen';
+import type { InMemoryKitchenEventRepository } from '../../fakes/InMemoryKitchenEventRepository';
 
 describe('PantryController', () => {
 	let controller: PantryController;
@@ -18,6 +20,8 @@ describe('PantryController', () => {
 	let cupboardItemRepo: MockCupboardItemRepository;
 	let shoppingListRepo: MockShoppingListRepository;
 	let shoppingListItemRepo: MockShoppingListItemRepository;
+	let kitchenEvents: InMemoryKitchenEventRepository;
+	let kitchen: ReturnType<typeof createKitchen>;
 
 	const userId = 'user-123';
 	const otherUserId = 'user-456';
@@ -29,14 +33,16 @@ describe('PantryController', () => {
 		householdId,
 		memberId: 'member-1',
 		displayName: 'Test',
-		roles
+		roles,
+		timeZone: 'UTC'
 	};
 	const otherActor: Actor = {
 		userId: otherUserId,
 		householdId: otherHouseholdId,
 		memberId: 'member-2',
 		displayName: 'Other',
-		roles
+		roles,
+		timeZone: 'UTC'
 	};
 
 	// Helper to create a date N days ago
@@ -54,11 +60,14 @@ describe('PantryController', () => {
 		shoppingListRepo = new MockShoppingListRepository();
 		shoppingListItemRepo = new MockShoppingListItemRepository();
 		shoppingListRepo.setItemRepository(shoppingListItemRepo);
+		kitchen = createKitchen();
+		kitchenEvents = kitchen.events;
 		controller = new PantryController(
 			pantryService,
 			purchaseHistoryRepo,
 			receiptItemRepo,
 			cupboardItemRepo,
+			kitchen.service,
 			shoppingListRepo,
 			shoppingListItemRepo
 		);
@@ -1270,7 +1279,8 @@ describe('PantryController', () => {
 			householdId,
 			memberId: 'member-3',
 			displayName: 'Housemate',
-			roles
+			roles,
+			timeZone: 'UTC'
 		};
 
 		it('shows a housemate the cupboard item another member added', async () => {
@@ -1372,6 +1382,148 @@ describe('PantryController', () => {
 
 			const items = await shoppingListItemRepo.findByListId(list.id);
 			expect(items.map((item) => item.name)).toEqual(['flour']);
+		});
+	});
+
+	describe('kitchen log', () => {
+		it('records a manual cupboard add as a purchase', async () => {
+			await controller.addManualItem(actor, { itemName: 'Rice', quantity: '1000', unit: 'g' });
+
+			expect(kitchenEvents.all(householdId).map((e) => [e.kind, e.itemKey])).toEqual([
+				['BOUGHT', 'rice']
+			]);
+		});
+
+		it('records marking an item used up as gone', async () => {
+			const created = await cupboardItemRepo.create({ userId, householdId, itemName: 'Sugar' });
+
+			await controller.markItemUsedUp(actor, created.id, 'manual');
+
+			expect(kitchenEvents.all(householdId).map((e) => [e.kind, e.itemKey])).toEqual([
+				['CORRECTED_GONE', 'sugar']
+			]);
+		});
+
+		it('records confirming an item in stock as still good', async () => {
+			const created = await purchaseHistoryRepo.create({
+				userId,
+				householdId,
+				itemName: 'milk',
+				lastPurchased: daysAgo(9),
+				purchaseCount: 1
+			});
+
+			await controller.confirmItemInStock(actor, created.id, 'receipt');
+
+			expect(kitchenEvents.all(householdId).map((e) => [e.kind, e.itemKey])).toEqual([
+				['CORRECTED_STILL_GOOD', 'milk']
+			]);
+		});
+
+		/** Adds a cupboard item by hand and returns its id. */
+		async function addByHand(input: Parameters<PantryController['addManualItem']>[1]) {
+			const { id } = await controller.addManualItem(actor, input);
+			if (!id) throw new Error('The added item has no id');
+			return id;
+		}
+
+		function kinds() {
+			return kitchenEvents.all(householdId).map((e) => [e.kind, e.itemKey, e.quantity]);
+		}
+
+		it('records a new quantity on a cupboard item as the corrected amount', async () => {
+			const createdId = await addByHand({
+				itemName: 'Rice',
+				quantity: '1000',
+				unit: 'g'
+			});
+
+			await controller.updateItem(actor, createdId, 'manual', { quantity: '400' });
+
+			expect(kinds()).toEqual([
+				['BOUGHT', 'rice', 1000],
+				['CORRECTED_QUANTITY', 'rice', 400]
+			]);
+		});
+
+		it('records nothing when an edit keeps the quantity', async () => {
+			const createdId = await addByHand({
+				itemName: 'Rice',
+				quantity: '1000',
+				unit: 'g'
+			});
+
+			await controller.updateItem(actor, createdId, 'manual', {
+				quantity: '1000',
+				notes: 'top shelf'
+			});
+
+			expect(kinds()).toEqual([['BOUGHT', 'rice', 1000]]);
+		});
+
+		it('records nothing when an edit clears the quantity', async () => {
+			const createdId = await addByHand({
+				itemName: 'Rice',
+				quantity: '1000',
+				unit: 'g'
+			});
+
+			await controller.updateItem(actor, createdId, 'manual', { quantity: null });
+
+			expect(kinds()).toEqual([['BOUGHT', 'rice', 1000]]);
+		});
+
+		it('records a new quantity on a receipt item as the corrected amount', async () => {
+			const record = await purchaseHistoryRepo.create({
+				userId,
+				householdId,
+				itemName: 'milk',
+				lastPurchased: daysAgo(1),
+				purchaseCount: 2,
+				avgQuantity: '2'
+			});
+
+			await controller.updateItem(actor, record.id, 'receipt', { quantity: '1' });
+
+			expect(kinds()).toEqual([['CORRECTED_QUANTITY', 'milk', 1]]);
+		});
+
+		it('takes back the purchase of a deleted cupboard item', async () => {
+			const createdId = await addByHand({ itemName: 'Rice' });
+
+			await controller.deleteManualItem(actor, createdId);
+
+			expect(kinds()).toEqual([]);
+		});
+
+		it('takes back the quantity corrections of a deleted cupboard item', async () => {
+			const createdId = await addByHand({
+				itemName: 'Rice',
+				quantity: '1000',
+				unit: 'g'
+			});
+			await controller.updateItem(actor, createdId, 'manual', { quantity: '400' });
+
+			await controller.deleteManualItem(actor, createdId);
+
+			expect(kinds()).toEqual([]);
+		});
+
+		it('keeps the purchases of the same item bought elsewhere when a cupboard item is deleted', async () => {
+			await kitchen.service.recordBought(actor, [{ name: 'Rice' }], daysAgo(3), 'receipt');
+			const createdId = await addByHand({ itemName: 'rice' });
+
+			await controller.deleteManualItem(actor, createdId);
+
+			expect(kinds()).toEqual([['BOUGHT', 'rice', null]]);
+		});
+
+		it('records a deleted cupboard item whose purchase is not in the log as gone', async () => {
+			const created = await cupboardItemRepo.create({ userId, householdId, itemName: 'Lentils' });
+
+			await controller.deleteManualItem(actor, created.id);
+
+			expect(kinds()).toEqual([['CORRECTED_GONE', 'lentil', null]]);
 		});
 	});
 });
