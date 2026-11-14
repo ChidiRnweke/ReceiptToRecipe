@@ -272,13 +272,9 @@
 	{/if}
 
 	{#if view.toBuy > 0}
-		<form method="POST" action="?/addPlanToShopping">
-			<input type="hidden" name="start" value={view.stretch.start} />
-			<input type="hidden" name="end" value={view.stretch.end} />
-			<Button type="submit" variant="secondary" class="h-10 w-full">
-				{view.toBuy} thing{view.toBuy === 1 ? '' : 's'} to buy for these →
-			</Button>
-		</form>
+		<Button href={resolve('/shop')} variant="secondary" class="h-10 w-full">
+			{view.toBuy} thing{view.toBuy === 1 ? '' : 's'} to buy for these →
+		</Button>
 	{/if}
 </div>
 

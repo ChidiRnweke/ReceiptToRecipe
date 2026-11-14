@@ -249,18 +249,6 @@ export class PlanController {
 		return { message: PREP_DONE_MESSAGE };
 	}
 
-	/** Recipes planned in the stretch, for adding them to the shopping list. */
-	async recipeIdsInStretch(
-		actor: Actor,
-		now: Date,
-		timeZone: string,
-		range?: PlanRange
-	): Promise<string[]> {
-		const load = await this.load(actor, now, timeZone, range);
-		const data = await this.planService.getPlan(actor.householdId, load.stretch, now, timeZone);
-		return data.recipes.map((recipe) => recipe.id);
-	}
-
 	private fillMessage(filled: number, open: number): string {
 		if (filled > 0) return FILLED_MESSAGE;
 		return open > 0 ? NO_RECIPES_MESSAGE : NOTHING_TO_FILL_MESSAGE;

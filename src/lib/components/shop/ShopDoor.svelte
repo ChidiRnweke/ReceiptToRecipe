@@ -162,7 +162,7 @@
 				art="cal"
 				title="Nothing planned yet"
 				description="Plan a few dinners and the list writes itself."
-				action={{ label: 'Plan first', href: resolve('/planning') }}
+				action={{ label: 'Plan first', href: resolve('/plan') }}
 			/>
 		{:else if view.empty === 'nothing-needed'}
 			<EmptyState
