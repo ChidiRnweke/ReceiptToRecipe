@@ -4,7 +4,7 @@ import type { IRecipeIngredientRepository } from '$repositories';
 import type { IReceiptItemRepository } from '$repositories';
 import type { IRecipeRepository, IReceiptRepository } from '$repositories';
 import type { Actor } from '$lib/models/household';
-import type { ICulinaryIntelligence } from '$lib/services';
+import type { ICulinaryIntelligence, IKitchenService } from '$lib/services';
 import type {
 	ShoppingListDao,
 	ShoppingListItemDao,
@@ -37,7 +37,8 @@ export class ShoppingListController {
 		private recipeIngredientRepo: IRecipeIngredientRepository,
 		private receiptItemRepo: IReceiptItemRepository,
 		private recipeRepo: IRecipeRepository,
-		private receiptRepo: IReceiptRepository
+		private receiptRepo: IReceiptRepository,
+		private kitchenService: IKitchenService
 	) {}
 
 	/**
@@ -271,6 +272,19 @@ export class ShoppingListController {
 				});
 			}
 		}
+
+		// Ticking the list closes the shop: the kitchen now holds what was ticked.
+		await this.kitchenService.recordShopDone({
+			author: actor,
+			method: 'TICK',
+			items: checkedItems.map((item) => ({
+				name: item.name,
+				quantity: item.quantity ? parseFloat(item.quantity) : null,
+				unit: item.unit
+			})),
+			at: now,
+			details: { shoppingListId: listId }
+		});
 
 		// Clear checked items
 		await this.clearCheckedItems(actor, listId);

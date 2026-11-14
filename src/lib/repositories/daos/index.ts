@@ -86,5 +86,6 @@ export type {
 	PlannedMealDao,
 	NewPlannedMealDao,
 	UpdatePlannedMealDao,
-	DailyPlannedCaloriesDao
+	DailyPlannedCaloriesDao,
+	PlannedMealStatusDao
 } from './PlannedMealDaos';

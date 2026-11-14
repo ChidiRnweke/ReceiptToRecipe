@@ -92,7 +92,8 @@ export class PlannedMealRepository implements IPlannedMealRepository {
 				mealName: meal.mealName,
 				plannedDate: meal.plannedDate,
 				plannedCalories: meal.plannedCalories,
-				mealType: meal.mealType
+				mealType: meal.mealType,
+				servings: meal.servings ?? null
 			})
 			.returning();
 
@@ -126,6 +127,8 @@ export class PlannedMealRepository implements IPlannedMealRepository {
 			plannedDate: meal.plannedDate,
 			plannedCalories: meal.plannedCalories,
 			mealType: meal.mealType,
+			status: meal.status,
+			servings: meal.servings,
 			createdAt: meal.createdAt,
 			updatedAt: meal.updatedAt
 		};

@@ -18,6 +18,7 @@ import type {
 } from '$repositories';
 import type { ShoppingListController } from '$controllers';
 import type { IPantryService, PantryItem } from './interfaces/IPantryService';
+import type { IKitchenService } from './interfaces/IKitchenService';
 import { PantryController } from '$controllers';
 import { calculateListStatsPure } from './dashboardCalculations';
 import type { Actor } from '$lib/models/household';
@@ -32,7 +33,8 @@ export class DashboardService implements IDashboardService {
 		private purchaseHistoryRepo: IPurchaseHistoryRepository,
 		private receiptItemRepo: IReceiptItemRepository,
 		private shoppingListController: ShoppingListController,
-		private cupboardItemRepo: ICupboardItemRepository
+		private cupboardItemRepo: ICupboardItemRepository,
+		private kitchenService: IKitchenService
 	) {}
 
 	async getDashboardData(actor: Actor): Promise<DashboardData> {
@@ -63,7 +65,8 @@ export class DashboardService implements IDashboardService {
 			this.pantryService,
 			this.purchaseHistoryRepo,
 			this.receiptItemRepo,
-			this.cupboardItemRepo
+			this.cupboardItemRepo,
+			this.kitchenService
 		);
 		const pantry: PantryItem[] = await pantryController.getHouseholdPantry(actor);
 

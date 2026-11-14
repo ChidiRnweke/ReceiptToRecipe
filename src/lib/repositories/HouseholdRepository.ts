@@ -19,7 +19,8 @@ const HOUSEHOLD_SCOPED_TABLES = [
 	schema.shoppingLists,
 	schema.plannedMeals,
 	schema.purchaseHistory,
-	schema.cupboardItems
+	schema.cupboardItems,
+	schema.kitchenEvents
 ] as const;
 
 export class HouseholdRepository implements IHouseholdRepository {

@@ -66,6 +66,15 @@ export type {
 	HouseholdUser,
 	InvitePreview,
 	InviteStatus,
+	IKitchenService,
+	KitchenAuthor,
+	KitchenPicture,
+	BoughtItem,
+	RecordCookedInput,
+	CorrectionKind,
+	CorrectionInput,
+	RecordShopDoneInput,
+	IHabitService,
 	// OAuth interfaces
 	IOAuthService,
 	Auth0Tokens,
@@ -103,6 +112,8 @@ export { DashboardService } from './DashboardService';
 export { NutritionService } from './NutritionService';
 export { GlobalSearchService } from './GlobalSearchService';
 export { HouseholdService } from './HouseholdService';
+export { KitchenService } from './KitchenService';
+export { HabitService } from './HabitService';
 export {
 	AppriseNotificationService,
 	MockNotificationService,

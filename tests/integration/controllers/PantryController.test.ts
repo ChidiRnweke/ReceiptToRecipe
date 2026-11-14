@@ -9,6 +9,8 @@ import {
 	MockShoppingListItemRepository
 } from '../../mocks/MockShoppingListRepositories';
 import type { Actor } from '../../../src/lib/models/household';
+import { createKitchen } from '../../fakes/kitchen';
+import type { InMemoryKitchenEventRepository } from '../../fakes/InMemoryKitchenEventRepository';
 
 describe('PantryController', () => {
 	let controller: PantryController;
@@ -18,6 +20,7 @@ describe('PantryController', () => {
 	let cupboardItemRepo: MockCupboardItemRepository;
 	let shoppingListRepo: MockShoppingListRepository;
 	let shoppingListItemRepo: MockShoppingListItemRepository;
+	let kitchenEvents: InMemoryKitchenEventRepository;
 
 	const userId = 'user-123';
 	const otherUserId = 'user-456';
@@ -54,11 +57,14 @@ describe('PantryController', () => {
 		shoppingListRepo = new MockShoppingListRepository();
 		shoppingListItemRepo = new MockShoppingListItemRepository();
 		shoppingListRepo.setItemRepository(shoppingListItemRepo);
+		const kitchen = createKitchen();
+		kitchenEvents = kitchen.events;
 		controller = new PantryController(
 			pantryService,
 			purchaseHistoryRepo,
 			receiptItemRepo,
 			cupboardItemRepo,
+			kitchen.service,
 			shoppingListRepo,
 			shoppingListItemRepo
 		);
@@ -1372,6 +1378,42 @@ describe('PantryController', () => {
 
 			const items = await shoppingListItemRepo.findByListId(list.id);
 			expect(items.map((item) => item.name)).toEqual(['flour']);
+		});
+	});
+
+	describe('kitchen log', () => {
+		it('records a manual cupboard add as a purchase', async () => {
+			await controller.addManualItem(actor, { itemName: 'Rice', quantity: '1000', unit: 'g' });
+
+			expect(kitchenEvents.all(householdId).map((e) => [e.kind, e.itemKey])).toEqual([
+				['BOUGHT', 'rice']
+			]);
+		});
+
+		it('records marking an item used up as gone', async () => {
+			const created = await cupboardItemRepo.create({ userId, householdId, itemName: 'Sugar' });
+
+			await controller.markItemUsedUp(actor, created.id, 'manual');
+
+			expect(kitchenEvents.all(householdId).map((e) => [e.kind, e.itemKey])).toEqual([
+				['CORRECTED_GONE', 'sugar']
+			]);
+		});
+
+		it('records confirming an item in stock as still good', async () => {
+			const created = await purchaseHistoryRepo.create({
+				userId,
+				householdId,
+				itemName: 'milk',
+				lastPurchased: daysAgo(9),
+				purchaseCount: 1
+			});
+
+			await controller.confirmItemInStock(actor, created.id, 'receipt');
+
+			expect(kitchenEvents.all(householdId).map((e) => [e.kind, e.itemKey])).toEqual([
+				['CORRECTED_STILL_GOOD', 'milk']
+			]);
 		});
 	});
 });

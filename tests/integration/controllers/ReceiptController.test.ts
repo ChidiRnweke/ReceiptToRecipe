@@ -12,6 +12,9 @@ import {
 import { MockPurchaseHistoryRepository } from '../../mocks/MockPurchaseHistoryRepository';
 import { MockJobQueue } from '../../mocks/MockJobQueue';
 import type { Actor } from '../../../src/lib/models/household';
+import { createKitchen } from '../../fakes/kitchen';
+import type { InMemoryKitchenEventRepository } from '../../fakes/InMemoryKitchenEventRepository';
+import type { KitchenService } from '../../../src/lib/services/KitchenService';
 
 describe('ReceiptController', () => {
 	let controller: ReceiptController;
@@ -24,6 +27,8 @@ describe('ReceiptController', () => {
 	let receiptItemRepo: MockReceiptItemRepository;
 	let purchaseHistoryRepo: MockPurchaseHistoryRepository;
 	let jobQueue: MockJobQueue;
+	let kitchenService: KitchenService;
+	let kitchenEvents: InMemoryKitchenEventRepository;
 
 	const userId = 'user-123';
 	const otherUserId = 'user-456';
@@ -80,6 +85,9 @@ describe('ReceiptController', () => {
 		receiptItemRepo = new MockReceiptItemRepository();
 		purchaseHistoryRepo = new MockPurchaseHistoryRepository();
 		jobQueue = new MockJobQueue();
+		const kitchen = createKitchen();
+		kitchenService = kitchen.service;
+		kitchenEvents = kitchen.events;
 
 		// Wire the item repo into the receipt repo for findByIdWithItems / findByHouseholdIdWithItems
 		receiptRepo.setItemRepository(receiptItemRepo);
@@ -93,6 +101,7 @@ describe('ReceiptController', () => {
 			receiptRepo,
 			receiptItemRepo,
 			purchaseHistoryRepo,
+			kitchenService,
 			jobQueue
 		);
 	});
@@ -414,7 +423,8 @@ describe('ReceiptController', () => {
 				pantryService,
 				receiptRepo,
 				receiptItemRepo,
-				purchaseHistoryRepo
+				purchaseHistoryRepo,
+				kitchenService
 				// no jobQueue
 			);
 
@@ -1227,6 +1237,44 @@ describe('ReceiptController', () => {
 
 			const history = await purchaseHistoryRepo.findByHouseholdAndItem(householdId, 'Milk');
 			expect(history?.householdId).toBe(householdId);
+		});
+	});
+
+	describe('kitchen log', () => {
+		it('records each saved item as bought and closes the shop with the receipt', async () => {
+			productNormalizer.setMock('Whole Milk 1L', {
+				normalizedName: 'whole milk',
+				productGroup: 'Dairy',
+				category: 'dairy',
+				isFoodItem: true
+			});
+			receiptExtractor.setDefaultData({
+				items: [{ name: 'Whole Milk 1L', quantity: '2', price: '$5.99' }]
+			});
+
+			await controller.uploadReceipt({ actor, file: createFakeFile('receipt.jpg') });
+			await flushMicrotasks();
+
+			expect(kitchenEvents.all(householdId).map((e) => [e.kind, e.itemKey, e.method])).toEqual([
+				['BOUGHT', 'whole milk', null],
+				['SHOP_DONE', null, 'RECEIPT']
+			]);
+		});
+
+		it('forgets the purchases of a deleted receipt', async () => {
+			productNormalizer.setMock('Eggs', {
+				normalizedName: 'eggs',
+				productGroup: 'Dairy',
+				category: 'dairy',
+				isFoodItem: true
+			});
+			receiptExtractor.setDefaultData({ items: [{ name: 'Eggs', quantity: '6' }] });
+			const receipt = await controller.uploadReceipt({ actor, file: createFakeFile('r.jpg') });
+			await flushMicrotasks();
+
+			await controller.deleteReceipt(receipt.id, actor);
+
+			expect(kitchenEvents.all(householdId).map((e) => e.kind)).toEqual(['SHOP_DONE']);
 		});
 	});
 });

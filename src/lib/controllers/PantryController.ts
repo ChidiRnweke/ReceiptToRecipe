@@ -1,4 +1,4 @@
-import type { IPantryService, PantryItem } from '$services';
+import type { IKitchenService, IPantryService, PantryItem } from '$services';
 import type {
 	IPurchaseHistoryRepository,
 	IReceiptItemRepository,
@@ -38,6 +38,7 @@ export class PantryController {
 		private purchaseHistoryRepository: IPurchaseHistoryRepository,
 		private receiptItemRepository: IReceiptItemRepository,
 		private cupboardItemRepository: ICupboardItemRepository,
+		private kitchenService: IKitchenService,
 		private shoppingListRepository?: IShoppingListRepository,
 		private shoppingListItemRepository?: IShoppingListItemRepository
 	) {}
@@ -190,6 +191,23 @@ export class PantryController {
 			notes: input.notes
 		});
 
+		await this.kitchenService.recordBought(
+			actor,
+			[
+				{
+					name: created.itemName,
+					quantity: created.quantity ? parseFloat(created.quantity) : null,
+					unit: created.unit,
+					category: created.category,
+					expiresAt: created.shelfLifeDays
+						? new Date(created.addedDate.getTime() + created.shelfLifeDays * 24 * 60 * 60 * 1000)
+						: null
+				}
+			],
+			created.addedDate,
+			'manual'
+		);
+
 		const quantity = created.quantity ? parseFloat(created.quantity) : 1;
 		const overrides = {
 			userShelfLifeDays: created.shelfLifeDays ?? undefined,
@@ -226,13 +244,14 @@ export class PantryController {
 	}
 
 	/**
-	 * Throws unless the cupboard or purchase-history row belongs to the actor's household
+	 * Throws unless the cupboard or purchase-history row belongs to the actor's household.
+	 * Returns the item's name.
 	 */
 	private async assertItemInHousehold(
 		actor: Actor,
 		itemId: string,
 		source: 'receipt' | 'manual'
-	): Promise<void> {
+	): Promise<string> {
 		const item =
 			source === 'manual'
 				? await this.cupboardItemRepository.findById(itemId)
@@ -241,18 +260,25 @@ export class PantryController {
 		if (!item || item.householdId !== actor.householdId) {
 			throw new Error('Item not found');
 		}
+		return item.itemName;
 	}
 
 	/**
 	 * Mark an item as "used up" (soft delete)
 	 */
 	async markItemUsedUp(actor: Actor, itemId: string, source: 'receipt' | 'manual'): Promise<void> {
-		await this.assertItemInHousehold(actor, itemId, source);
+		const itemName = await this.assertItemInHousehold(actor, itemId, source);
 		if (source === 'manual') {
 			await this.cupboardItemRepository.markDepleted(itemId);
 		} else {
 			await this.purchaseHistoryRepository.markDepleted(itemId);
 		}
+		await this.kitchenService.correct({
+			actor,
+			itemKey: itemName,
+			kind: 'CORRECTED_GONE',
+			at: new Date()
+		});
 	}
 
 	/**
@@ -263,7 +289,13 @@ export class PantryController {
 		itemId: string,
 		source: 'receipt' | 'manual'
 	): Promise<void> {
-		await this.assertItemInHousehold(actor, itemId, source);
+		const itemName = await this.assertItemInHousehold(actor, itemId, source);
+		await this.kitchenService.correct({
+			actor,
+			itemKey: itemName,
+			kind: 'CORRECTED_STILL_GOOD',
+			at: new Date()
+		});
 		if (source === 'manual') {
 			// For manual items, reset the added_date to now
 			await this.cupboardItemRepository.update(itemId, {
