@@ -148,7 +148,8 @@ export function createShop() {
 			mealName: recipe.title,
 			plannedDate: atLocalHour(day, 12, 'UTC'),
 			plannedCalories: 600,
-			mealType
+			mealType,
+			isPrep: mealType === 'PREP'
 		});
 	}
 

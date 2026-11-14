@@ -72,9 +72,7 @@ describe('ShopController', () => {
 			const stew = await lea.addRecipe('Lentil stew', [
 				{ name: 'lentils', quantity: 400, unit: 'g' }
 			]);
-			const meal = await lea.planOn(stew, DAY0 + 3);
-			// The Plan door's prep flag on planned meals.
-			Object.assign((await lea.plannedMeals.findById(meal.id))!, { isPrep: true });
+			await lea.planOn(stew, DAY0 + 3, 'PREP');
 			const view = await lea.controller.getShop(shopper, NOW, TZ);
 			expect(view.groups.map((group) => group.when)).toEqual(['Tomorrow, prep']);
 		});
