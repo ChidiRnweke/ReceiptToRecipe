@@ -41,7 +41,7 @@ describe('the door bar', () => {
 	});
 
 	it('lights Plan on the planner', () => {
-		expect(activeDoor('/planning')).toBe('plan');
+		expect(activeDoor('/plan')).toBe('plan');
 	});
 
 	it('does not light Recipes for a path that only starts with the same letters', () => {
