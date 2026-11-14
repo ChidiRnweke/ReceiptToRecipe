@@ -5,6 +5,7 @@ import type { IReceiptItemRepository } from '$repositories';
 import type { IRecipeRepository, IReceiptRepository } from '$repositories';
 import type { Actor } from '$lib/models/household';
 import type { ICulinaryIntelligence, IKitchenService } from '$lib/services';
+import { dayNumber } from '$lib/services/kitchen';
 import type {
 	ShoppingListDao,
 	ShoppingListItemDao,
@@ -246,9 +247,9 @@ export class ShoppingListController {
 			);
 
 			if (existing) {
-				const daysSinceLastPurchase = Math.floor(
-					(now.getTime() - existing.lastPurchased.getTime()) / (1000 * 60 * 60 * 24)
-				);
+				// Days between shops count the household's local calendar days.
+				const daysSinceLastPurchase =
+					dayNumber(now, actor.timeZone) - dayNumber(existing.lastPurchased, actor.timeZone);
 				const newFrequency = existing.avgFrequencyDays
 					? Math.round((existing.avgFrequencyDays + daysSinceLastPurchase) / 2)
 					: daysSinceLastPurchase > 0

@@ -21,6 +21,7 @@ export interface IHouseholdRepository {
 		member: Omit<NewHouseholdMember, 'householdId'>
 	): Promise<HouseholdMember>;
 	updateMemberRoles(memberId: string, roles: MemberRoles): Promise<HouseholdMember>;
+	updateTimeZone(householdId: string, timeZone: string): Promise<Household>;
 	createInvite(invite: NewHouseholdInvite): Promise<HouseholdInvite>;
 	findInviteByToken(token: string): Promise<HouseholdInvite | null>;
 	markInviteUsed(inviteId: string, usedBy: string, usedAt: Date): Promise<HouseholdInvite>;

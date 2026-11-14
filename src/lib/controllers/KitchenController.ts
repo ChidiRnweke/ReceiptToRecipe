@@ -44,7 +44,8 @@ export class KitchenController {
 		private now: () => Date = () => new Date()
 	) {}
 
-	async getPicture(actor: Actor, timeZone: string): Promise<KitchenPicture> {
+	/** Local days use `timeZone` when given, else the household's time zone. */
+	async getPicture(actor: Actor, timeZone: string = actor.timeZone): Promise<KitchenPicture> {
 		return this.kitchenService.getPicture(actor.householdId, this.now(), timeZone);
 	}
 
@@ -65,7 +66,7 @@ export class KitchenController {
 		});
 	}
 
-	async getHabits(actor: Actor, timeZone: string): Promise<Habits> {
+	async getHabits(actor: Actor, timeZone: string = actor.timeZone): Promise<Habits> {
 		return this.habitService.getHabits(actor.householdId, this.now(), timeZone);
 	}
 

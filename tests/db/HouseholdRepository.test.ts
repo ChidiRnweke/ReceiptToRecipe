@@ -51,6 +51,21 @@ describe('HouseholdRepository (DB)', () => {
 		await teardownTestDb();
 	});
 
+	describe('time zone', () => {
+		it('gives a new household the Brussels time zone', async () => {
+			const household = await householdRepo.findHouseholdById(inviterHouseholdId);
+
+			expect(household?.timeZone).toBe('Europe/Brussels');
+		});
+
+		it('stores a changed time zone', async () => {
+			await householdRepo.updateTimeZone(inviterHouseholdId, 'America/New_York');
+
+			const household = await householdRepo.findHouseholdById(inviterHouseholdId);
+			expect(household?.timeZone).toBe('America/New_York');
+		});
+	});
+
 	describe('members', () => {
 		it('finds a created member by user id', async () => {
 			const member = await householdRepo.findMemberByUserId(joinerId);

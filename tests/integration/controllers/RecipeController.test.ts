@@ -36,7 +36,8 @@ describe('RecipeController', () => {
 		householdId: 'household-1',
 		memberId: 'member-1',
 		displayName: 'Test',
-		roles: { plans: true, shops: true, cooks: true }
+		roles: { plans: true, shops: true, cooks: true },
+		timeZone: 'UTC'
 	};
 	// Lives in the same household as `actor`
 	const housemate: Actor = {
@@ -44,7 +45,8 @@ describe('RecipeController', () => {
 		householdId: actor.householdId,
 		memberId: 'member-2',
 		displayName: 'Housemate',
-		roles: { plans: true, shops: true, cooks: true }
+		roles: { plans: true, shops: true, cooks: true },
+		timeZone: 'UTC'
 	};
 	// Lives in a different household
 	const otherActor: Actor = {
@@ -52,7 +54,8 @@ describe('RecipeController', () => {
 		householdId: 'household-2',
 		memberId: 'member-3',
 		displayName: 'Other',
-		roles: { plans: true, shops: true, cooks: true }
+		roles: { plans: true, shops: true, cooks: true },
+		timeZone: 'UTC'
 	};
 
 	beforeEach(() => {

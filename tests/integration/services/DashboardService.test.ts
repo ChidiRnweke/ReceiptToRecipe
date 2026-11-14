@@ -40,7 +40,8 @@ describe('DashboardService', () => {
 		householdId,
 		memberId: 'member-dash-1',
 		displayName: 'Dash',
-		roles: { plans: true, shops: true, cooks: true }
+		roles: { plans: true, shops: true, cooks: true },
+		timeZone: 'UTC'
 	};
 
 	beforeEach(() => {

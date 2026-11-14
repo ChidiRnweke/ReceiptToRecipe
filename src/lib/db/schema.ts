@@ -65,6 +65,7 @@ export const users = pgTable('users', {
 export const households = pgTable('households', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	name: text('name').notNull(),
+	timeZone: text('time_zone').notNull().default('Europe/Brussels'), // IANA zone for local days
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
@@ -388,6 +389,10 @@ export const kitchenEvents = pgTable(
 			onDelete: 'set null'
 		}),
 		recipeId: uuid('recipe_id').references(() => recipes.id, { onDelete: 'set null' }),
+		// The cupboard row an event was written for, so deleting the row can take back its purchase.
+		cupboardItemId: uuid('cupboard_item_id').references(() => cupboardItems.id, {
+			onDelete: 'set null'
+		}),
 		method: shopMethodEnum('method'),
 		payload: jsonb('payload'),
 		createdAt: timestamp('created_at').notNull().defaultNow()

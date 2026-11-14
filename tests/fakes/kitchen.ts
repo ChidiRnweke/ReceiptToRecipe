@@ -1,5 +1,6 @@
 import { KitchenService } from '../../src/lib/services/KitchenService';
 import { MockRecipeIngredientRepository, MockRecipeRepository } from '../mocks';
+import { InMemoryHouseholdRepository } from './InMemoryHouseholdRepository';
 import { InMemoryKitchenEventRepository } from './InMemoryKitchenEventRepository';
 import { InMemoryMealLogRepository } from './InMemoryMealLogRepository';
 import { InMemoryPlannedMealRepository } from './InMemoryPlannedMealRepository';
@@ -11,6 +12,14 @@ export function createKitchen() {
 	const ingredients = new MockRecipeIngredientRepository();
 	const plannedMeals = new InMemoryPlannedMealRepository();
 	const mealLogs = new InMemoryMealLogRepository();
-	const service = new KitchenService(events, recipes, ingredients, plannedMeals, mealLogs);
-	return { service, events, recipes, ingredients, plannedMeals, mealLogs };
+	const households = new InMemoryHouseholdRepository();
+	const service = new KitchenService(
+		events,
+		recipes,
+		ingredients,
+		plannedMeals,
+		mealLogs,
+		households
+	);
+	return { service, events, recipes, ingredients, plannedMeals, mealLogs, households };
 }

@@ -87,6 +87,24 @@ describe('kitchen events migration backfill', () => {
 		expect(rows[0]?.expires_at).toBe('2027-03-30 10:00:00');
 	});
 
+	it('links a replayed cupboard purchase to its cupboard row', async () => {
+		const result = await pool.query(
+			`SELECT e.cupboard_item_id = c.id AS linked FROM kitchen_events e
+			 JOIN cupboard_items c ON c.item_name = 'Flour'
+			 WHERE e.kind = 'BOUGHT' AND e.item_key = 'flour'`
+		);
+
+		expect(result.rows.map((row) => row.linked)).toEqual([true]);
+	});
+
+	it('gives an existing household the Brussels time zone', async () => {
+		const result = await pool.query(`SELECT time_zone FROM households WHERE id = $1`, [
+			householdId
+		]);
+
+		expect(result.rows[0]?.time_zone).toBe('Europe/Brussels');
+	});
+
 	it('replays a depleted cupboard item as gone', async () => {
 		const rows = await events(`kind = 'CORRECTED_GONE'`);
 

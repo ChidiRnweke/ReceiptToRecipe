@@ -120,6 +120,16 @@ export class HouseholdRepository implements IHouseholdRepository {
 		return this.toMember(updated);
 	}
 
+	async updateTimeZone(householdId: string, timeZone: string): Promise<Household> {
+		const [updated] = await this.db
+			.update(schema.households)
+			.set({ timeZone, updatedAt: new Date() })
+			.where(eq(schema.households.id, householdId))
+			.returning();
+		if (!updated) throw new Error('Household not found');
+		return this.toHousehold(updated);
+	}
+
 	async createInvite(invite: NewHouseholdInvite): Promise<HouseholdInvite> {
 		const [created] = await this.db
 			.insert(schema.householdInvites)
@@ -183,6 +193,7 @@ export class HouseholdRepository implements IHouseholdRepository {
 		return {
 			id: row.id,
 			name: row.name,
+			timeZone: row.timeZone,
 			createdAt: row.createdAt,
 			updatedAt: row.updatedAt
 		};

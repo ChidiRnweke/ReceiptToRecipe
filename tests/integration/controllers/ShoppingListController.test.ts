@@ -37,14 +37,16 @@ describe('ShoppingListController', () => {
 		householdId,
 		memberId: 'member-1',
 		displayName: 'Test',
-		roles: { plans: true, shops: true, cooks: true }
+		roles: { plans: true, shops: true, cooks: true },
+		timeZone: 'UTC'
 	};
 	const housemate: Actor = {
 		userId: 'user-789',
 		householdId,
 		memberId: 'member-2',
 		displayName: 'Housemate',
-		roles: { plans: true, shops: true, cooks: true }
+		roles: { plans: true, shops: true, cooks: true },
+		timeZone: 'UTC'
 	};
 
 	async function createRecipe(owner: { userId: string; householdId: string } = actor) {

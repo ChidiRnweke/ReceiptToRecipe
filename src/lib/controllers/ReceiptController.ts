@@ -7,6 +7,7 @@ import type {
 	IPantryService,
 	IKitchenService
 } from '$services';
+import { dayNumber } from '$lib/services/kitchen';
 import type {
 	IReceiptRepository,
 	IReceiptItemRepository,
@@ -63,9 +64,11 @@ export class ReceiptController {
 		// Background OCR processing - pass the original buffer so OCR
 		// doesn't need to fetch from an internal/proxy URL
 		const task = () =>
-			this.processReceiptOcr(receipt.id, actor.householdId, buffer, mimeType).catch((error) => {
-				console.error(`OCR processing failed for receipt ${receipt.id}:`, error);
-			});
+			this.processReceiptOcr(receipt.id, actor.householdId, actor.timeZone, buffer, mimeType).catch(
+				(error) => {
+					console.error(`OCR processing failed for receipt ${receipt.id}:`, error);
+				}
+			);
 
 		if (this.jobQueue) {
 			this.jobQueue.add({ name: `receipt:${receipt.id}`, run: task }).catch((error) => {
@@ -87,6 +90,8 @@ export class ReceiptController {
 	private async processReceiptOcr(
 		receiptId: string,
 		householdId: string,
+		/** The household's time zone: the job counts days between purchases in it. */
+		timeZone: string,
 		imageBuffer: Buffer,
 		mimeType: string
 	): Promise<void> {
@@ -110,7 +115,13 @@ export class ReceiptController {
 			console.log('OCR Data:', ocrData);
 
 			// Normalize and save items
-			const savedItems = await this.saveReceiptData(receiptId, householdId, ocrData, purchaseDate);
+			const savedItems = await this.saveReceiptData(
+				receiptId,
+				householdId,
+				ocrData,
+				purchaseDate,
+				timeZone
+			);
 
 			// Update status to DONE
 			await this.receiptRepository.update(receiptId, {
@@ -172,7 +183,8 @@ export class ReceiptController {
 		receiptId: string,
 		householdId: string,
 		ocrData: RawReceiptData,
-		purchaseDate: Date
+		purchaseDate: Date,
+		timeZone: string
 	): Promise<ReceiptItemDao[]> {
 		const receipt = await this.receiptRepository.findById(receiptId);
 
@@ -219,7 +231,8 @@ export class ReceiptController {
 		await this.updatePurchaseHistory(
 			{ userId: receipt.userId, householdId },
 			foodItems,
-			purchaseDate
+			purchaseDate,
+			timeZone
 		);
 		return saved;
 	}
@@ -230,7 +243,8 @@ export class ReceiptController {
 	private async updatePurchaseHistory(
 		author: { userId: string; householdId: string },
 		items: NewReceiptItemDao[],
-		purchaseDate: Date
+		purchaseDate: Date,
+		timeZone: string
 	): Promise<void> {
 		for (const item of items) {
 			const existing = await this.purchaseHistoryRepository.findByHouseholdAndItem(
@@ -246,10 +260,9 @@ export class ReceiptController {
 			);
 
 			if (existing) {
-				// Calculate new average frequency
-				const daysSinceLastPurchase = Math.floor(
-					(purchaseDate.getTime() - existing.lastPurchased.getTime()) / (1000 * 60 * 60 * 24)
-				);
+				// Calculate new average frequency, in the household's local calendar days
+				const daysSinceLastPurchase =
+					dayNumber(purchaseDate, timeZone) - dayNumber(existing.lastPurchased, timeZone);
 
 				// Only update frequency if the purchase is newer than the last one
 				let newFrequency = existing.avgFrequencyDays;

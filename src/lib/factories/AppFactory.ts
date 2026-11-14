@@ -362,7 +362,8 @@ export class AppFactory {
 				AppFactory.getRecipeRepository(),
 				AppFactory.getRecipeIngredientRepository(),
 				AppFactory.getPlannedMealRepository(),
-				AppFactory.getMealLogRepository()
+				AppFactory.getMealLogRepository(),
+				AppFactory.getHouseholdRepository()
 			);
 		}
 		return kitchenService;

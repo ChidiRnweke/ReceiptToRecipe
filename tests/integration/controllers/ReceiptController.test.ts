@@ -41,21 +41,24 @@ describe('ReceiptController', () => {
 		householdId,
 		memberId: 'member-1',
 		displayName: 'Test',
-		roles
+		roles,
+		timeZone: 'UTC'
 	};
 	const housemateActor: Actor = {
 		userId: 'user-789',
 		householdId,
 		memberId: 'member-3',
 		displayName: 'Housemate',
-		roles
+		roles,
+		timeZone: 'UTC'
 	};
 	const otherActor: Actor = {
 		userId: otherUserId,
 		householdId: otherHouseholdId,
 		memberId: 'member-2',
 		displayName: 'Other',
-		roles
+		roles,
+		timeZone: 'UTC'
 	};
 
 	/**
