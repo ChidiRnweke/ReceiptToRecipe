@@ -1,5 +1,5 @@
 export { normalizeItemKey, singularize, canonicalItemKey } from './itemKey';
-export { dayNumber, weekdayOf, weekdayOfDay, localHour } from './days';
+export { dayNumber, weekdayOf, weekdayOfDay, localHour, atLocalHour } from './days';
 export { convertUnit, toBaseUnit, type BaseUnit } from './units';
 export {
 	projectKitchen,
