@@ -1,1 +1,7 @@
-export { learnHabits, applyHabitAnswers, HABIT_WINDOW_DAYS, type HabitInput } from './learnHabits';
+export {
+	learnHabits,
+	applyHabitAnswers,
+	HABIT_WINDOW_DAYS,
+	DEFAULT_SHOP_HOUR,
+	type HabitInput
+} from './learnHabits';

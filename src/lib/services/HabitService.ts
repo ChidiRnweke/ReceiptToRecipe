@@ -6,15 +6,11 @@ import type {
 	IPurchaseHistoryRepository
 } from '$repositories';
 import type { Actor } from '$lib/models/household';
-import {
-	normalizeItemKey,
-	type HabitAnswer,
-	type HabitAnswerValue,
-	type Habits,
-	type ShopMethod
-} from '$lib/models/kitchen';
+import type { HabitAnswer, HabitAnswerValue, Habits, ShopMethod } from '$lib/models/kitchen';
 import type { IHabitService } from './interfaces/IHabitService';
-import { applyHabitAnswers, HABIT_WINDOW_DAYS, learnHabits } from './habits';
+import { applyHabitAnswers, HABIT_WINDOW_DAYS, learnHabits, type HabitInput } from './habits';
+import { normalizeItemKey } from './kitchen';
+import { householdTimeZone } from './householdTimeZone';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -27,7 +23,8 @@ export class HabitService implements IHabitService {
 		private householdRepository: IHouseholdRepository
 	) {}
 
-	async getHabits(householdId: string, now: Date, timeZone: string): Promise<Habits> {
+	async getHabits(householdId: string, now: Date, timeZone?: string): Promise<Habits> {
+		const zone = timeZone ?? (await householdTimeZone(this.householdRepository, householdId));
 		const since = new Date(now.getTime() - HABIT_WINDOW_DAYS * DAY_MS);
 		const until = new Date(now.getTime() + HABIT_WINDOW_DAYS * DAY_MS);
 		const [events, plannedMeals, history, members, answers] = await Promise.all([
@@ -39,9 +36,9 @@ export class HabitService implements IHabitService {
 		]);
 		const memberIdByUser = new Map(members.map((member) => [member.userId, member.id]));
 
-		const habits = learnHabits({
+		const input: HabitInput = {
 			now,
-			timeZone,
+			timeZone: zone,
 			shops: events
 				.filter((event) => event.kind === 'SHOP_DONE' && event.method !== null)
 				.map((event) => ({
@@ -63,8 +60,8 @@ export class HabitService implements IHabitService {
 				itemKey: normalizeItemKey(record.itemName),
 				purchaseCount: record.purchaseCount
 			}))
-		});
-		return applyHabitAnswers(habits, answers);
+		};
+		return applyHabitAnswers(learnHabits(input), answers, input);
 	}
 
 	async answerOffer(

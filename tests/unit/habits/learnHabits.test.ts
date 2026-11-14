@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applyHabitAnswers, learnHabits, type HabitInput } from '../../../src/lib/services/habits';
-import type { ShopMethod } from '../../../src/lib/models/kitchen';
+import type { HabitAnswer, ShopMethod } from '../../../src/lib/models/kitchen';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Sunday 15 November 2026, 21:00 UTC. The Monday of this week is 9 November. */
@@ -178,6 +178,15 @@ describe('learnHabits', () => {
 
 			expect(habits.usuals).toEqual(['yogurt']);
 		});
+
+		it('counts shops of the singular and the plural name as one item', () => {
+			const bought = ['eggs', 'egg', 'Eggs'].map((itemKey, weeksAgo) => ({
+				itemKey,
+				occurredAt: on(3, weeksAgo)
+			}));
+
+			expect(learnHabits(input({ bought })).usuals).toEqual(['egg']);
+		});
 	});
 });
 
@@ -195,5 +204,87 @@ describe('applyHabitAnswers', () => {
 		]);
 
 		expect(answered.shopDays.map((day) => day.weekday)).toEqual([0]);
+	});
+});
+
+function answer(key: string, value: HabitAnswer['answer']): HabitAnswer {
+	return { householdId: 'h', key, answer: value, answeredBy: null, answeredAt: NOW };
+}
+
+describe('applyHabitAnswers with accepted offers', () => {
+	/** Thursdays at 18:00 two and three weeks ago, then a missed week: one Thursday in the window. */
+	const missedWeek = input({
+		shops: [{ occurredAt: on(3, 7, 18), memberId: 'sam', method: 'RECEIPT' as const }]
+	});
+
+	it('keeps an accepted shop day that the recent history alone no longer shows', () => {
+		const answered = applyHabitAnswers(
+			learnHabits(missedWeek),
+			[answer('shopDay:3', 'accepted')],
+			missedWeek
+		);
+
+		expect(answered.shopDays.map((day) => day.weekday)).toEqual([3]);
+	});
+
+	it('takes the hour of a kept shop day from its shops in the window', () => {
+		const answered = applyHabitAnswers(
+			learnHabits(missedWeek),
+			[answer('shopDay:3', 'accepted')],
+			missedWeek
+		);
+
+		expect(answered.shopDays[0]?.hour).toBe(18);
+	});
+
+	it('gives a kept shop day with no shop in the window the default hour', () => {
+		const answered = applyHabitAnswers(learnHabits(input({})), [answer('shopDay:5', 'accepted')]);
+
+		expect(answered.shopDays).toEqual([{ weekday: 5, hour: 10, confirmed: true }]);
+	});
+
+	it('marks a learned shop day the household accepted as confirmed', () => {
+		const habits = learnHabits(input({ shops: shopsOn([3, 0, 3, 0, 3, 0]) }));
+		const answered = applyHabitAnswers(habits, [answer('shopDay:3', 'accepted')]);
+
+		expect(answered.shopDays.map((day) => [day.weekday, day.confirmed])).toEqual([
+			[0, false],
+			[3, true]
+		]);
+	});
+
+	it('leaves a learned shop day nobody answered unconfirmed', () => {
+		const habits = learnHabits(input({ shops: shopsOn([3, 0, 3, 0, 3, 0]) }));
+
+		expect(habits.shopDays.every((day) => !day.confirmed)).toBe(true);
+	});
+
+	it('keeps an accepted planning evening the history no longer shows', () => {
+		const answered = applyHabitAnswers(learnHabits(input({})), [
+			answer('planningEvening:6', 'accepted')
+		]);
+
+		expect(answered.planningEvenings).toEqual([6]);
+	});
+
+	it('fills the prep day from an accepted offer when none was learned', () => {
+		const answered = applyHabitAnswers(learnHabits(input({})), [answer('prepDay:6', 'accepted')]);
+
+		expect(answered.prepDay).toBe(6);
+	});
+
+	it('keeps an accepted usual under its item key', () => {
+		const answered = applyHabitAnswers(learnHabits(input({})), [
+			answer('usual:Bananas', 'accepted')
+		]);
+
+		expect(answered.usuals).toEqual(['banana']);
+	});
+
+	it('drops a usual the household declined under another spelling', () => {
+		const habits = learnHabits(input({ purchaseCounts: [{ itemKey: 'eggs', purchaseCount: 5 }] }));
+		const answered = applyHabitAnswers(habits, [answer('usual:egg', 'declined')]);
+
+		expect(answered.usuals).toEqual([]);
 	});
 });
