@@ -10,4 +10,10 @@ export interface IKitchenEventRepository {
 	listByKind(householdId: string, kind: KitchenEventKind, since?: Date): Promise<KitchenEvent[]>;
 	/** Forgets purchases whose receipt lines were deleted. */
 	deleteByReceiptItemIds(householdId: string, receiptItemIds: string[]): Promise<void>;
+	/** Deletes the events of the given kinds written for a cupboard row; returns what it deleted. */
+	deleteByCupboardItem(
+		householdId: string,
+		cupboardItemId: string,
+		kinds: KitchenEventKind[]
+	): Promise<KitchenEvent[]>;
 }

@@ -32,6 +32,7 @@ function event(overrides: Partial<KitchenEvent> & Pick<KitchenEvent, 'kind'>): K
 		receiptItemId: null,
 		plannedMealId: null,
 		recipeId: null,
+		cupboardItemId: null,
 		method: null,
 		payload: null,
 		createdAt: at(0),

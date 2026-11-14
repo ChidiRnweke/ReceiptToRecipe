@@ -22,6 +22,7 @@ export class InMemoryKitchenEventRepository implements IKitchenEventRepository {
 			receiptItemId: event.receiptItemId ?? null,
 			plannedMealId: event.plannedMealId ?? null,
 			recipeId: event.recipeId ?? null,
+			cupboardItemId: event.cupboardItemId ?? null,
 			method: event.method ?? null,
 			payload: event.payload ?? null,
 			createdAt: new Date()
@@ -62,6 +63,20 @@ export class InMemoryKitchenEventRepository implements IKitchenEventRepository {
 				!event.receiptItemId ||
 				!receiptItemIds.includes(event.receiptItemId)
 		);
+	}
+
+	async deleteByCupboardItem(
+		householdId: string,
+		cupboardItemId: string,
+		kinds: KitchenEventKind[]
+	): Promise<KitchenEvent[]> {
+		const matches = (event: KitchenEvent) =>
+			event.householdId === householdId &&
+			event.cupboardItemId === cupboardItemId &&
+			kinds.includes(event.kind);
+		const deleted = this.events.filter(matches);
+		this.events = this.events.filter((event) => !matches(event));
+		return deleted;
 	}
 
 	// Test helpers

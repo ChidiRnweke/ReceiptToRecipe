@@ -18,6 +18,8 @@ export interface BoughtItem {
 	category?: string | null;
 	expiresAt?: Date | null;
 	receiptItemId?: string | null;
+	/** The cupboard row the purchase was entered as, so deleting the row can take it back. */
+	cupboardItemId?: string | null;
 }
 
 export interface RecordCookedInput {
@@ -40,6 +42,17 @@ export interface CorrectionInput {
 	/** The new total, for CORRECTED_QUANTITY. */
 	quantity?: number | null;
 	unit?: string | null;
+	/** Product category, so a corrected lot gets the shelf life of its category. */
+	category?: string | null;
+	/** The cupboard row the correction was made on. */
+	cupboardItemId?: string | null;
+	at: Date;
+}
+
+export interface WithdrawCupboardItemInput {
+	actor: Actor;
+	cupboardItemId: string;
+	itemName: string;
 	at: Date;
 }
 
@@ -53,8 +66,11 @@ export interface RecordShopDoneInput {
 }
 
 export interface IKitchenService {
-	/** What the household's kitchen holds now, projected from its events. */
-	getPicture(householdId: string, now: Date, timeZone: string): Promise<KitchenPicture>;
+	/**
+	 * What the household's kitchen holds now, projected from its events. Local days use
+	 * `timeZone`, or the household's stored time zone when it is left out.
+	 */
+	getPicture(householdId: string, now: Date, timeZone?: string): Promise<KitchenPicture>;
 	recordCooked(input: RecordCookedInput): Promise<KitchenEvent>;
 	correct(input: CorrectionInput): Promise<KitchenEvent>;
 	/** One BOUGHT per item, then the SHOP_DONE that closes the shop. */
@@ -68,4 +84,11 @@ export interface IKitchenService {
 	): Promise<KitchenEvent[]>;
 	/** Removes the purchases of deleted receipt lines. */
 	forgetReceiptItems(householdId: string, receiptItemIds: string[]): Promise<void>;
+	/**
+	 * A cupboard row was deleted. When the log holds the row's purchase, the row was a mistake:
+	 * its BOUGHT and CORRECTED_QUANTITY events are removed, as if it was never entered. When
+	 * the purchase is not in the log (the row came from before the log, unlinked), the item
+	 * is recorded as gone instead. Returns the events appended (none, or the CORRECTED_GONE).
+	 */
+	withdrawCupboardItem(input: WithdrawCupboardItemInput): Promise<KitchenEvent[]>;
 }

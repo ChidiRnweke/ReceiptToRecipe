@@ -3,6 +3,7 @@ import { setupTestDb, cleanTables, teardownTestDb, createHouseholdFor } from '..
 import { UserRepository } from '../../src/lib/repositories/UserRepositories';
 import { KitchenEventRepository } from '../../src/lib/repositories/KitchenEventRepository';
 import { HabitAnswerRepository } from '../../src/lib/repositories/HabitAnswerRepository';
+import { CupboardItemRepository } from '../../src/lib/repositories/CupboardItemRepository';
 
 describe('KitchenEventRepository (DB)', () => {
 	let repo: KitchenEventRepository;
@@ -10,12 +11,14 @@ describe('KitchenEventRepository (DB)', () => {
 	let userId: string;
 	let householdId: string;
 	let otherHouseholdId: string;
+	let cupboard: CupboardItemRepository;
 
 	beforeEach(async () => {
 		const db = await setupTestDb();
 		await cleanTables();
 		repo = new KitchenEventRepository(db);
 		answers = new HabitAnswerRepository(db);
+		cupboard = new CupboardItemRepository(db);
 		const users = new UserRepository(db);
 		userId = (
 			await users.create({
@@ -106,5 +109,45 @@ describe('KitchenEventRepository (DB)', () => {
 		const stored = await answers.listByHousehold(householdId);
 
 		expect(stored.map((answer) => answer.answer)).toEqual(['declined']);
+	});
+
+	describe('events of a cupboard row', () => {
+		async function cupboardRow() {
+			return (await cupboard.create({ userId, householdId, itemName: 'Rice' })).id;
+		}
+
+		it('deletes the events of the given kinds written for the row', async () => {
+			const rowId = await cupboardRow();
+			await repo.append({ ...boughtAt('2026-11-10T10:00:00Z', 'rice'), cupboardItemId: rowId });
+
+			await repo.deleteByCupboardItem(householdId, rowId, ['BOUGHT']);
+
+			expect(await repo.listByHouseholdSince(householdId, new Date(0))).toEqual([]);
+		});
+
+		it('keeps the events of other kinds written for the row', async () => {
+			const rowId = await cupboardRow();
+			await repo.append({
+				householdId,
+				occurredAt: new Date('2026-11-11T10:00:00Z'),
+				kind: 'CORRECTED_GONE',
+				itemKey: 'rice',
+				cupboardItemId: rowId
+			});
+
+			await repo.deleteByCupboardItem(householdId, rowId, ['BOUGHT']);
+
+			const left = await repo.listByHouseholdSince(householdId, new Date(0));
+			expect(left.map((event) => event.kind)).toEqual(['CORRECTED_GONE']);
+		});
+
+		it('keeps purchases of the same item that no cupboard row wrote', async () => {
+			const rowId = await cupboardRow();
+			await repo.append(boughtAt('2026-11-10T10:00:00Z', 'rice'));
+
+			await repo.deleteByCupboardItem(householdId, rowId, ['BOUGHT']);
+
+			expect(await repo.listByHouseholdSince(householdId, new Date(0))).toHaveLength(1);
+		});
 	});
 });

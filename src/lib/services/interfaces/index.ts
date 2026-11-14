@@ -68,6 +68,7 @@ export type {
 	RecordCookedInput,
 	CorrectionKind,
 	CorrectionInput,
-	RecordShopDoneInput
+	RecordShopDoneInput,
+	WithdrawCupboardItemInput
 } from './IKitchenService';
 export type { IHabitService } from './IHabitService';

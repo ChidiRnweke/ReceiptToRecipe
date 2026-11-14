@@ -74,6 +74,7 @@ export type {
 	CorrectionKind,
 	CorrectionInput,
 	RecordShopDoneInput,
+	WithdrawCupboardItemInput,
 	IHabitService,
 	// OAuth interfaces
 	IOAuthService,

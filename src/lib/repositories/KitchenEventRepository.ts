@@ -65,6 +65,25 @@ export class KitchenEventRepository implements IKitchenEventRepository {
 			);
 	}
 
+	async deleteByCupboardItem(
+		householdId: string,
+		cupboardItemId: string,
+		kinds: KitchenEventKind[]
+	): Promise<KitchenEvent[]> {
+		if (kinds.length === 0) return [];
+		const rows = await this.db
+			.delete(schema.kitchenEvents)
+			.where(
+				and(
+					eq(schema.kitchenEvents.householdId, householdId),
+					eq(schema.kitchenEvents.cupboardItemId, cupboardItemId),
+					inArray(schema.kitchenEvents.kind, kinds)
+				)
+			)
+			.returning();
+		return rows.map((row) => this.toEvent(row));
+	}
+
 	private toRow(event: NewKitchenEvent): typeof schema.kitchenEvents.$inferInsert {
 		return {
 			householdId: event.householdId,
@@ -80,6 +99,7 @@ export class KitchenEventRepository implements IKitchenEventRepository {
 			receiptItemId: event.receiptItemId ?? null,
 			plannedMealId: event.plannedMealId ?? null,
 			recipeId: event.recipeId ?? null,
+			cupboardItemId: event.cupboardItemId ?? null,
 			method: event.method ?? null,
 			payload: event.payload ?? null
 		};
@@ -101,6 +121,7 @@ export class KitchenEventRepository implements IKitchenEventRepository {
 			receiptItemId: row.receiptItemId,
 			plannedMealId: row.plannedMealId,
 			recipeId: row.recipeId,
+			cupboardItemId: row.cupboardItemId,
 			method: row.method,
 			payload: (row.payload as KitchenEventPayload | null) ?? null,
 			createdAt: row.createdAt
