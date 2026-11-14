@@ -61,6 +61,19 @@
 		}
 	});
 
+	// Server rules read the day and hour in the browser's time zone, sent as the `tz` cookie.
+	$effect(() => {
+		if (!browser) return;
+		const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+		const current = document.cookie
+			.split('; ')
+			.find((cookie) => cookie.startsWith('tz='))
+			?.slice(3);
+		if (zone && (current ? decodeURIComponent(current) : null) !== zone) {
+			document.cookie = `tz=${encodeURIComponent(zone)}; path=/; max-age=31536000; samesite=lax`;
+		}
+	});
+
 	// Client-side revalidation: When the app loads from a service worker cache,
 	// the HTML might be stale (e.g., showing logged-out state).
 	// We force a check of the session dependency to ensure UI is accurate.
