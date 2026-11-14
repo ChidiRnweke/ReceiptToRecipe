@@ -14,6 +14,7 @@ import {
 } from '$lib/models/plan';
 import { greetingFor } from '../doors/greeting';
 import { dayNumber, localHour, weekdayOfDay } from '../kitchen/days';
+import { normalizeItemKey } from '../kitchen/itemKey';
 import { firstName } from '../tonight/copy';
 import { fillLabel, PLAN_QUESTION, stretchLine } from './copy';
 import { findGaps } from './gaps';
@@ -55,7 +56,7 @@ export interface PlanViewInput {
 	recipes: PlanRecipeInfo[];
 	/** Recipes the household has cooked before. */
 	cookedRecipeIds: string[];
-	/** Ingredient keys each planned meal still needs, by planned meal id. */
+	/** Ingredients each planned meal still needs, as the recipe names them, by planned meal id. */
 	missingByMeal: Map<string, string[]>;
 	discover: PlanIdea[];
 }
@@ -180,7 +181,9 @@ export function buildPlanView(input: PlanViewInput): PlanView {
 	const inStretch = live.filter(
 		(meal) => dayOf(meal) >= stretch.start && dayOf(meal) < stretch.end
 	);
-	const toBuy = new Set(inStretch.flatMap((meal) => input.missingByMeal.get(meal.id) ?? []));
+	const toBuy = new Set(
+		inStretch.flatMap((meal) => (input.missingByMeal.get(meal.id) ?? []).map(normalizeItemKey))
+	);
 	const plansFromToday = input.meals.some((meal) => dayOf(meal) >= today);
 
 	return {

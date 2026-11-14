@@ -8,7 +8,8 @@ import type {
 } from '$services';
 import type { PlannedMealDao, RecipeWithIngredientsDao } from '$repositories';
 import type { Actor } from '$lib/models/household';
-import { normalizeItemKey, type Habits, type MealNeed } from '$lib/models/kitchen';
+import type { Habits, MealNeed } from '$lib/models/kitchen';
+import { normalizeItemKey } from '$lib/services/kitchen/itemKey';
 import {
 	STRIP_DAYS,
 	type PlanIdea,
@@ -37,7 +38,7 @@ import {
 	stretchLine,
 	twoDaysMessage
 } from '$lib/services/plan';
-import { sameItem, splitSteps, withPerishable } from '$lib/services/tonight';
+import { sameItem, spokenName, splitSteps, withPerishable } from '$lib/services/tonight';
 
 /** "Something new" shows this many recipes. */
 const DISCOVER_COUNT = 5;
@@ -293,7 +294,10 @@ export class PlanController {
 		};
 	}
 
-	/** Item keys each planned meal will be short of, walking the meals in order. */
+	/**
+	 * Ingredients each planned meal will be short of, walking the meals in order, named as the
+	 * meal's recipe names them.
+	 */
 	private forecast(
 		load: PlanLoad,
 		meals: PlannedMealDao[],
@@ -325,6 +329,9 @@ export class PlanController {
 					})
 			});
 		}
+		const ingredientsOf = (mealId: string) =>
+			recipes.find((r) => r.id === meals.find((meal) => meal.id === mealId)?.recipeId)
+				?.ingredients ?? [];
 		for (const result of forecastMeals(
 			load.picture.lots,
 			needs,
@@ -333,7 +340,7 @@ export class PlanController {
 		)) {
 			missing.set(
 				result.meal.id,
-				result.missing.map((item) => item.itemKey)
+				result.missing.map((item) => spokenName(item.itemKey, ingredientsOf(result.meal.id)))
 			);
 		}
 		return missing;

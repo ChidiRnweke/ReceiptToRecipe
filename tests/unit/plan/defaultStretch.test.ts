@@ -17,8 +17,8 @@ const HABITS: Habits = {
 const TUESDAY_AND_SATURDAY: Habits = {
 	...HABITS,
 	shopDays: [
-		{ weekday: 1, hour: 10 },
-		{ weekday: 5, hour: 10 }
+		{ weekday: 1, hour: 10, confirmed: false },
+		{ weekday: 5, hour: 10, confirmed: false }
 	]
 };
 

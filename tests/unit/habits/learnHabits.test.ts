@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { applyHabitAnswers, learnHabits, type HabitInput } from '../../../src/lib/services/habits';
+import {
+	applyHabitAnswers,
+	DEFAULT_PLANNING_HOUR,
+	learnHabits,
+	type HabitInput
+} from '../../../src/lib/services/habits';
 import type { HabitAnswer, ShopMethod } from '../../../src/lib/models/kitchen';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -275,7 +280,15 @@ describe('applyHabitAnswers with accepted offers', () => {
 			answer('planningEvening:6', 'accepted')
 		]);
 
-		expect(answered.planningEvenings).toEqual([6]);
+		expect(answered.planningEvenings.map((evening) => evening.weekday)).toEqual([6]);
+	});
+
+	it('gives an accepted planning evening with no plans in the window the default hour', () => {
+		const answered = applyHabitAnswers(learnHabits(input({})), [
+			answer('planningEvening:6', 'accepted')
+		]);
+
+		expect(answered.planningEvenings[0]?.hour).toBe(DEFAULT_PLANNING_HOUR);
 	});
 
 	it('fills the prep day from an accepted offer when none was learned', () => {

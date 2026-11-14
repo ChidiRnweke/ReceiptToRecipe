@@ -47,7 +47,7 @@ import {
 	WEEK_DAYS
 } from './plan';
 import { rankIdeas } from './tonight/rankIdeas';
-import { sameItem } from './tonight/items';
+import { sameItem, spokenName } from './tonight/items';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Meals cooked in this window count as "cooked before" for ideas. */
@@ -600,8 +600,8 @@ export class PlanService implements IPlanService {
 			imageUrl: source.imageUrl,
 			minutes: minutesOf(source),
 			calories: source.estimatedCalories,
-			uses: idea.uses,
-			missing: idea.missing,
+			uses: idea.uses.map((key) => spokenName(key, source.ingredients)),
+			missing: idea.missing.map((key) => spokenName(key, source.ingredients)),
 			isNew: !cooked.has(source.id),
 			keepsWell: keepsWell(source)
 		};

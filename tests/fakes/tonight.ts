@@ -59,7 +59,14 @@ export function createTonight(recipeMaker: RecipeMaker | null = null) {
 		taste,
 		recipeMaker
 	);
-	const kitchen = new KitchenService(events, recipes, ingredients, plannedMeals, mealLogs, households);
+	const kitchen = new KitchenService(
+		events,
+		recipes,
+		ingredients,
+		plannedMeals,
+		mealLogs,
+		households
+	);
 	const habits = new HabitService(
 		events,
 		new InMemoryHabitAnswerRepository(),

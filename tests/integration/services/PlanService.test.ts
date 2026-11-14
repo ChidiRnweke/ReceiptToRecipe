@@ -153,6 +153,12 @@ describe('PlanService', () => {
 			const ideas = await p.plan.discoverNew(actor, 5, ctx);
 			expect(ideas.map((idea) => idea.recipeId)).toEqual([curry.id]);
 		});
+
+		it('names a missing ingredient as the recipe writes it', async () => {
+			await p.planOn(tacos, DAY0 + 2);
+			const [idea] = await p.plan.discoverNew(actor, 5, { ...ctx, tracksKitchen: true });
+			expect(idea.missing).toEqual(['chickpeas']);
+		});
 	});
 });
 
