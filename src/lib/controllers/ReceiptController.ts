@@ -26,6 +26,11 @@ export interface UploadReceiptInput {
 
 export type ReceiptWithItems = ReceiptWithItemsDao;
 
+/** The storage key of an uploaded receipt photo: its folder and file name, e.g. `receipts/x.jpg`. */
+function storageKeyOf(imageUrl: string): string {
+	return imageUrl.split('/').slice(-2).join('/');
+}
+
 export class ReceiptController {
 	constructor(
 		private storageService: IStorageService,
@@ -63,8 +68,41 @@ export class ReceiptController {
 
 		// Background OCR processing - pass the original buffer so OCR
 		// doesn't need to fetch from an internal/proxy URL
+		this.queueOcr(receipt, actor.timeZone, buffer, mimeType);
+
+		return receipt;
+	}
+
+	/**
+	 * Queues OCR again for receipts a restart left QUEUED or PROCESSING. The job queue lives in
+	 * memory, so a restart loses its jobs; the photo is read back from storage. A receipt whose
+	 * photo cannot be read is marked FAILED, so its page stops waiting. Returns the receipt ids
+	 * that were queued again.
+	 */
+	async resumePendingReceipts(): Promise<string[]> {
+		const pending = await this.receiptRepository.findByStatuses(['QUEUED', 'PROCESSING']);
+		const resumed: string[] = [];
+		for (const receipt of pending) {
+			const file = await this.storageService
+				.read(storageKeyOf(receipt.imageUrl))
+				.catch((error: unknown) => error as Error);
+			if (file instanceof Error) {
+				await this.receiptRepository.update(receipt.id, {
+					status: 'FAILED',
+					errorMessage: `The photo could not be read again after a restart: ${file.message}`
+				});
+				continue;
+			}
+			const timeZone = await this.kitchenService.timeZoneOf(receipt.householdId);
+			this.queueOcr(receipt, timeZone, file.data, file.contentType);
+			resumed.push(receipt.id);
+		}
+		return resumed;
+	}
+
+	private queueOcr(receipt: ReceiptDao, timeZone: string, buffer: Buffer, mimeType: string): void {
 		const task = () =>
-			this.processReceiptOcr(receipt.id, actor.householdId, actor.timeZone, buffer, mimeType).catch(
+			this.processReceiptOcr(receipt.id, receipt.householdId, timeZone, buffer, mimeType).catch(
 				(error) => {
 					console.error(`OCR processing failed for receipt ${receipt.id}:`, error);
 				}
@@ -78,8 +116,6 @@ export class ReceiptController {
 		} else {
 			task();
 		}
-
-		return receipt;
 	}
 
 	/**
@@ -368,8 +404,7 @@ export class ReceiptController {
 
 		// Delete from storage
 		if (receipt.imageUrl) {
-			const key = receipt.imageUrl.split('/').slice(-2).join('/');
-			await this.storageService.delete(key).catch(console.error);
+			await this.storageService.delete(storageKeyOf(receipt.imageUrl)).catch(console.error);
 		}
 
 		// Delete from database (cascade will handle receipt_items)

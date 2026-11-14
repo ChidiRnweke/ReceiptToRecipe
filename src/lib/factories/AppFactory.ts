@@ -19,6 +19,8 @@ import {
 	KitchenService,
 	HabitService,
 	PlanService,
+	ShopService,
+	type IShopService,
 	type IStorageService,
 	type INormalizationService,
 	type IReceiptExtractor,
@@ -47,7 +49,8 @@ import {
 	KitchenController,
 	TonightController,
 	FrontDoorController,
-	PlanController
+	PlanController,
+	ShopController
 } from '$controllers';
 import {
 	UserRepository,
@@ -117,6 +120,7 @@ let kitchenController: KitchenController | null = null;
 let tonightController: TonightController | null = null;
 let frontDoorController: FrontDoorController | null = null;
 let planController: PlanController | null = null;
+let shopController: ShopController | null = null;
 
 // Domain Services - Using IOAuthService as the auth interface
 let oauthService: IOAuthService | null = null;
@@ -127,6 +131,7 @@ let householdService: IHouseholdService | null = null;
 let kitchenService: IKitchenService | null = null;
 let habitService: IHabitService | null = null;
 let planService: IPlanService | null = null;
+let shopService: IShopService | null = null;
 
 // Repositories
 let userRepository: IUserRepository | null = null;
@@ -408,6 +413,17 @@ export class AppFactory {
 		return planController;
 	}
 
+	static getShopService(): IShopService {
+		if (!shopService) {
+			shopService = new ShopService(
+				AppFactory.getShoppingListRepository(),
+				AppFactory.getShoppingListItemRepository(),
+				AppFactory.getPurchaseHistoryRepository()
+			);
+		}
+		return shopService;
+	}
+
 	// Controllers
 	static getRecipeController(): RecipeController {
 		if (!recipeController) {
@@ -506,7 +522,8 @@ export class AppFactory {
 				AppFactory.getPlanService(),
 				AppFactory.getKitchenService(),
 				AppFactory.getHabitService(),
-				AppFactory.getNutritionService()
+				AppFactory.getNutritionService(),
+				AppFactory.getHouseholdService()
 			);
 		}
 		return tonightController;
@@ -522,6 +539,19 @@ export class AppFactory {
 			);
 		}
 		return frontDoorController;
+	}
+
+	static getShopController(): ShopController {
+		if (!shopController) {
+			shopController = new ShopController(
+				AppFactory.getShopService(),
+				AppFactory.getPlanService(),
+				AppFactory.getKitchenService(),
+				AppFactory.getHabitService(),
+				AppFactory.getReceiptController()
+			);
+		}
+		return shopController;
 	}
 
 	// Repositories
@@ -714,6 +744,7 @@ export class AppFactory {
 		kitchenService = null;
 		habitService = null;
 		planService = null;
+		shopService = null;
 
 		// Controllers
 		recipeController = null;
@@ -725,6 +756,7 @@ export class AppFactory {
 		kitchenController = null;
 		tonightController = null;
 		frontDoorController = null;
+		shopController = null;
 
 		// Repositories
 		userRepository = null;

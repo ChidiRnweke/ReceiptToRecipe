@@ -14,6 +14,8 @@ export interface ShopBefore {
 	weekday: Weekday;
 	/** 0 for today, 1 for tomorrow. */
 	daysAway: number;
+	/** First name of the member who shops, when it is not the viewer; null otherwise. */
+	shopper: string | null;
 }
 
 /** Doors the front door can open. Recipes is never chosen automatically. */

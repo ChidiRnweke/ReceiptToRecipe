@@ -43,6 +43,10 @@ export class KitchenService implements IKitchenService {
 		private householdRepository: Pick<IHouseholdRepository, 'findHouseholdById'>
 	) {}
 
+	timeZoneOf(householdId: string): Promise<string> {
+		return householdTimeZone(this.householdRepository, householdId);
+	}
+
 	async getPicture(householdId: string, now: Date, zone?: string): Promise<KitchenPicture> {
 		const timeZone = zone ?? (await householdTimeZone(this.householdRepository, householdId));
 		const since = new Date(now.getTime() - PICTURE_LOOKBACK_DAYS * DAY_MS);

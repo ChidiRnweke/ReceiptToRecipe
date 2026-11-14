@@ -3,6 +3,11 @@ export interface UploadResult {
 	url: string;
 }
 
+export interface StoredFile {
+	data: Buffer;
+	contentType: string;
+}
+
 export interface IStorageService {
 	/**
 	 * Upload a file to storage
@@ -31,6 +36,12 @@ export interface IStorageService {
 	 * @param key - Storage key/path
 	 */
 	getPublicUrl(key: string): string;
+
+	/**
+	 * Read a stored file back, e.g. to run OCR again after a restart
+	 * @param key - Storage key/path
+	 */
+	read(key: string): Promise<StoredFile>;
 
 	/**
 	 * Delete a file from storage

@@ -38,3 +38,4 @@ export {
 	type BatchPrepInput,
 	type DiscoverResult
 } from './PlanController';
+export { ShopController, type ReceiptIntake } from './ShopController';

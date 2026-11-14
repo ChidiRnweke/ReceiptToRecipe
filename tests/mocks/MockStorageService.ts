@@ -1,5 +1,6 @@
 import type {
 	IStorageService,
+	StoredFile,
 	UploadResult
 } from '../../src/lib/services/interfaces/IStorageService';
 
@@ -9,6 +10,7 @@ import type {
  */
 export class MockStorageService implements IStorageService {
 	private storage = new Map<string, Buffer>();
+	private types = new Map<string, string>();
 
 	async upload(
 		file: Buffer | Uint8Array,
@@ -18,6 +20,7 @@ export class MockStorageService implements IStorageService {
 	): Promise<UploadResult> {
 		const key = folder ? `${folder}/${filename}` : filename;
 		this.storage.set(key, Buffer.from(file));
+		this.types.set(key, contentType);
 		return {
 			key,
 			url: `mock://${key}`
@@ -30,6 +33,12 @@ export class MockStorageService implements IStorageService {
 
 	getPublicUrl(key: string): string {
 		return `mock://${key}`;
+	}
+
+	async read(key: string): Promise<StoredFile> {
+		const data = this.storage.get(key);
+		if (!data) throw new Error(`No file at ${key}`);
+		return { data, contentType: this.types.get(key) ?? 'application/octet-stream' };
 	}
 
 	async delete(key: string): Promise<void> {

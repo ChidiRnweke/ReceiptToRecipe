@@ -49,6 +49,33 @@ describe('TonightController', () => {
 			expect(view.meal?.missing).toEqual(['mushrooms']);
 		});
 
+		it('names the member who shops when the viewer does not', async () => {
+			const viewer = { ...actor, roles: { ...actor.roles, shops: false } };
+			await t.households.createMember({
+				householdId: actor.householdId,
+				userId: actor.userId,
+				displayName: 'Noor',
+				roles: { shops: false }
+			});
+			await t.households.createMember({
+				householdId: actor.householdId,
+				userId: 'user-2',
+				displayName: 'Sam Haddad'
+			});
+			for (const day of [-14, -7]) {
+				await t.kitchen.recordShopDone({
+					author: actor,
+					method: 'TICK',
+					items: [],
+					at: at(day, 10)
+				});
+			}
+			await t.events.append(bought('rice', 1000, 'g', -1, { category: 'pantry' }));
+			await t.planOn(risotto, DAY0);
+			const view = await t.controller.getTonight(viewer, at(0, 8), TZ);
+			expect(view.meal?.shopBefore?.shopper).toBe('Sam');
+		});
+
 		it('names the perishable the dinner uses before it goes', async () => {
 			await t.events.append(bought('spinach', 250, 'g', 0, { expiresInDays: 1 }));
 			await t.planOn(saag, DAY0);

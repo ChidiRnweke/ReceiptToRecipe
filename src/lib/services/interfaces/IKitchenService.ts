@@ -75,6 +75,8 @@ export interface IKitchenService {
 	 * `timeZone`, or the household's stored time zone when it is left out.
 	 */
 	getPicture(householdId: string, now: Date, timeZone?: string): Promise<KitchenPicture>;
+	/** The household's stored IANA time zone, for background work that has no actor. */
+	timeZoneOf(householdId: string): Promise<string>;
 	recordCooked(input: RecordCookedInput): Promise<KitchenEvent>;
 	correct(input: CorrectionInput): Promise<KitchenEvent>;
 	/** One BOUGHT per item, then the SHOP_DONE that closes the shop. */

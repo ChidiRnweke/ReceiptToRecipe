@@ -1,4 +1,4 @@
-export type { IStorageService, UploadResult } from './IStorageService';
+export type { IStorageService, StoredFile, UploadResult } from './IStorageService';
 export * from './IReceiptExtractor';
 export type {
 	ICulinaryIntelligence,
@@ -80,3 +80,4 @@ export type {
 	BatchPrepResult,
 	IdeaOptions
 } from './IPlanService';
+export type { IShopService, NewManualItem } from './IShopService';
