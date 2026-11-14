@@ -9,7 +9,7 @@ function meal(
 	mealType: MealType,
 	status: PlannedMealSlot['status'] = 'PLANNED'
 ): PlannedMealSlot {
-	return { id, recipeId: 'recipe-1', plannedDate: at(day, 12), mealType, status };
+	return { id, recipeId: 'recipe-1', plannedDate: at(day, 12), mealType, status, isPrep: false };
 }
 
 describe('tonightTarget', () => {

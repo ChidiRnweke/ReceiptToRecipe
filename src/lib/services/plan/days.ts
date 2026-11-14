@@ -1,4 +1,4 @@
-import type { Habits, ShopDay } from '$lib/models/kitchen';
+import type { ShopDay } from '$lib/models/kitchen';
 import type { PlannedMealSlot } from '$lib/models/plan';
 import { dayNumber, localHour, weekdayOfDay } from '../kitchen/days';
 
@@ -49,42 +49,4 @@ export function nextFreeDinnerDay(
 		if (!hasDinner(meals, day, timeZone)) return day;
 	}
 	return null;
-}
-
-/** Local days of the stretch the household plans next: `start` inclusive, `end` exclusive. */
-export interface Stretch {
-	start: number;
-	end: number;
-}
-
-/**
- * The days the next planning session covers. It starts today, or tomorrow from 19:00. A shop
- * within two days moves the start to the shop day. A household that plans a week ahead plans
- * seven days; others plan four, or up to the next shop when they have learned shop days.
- */
-export function comingStretch(habits: Habits, now: Date, timeZone: string): Stretch {
-	const today = dayNumber(now, timeZone);
-	let start = localHour(now, timeZone) >= 19 ? today + 1 : today;
-	const shops = upcomingShops(habits.shopDays, now, timeZone).filter((s) => s.hoursAway > -1);
-	if (shops[0] && shops[0].day - start <= 2) start = Math.max(start, shops[0].day);
-	const week = habits.planningStyle === 'week';
-	let end = start + (week ? 7 : 4);
-	if (!week) {
-		const next = shops.find((s) => s.day > start);
-		if (next) end = Math.min(start + 7, next.day);
-	}
-	return { start, end };
-}
-
-/** Days in the stretch without a dinner. */
-export function unplannedDinners(
-	meals: PlannedMealSlot[],
-	stretch: Stretch,
-	timeZone: string
-): number[] {
-	const out: number[] = [];
-	for (let day = stretch.start; day < stretch.end; day++) {
-		if (!hasDinner(meals, day, timeZone)) out.push(day);
-	}
-	return out;
 }

@@ -155,9 +155,16 @@ export interface ShopDay {
 	confirmed: boolean;
 }
 
+/** An evening the household usually plans, and the hour it usually starts. */
+export interface PlanningEvening {
+	weekday: Weekday;
+	/** Usual local hour the planning starts, 17–23. */
+	hour: number;
+}
+
 export interface Habits {
 	shopDays: ShopDay[];
-	planningEvenings: Weekday[];
+	planningEvenings: PlanningEvening[];
 	/** Keyed by household member id. */
 	doneHabitByMember: Record<string, ShopMethod>;
 	prepDay: Weekday | null;

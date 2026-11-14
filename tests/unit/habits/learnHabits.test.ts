@@ -99,7 +99,18 @@ describe('learnHabits', () => {
 				plannedDate: on(4, weeksAgo, 19)
 			}));
 
-			expect(learnHabits(input({ plannedMeals })).planningEvenings).toEqual([2]);
+			const weekdays = learnHabits(input({ plannedMeals })).planningEvenings.map((e) => e.weekday);
+			expect(weekdays).toEqual([2]);
+		});
+
+		it('learns the usual hour as the median planning hour of that evening, rounded down', () => {
+			const plannedMeals = [
+				{ createdAt: on(2, 1, 20.5), plannedDate: on(4, 1, 19) },
+				{ createdAt: on(2, 2, 21.75), plannedDate: on(4, 2, 19) },
+				{ createdAt: on(2, 3, 21.25), plannedDate: on(4, 3, 19) }
+			];
+
+			expect(learnHabits(input({ plannedMeals })).planningEvenings[0]?.hour).toBe(21);
 		});
 
 		it('does not count daytime planning', () => {

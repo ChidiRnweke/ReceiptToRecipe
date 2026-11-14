@@ -3,8 +3,9 @@ import type { MemberRoles } from '$lib/models/household';
 import type { PlannedMealSlot } from '$lib/models/plan';
 import type { DoorChoice } from '$lib/models/tonight';
 import { dayNumber, localHour, weekdayOfDay } from '../kitchen/days';
-import { EVENING_FROM_HOUR } from '../habits/learnHabits';
-import { comingStretch, unplannedDinners, upcomingShops } from '../plan/days';
+import { upcomingShops } from '../plan/days';
+import { findGaps } from '../plan/gaps';
+import { defaultStretch } from '../plan/stretch';
 
 /** Plan opens for the prep between these local hours on the prep day. */
 export const PREP_FROM_HOUR = 8;
@@ -32,12 +33,11 @@ export interface DoorContext {
 const HOUR_MS = 60 * 60 * 1000;
 
 /**
- * The door that fits the moment, checked in this order: the prep day before 17:00 with meals
+ * The door that fits the moment, checked in this order: the prep day before 17:00 with prep
  * still to cook opens Plan; a shop that closed in the last three hours opens Use it up for a
  * household that tracks its kitchen; the shopper's learned shop time within 90 minutes opens
- * Shop; a learned planning evening with dinners still open opens Plan; anything else opens
- * Tonight. The household has no prep flag on meals yet, so on the prep day every meal planned
- * for today that is not cooked counts as prep.
+ * Shop; a learned planning evening, from its usual hour, with dinners still open opens Plan;
+ * anything else opens Tonight.
  */
 export function chooseDoor(ctx: DoorContext): DoorChoice {
 	const { now, timeZone, habits } = ctx;
@@ -46,7 +46,8 @@ export function chooseDoor(ctx: DoorContext): DoorChoice {
 	const hour = localHour(now, timeZone);
 
 	const prepLeft = ctx.meals.some(
-		(meal) => meal.status === 'PLANNED' && dayNumber(meal.plannedDate, timeZone) === today
+		(meal) =>
+			meal.isPrep && meal.status === 'PLANNED' && dayNumber(meal.plannedDate, timeZone) === today
 	);
 	if (habits.prepDay === weekday && prepLeft && hour >= PREP_FROM_HOUR && hour < PREP_UNTIL_HOUR) {
 		return { door: 'plan', reason: 'It is the usual prep day and nothing is cooked yet.' };
@@ -69,8 +70,10 @@ export function chooseDoor(ctx: DoorContext): DoorChoice {
 		return { door: 'shop', reason: 'The household usually shops around now.' };
 	}
 
-	if (habits.planningEvenings.includes(weekday) && hour >= EVENING_FROM_HOUR) {
-		const open = unplannedDinners(ctx.meals, comingStretch(habits, now, timeZone), timeZone);
+	const evening = habits.planningEvenings.find((e) => e.weekday === weekday);
+	if (evening && hour >= evening.hour) {
+		const stretch = defaultStretch(habits, now, timeZone);
+		const open = findGaps(ctx.meals, stretch, ['DINNER'], timeZone);
 		if (open.length > 0) {
 			return { door: 'plan', reason: 'This is a usual planning evening and dinners are open.' };
 		}
