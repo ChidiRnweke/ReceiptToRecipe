@@ -3,8 +3,7 @@ import type { IPurchaseHistoryRepository } from '../../src/lib/repositories/inte
 import type {
 	PurchaseHistoryDao,
 	NewPurchaseHistoryDao,
-	UpdatePurchaseHistoryDao,
-	SmartSuggestionDao
+	UpdatePurchaseHistoryDao
 } from '../../src/lib/repositories/daos';
 
 export class MockPurchaseHistoryRepository implements IPurchaseHistoryRepository {
@@ -70,36 +69,6 @@ export class MockPurchaseHistoryRepository implements IPurchaseHistoryRepository
 
 	async delete(id: string): Promise<void> {
 		this.store.delete(id);
-	}
-
-	async findSuggestions(householdId: string, limit: number): Promise<SmartSuggestionDao[]> {
-		const history = await this.findByHouseholdId(householdId);
-		const now = new Date();
-		const suggestions: SmartSuggestionDao[] = [];
-
-		for (const item of history) {
-			const daysSinceLastPurchase = Math.floor(
-				(now.getTime() - item.lastPurchased.getTime()) / (1000 * 60 * 60 * 24)
-			);
-
-			if (item.avgFrequencyDays && daysSinceLastPurchase >= item.avgFrequencyDays * 0.8) {
-				suggestions.push({
-					itemName: item.itemName,
-					lastPurchased: item.lastPurchased,
-					avgFrequencyDays: item.avgFrequencyDays,
-					daysSinceLastPurchase,
-					suggestedQuantity: item.avgQuantity
-				});
-			}
-		}
-
-		return suggestions
-			.sort((a, b) => {
-				const aOverdue = a.avgFrequencyDays ? a.daysSinceLastPurchase / a.avgFrequencyDays : 0;
-				const bOverdue = b.avgFrequencyDays ? b.daysSinceLastPurchase / b.avgFrequencyDays : 0;
-				return bOverdue - aOverdue;
-			})
-			.slice(0, limit);
 	}
 
 	async markDepleted(id: string): Promise<PurchaseHistoryDao> {

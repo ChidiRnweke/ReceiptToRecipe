@@ -2,12 +2,7 @@ import { eq, and, desc, sql } from 'drizzle-orm';
 import type { Database } from '$db/client';
 import * as schema from '$db/schema';
 import type { IPurchaseHistoryRepository } from './interfaces';
-import type {
-	PurchaseHistoryDao,
-	NewPurchaseHistoryDao,
-	UpdatePurchaseHistoryDao,
-	SmartSuggestionDao
-} from './daos';
+import type { PurchaseHistoryDao, NewPurchaseHistoryDao, UpdatePurchaseHistoryDao } from './daos';
 
 export class PurchaseHistoryRepository implements IPurchaseHistoryRepository {
 	constructor(private db: Database) {}
@@ -71,42 +66,6 @@ export class PurchaseHistoryRepository implements IPurchaseHistoryRepository {
 
 	async delete(id: string): Promise<void> {
 		await this.db.delete(schema.purchaseHistory).where(eq(schema.purchaseHistory.id, id));
-	}
-
-	async findSuggestions(householdId: string, limit: number): Promise<SmartSuggestionDao[]> {
-		const now = new Date();
-
-		const history = await this.db.query.purchaseHistory.findMany({
-			where: eq(schema.purchaseHistory.householdId, householdId),
-			orderBy: [desc(schema.purchaseHistory.lastPurchased)]
-		});
-
-		const suggestions: SmartSuggestionDao[] = [];
-
-		for (const item of history) {
-			const daysSinceLastPurchase = Math.floor(
-				(now.getTime() - item.lastPurchased.getTime()) / (1000 * 60 * 60 * 24)
-			);
-
-			if (item.avgFrequencyDays && daysSinceLastPurchase >= item.avgFrequencyDays * 0.8) {
-				suggestions.push({
-					itemName: item.itemName,
-					lastPurchased: item.lastPurchased,
-					avgFrequencyDays: item.avgFrequencyDays,
-					daysSinceLastPurchase,
-					suggestedQuantity: item.avgQuantity
-				});
-			}
-		}
-
-		// Sort by how "overdue" the item is
-		return suggestions
-			.sort((a, b) => {
-				const aOverdue = a.avgFrequencyDays ? a.daysSinceLastPurchase / a.avgFrequencyDays : 0;
-				const bOverdue = b.avgFrequencyDays ? b.daysSinceLastPurchase / b.avgFrequencyDays : 0;
-				return bOverdue - aOverdue;
-			})
-			.slice(0, limit);
 	}
 
 	async markDepleted(id: string): Promise<PurchaseHistoryDao> {

@@ -47,8 +47,7 @@ export type {
 export type {
 	PurchaseHistoryDao,
 	NewPurchaseHistoryDao,
-	UpdatePurchaseHistoryDao,
-	SmartSuggestionDao
+	UpdatePurchaseHistoryDao
 } from './PurchaseHistoryDaos';
 
 export type {

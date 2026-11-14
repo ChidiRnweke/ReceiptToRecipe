@@ -162,60 +162,6 @@ describe('ShoppingListRepository (DB)', () => {
 		});
 	});
 
-	describe('findByHouseholdId', () => {
-		it('should return all lists for a user sorted by createdAt descending', async () => {
-			await listRepo.create({ userId, householdId, name: 'First' });
-			await listRepo.create({ userId, householdId, name: 'Second' });
-			await listRepo.create({ userId, householdId, name: 'Third' });
-
-			const lists = await listRepo.findByHouseholdId(householdId);
-
-			expect(lists.length).toBe(3);
-			// Most recent first
-			expect(lists[0].name).toBe('Third');
-			expect(lists[1].name).toBe('Second');
-			expect(lists[2].name).toBe('First');
-		});
-
-		it('should return empty array for user with no lists', async () => {
-			const lists = await listRepo.findByHouseholdId(householdId);
-			expect(lists).toEqual([]);
-		});
-
-		it('should not return lists from other households', async () => {
-			const otherUser = await userRepo.create({
-				email: 'other@example.com',
-				name: 'Other',
-				authProviderId: 'oauth-other'
-			});
-			const otherHouseholdId = await createHouseholdFor(otherUser.id);
-
-			await listRepo.create({ userId, householdId, name: 'My List' });
-			await listRepo.create({
-				userId: otherUser.id,
-				householdId: otherHouseholdId,
-				name: 'Their List'
-			});
-
-			const myLists = await listRepo.findByHouseholdId(householdId);
-			expect(myLists.length).toBe(1);
-			expect(myLists[0].name).toBe('My List');
-		});
-
-		it('returns lists another member of the household created', async () => {
-			const housemate = await userRepo.create({
-				email: 'housemate@example.com',
-				name: 'Housemate',
-				authProviderId: 'oauth-housemate'
-			});
-			await listRepo.create({ userId: housemate.id, householdId, name: 'Shared List' });
-
-			const lists = await listRepo.findByHouseholdId(householdId);
-
-			expect(lists.map((list) => list.name)).toEqual(['Shared List']);
-		});
-	});
-
 	describe('update', () => {
 		it('should update a list name', async () => {
 			const list = await listRepo.create({ userId, householdId, name: 'Original' });
@@ -240,41 +186,6 @@ describe('ShoppingListRepository (DB)', () => {
 
 			const found = await listRepo.findById(list.id);
 			expect(found).toBeNull();
-		});
-	});
-
-	describe('deactivateAllByHouseholdId', () => {
-		it('should deactivate all lists for a user', async () => {
-			await listRepo.create({ userId, householdId, name: 'List 1', isActive: true });
-			await listRepo.create({ userId, householdId, name: 'List 2', isActive: true });
-
-			await listRepo.deactivateAllByHouseholdId(householdId);
-
-			const lists = await listRepo.findByHouseholdId(householdId);
-			expect(lists.every((l) => l.isActive === false)).toBe(true);
-		});
-
-		it('should not affect other users lists', async () => {
-			const otherUser = await userRepo.create({
-				email: 'other2@example.com',
-				name: 'Other',
-				authProviderId: 'oauth-other2'
-			});
-			const otherHouseholdId = await createHouseholdFor(otherUser.id);
-
-			await listRepo.create({ userId, householdId, name: 'My List', isActive: true });
-			await listRepo.create({
-				userId: otherUser.id,
-				householdId: otherHouseholdId,
-				name: 'Their List',
-				isActive: true
-			});
-
-			await listRepo.deactivateAllByHouseholdId(householdId);
-
-			const otherLists = await listRepo.findActiveByHouseholdId(otherHouseholdId);
-			expect(otherLists).not.toBeNull();
-			expect(otherLists!.isActive).toBe(true);
 		});
 	});
 
@@ -393,38 +304,6 @@ describe('ShoppingListRepository (DB)', () => {
 			});
 		});
 
-		describe('findCheckedByListId', () => {
-			it('should return only checked items', async () => {
-				await itemRepo.create({
-					shoppingListId: listId,
-					name: 'Checked',
-					checked: true
-				});
-				await itemRepo.create({
-					shoppingListId: listId,
-					name: 'Unchecked',
-					checked: false
-				});
-				await itemRepo.create({
-					shoppingListId: listId,
-					name: 'Also Checked',
-					checked: true
-				});
-
-				const checked = await itemRepo.findCheckedByListId(listId);
-
-				expect(checked.length).toBe(2);
-				expect(checked.every((i) => i.checked === true)).toBe(true);
-			});
-
-			it('should return empty array when no items are checked', async () => {
-				await itemRepo.create({ shoppingListId: listId, name: 'Unchecked' });
-
-				const checked = await itemRepo.findCheckedByListId(listId);
-				expect(checked).toEqual([]);
-			});
-		});
-
 		describe('update', () => {
 			it('should update an item', async () => {
 				const item = await itemRepo.create({
@@ -451,51 +330,6 @@ describe('ShoppingListRepository (DB)', () => {
 
 				const found = await itemRepo.findById(item.id);
 				expect(found).toBeNull();
-			});
-		});
-
-		describe('deleteCheckedByListId', () => {
-			it('should delete only checked items from a list', async () => {
-				await itemRepo.create({
-					shoppingListId: listId,
-					name: 'Keep',
-					checked: false
-				});
-				await itemRepo.create({
-					shoppingListId: listId,
-					name: 'Remove 1',
-					checked: true
-				});
-				await itemRepo.create({
-					shoppingListId: listId,
-					name: 'Remove 2',
-					checked: true
-				});
-
-				await itemRepo.deleteCheckedByListId(listId);
-
-				const remaining = await itemRepo.findByListId(listId);
-				expect(remaining.length).toBe(1);
-				expect(remaining[0].name).toBe('Keep');
-			});
-
-			it('should not affect items in other lists', async () => {
-				const otherList = await listRepo.create({ userId, householdId, name: 'Other List' });
-				await itemRepo.create({
-					shoppingListId: listId,
-					name: 'Check 1',
-					checked: true
-				});
-				await itemRepo.create({
-					shoppingListId: otherList.id,
-					name: 'Check 2',
-					checked: true
-				});
-
-				await itemRepo.deleteCheckedByListId(listId);
-
-				const otherItems = await itemRepo.findCheckedByListId(otherList.id);
-				expect(otherItems.length).toBe(1);
 			});
 		});
 
@@ -542,20 +376,6 @@ describe('ShoppingListRepository (DB)', () => {
 
 				const maxOrder = await itemRepo.getMaxOrderIndex(listId);
 				expect(maxOrder).toBe(5);
-			});
-		});
-
-		describe('updateOrderIndex', () => {
-			it('should update the order index of an item', async () => {
-				const item = await itemRepo.create({
-					shoppingListId: listId,
-					name: 'Move Me',
-					orderIndex: 0
-				});
-				await itemRepo.updateOrderIndex(item.id, 10);
-
-				const found = await itemRepo.findById(item.id);
-				expect(found!.orderIndex).toBe(10);
 			});
 		});
 	});

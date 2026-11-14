@@ -49,16 +49,6 @@ export class MockShoppingListRepository implements IShoppingListRepository {
 		return this.findByIdWithItems(list.id);
 	}
 
-	async findByHouseholdId(householdId: string): Promise<ShoppingListWithItemsDao[]> {
-		const lists = Array.from(this.lists.values())
-			.filter((l) => l.householdId === householdId)
-			.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-		return Promise.all(lists.map((l) => this.findByIdWithItems(l.id))).then((results) =>
-			results.filter((l): l is ShoppingListWithItemsDao => !!l)
-		);
-	}
-
 	async create(list: NewShoppingListDao): Promise<ShoppingListDao> {
 		const now = new Date();
 		const created: ShoppingListDao = {
@@ -95,15 +85,6 @@ export class MockShoppingListRepository implements IShoppingListRepository {
 		this.lists.delete(id);
 	}
 
-	async deactivateAllByHouseholdId(householdId: string): Promise<void> {
-		for (const list of this.lists.values()) {
-			if (list.householdId === householdId && list.isActive) {
-				list.isActive = false;
-				list.updatedAt = new Date();
-			}
-		}
-	}
-
 	// Test helpers
 	getStored(id: string): ShoppingListDao | undefined {
 		return this.lists.get(id);
@@ -132,10 +113,6 @@ export class MockShoppingListItemRepository implements IShoppingListItemReposito
 		return Array.from(this.items.values())
 			.filter((i) => i.shoppingListId === listId)
 			.sort((a, b) => a.orderIndex - b.orderIndex);
-	}
-
-	async findCheckedByListId(listId: string): Promise<ShoppingListItemDao[]> {
-		return (await this.findByListId(listId)).filter((i) => i.checked);
 	}
 
 	async create(item: NewShoppingListItemDao): Promise<ShoppingListItemDao> {
@@ -210,25 +187,10 @@ export class MockShoppingListItemRepository implements IShoppingListItemReposito
 		this.items.delete(id);
 	}
 
-	async deleteCheckedByListId(listId: string): Promise<void> {
-		for (const [id, item] of this.items) {
-			if (item.shoppingListId === listId && item.checked) {
-				this.items.delete(id);
-			}
-		}
-	}
-
 	async getMaxOrderIndex(listId: string): Promise<number> {
 		const items = await this.findByListId(listId);
 		if (items.length === 0) return -1;
 		return Math.max(...items.map((i) => i.orderIndex));
-	}
-
-	async updateOrderIndex(id: string, orderIndex: number): Promise<void> {
-		const item = this.items.get(id);
-		if (item) {
-			item.orderIndex = orderIndex;
-		}
 	}
 
 	// Test helpers

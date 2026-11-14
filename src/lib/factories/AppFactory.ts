@@ -488,12 +488,10 @@ export class AppFactory {
 			shoppingListController = new ShoppingListController(
 				AppFactory.getShoppingListRepository(),
 				AppFactory.getShoppingListItemRepository(),
-				AppFactory.getPurchaseHistoryRepository(),
 				AppFactory.getRecipeIngredientRepository(),
 				AppFactory.getReceiptItemRepository(),
 				AppFactory.getRecipeRepository(),
-				AppFactory.getReceiptRepository(),
-				AppFactory.getKitchenService()
+				AppFactory.getReceiptRepository()
 			);
 		}
 		return shoppingListController;
