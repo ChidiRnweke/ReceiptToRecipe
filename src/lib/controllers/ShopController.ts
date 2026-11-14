@@ -444,6 +444,8 @@ export class ShopController {
 				imageUrl: recipe.imageUrl,
 				day: dayNumber(meal.plannedDate, timeZone),
 				mealType: meal.mealType,
+				// Planned meals gain a prep flag with the Plan door; until then no dish is a prep.
+				prep: 'isPrep' in meal && meal.isPrep === true,
 				ingredients: recipe.ingredients
 					.filter((ingredient) => !ingredient.optional)
 					.map((ingredient) => {
