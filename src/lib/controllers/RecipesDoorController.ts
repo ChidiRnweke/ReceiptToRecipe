@@ -35,12 +35,6 @@ export interface SnappedRecipe extends RecipeCardResult {
 	kind: SnapKind;
 }
 
-/**
- * The household has no stored time zone yet. The stock names a craving uses barely depend on
- * where the day ends, so the picture is taken in UTC.
- */
-const PICTURE_TIME_ZONE = 'UTC';
-
 /** How many of the household's recipes "My recipes" reads. */
 const HOUSEHOLD_RECIPE_LIMIT = 500;
 
@@ -67,7 +61,7 @@ export class RecipesDoorController {
 		const [preferences, tasteProfile, picture] = await Promise.all([
 			this.userPreferencesRepository.findByUserId(actor.userId),
 			this.tasteProfileService.getUserTasteProfile(actor.userId),
-			this.kitchenService.getPicture(actor.householdId, this.now(), PICTURE_TIME_ZONE)
+			this.kitchenService.getPicture(actor.householdId, this.now(), actor.timeZone)
 		]);
 		const available = stockNames(picture);
 
@@ -91,7 +85,7 @@ export class RecipesDoorController {
 		const [preferences, tasteProfile, picture, upload] = await Promise.all([
 			this.userPreferencesRepository.findByUserId(actor.userId),
 			this.tasteProfileService.getUserTasteProfile(actor.userId),
-			this.kitchenService.getPicture(actor.householdId, this.now(), PICTURE_TIME_ZONE),
+			this.kitchenService.getPicture(actor.householdId, this.now(), actor.timeZone),
 			this.storageService.upload(photo.bytes, photo.name, photo.mimeType, 'recipes')
 		]);
 

@@ -21,7 +21,8 @@ const actor: Actor = {
 	householdId: 'household-1',
 	memberId: 'member-1',
 	displayName: 'Noor',
-	roles: { plans: true, shops: true, cooks: true }
+	roles: { plans: true, shops: true, cooks: true },
+	timeZone: 'UTC'
 };
 
 const photo = {
@@ -120,11 +121,12 @@ describe('RecipesDoorController', () => {
 		});
 
 		it('says which ingredients the kitchen holds', async () => {
-			await event({ kind: 'BOUGHT', itemKey: 'eggs', quantity: 6, unit: 'count' });
+			await event({ kind: 'BOUGHT', itemKey: 'egg', quantity: 6, unit: 'count' });
 
 			const card = await controller.craving(actor, 'Eggs, please', []);
 
-			expect(card.uses).toEqual(['eggs']);
+			// The mock writes the recipe's ingredients from the stock keys, which are singular.
+			expect(card.uses).toEqual(['egg']);
 		});
 	});
 

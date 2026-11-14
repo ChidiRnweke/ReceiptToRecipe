@@ -91,8 +91,7 @@
 			<RecipeResultCard {result} stepsHeading="Steps, in the app’s words">
 				{#snippet actions()}
 					<Button size="sm" href={resolve('/recipes/[id]', { id: result.id })}>Cook this</Button>
-					<Button size="sm" variant="outline" href={resolve('/planning')}>Put it in the plan</Button
-					>
+					<Button size="sm" variant="outline" href={resolve('/plan')}>Put it in the plan</Button>
 					<Button size="sm" variant="outline" onclick={() => save(result.id)}>
 						{saved ? 'Saved ✓' : 'Save'}
 					</Button>

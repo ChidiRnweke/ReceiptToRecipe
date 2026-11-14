@@ -69,6 +69,11 @@ describe('matchKitchen', () => {
 		expect(matchKitchen(ingredients, ['baby spinach']).uses).toEqual(['spinach']);
 	});
 
+	it('matches a plural ingredient to the singular stock key, keeping the recipe name', () => {
+		const berries = [{ name: 'Blueberries', optional: false }];
+		expect(matchKitchen(berries, ['blueberry']).uses).toEqual(['blueberries']);
+	});
+
 	it('needs what the kitchen lacks, without staples or optional extras', () => {
 		expect(matchKitchen(ingredients, ['baby spinach']).need).toEqual(['feta']);
 	});
