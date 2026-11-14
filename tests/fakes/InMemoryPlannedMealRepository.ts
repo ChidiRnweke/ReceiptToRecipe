@@ -63,6 +63,9 @@ export class InMemoryPlannedMealRepository implements IPlannedMealRepository {
 			mealType: meal.mealType,
 			status: 'PLANNED',
 			servings: meal.servings ?? null,
+			extraPortions: meal.extraPortions ?? 0,
+			leftoverOfId: meal.leftoverOfId ?? null,
+			isPrep: meal.isPrep ?? false,
 			createdAt: now,
 			updatedAt: now
 		};
@@ -78,7 +81,11 @@ export class InMemoryPlannedMealRepository implements IPlannedMealRepository {
 		return updated;
 	}
 
+	/** Deleting a meal clears the leftover link of its leftovers, as the foreign key does. */
 	async delete(id: string): Promise<void> {
 		this.meals.delete(id);
+		for (const meal of this.meals.values()) {
+			if (meal.leftoverOfId === id) this.meals.set(meal.id, { ...meal, leftoverOfId: null });
+		}
 	}
 }

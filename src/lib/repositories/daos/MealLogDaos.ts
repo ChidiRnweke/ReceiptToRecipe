@@ -1,4 +1,4 @@
-export type MealTypeDao = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
+export type MealTypeDao = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK' | 'PREP';
 
 export interface MealLogDao {
 	id: string;
