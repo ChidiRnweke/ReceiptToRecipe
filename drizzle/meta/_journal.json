@@ -113,6 +113,13 @@
       "when": 1794690473603,
       "tag": "0015_shop_door",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794690973746,
+      "tag": "0016_recipe_steps",
+      "breakpoints": true
     }
   ]
 }

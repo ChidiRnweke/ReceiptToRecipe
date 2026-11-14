@@ -32,7 +32,7 @@ describe('recipe steps migration backfill', () => {
 		pool = new pg.Pool({ connectionString: container.getConnectionUri() });
 		await pool.query('CREATE EXTENSION IF NOT EXISTS vector');
 
-		await applyMigrationsUpTo(pool, '0013');
+		await applyMigrationsUpTo(pool, '0015');
 
 		const user = await pool.query<{ id: string }>(
 			`INSERT INTO users (email, name, auth_provider_id) VALUES ('noor@example.com', 'Noor', 'oauth-noor') RETURNING id`
@@ -48,7 +48,7 @@ describe('recipe steps migration backfill', () => {
 		soupId = (await insert('Soup', 'Step 1: Sweat the onion\nStep 2: Simmer 10 min')).rows[0].id;
 		plainId = (await insert('Toast', '1. Toast the bread.\n\n2. Saute, then serve')).rows[0].id;
 
-		await applyMigration(pool, migrationTag('0014'));
+		await applyMigration(pool, migrationTag('0016'));
 	});
 
 	afterAll(async () => {
@@ -78,7 +78,7 @@ describe('recipe steps migration backfill', () => {
 
 	it('ships the same block as drizzle/hand/recipe_steps.sql', () => {
 		const migration = readFileSync(
-			join(process.cwd(), 'drizzle', `${migrationTag('0014')}.sql`),
+			join(process.cwd(), 'drizzle', `${migrationTag('0016')}.sql`),
 			'utf8'
 		);
 		const hand = readFileSync(join(process.cwd(), 'drizzle', 'hand', 'recipe_steps.sql'), 'utf8');
