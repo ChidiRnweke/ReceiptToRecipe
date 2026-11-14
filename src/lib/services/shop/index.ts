@@ -10,6 +10,7 @@ export {
 export { reconcileList, desiredItems } from './reconcile';
 export { matchReceiptToList, namesSameItem } from './match';
 export { ideaList } from './ideas';
+export { mayHaveAtHome, AT_HOME_NOTE } from './home';
 export {
 	shortDay,
 	dishWhen,

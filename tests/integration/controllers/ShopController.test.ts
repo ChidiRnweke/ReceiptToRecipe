@@ -86,6 +86,24 @@ describe('ShopController', () => {
 			expect(view.manual.map((item) => item.name)).toEqual(['Dish soap']);
 		});
 
+		it('notes that an item added by hand may still be at home', async () => {
+			await shop.kitchen.recordBought(
+				shopper,
+				[{ name: 'rice', quantity: 1000, unit: 'g' }],
+				at(0, 10),
+				'manual'
+			);
+			await shop.controller.addItem(shopper, { name: 'Rice' });
+			const view = await shop.controller.getShop(shopper, NOW, TZ);
+			expect(view.manual.map((item) => item.atHome)).toEqual([true]);
+		});
+
+		it('adds no note to an item added by hand that is not at home', async () => {
+			await shop.controller.addItem(shopper, { name: 'Rice' });
+			const view = await shop.controller.getShop(shopper, NOW, TZ);
+			expect(view.manual.map((item) => item.atHome)).toEqual([false]);
+		});
+
 		it('counts the things on the list', async () => {
 			expect((await shop.controller.getShop(shopper, NOW, TZ)).count).toBe(3);
 		});

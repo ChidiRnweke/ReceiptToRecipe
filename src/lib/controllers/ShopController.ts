@@ -48,6 +48,7 @@ import {
 	gotEverythingMessage,
 	ideaList,
 	matchReceiptToList,
+	mayHaveAtHome,
 	reconcileList,
 	shopTitle,
 	shortDay
@@ -143,7 +144,10 @@ export class ShopController {
 		const usuals = open.filter((item) => item.source === 'USUAL').map((i) => this.item(i, []));
 		const manual = open
 			.filter((item) => !grouped.has(item.id) && item.source !== 'USUAL')
-			.map((item) => this.item(item, []));
+			.map((item) => ({
+				...this.item(item, []),
+				atHome: item.source === 'MANUAL' && mayHaveAtHome(keyOf(item), ctx.picture.stock)
+			}));
 		const count = grouped.size + usuals.length + manual.length;
 
 		const mode = this.ideasMode(ctx) ? 'ideas' : 'list';
@@ -452,7 +456,8 @@ export class ShopController {
 			amount: amountOf(item.quantity, item.unit),
 			checked: item.checked,
 			also,
-			source: item.source
+			source: item.source,
+			atHome: false
 		};
 	}
 

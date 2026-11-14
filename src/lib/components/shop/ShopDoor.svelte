@@ -12,7 +12,7 @@
 		removeItem,
 		toggleItem
 	} from '$lib/remote/shop/shop.remote';
-	import { ideaList, thingsCount } from '$lib/services/shop';
+	import { AT_HOME_NOTE, ideaList, thingsCount } from '$lib/services/shop';
 	import { formatAmount } from '$lib/services/tonight';
 	import { notice } from '$lib/state/notice.svelte';
 	import IdeaPick from './IdeaPick.svelte';
@@ -232,6 +232,7 @@
 					<ShopItemRow
 						name={item.name}
 						amount={item.amount}
+						note={item.atHome ? AT_HOME_NOTE : undefined}
 						checked={isTicked(item.id, item.checked)}
 						ontoggle={(checked) => tick(item.id, checked)}
 						onremove={item.source === 'MANUAL'

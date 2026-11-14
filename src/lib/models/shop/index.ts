@@ -160,6 +160,8 @@ export interface ShopItemView {
 	/** Short weekday names of the other meals that need it. */
 	also: string[];
 	source: ShoppingItemSource;
+	/** An item added by hand that the kitchen says is still at home. */
+	atHome: boolean;
 }
 
 export interface ShopGroupView {

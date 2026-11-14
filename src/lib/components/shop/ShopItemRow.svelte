@@ -5,12 +5,14 @@
 		checked: boolean;
 		/** Short weekday names of the other dishes that need it. */
 		also?: string[];
+		/** A gentle line under the name, e.g. that some may still be at home. */
+		note?: string;
 		ontoggle: (checked: boolean) => void;
 		/** Shown for items added by hand. */
 		onremove?: () => void;
 	}
 
-	let { name, amount, checked, also = [], ontoggle, onremove }: Props = $props();
+	let { name, amount, checked, also = [], note, ontoggle, onremove }: Props = $props();
 </script>
 
 <li
@@ -27,10 +29,15 @@
 	>
 		{checked ? '✓' : ''}
 	</button>
-	<span class="flex-1 {checked ? 'text-text-muted line-through' : 'text-ink'}">
-		{name}
-		{#if also.length}
-			<span class="text-xs text-text-muted no-underline">also {also.join(', ')}</span>
+	<span class="min-w-0 flex-1">
+		<span class={checked ? 'text-text-muted line-through' : 'text-ink'}>
+			{name}
+			{#if also.length}
+				<span class="text-xs text-text-muted no-underline">also {also.join(', ')}</span>
+			{/if}
+		</span>
+		{#if note}
+			<span class="block text-xs text-text-muted">{note}</span>
 		{/if}
 	</span>
 	{#if amount}
