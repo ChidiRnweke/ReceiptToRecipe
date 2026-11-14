@@ -4,6 +4,7 @@ import type {
 	IUserPreferencesRepository
 } from '$repositories';
 import type {
+	CaloriesToday,
 	INutritionService,
 	NutritionAdherence,
 	NutritionAggregateOptions,
@@ -13,6 +14,7 @@ import type {
 	NutritionWeekSummary
 } from './interfaces/INutritionService';
 import type { Actor } from '$lib/models/household';
+import { atLocalHour, dayNumber } from './kitchen';
 
 const DEFAULT_ADHERENCE_WINDOW = 14;
 const DEFAULT_TOLERANCE_PERCENT = 10;
@@ -55,6 +57,17 @@ export class NutritionService implements INutritionService {
 			streak,
 			adherence
 		};
+	}
+
+	async getCaloriesToday(actor: Actor, now: Date, timeZone: string): Promise<CaloriesToday> {
+		const today = dayNumber(now, timeZone);
+		const start = atLocalHour(today, 0, timeZone);
+		const end = new Date(atLocalHour(today + 1, 0, timeZone).getTime() - 1);
+		const [goal, entries] = await Promise.all([
+			this.resolveCalorieGoal(actor.userId),
+			this.mealLogRepo.findByUserIdAndRange(actor.userId, start, end)
+		]);
+		return { goal, eaten: entries.reduce((sum, entry) => sum + entry.calories, 0) };
 	}
 
 	private async resolveCalorieGoal(

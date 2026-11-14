@@ -29,3 +29,5 @@ export {
 	type CorrectInput,
 	type ShopDoneInput
 } from './KitchenController';
+export { TonightController, type CookTarget } from './TonightController';
+export { FrontDoorController } from './FrontDoorController';

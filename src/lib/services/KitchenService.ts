@@ -49,7 +49,17 @@ export class KitchenService implements IKitchenService {
 		const events = await this.kitchenEventRepository.listByHouseholdSince(householdId, since);
 		const lots = projectKitchen(pictureEvents(events, now, timeZone), now, timeZone);
 		const day = dayNumber(now, timeZone);
-		return { day, lots, stock: stockAt(lots, day) };
+		const past = events.filter((event) => event.occurredAt.getTime() <= now.getTime());
+		const shops = past.filter((event) => event.kind === 'SHOP_DONE');
+		return {
+			day,
+			lots,
+			stock: stockAt(lots, day),
+			tracks: past.some((event) => event.kind === 'BOUGHT'),
+			lastShopDoneAt: shops.length
+				? new Date(Math.max(...shops.map((event) => event.occurredAt.getTime())))
+				: null
+		};
 	}
 
 	async recordCooked(input: RecordCookedInput): Promise<KitchenEvent> {

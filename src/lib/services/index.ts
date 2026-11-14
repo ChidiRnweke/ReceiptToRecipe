@@ -48,14 +48,10 @@ export type {
 	PantryItem,
 	ConfidenceFactors,
 	StockOverrides,
-	IDashboardService,
-	DashboardData,
-	DashboardMetrics,
-	ActiveList,
-	ActiveListStats,
 	IAuthService,
 	AuthResult,
 	INutritionService,
+	CaloriesToday,
 	NutritionDaySummary,
 	NutritionWeekSummary,
 	NutritionStreak,
@@ -76,6 +72,10 @@ export type {
 	RecordShopDoneInput,
 	WithdrawCupboardItemInput,
 	IHabitService,
+	IPlanService,
+	Cookbook,
+	PlannedMealWithRecipe,
+	MoveOptions,
 	// OAuth interfaces
 	IOAuthService,
 	Auth0Tokens,
@@ -109,12 +109,12 @@ export * from './PgVectorService';
 export * from './JobQueue';
 export { PantryService } from './PantryService';
 export { TasteProfileService } from './TasteProfileService';
-export { DashboardService } from './DashboardService';
 export { NutritionService } from './NutritionService';
 export { GlobalSearchService } from './GlobalSearchService';
 export { HouseholdService } from './HouseholdService';
 export { KitchenService } from './KitchenService';
 export { HabitService } from './HabitService';
+export { PlanService } from './PlanService';
 export {
 	AppriseNotificationService,
 	MockNotificationService,

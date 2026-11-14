@@ -29,15 +29,8 @@ export * from './IPreferencesService';
 export * from './ITasteProfileService';
 export * from './IPantryService';
 export type {
-	IDashboardService,
-	DashboardData,
-	DashboardMetrics,
-	ActiveList,
-	ActiveListStats,
-	SmartSuggestion
-} from './IDashboardService';
-export type {
 	INutritionService,
+	CaloriesToday,
 	NutritionDaySummary,
 	NutritionWeekSummary,
 	NutritionStreak,
@@ -72,3 +65,4 @@ export type {
 	WithdrawCupboardItemInput
 } from './IKitchenService';
 export type { IHabitService } from './IHabitService';
+export type { IPlanService, Cookbook, PlannedMealWithRecipe, MoveOptions } from './IPlanService';
