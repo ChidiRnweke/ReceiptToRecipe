@@ -13,6 +13,12 @@ export interface PlannedMealDao {
 	mealType: MealTypeDao;
 	status: PlannedMealStatusDao;
 	servings: number | null;
+	/** Portions cooked on top of the meal for later. */
+	extraPortions: number;
+	/** The meal this one is the leftover of. */
+	leftoverOfId: string | null;
+	/** A batch-prep cooking session. */
+	isPrep: boolean;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -26,6 +32,9 @@ export interface NewPlannedMealDao {
 	plannedCalories: number;
 	mealType: MealTypeDao;
 	servings?: number | null;
+	extraPortions?: number;
+	leftoverOfId?: string | null;
+	isPrep?: boolean;
 }
 
 export interface UpdatePlannedMealDao {
@@ -36,6 +45,8 @@ export interface UpdatePlannedMealDao {
 	mealType?: MealTypeDao;
 	status?: PlannedMealStatusDao;
 	servings?: number | null;
+	extraPortions?: number;
+	leftoverOfId?: string | null;
 }
 
 export interface DailyPlannedCaloriesDao {

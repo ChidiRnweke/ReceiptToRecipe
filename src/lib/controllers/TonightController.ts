@@ -38,6 +38,7 @@ import {
 	PLANNED_SOON_DAYS,
 	rankIdeas,
 	sameItem,
+	spokenName,
 	splitSteps,
 	tonightQuestion,
 	tonightTarget,
@@ -441,13 +442,4 @@ export class TonightController {
 			everythingHome: ctx.picture.tracks && (missingByMeal.get(dinner.id) ?? []).length === 0
 		};
 	}
-}
-
-/**
- * Item keys are stored singular ("mushroom") so every source merges; people read the name the
- * recipe uses ("mushrooms"). Falls back to the key when no ingredient matches.
- */
-function spokenName(key: string, ingredients: readonly { name: string }[]): string {
-	const match = ingredients.find((ingredient) => normalizeItemKey(ingredient.name) === key);
-	return match ? match.name.trim().toLowerCase() : key;
 }

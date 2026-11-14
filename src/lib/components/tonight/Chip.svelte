@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
-	type Tone = 'plain' | 'use' | 'ok' | 'need';
+	type Tone = 'plain' | 'use' | 'ok' | 'need' | 'new';
 
 	interface Props {
 		tone?: Tone;
@@ -14,7 +14,8 @@
 		plain: 'bg-bg-paper-dark text-text-secondary',
 		use: 'bg-sienna-100 text-sienna-800',
 		ok: 'bg-sage-100 text-sage-800',
-		need: 'border border-warning-100 bg-warning-50 text-[#92560a]'
+		need: 'border border-warning-100 bg-warning-50 text-[#92560a]',
+		new: 'bg-[#e6eef7] text-[#2f4f7a]'
 	};
 </script>
 

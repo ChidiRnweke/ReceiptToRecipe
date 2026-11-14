@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { applyHabitAnswers, learnHabits, type HabitInput } from '../../../src/lib/services/habits';
+import {
+	applyHabitAnswers,
+	DEFAULT_PLANNING_HOUR,
+	learnHabits,
+	type HabitInput
+} from '../../../src/lib/services/habits';
 import type { HabitAnswer, ShopMethod } from '../../../src/lib/models/kitchen';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -99,7 +104,18 @@ describe('learnHabits', () => {
 				plannedDate: on(4, weeksAgo, 19)
 			}));
 
-			expect(learnHabits(input({ plannedMeals })).planningEvenings).toEqual([2]);
+			const weekdays = learnHabits(input({ plannedMeals })).planningEvenings.map((e) => e.weekday);
+			expect(weekdays).toEqual([2]);
+		});
+
+		it('learns the usual hour as the median planning hour of that evening, rounded down', () => {
+			const plannedMeals = [
+				{ createdAt: on(2, 1, 20.5), plannedDate: on(4, 1, 19) },
+				{ createdAt: on(2, 2, 21.75), plannedDate: on(4, 2, 19) },
+				{ createdAt: on(2, 3, 21.25), plannedDate: on(4, 3, 19) }
+			];
+
+			expect(learnHabits(input({ plannedMeals })).planningEvenings[0]?.hour).toBe(21);
 		});
 
 		it('does not count daytime planning', () => {
@@ -264,7 +280,15 @@ describe('applyHabitAnswers with accepted offers', () => {
 			answer('planningEvening:6', 'accepted')
 		]);
 
-		expect(answered.planningEvenings).toEqual([6]);
+		expect(answered.planningEvenings.map((evening) => evening.weekday)).toEqual([6]);
+	});
+
+	it('gives an accepted planning evening with no plans in the window the default hour', () => {
+		const answered = applyHabitAnswers(learnHabits(input({})), [
+			answer('planningEvening:6', 'accepted')
+		]);
+
+		expect(answered.planningEvenings[0]?.hour).toBe(DEFAULT_PLANNING_HOUR);
 	});
 
 	it('fills the prep day from an accepted offer when none was learned', () => {

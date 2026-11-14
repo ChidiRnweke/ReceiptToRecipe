@@ -10,7 +10,8 @@ import {
 	pgEnum,
 	vector,
 	index,
-	unique
+	unique,
+	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -28,7 +29,7 @@ export const userRoleEnum = pgEnum('user_role', ['WAITING', 'USER', 'ADMIN']);
 
 export const unitTypeEnum = pgEnum('unit_type', ['WEIGHT', 'VOLUME', 'COUNT']);
 
-export const mealTypeEnum = pgEnum('meal_type', ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK']);
+export const mealTypeEnum = pgEnum('meal_type', ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK', 'PREP']);
 
 export const plannedMealStatusEnum = pgEnum('planned_meal_status', [
 	'PLANNED',
@@ -287,6 +288,14 @@ export const plannedMeals = pgTable(
 		mealType: mealTypeEnum('meal_type').notNull(),
 		status: plannedMealStatusEnum('status').notNull().default('PLANNED'),
 		servings: integer('servings'),
+		/** Portions cooked on top of the meal, eaten later as leftovers or prepped lunches. */
+		extraPortions: integer('extra_portions').notNull().default(0),
+		/** The meal this one is the leftover of: tomorrow's lunch from tonight's pot. */
+		leftoverOfId: uuid('leftover_of_id').references((): AnyPgColumn => plannedMeals.id, {
+			onDelete: 'set null'
+		}),
+		/** A batch-prep cooking session rather than a meal eaten then. */
+		isPrep: boolean('is_prep').notNull().default(false),
 		createdAt: timestamp('created_at').notNull().defaultNow(),
 		updatedAt: timestamp('updated_at').notNull().defaultNow()
 	},

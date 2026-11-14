@@ -155,7 +155,7 @@
 
 				<div class="flex items-center gap-2">
 					<Button
-						href="/planning"
+						href="/plan"
 						variant="ghost"
 						class="group relative h-10 overflow-hidden rounded-lg border border-border bg-white px-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:bg-bg-card hover:shadow-md active:scale-95"
 					>

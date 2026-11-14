@@ -93,7 +93,10 @@ export class PlannedMealRepository implements IPlannedMealRepository {
 				plannedDate: meal.plannedDate,
 				plannedCalories: meal.plannedCalories,
 				mealType: meal.mealType,
-				servings: meal.servings ?? null
+				servings: meal.servings ?? null,
+				extraPortions: meal.extraPortions ?? 0,
+				leftoverOfId: meal.leftoverOfId ?? null,
+				isPrep: meal.isPrep ?? false
 			})
 			.returning();
 
@@ -129,6 +132,9 @@ export class PlannedMealRepository implements IPlannedMealRepository {
 			mealType: meal.mealType,
 			status: meal.status,
 			servings: meal.servings,
+			extraPortions: meal.extraPortions,
+			leftoverOfId: meal.leftoverOfId,
+			isPrep: meal.isPrep,
 			createdAt: meal.createdAt,
 			updatedAt: meal.updatedAt
 		};

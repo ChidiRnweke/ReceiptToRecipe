@@ -46,7 +46,8 @@ import {
 	HouseholdController,
 	KitchenController,
 	TonightController,
-	FrontDoorController
+	FrontDoorController,
+	PlanController
 } from '$controllers';
 import {
 	UserRepository,
@@ -115,6 +116,7 @@ let householdController: HouseholdController | null = null;
 let kitchenController: KitchenController | null = null;
 let tonightController: TonightController | null = null;
 let frontDoorController: FrontDoorController | null = null;
+let planController: PlanController | null = null;
 
 // Domain Services - Using IOAuthService as the auth interface
 let oauthService: IOAuthService | null = null;
@@ -375,10 +377,35 @@ export class AppFactory {
 				AppFactory.getRecipeRepository(),
 				AppFactory.getRecipeIngredientRepository(),
 				AppFactory.getSavedRecipeRepository(),
-				AppFactory.getKitchenEventRepository()
+				AppFactory.getKitchenEventRepository(),
+				AppFactory.getHouseholdRepository(),
+				AppFactory.getTasteProfileService(),
+				{
+					makeRecipe: async (actor, customIngredients, cuisineHint) => {
+						await AppFactory.getRecipeController().generateRecipe({
+							actor,
+							customIngredients,
+							cuisineHint,
+							servings: 2,
+							useRag: true
+						});
+					}
+				}
 			);
 		}
 		return planService;
+	}
+
+	static getPlanController(): PlanController {
+		if (!planController) {
+			planController = new PlanController(
+				AppFactory.getPlanService(),
+				AppFactory.getKitchenService(),
+				AppFactory.getHabitService(),
+				AppFactory.getNutritionService()
+			);
+		}
+		return planController;
 	}
 
 	// Controllers

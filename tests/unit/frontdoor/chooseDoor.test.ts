@@ -21,7 +21,19 @@ function dinner(day: number, status: PlannedMealSlot['status'] = 'PLANNED'): Pla
 		recipeId: 'recipe-1',
 		plannedDate: at(day, 12),
 		mealType: 'DINNER',
-		status
+		status,
+		isPrep: false
+	};
+}
+
+function prep(day: number, status: PlannedMealSlot['status'] = 'PLANNED'): PlannedMealSlot {
+	return {
+		id: `prep-${day}`,
+		recipeId: 'recipe-2',
+		plannedDate: at(day, 12),
+		mealType: 'PREP',
+		status,
+		isPrep: true
 	};
 }
 
@@ -44,17 +56,22 @@ describe('chooseDoor', () => {
 		const sunday = { ...NO_HABITS, prepDay: 6 as const };
 
 		it('opens Plan on the prep day morning while the prep is not cooked', () => {
-			const ctx = context({ habits: sunday, now: at(6, 10), meals: [dinner(6)] });
+			const ctx = context({ habits: sunday, now: at(6, 10), meals: [prep(6)] });
 			expect(chooseDoor(ctx).door).toBe('plan');
 		});
 
 		it('leaves the prep day to Tonight from 17:00', () => {
-			const ctx = context({ habits: sunday, now: at(6, 17.5), meals: [dinner(6)] });
+			const ctx = context({ habits: sunday, now: at(6, 17.5), meals: [prep(6)] });
 			expect(chooseDoor(ctx).door).toBe('tonight');
 		});
 
-		it('leaves the prep day to Tonight once everything is cooked', () => {
-			const ctx = context({ habits: sunday, now: at(6, 10), meals: [dinner(6, 'COOKED')] });
+		it('leaves the prep day to Tonight once the prep is cooked', () => {
+			const ctx = context({ habits: sunday, now: at(6, 10), meals: [prep(6, 'COOKED')] });
+			expect(chooseDoor(ctx).door).toBe('tonight');
+		});
+
+		it('does not count an ordinary dinner on the prep day as prep', () => {
+			const ctx = context({ habits: sunday, now: at(6, 10), meals: [dinner(6)] });
 			expect(chooseDoor(ctx).door).toBe('tonight');
 		});
 	});
@@ -111,7 +128,14 @@ describe('chooseDoor', () => {
 	});
 
 	describe('planning evening', () => {
-		const mondayPlanning = { ...NO_HABITS, planningEvenings: [0 as const] };
+		const mondayPlanning: Habits = {
+			...NO_HABITS,
+			planningEvenings: [{ weekday: 0, hour: 17 }]
+		};
+		const mondayAtNine: Habits = {
+			...NO_HABITS,
+			planningEvenings: [{ weekday: 0, hour: 21 }]
+		};
 
 		it('opens Plan on a planning evening with dinners still open', () => {
 			expect(chooseDoor(context({ habits: mondayPlanning, now: at(0, 20) })).door).toBe('plan');
@@ -125,6 +149,14 @@ describe('chooseDoor', () => {
 
 		it('waits for the evening on a planning day', () => {
 			expect(chooseDoor(context({ habits: mondayPlanning, now: at(0, 12) })).door).toBe('tonight');
+		});
+
+		it('waits for the usual planning hour', () => {
+			expect(chooseDoor(context({ habits: mondayAtNine, now: at(0, 20) })).door).toBe('tonight');
+		});
+
+		it('opens Plan from the usual planning hour', () => {
+			expect(chooseDoor(context({ habits: mondayAtNine, now: at(0, 21.25) })).door).toBe('plan');
 		});
 	});
 

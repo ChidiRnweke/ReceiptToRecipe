@@ -1,6 +1,7 @@
 import type {
 	HabitAnswer,
 	Habits,
+	PlanningEvening,
 	PlanningStyle,
 	ShopDay,
 	ShopMethod,
@@ -21,6 +22,8 @@ export const PREP_MIN_PORTIONS = 3;
 export const USUAL_MIN_SHOPS = 3;
 /** Hour given to a confirmed shop day that has no shop in the window to take the hour from. */
 export const DEFAULT_SHOP_HOUR = 10;
+/** Hour given to an accepted planning evening that has no plans in the window to take it from. */
+export const DEFAULT_PLANNING_HOUR = EVENING_FROM_HOUR;
 
 export interface HabitInput {
 	now: Date;
@@ -88,13 +91,34 @@ function learnShopDays(input: HabitInput, inWindow: (date: Date) => boolean): Sh
 	}));
 }
 
-function learnPlanningEvenings(input: HabitInput, inWindow: (date: Date) => boolean): Weekday[] {
-	const evenings = input.plannedMeals
+/** Evening plans made in the window, as their creation times. */
+function eveningPlans(input: HabitInput, inWindow: (date: Date) => boolean): Date[] {
+	return input.plannedMeals
 		.map((meal) => meal.createdAt)
-		.filter((created) => inWindow(created))
-		.filter((created) => localHour(created, input.timeZone) >= EVENING_FROM_HOUR)
-		.map((created) => dayNumber(created, input.timeZone));
-	return frequentWeekdays(evenings);
+		.filter((at) => inWindow(at) && localHour(at, input.timeZone) >= EVENING_FROM_HOUR);
+}
+
+/**
+ * The usual planning hour on `weekday`: the median local hour, rounded down, at which plans were
+ * made on that weekday's evenings in the window, or null when there are none.
+ */
+function planningHourOn(input: HabitInput, weekday: Weekday): number | null {
+	const hours = eveningPlans(input, windowFilter(input))
+		.filter((at) => weekdayOfDay(dayNumber(at, input.timeZone)) === weekday)
+		.map((at) => localHour(at, input.timeZone));
+	return hours.length ? Math.floor(median(hours)) : null;
+}
+
+/** Evenings the household plans on, with the usual hour (see {@link planningHourOn}). */
+function learnPlanningEvenings(
+	input: HabitInput,
+	inWindow: (date: Date) => boolean
+): PlanningEvening[] {
+	const days = eveningPlans(input, inWindow).map((at) => dayNumber(at, input.timeZone));
+	return frequentWeekdays(days).map((weekday) => ({
+		weekday,
+		hour: planningHourOn(input, weekday) ?? DEFAULT_PLANNING_HOUR
+	}));
 }
 
 function learnDoneHabits(input: HabitInput): Record<string, ShopMethod> {
@@ -211,7 +235,9 @@ function weekdaysAccepted(accepted: Set<string>, kind: string): Weekday[] {
  * - A declined offer removes the habit, even when the history still shows it.
  * - An accepted offer keeps the habit when the recent history alone no longer shows it (a missed
  *   week), until the household declines it. An accepted shop day is marked `confirmed`; its hour
- *   is the median hour of its shops in `input`'s window, or {@link DEFAULT_SHOP_HOUR}. An
+ *   is the median hour of its shops in `input`'s window, or {@link DEFAULT_SHOP_HOUR}; an
+ *   accepted planning evening likewise takes its hour from the window's evening plans, or
+ *   {@link DEFAULT_PLANNING_HOUR}. An
  *   accepted prep day fills the prep day only when none was learned: a newly learned prep day
  *   is a new offer.
  *
@@ -235,10 +261,13 @@ export function applyHabitAnswers(
 		shopDays.set(weekday, { weekday, hour, confirmed: true });
 	}
 
-	const planningEvenings = new Set([
-		...habits.planningEvenings,
-		...weekdaysAccepted(accepted, 'planningEvening')
-	]);
+	const planningEvenings = new Map<Weekday, PlanningEvening>();
+	for (const evening of habits.planningEvenings) planningEvenings.set(evening.weekday, evening);
+	for (const weekday of weekdaysAccepted(accepted, 'planningEvening')) {
+		if (planningEvenings.has(weekday)) continue;
+		const hour = (input && planningHourOn(input, weekday)) ?? DEFAULT_PLANNING_HOUR;
+		planningEvenings.set(weekday, { weekday, hour });
+	}
 	const learnedPrep =
 		habits.prepDay !== null && !declined.has(`prepDay:${habits.prepDay}`) ? habits.prepDay : null;
 	const acceptedPrep = weekdaysAccepted(accepted, 'prepDay').filter(
@@ -254,9 +283,9 @@ export function applyHabitAnswers(
 		shopDays: [...shopDays.values()]
 			.filter((day) => !declined.has(`shopDay:${day.weekday}`))
 			.sort((a, b) => a.weekday - b.weekday),
-		planningEvenings: [...planningEvenings]
-			.filter((weekday) => !declined.has(`planningEvening:${weekday}`))
-			.sort((a, b) => a - b),
+		planningEvenings: [...planningEvenings.values()]
+			.filter((evening) => !declined.has(`planningEvening:${evening.weekday}`))
+			.sort((a, b) => a.weekday - b.weekday),
 		prepDay: learnedPrep ?? acceptedPrep[0] ?? null,
 		usuals: [...usuals].filter((item) => !declined.has(`usual:${item}`)).sort()
 	};

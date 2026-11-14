@@ -31,3 +31,10 @@ export {
 } from './KitchenController';
 export { TonightController, type CookTarget } from './TonightController';
 export { FrontDoorController } from './FrontDoorController';
+export {
+	PlanController,
+	type SlotInput,
+	type IdeasInput,
+	type BatchPrepInput,
+	type DiscoverResult
+} from './PlanController';

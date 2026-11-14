@@ -1,4 +1,5 @@
 import type { Lot, StockItem } from '$lib/models/kitchen';
+import { normalizeItemKey } from '../kitchen/itemKey';
 
 /** A stock item with whether any of its good lots is perishable. */
 export interface RankStock extends StockItem {
@@ -44,4 +45,15 @@ export function withPerishable(stock: StockItem[], lots: Lot[], day: number): Ra
 export function listNames(names: string[]): string {
 	if (names.length < 2) return names.join('');
 	return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/**
+ * Item keys are stored singular ("mushroom") so every source merges; people read the name the
+ * recipe uses ("mushrooms"). Falls back to the key when no ingredient matches.
+ */
+export function spokenName(key: string, ingredients: readonly { name: string }[]): string {
+	const match =
+		ingredients.find((ingredient) => normalizeItemKey(ingredient.name) === key) ??
+		ingredients.find((ingredient) => sameItem(normalizeItemKey(ingredient.name), key));
+	return match ? match.name.trim().toLowerCase() : key;
 }

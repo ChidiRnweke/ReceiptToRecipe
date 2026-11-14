@@ -19,6 +19,7 @@ export {
 	containsItem,
 	withPerishable,
 	listNames,
+	spokenName,
 	type RankStock
 } from './items';
 export {

@@ -11,8 +11,10 @@ import {
 	MockRecipeIngredientRepository,
 	MockRecipeRepository,
 	MockSavedRecipeRepository,
+	MockTasteProfileService,
 	MockUserPreferencesRepository
 } from '../mocks';
+import type { RecipeMaker } from '../../src/lib/services/interfaces/IPlanService';
 import { InMemoryHabitAnswerRepository } from './InMemoryHabitAnswerRepository';
 import { InMemoryHouseholdRepository } from './InMemoryHouseholdRepository';
 import { InMemoryKitchenEventRepository } from './InMemoryKitchenEventRepository';
@@ -35,7 +37,7 @@ export interface IngredientSpec {
 }
 
 /** The plan, kitchen, habit and nutrition services over in-memory stores, and the controller. */
-export function createTonight() {
+export function createTonight(recipeMaker: RecipeMaker | null = null) {
 	const events = new InMemoryKitchenEventRepository();
 	const recipes = new MockRecipeRepository();
 	const ingredients = new MockRecipeIngredientRepository();
@@ -45,21 +47,32 @@ export function createTonight() {
 	const mealLogs = new InMemoryMealLogRepository();
 	const preferences = new MockUserPreferencesRepository();
 
-	const plan = new PlanService(plannedMeals, recipes, ingredients, saved, events);
+	const households = new InMemoryHouseholdRepository();
+	const taste = new MockTasteProfileService();
+	const plan = new PlanService(
+		plannedMeals,
+		recipes,
+		ingredients,
+		saved,
+		events,
+		households,
+		taste,
+		recipeMaker
+	);
 	const kitchen = new KitchenService(
 		events,
 		recipes,
 		ingredients,
 		plannedMeals,
 		mealLogs,
-		new InMemoryHouseholdRepository()
+		households
 	);
 	const habits = new HabitService(
 		events,
 		new InMemoryHabitAnswerRepository(),
 		plannedMeals,
 		new MockPurchaseHistoryRepository(),
-		new InMemoryHouseholdRepository()
+		households
 	);
 	const nutrition = new NutritionService(mealLogs, plannedMeals, preferences);
 	const controller = new TonightController(plan, kitchen, habits, nutrition);
@@ -113,6 +126,10 @@ export function createTonight() {
 		plannedMeals,
 		mealLogs,
 		preferences,
+		households,
+		taste,
+		habits,
+		nutrition,
 		plan,
 		kitchen,
 		controller,

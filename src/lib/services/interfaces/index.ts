@@ -65,4 +65,18 @@ export type {
 	WithdrawCupboardItemInput
 } from './IKitchenService';
 export type { IHabitService } from './IHabitService';
-export type { IPlanService, Cookbook, PlannedMealWithRecipe, MoveOptions } from './IPlanService';
+export type {
+	IPlanService,
+	Cookbook,
+	PlannedMealWithRecipe,
+	MoveOptions,
+	RecipeCompatibility,
+	RecipeMaker,
+	PlanContext,
+	PlanData,
+	FillResult,
+	SetSlotInput,
+	TwoDaysResult,
+	BatchPrepResult,
+	IdeaOptions
+} from './IPlanService';
