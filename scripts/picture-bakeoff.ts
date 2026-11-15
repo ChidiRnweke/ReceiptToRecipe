@@ -12,6 +12,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { recipePicturePrompt } from '../src/lib/services/recipes/pictureStyle.ts';
+import { PICTURE_COST_ESTIMATES } from '../src/lib/services/recipes/pictureCosts.ts';
 
 interface Variant {
 	/** Folder name and column heading. */
@@ -213,7 +214,13 @@ function indexHtml(variants: Variant[], dishes: Dish[], results: Result[]): stri
 			const total = costs.reduce((sum, cost) => sum + cost, 0);
 			const perPicture = costs.length ? total / costs.length : null;
 			const perThousand = perPicture === null ? '–' : `$${(perPicture * 1000).toFixed(2)}`;
-			return `<tr><th>${escape(variant.id)}</th><td>${escape(variant.model)}</td><td>${rows.length}/${dishes.length}</td><td>${money(costs.length ? total : null)}</td><td>${money(perPicture)}</td><td>${perThousand}</td></tr>`;
+			const estimate = PICTURE_COST_ESTIMATES.find((row) => row.variant === variant.id);
+			const estimated = estimate
+				? estimate.low === estimate.high
+					? money(estimate.low)
+					: `${money(estimate.low)}–${money(estimate.high)}`
+				: '–';
+			return `<tr><th>${escape(variant.id)}</th><td>${escape(variant.model)}</td><td>${rows.length}/${dishes.length}</td><td>${money(costs.length ? total : null)}</td><td>${money(perPicture)}</td><td>${perThousand}</td><td>${estimated}</td></tr>`;
 		})
 		.join('\n');
 	return `<!doctype html>
@@ -227,7 +234,7 @@ small{color:#718096}.error{color:#b91c1c;max-width:260px}
 <h1>Recipe picture bake-off</h1>
 <p>Same house-style prompt (<code>src/lib/services/recipes/pictureStyle.ts</code>) for every model. Costs are what OpenRouter reported in <code>usage.cost</code>.</p>
 <h2>Cost</h2>
-<table><tr><th>Variant</th><th>Model</th><th>Pictures</th><th>Total</th><th>Per picture</th><th>Per 1,000 recipes</th></tr>
+<table><tr><th>Variant</th><th>Model</th><th>Pictures</th><th>Total</th><th>Per picture</th><th>Per 1,000 recipes</th><th>Estimated per picture</th></tr>
 ${summary}
 </table>
 <h2>Pictures</h2>
