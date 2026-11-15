@@ -35,6 +35,7 @@ import {
 	needsYouResult,
 	planResult,
 	recipesResult,
+	cookbookResult,
 	shopResult,
 	tonightResult,
 	whyOnListResult
@@ -283,6 +284,13 @@ export function agentToolBuilders(controllers: AgentToolControllers, scope: Tool
 				result: recipesResult(
 					await c.recipesDoor().listMine(actor, tab ?? 'all', tags ?? []),
 					query
+				)
+			})
+		}),
+		find_cookbook_recipes: defineTool('find_cookbook_recipes', {
+			run: async ({ query, tags }) => ({
+				result: cookbookResult(
+					await c.recipesDoor().findInCookbook(actor, query ?? null, tags ?? [])
 				)
 			})
 		}),

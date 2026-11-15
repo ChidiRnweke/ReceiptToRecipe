@@ -58,6 +58,12 @@ export const TOOL_CATALOG = [
 			'The household\'s recipes, newest first, with their recipeId and tags. Pass a few words to search titles, a tab: made (cooked before), saved, added (made up or snapped) or all, and tags the recipes must have, e.g. ["vegetarian", "quick"]. Tags: vegetarian, vegan, pescatarian, gluten-free, dairy-free, quick, one-pot, keeps-well, freezes, lunchbox, breakfast, main, side, dessert, snack.'
 	},
 	{
+		name: 'find_cookbook_recipes',
+		classification: 'read',
+		description:
+			'Recipes from the shared Wikibooks Cookbook that the household has not used yet, that suit every member\'s diet and contain none of their allergens. Pass a few words to search titles and ingredients, e.g. "lentil", and tags they must have. Each recipeId starts with cookbook-; get_recipe, set_plan_slot, pick_tonight, mark_cooked and save_recipe take it, and planning, saving or cooking one copies it into the household\'s recipes.'
+	},
+	{
 		name: 'get_recipe',
 		classification: 'read',
 		description:

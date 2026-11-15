@@ -1,0 +1,33 @@
+{{Recipe summary
+| Category = Recipes for dessert
+| Difficulty = 2
+}}
+
+{{recipe}}
+
+This jelly dessert uses agar as a thickener, making it suitable for vegetarians.
+
+==Ingredients==
+* {{convert|5|g|oz}} {{cb|agar}} powder
+* {{convert|100|g|oz}} white granulated {{cb|sugar}}
+* {{convert|500|g|oz}} {{cb|water}}
+* {{convert|75|g|oz}} {{cb|milk}}
+* ½ [[Cookbook:Teaspoon|tsp]] {{cb|almond extract}}
+* 6 [[Cookbook:Tablespoon|Tbsp]] {{cb|fruit cocktail}}
+* 150 [[Cookbook:Milliliter|ml]] (0.625 cups) {{cb|syrup}}
+
+== Procedure ==
+# Put agar, sugar, and water in a [[Cookbook:Saucepan|saucepan]] and bring to [[Cookbook:Boiling|boil]]. 
+# Take off heat, and drain some of the water.
+# When cool, add in milk and almond extract.
+# Pour mixture into tin. 
+# When completely cool, chill in the refrigerator for about 15 minutes until set.
+# Cut almond jelly into cubes.
+# Serve with fruit cocktail and syrup in a glass bowl.
+
+[[Category:Recipes using agar]]
+[[Category:Recipes for dessert]]
+[[Category:Recipes with metric units]]
+[[Category:Recipes using almond extract]]
+[[Category:Recipes using granulated sugar]]
+[[Category:Recipes using cow milk]]

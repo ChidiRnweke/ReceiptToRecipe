@@ -115,8 +115,8 @@ describeLLM('SmartCulinaryIntelligence (LLM Integration)', () => {
 
 			expect(Array.isArray(result)).toBe(true);
 			expect(result.length).toBeGreaterThan(0);
-			// text-embedding-3-small returns 1536 dimensions
-			expect(result.length).toBe(1536);
+			// The catalog's embedding column holds 768 dimensions.
+			expect(result.length).toBe(768);
 			expect(typeof result[0]).toBe('number');
 		});
 

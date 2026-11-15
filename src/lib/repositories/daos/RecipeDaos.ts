@@ -29,6 +29,8 @@ export interface RecipeDao {
 	/** Null until the recipe is tagged. */
 	tags: RecipeTag[] | null;
 	tagSource: RecipeTagSource | null;
+	/** The catalog recipe this household copy was adopted from, or null. */
+	cookbookRecipeId: string | null;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -52,6 +54,7 @@ export interface NewRecipeDao {
 	tagSource?: RecipeTagSource | null;
 	imageSource?: RecipeImageSource | null;
 	imageCredit?: ImageCredit | null;
+	cookbookRecipeId?: string | null;
 }
 
 export interface UpdateRecipeDao {

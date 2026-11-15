@@ -1,6 +1,7 @@
 import { command, getRequestEvent, query } from '$app/server';
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
+import { recipeRefSchema } from '$lib/models/recipes';
 import { AppFactory } from '$lib/factories';
 import type {
 	CookResult,
@@ -15,9 +16,9 @@ import { getNeedsYou } from '../needsyou/needsyou.remote';
 
 const cookInput = z.union([
 	z.object({ plannedMealId: z.uuid() }),
-	z.object({ recipeId: z.uuid() })
+	z.object({ recipeId: recipeRefSchema })
 ]);
-const pickInput = z.object({ recipeId: z.uuid() });
+const pickInput = z.object({ recipeId: recipeRefSchema });
 
 function timeZone(): string {
 	return getRequestEvent().locals.timeZone;

@@ -9,7 +9,7 @@ import type { PlanIdea, PlanView } from '$lib/models/plan';
 import type { ShopView } from '$lib/models/shop';
 import type { TonightIdea, TonightView } from '$lib/models/tonight';
 import type { NeedsYouView } from '$lib/models/needsyou';
-import type { MyRecipes } from '$lib/models/recipes';
+import type { CookbookCard, MyRecipes } from '$lib/models/recipes';
 import { WEEKDAY_NAMES } from '$lib/services/tonight';
 import { basilKey } from '$lib/models/agent';
 
@@ -194,6 +194,21 @@ export function recipesResult(recipes: MyRecipes, query: string | undefined) {
 			minutes: row.totalMinutes,
 			source: row.source,
 			tags: row.tags
+		}))
+	};
+}
+
+/** Shared-cookbook recipes as find_cookbook_recipes returns them. */
+export function cookbookResult(cards: CookbookCard[]) {
+	return {
+		found: cards.length,
+		recipes: cards.map((card) => ({
+			recipeId: card.id,
+			title: card.title,
+			minutes: card.totalMinutes,
+			cuisine: card.cuisine,
+			tags: card.tags,
+			source: 'Wikibooks Cookbook'
 		}))
 	};
 }

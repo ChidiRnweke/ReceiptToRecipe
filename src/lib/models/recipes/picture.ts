@@ -45,6 +45,16 @@ export interface PictureSubject {
 	description: string | null;
 	/** The main ingredients, most important first. */
 	ingredients: string[];
+	/** A household recipe (the default) or a recipe of the shared cookbook. */
+	target?: 'recipe' | 'cookbook';
+}
+
+/** What a run over the catalog's pictures did. */
+export interface CookbookPicturesSummary {
+	filled: number;
+	failed: number;
+	/** True when the run stopped early because pictures kept failing. */
+	stopped: boolean;
 }
 
 /** A photo smaller than this, in pixels on its longer side, is never kept. */

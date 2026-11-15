@@ -1,15 +1,26 @@
 import { getDb } from '$db/client';
-import { cookbookEmbeddings } from '$db/schema';
-import { eq, sql, desc } from 'drizzle-orm';
+import { cookbookRecipes } from '$db/schema';
+import { and, desc, isNotNull, sql } from 'drizzle-orm';
+import type { CookbookStructure } from '$lib/models/recipes';
 import type { IVectorService, VectorSearchResult } from './interfaces';
 import type { ICulinaryIntelligence } from './interfaces';
 
-export class PgVectorService implements IVectorService {
-	private culinaryIntelligence: ICulinaryIntelligence;
+/** A catalog recipe as reference text for a model: title, ingredients and steps. */
+function referenceText(title: string, recipe: CookbookStructure): string {
+	const ingredients = recipe.ingredients
+		.map((ingredient) =>
+			[ingredient.quantity || '', ingredient.unit, ingredient.name].filter(Boolean).join(' ')
+		)
+		.join('; ');
+	const steps = recipe.steps
+		.map((step) => (step.verb ? `${step.verb} ${step.text}` : step.text))
+		.join(' ');
+	return `${title}\nIngredients: ${ingredients}\nMethod: ${steps}`;
+}
 
-	constructor(culinaryIntelligence: ICulinaryIntelligence) {
-		this.culinaryIntelligence = culinaryIntelligence;
-	}
+/** Finds shared cookbook recipes close to a text, by their embeddings. */
+export class PgVectorService implements IVectorService {
+	constructor(private culinaryIntelligence: ICulinaryIntelligence) {}
 
 	async search(
 		embedding: number[],
@@ -17,94 +28,32 @@ export class PgVectorService implements IVectorService {
 		threshold: number = 0.7
 	): Promise<VectorSearchResult[]> {
 		const db = getDb();
-		if (!db) throw new Error('Database not initialized');
-
-		// Convert embedding array to pgvector format
-		const embeddingStr = `[${embedding.join(',')}]`;
-
-		// Use cosine distance for similarity search
-		const results = await db
+		const vector = `[${embedding.join(',')}]`;
+		const similarity = sql<number>`1 - (${cookbookRecipes.embedding} <=> ${vector}::vector)`;
+		const rows = await db
 			.select({
-				id: cookbookEmbeddings.id,
-				recipeTitle: cookbookEmbeddings.recipeTitle,
-				contentChunk: cookbookEmbeddings.contentChunk,
-				metadata: cookbookEmbeddings.metadata,
-				similarity: sql<number>`1 - (${cookbookEmbeddings.embedding} <=> ${embeddingStr}::vector)`
+				id: cookbookRecipes.id,
+				title: cookbookRecipes.title,
+				recipe: cookbookRecipes.recipe,
+				sourceUrl: cookbookRecipes.sourceUrl,
+				similarity
 			})
-			.from(cookbookEmbeddings)
-			.where(sql`1 - (${cookbookEmbeddings.embedding} <=> ${embeddingStr}::vector) >= ${threshold}`)
-			.orderBy(desc(sql`1 - (${cookbookEmbeddings.embedding} <=> ${embeddingStr}::vector)`))
+			.from(cookbookRecipes)
+			.where(and(isNotNull(cookbookRecipes.embedding), sql`${similarity} >= ${threshold}`))
+			.orderBy(desc(similarity))
 			.limit(limit);
 
-		return results.map((r) => ({
-			id: r.id,
-			recipeTitle: r.recipeTitle,
-			contentChunk: r.contentChunk,
-			similarity: r.similarity,
-			metadata: r.metadata as Record<string, unknown> | undefined
+		return rows.map((row) => ({
+			id: row.id,
+			recipeTitle: row.title,
+			contentChunk: referenceText(row.title, row.recipe),
+			similarity: row.similarity,
+			metadata: { sourceUrl: row.sourceUrl }
 		}));
 	}
 
 	async searchByText(query: string, limit: number = 5): Promise<VectorSearchResult[]> {
 		const embedding = await this.culinaryIntelligence.embed(query);
 		return this.search(embedding, limit);
-	}
-
-	async upsert(
-		id: string,
-		recipeTitle: string,
-		content: string,
-		metadata?: Record<string, unknown>
-	): Promise<void> {
-		const db = getDb();
-		if (!db) throw new Error('Database not initialized');
-
-		const embedding = await this.culinaryIntelligence.embed(content);
-		const embeddingStr = `[${embedding.join(',')}]`;
-
-		await db
-			.insert(cookbookEmbeddings)
-			.values({
-				id,
-				recipeTitle,
-				contentChunk: content,
-				embedding: sql`${embeddingStr}::vector`,
-				metadata: metadata || {}
-			})
-			.onConflictDoUpdate({
-				target: cookbookEmbeddings.id,
-				set: {
-					recipeTitle,
-					contentChunk: content,
-					embedding: sql`${embeddingStr}::vector`,
-					metadata: metadata || {}
-				}
-			});
-	}
-
-	async delete(id: string): Promise<void> {
-		const db = getDb();
-		if (!db) throw new Error('Database not initialized');
-		await db.delete(cookbookEmbeddings).where(eq(cookbookEmbeddings.id, id));
-	}
-
-	async batchUpsert(
-		documents: Array<{
-			id: string;
-			recipeTitle: string;
-			content: string;
-			metadata?: Record<string, unknown>;
-		}>
-	): Promise<void> {
-		// Process in batches to avoid overwhelming the embedding API
-		const batchSize = 10;
-
-		for (let i = 0; i < documents.length; i += batchSize) {
-			const batch = documents.slice(i, i + batchSize);
-
-			await Promise.all(
-				batch.map((doc) => this.upsert(doc.id, doc.recipeTitle, doc.content, doc.metadata))
-			);
-		}
 	}
 }

@@ -12,6 +12,7 @@ const EXAMPLES: Record<ToolName, Record<string, unknown>> = {
 	get_shop_list: {},
 	why_on_list: { item: 'chicken' },
 	find_recipes: { query: 'curry', tab: 'all', tags: ['vegetarian'] },
+	find_cookbook_recipes: { query: 'lentil', tags: ['vegetarian'] },
 	get_recipe: { recipeId: ID },
 	needs_you: {},
 	habits: {},

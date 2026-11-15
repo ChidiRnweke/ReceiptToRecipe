@@ -1,6 +1,7 @@
 import { command, getRequestEvent, query } from '$app/server';
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
+import { recipeRefSchema } from '$lib/models/recipes';
 import { AppFactory } from '$lib/factories';
 import type { PlanIdea, PlanResult, PlanStretch, PlanView } from '$lib/models/plan';
 import { MAX_STRETCH_DAYS } from '$lib/models/plan';
@@ -18,20 +19,20 @@ const mealId = z.object({ plannedMealId: z.uuid() });
 const setSlotInput = z.object({
 	day,
 	mealType: anySlot,
-	recipeId: z.uuid(),
+	recipeId: recipeRefSchema,
 	replaceId: z.uuid().optional()
 });
 const ideasInput = z.object({
 	day,
 	mealType: anySlot,
-	exclude: z.array(z.uuid()).max(20).optional()
+	exclude: z.array(recipeRefSchema).max(20).optional()
 });
 const batchPrepInput = z.object({
 	day,
-	recipeIds: z.array(z.uuid()).max(4).optional(),
+	recipeIds: z.array(recipeRefSchema).max(4).optional(),
 	lunchesPerRecipe: z.number().int().min(1).max(5).optional()
 });
-const discoverInput = z.object({ recipeId: z.uuid(), range: optionalRange });
+const discoverInput = z.object({ recipeId: recipeRefSchema, range: optionalRange });
 const prepDoneInput = z.object({ day });
 
 function timeZone(): string {

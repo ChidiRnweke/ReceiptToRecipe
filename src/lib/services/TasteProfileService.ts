@@ -124,11 +124,38 @@ export class TasteProfileService implements ITasteProfileService {
 		await this.cuisinePrefRepo.create({ userId, cuisineType, preference });
 	}
 
-	async checkRecipeCompatibility(userId: string, recipeId: string): Promise<CompatibilityResult> {
-		const profile = await this.getUserTasteProfile(userId);
-		const recipe = await this.recipeRepo.findByIdWithIngredients(recipeId);
+	async householdAllergens(householdId: string): Promise<string[]> {
+		const members = await this.householdRepo.listMembers(householdId);
+		const lists = await Promise.all(
+			members.map(async (member) => {
+				const [allergies, preferences] = await Promise.all([
+					this.allergyRepo.findByUserId(member.userId),
+					this.userPreferencesRepo.findByUserId(member.userId)
+				]);
+				return [...allergies.map((allergy) => allergy.allergen), ...(preferences?.allergies ?? [])];
+			})
+		);
+		return [
+			...new Set(
+				lists
+					.flat()
+					.map((allergen) => allergen.trim().toLowerCase())
+					.filter(Boolean)
+			)
+		];
+	}
 
+	async checkRecipeCompatibility(userId: string, recipeId: string): Promise<CompatibilityResult> {
+		const recipe = await this.recipeRepo.findByIdWithIngredients(recipeId);
 		if (!recipe) throw new Error('Recipe not found');
+		return this.checkCompatibility(userId, recipe);
+	}
+
+	async checkCompatibility(
+		userId: string,
+		recipe: RecipeWithIngredientsDao
+	): Promise<CompatibilityResult> {
+		const profile = await this.getUserTasteProfile(userId);
 
 		const warnings: string[] = [];
 		const blockers: string[] = [];

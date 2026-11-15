@@ -8,6 +8,7 @@ import type {
 import type {
 	ICulinaryIntelligence,
 	IKitchenService,
+	ICookbookService,
 	IRecipeBookService,
 	IRecipePictureService,
 	IStorageService,
@@ -21,6 +22,7 @@ import type { Actor } from '$lib/models/household';
 import {
 	FILTER_TAGS,
 	MY_RECIPE_TABS,
+	type CookbookCard,
 	type MyRecipeRow,
 	type MyRecipes,
 	type MyRecipesTab,
@@ -51,6 +53,22 @@ function pictureSubject(recipe: RecipeDao, generated: LlmGeneratedRecipe): Pictu
 	};
 }
 
+/** "Something new" shows this many shared-cookbook recipes. */
+const SOMETHING_NEW_COUNT = 8;
+/** A cookbook search returns at most this many recipes. */
+const COOKBOOK_SEARCH_COUNT = 5;
+
+function toCookbookCard(recipe: RecipeDao): CookbookCard {
+	return {
+		id: recipe.id,
+		title: recipe.title,
+		imageUrl: recipe.imageUrl,
+		totalMinutes: totalMinutes(recipe),
+		tags: recipe.tags ?? [],
+		cuisine: recipe.cuisineType
+	};
+}
+
 /** How many of the household's recipes "My recipes" reads. */
 const HOUSEHOLD_RECIPE_LIMIT = 500;
 
@@ -67,6 +85,7 @@ export class RecipesDoorController {
 		private savedRecipeRepository: ISavedRecipeRepository,
 		private mealLogRepository: IMealLogRepository,
 		private recipePictures: IRecipePictureService,
+		private cookbook: ICookbookService,
 		private now: () => Date = () => new Date()
 	) {}
 
@@ -206,6 +225,50 @@ export class RecipesDoorController {
 			householdDiets,
 			offered
 		};
+	}
+
+	/**
+	 * "Something new": recipes from the shared cookbook that the household has not adopted, that
+	 * carry its diets and contain none of its members' allergens. Those that use what the kitchen
+	 * holds come first; the rest change daily.
+	 */
+	async somethingNew(actor: Actor): Promise<CookbookCard[]> {
+		const now = this.now();
+		const [dietTags, avoid, picture] = await Promise.all([
+			this.tasteProfileService.householdDietTags(actor.householdId),
+			this.tasteProfileService.householdAllergens(actor.householdId),
+			this.kitchenService.getPicture(actor.householdId, now, actor.timeZone)
+		]);
+		const recipes = await this.cookbook.candidates(actor.householdId, {
+			dietTags,
+			avoid,
+			wanted: stockNames(picture),
+			day: picture.day,
+			limit: SOMETHING_NEW_COUNT
+		});
+		return recipes.map(toCookbookCard);
+	}
+
+	/**
+	 * Shared-cookbook recipes whose title or ingredients contain the words and that have the tags,
+	 * within the household's diets and without its members' allergens.
+	 */
+	async findInCookbook(
+		actor: Actor,
+		query: string | null,
+		tags: RecipeTag[] = []
+	): Promise<CookbookCard[]> {
+		const [dietTags, avoid] = await Promise.all([
+			this.tasteProfileService.householdDietTags(actor.householdId),
+			this.tasteProfileService.householdAllergens(actor.householdId)
+		]);
+		const recipes = await this.cookbook.search(actor.householdId, query, {
+			dietTags,
+			tags,
+			avoid,
+			limit: COOKBOOK_SEARCH_COUNT
+		});
+		return recipes.map(toCookbookCard);
 	}
 
 	/** Tags the recipes the model has not tagged yet, in the background; see `tagUntagged`. */

@@ -436,7 +436,9 @@ Respond with JSON:
 		const response = await this.client.embeddings.generate({
 			requestBody: {
 				model: model,
-				input: text
+				input: text,
+				// The catalog's embedding column holds 768 dimensions.
+				dimensions: 768
 			}
 		});
 

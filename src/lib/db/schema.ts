@@ -18,6 +18,7 @@ import {
 import { relations, sql } from 'drizzle-orm';
 import type { RecipeTagSource } from '../models/recipes/tags';
 import type { ImageCredit } from '../models/recipes/picture';
+import type { CookbookStructure } from '../models/recipes/cookbook';
 
 // Enums
 export const processingStatusEnum = pgEnum('processing_status', [
@@ -27,7 +28,13 @@ export const processingStatusEnum = pgEnum('processing_status', [
 	'FAILED'
 ]);
 
-export const recipeSourceEnum = pgEnum('recipe_source', ['GENERATED', 'RAG', 'USER', 'SNAPPED']);
+export const recipeSourceEnum = pgEnum('recipe_source', [
+	'GENERATED',
+	'RAG',
+	'USER',
+	'SNAPPED',
+	'COOKBOOK'
+]);
 
 export const recipeImageSourceEnum = pgEnum('recipe_image_source', [
 	'GENERATED',
@@ -246,12 +253,17 @@ export const recipes = pgTable(
 		tags: text('tags').array(),
 		/** Which tags came from rules and which from the model; `ai` is null until it judged. */
 		tagSource: jsonb('tag_source').$type<RecipeTagSource>(),
+		/** The catalog recipe this household copy was adopted from. */
+		cookbookRecipeId: uuid('cookbook_recipe_id').references(() => cookbookRecipes.id, {
+			onDelete: 'set null'
+		}),
 		createdAt: timestamp('created_at').notNull().defaultNow(),
 		updatedAt: timestamp('updated_at').notNull().defaultNow()
 	},
 	(t) => [
 		index('recipes_household_id_idx').on(t.householdId),
-		index('recipes_tags_idx').using('gin', t.tags)
+		index('recipes_tags_idx').using('gin', t.tags),
+		uniqueIndex('recipes_household_cookbook_idx').on(t.householdId, t.cookbookRecipeId)
 	]
 );
 
@@ -674,15 +686,46 @@ export const categoryShelfLife = pgTable('category_shelf_life', {
 	updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
 
-// Cookbook Embeddings (for RAG)
-export const cookbookEmbeddings = pgTable('cookbook_embeddings', {
-	id: uuid('id').primaryKey().defaultRandom(),
-	recipeTitle: text('recipe_title').notNull(),
-	contentChunk: text('content_chunk').notNull(),
-	embedding: vector('embedding', { dimensions: 768 }), // Gemini text-embedding-004 dimensions
-	metadata: jsonb('metadata'),
-	createdAt: timestamp('created_at').notNull().defaultNow()
-});
+// The shared cookbook: recipes imported from the Wikibooks Cookbook, for every household.
+export const cookbookRecipes = pgTable(
+	'cookbook_recipes',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		/** The MediaWiki page id; a page is imported once and updated when its revision changes. */
+		pageId: integer('page_id').notNull().unique(),
+		revisionId: integer('revision_id').notNull(),
+		/** The title without the `Cookbook:` namespace. */
+		title: text('title').notNull(),
+		pageTitle: text('page_title').notNull(),
+		sourceUrl: text('source_url').notNull(),
+		licence: text('licence').notNull().default('CC BY-SA 4.0'),
+		/** The structured recipe: ingredients with amounts, steps, servings and minutes. */
+		recipe: jsonb('recipe').$type<CookbookStructure>().notNull(),
+		tags: text('tags')
+			.array()
+			.notNull()
+			.default(sql`'{}'::text[]`),
+		cuisine: text('cuisine'),
+		/** Item keys of the ingredients and their last words, for matching the kitchen. */
+		itemKeys: text('item_keys')
+			.array()
+			.notNull()
+			.default(sql`'{}'::text[]`),
+		/** `model` or `rules`: which structurer turned the page into a recipe. */
+		structuredBy: text('structured_by').notNull(),
+		imageUrl: text('image_url'),
+		imageStatus: processingStatusEnum('image_status').notNull().default('QUEUED'),
+		imageSource: recipeImageSourceEnum('image_source'),
+		imageCredit: jsonb('image_credit').$type<ImageCredit>(),
+		embedding: vector('embedding', { dimensions: 768 }),
+		importedAt: timestamp('imported_at').notNull().defaultNow(),
+		updatedAt: timestamp('updated_at').notNull().defaultNow()
+	},
+	(t) => [
+		index('cookbook_recipes_tags_idx').using('gin', t.tags),
+		index('cookbook_recipes_item_keys_idx').using('gin', t.itemKeys)
+	]
+);
 
 // Saved/Favorited Recipes (Social feature)
 export const savedRecipes = pgTable('saved_recipes', {
@@ -1066,8 +1109,8 @@ export type AgentRunRow = typeof agentRuns.$inferSelect;
 export type AgentRunEventRow = typeof agentRunEvents.$inferSelect;
 export type CategoryShelfLife = typeof categoryShelfLife.$inferSelect;
 export type NewCategoryShelfLife = typeof categoryShelfLife.$inferInsert;
-export type CookbookEmbedding = typeof cookbookEmbeddings.$inferSelect;
-export type NewCookbookEmbedding = typeof cookbookEmbeddings.$inferInsert;
+export type CookbookRecipeRow = typeof cookbookRecipes.$inferSelect;
+export type NewCookbookRecipeRow = typeof cookbookRecipes.$inferInsert;
 export type SavedRecipe = typeof savedRecipes.$inferSelect;
 export type NewSavedRecipe = typeof savedRecipes.$inferInsert;
 export type UserDietaryProfile = typeof userDietaryProfiles.$inferSelect;

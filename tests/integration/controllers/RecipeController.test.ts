@@ -16,6 +16,8 @@ import {
 	MockJobQueue
 } from '../../mocks';
 import { createPictures } from '../../fakes/pictures';
+import { createCookbook } from '../../fakes/cookbook';
+import { cookbookRef } from '../../../src/lib/models/recipes';
 import type { GeneratedRecipe } from '../../../src/lib/services/interfaces/ICulinaryIntelligence';
 import type { Actor } from '../../../src/lib/models/household';
 
@@ -30,6 +32,7 @@ describe('RecipeController', () => {
 	let mockUserPreferencesRepository: MockUserPreferencesRepository;
 	let mockReceiptItemRepository: MockReceiptItemRepository;
 	let recipeSteps: InMemoryRecipeStepRepository;
+	let cookbook: ReturnType<typeof createCookbook>;
 
 	const userId = 'user-123';
 	const actor: Actor = {
@@ -69,6 +72,7 @@ describe('RecipeController', () => {
 		mockUserPreferencesRepository = new MockUserPreferencesRepository();
 		mockReceiptItemRepository = new MockReceiptItemRepository();
 		recipeSteps = new InMemoryRecipeStepRepository();
+		cookbook = createCookbook(mockRecipeRepository, mockRecipeIngredientRepository, recipeSteps);
 
 		controller = new RecipeController(
 			mockCulinaryIntelligence,
@@ -86,7 +90,8 @@ describe('RecipeController', () => {
 				new MockJobQueue(),
 				mockCulinaryIntelligence
 			),
-			createPictures(mockRecipeRepository, mockRecipeIngredientRepository).service
+			createPictures(mockRecipeRepository, mockRecipeIngredientRepository).service,
+			cookbook.service
 		);
 	});
 
@@ -1017,6 +1022,51 @@ describe('RecipeController', () => {
 			const result = await controller.adjustRecipeWithAi(recipe.id, actor, 'Make a sauce');
 
 			expect(result.instructions).toBe('Reduce the sauce.');
+		});
+	});
+
+	describe('a shared-cookbook recipe', () => {
+		it('opens with the Wikibooks attribution', async () => {
+			const dal = await cookbook.addCatalogRecipe('Red lentil dal', ['red lentil']);
+			const recipe = await controller.getRecipe(cookbookRef(dal.id), actor);
+			expect(recipe?.cookbook?.pageUrl).toBe(
+				'https://en.wikibooks.org/wiki/Cookbook:Red_lentil_dal'
+			);
+		});
+
+		it('opens as the household’s copy once the household adopted it', async () => {
+			const dal = await cookbook.addCatalogRecipe('Red lentil dal', ['red lentil']);
+			const copy = await cookbook.service.adopt(actor, dal.id);
+			expect((await controller.getRecipe(cookbookRef(dal.id), actor))?.id).toBe(copy.id);
+		});
+
+		it('keeps the attribution on the household’s copy', async () => {
+			const dal = await cookbook.addCatalogRecipe('Red lentil dal', ['red lentil']);
+			const copy = await cookbook.service.adopt(actor, dal.id);
+			expect((await controller.getRecipe(copy.id, actor))?.cookbook?.licence).toBe('CC BY-SA 4.0');
+		});
+
+		it('shows its steps', async () => {
+			const dal = await cookbook.addCatalogRecipe('Red lentil dal', ['red lentil']);
+			const recipe = await controller.getRecipe(cookbookRef(dal.id), actor);
+			expect(recipe?.steps.map((step) => step.verb)).toEqual([null, 'Simmer']);
+		});
+
+		it('is saved as the household’s copy', async () => {
+			const dal = await cookbook.addCatalogRecipe('Red lentil dal', ['red lentil']);
+			await controller.saveRecipe(actor, cookbookRef(dal.id));
+			const [saved] = await controller.getSavedRecipes(actor);
+			expect(saved.cookbookRecipeId).toBe(dal.id);
+		});
+
+		it('has no attribution on a recipe the household made up', async () => {
+			const own = await mockRecipeRepository.create({
+				userId,
+				householdId: actor.householdId,
+				title: 'Toast',
+				instructions: 'Toast it.'
+			});
+			expect((await controller.getRecipe(own.id, actor))?.cookbook).toBeNull();
 		});
 	});
 });

@@ -1,0 +1,65 @@
+__NOTOC__
+{{recipesummary|category=Beef recipes|servings=4|time=20 minutes|difficulty=2
+}}
+{{Nutrition Summary|
+|ServingSize=1 serving (440 g)
+|Servings=4
+|Cals=487
+|FatCals=205
+|TotalFat=22.8 g
+|SatFat=9.4 g
+|Cholesterol=74 mg
+|Sodium=825 mg
+|Carbs=44.2 g
+|Fiber=4.9 g
+|Sugars=6.5 g
+|Protein=26.3 g
+|VitaminA=14%
+|VitaminC=8%
+|Calcium=10%
+|Iron=15%
+}}
+{{recipe}}
+
+==Ingredients==
+
+* {{convert|8|oz|g|abbr=on}} wide [[Cookbook:Pasta|egg noodles]] (figures are for yolk-free noodles)
+* 1 [[Cookbook:Teaspoon|teaspoon]] [[Cookbook:Olive Oil|olive oil]]
+* 1 package ({{convert|8|oz|g|disp=s|abbr=on}}) [[Cookbook:Slicing|sliced]] [[Cookbook:Mushroom|mushrooms]]
+* 1 large (1 [[Cookbook:Cup|cup]]/{{convert|150|g|oz|disp=s|abbr=on}}) coarsely-[[Cookbook:Chopping|chopped]] [[Cookbook:Onion|onion]]
+* 1 package ({{convert|17|oz|g|disp=s|abbr=on}}) prepared [[Cookbook:Beef|beef]] tips with gravy
+* ¼ [[Cookbook:Cup|cup]] ({{convert|60|ml|USoz|disp=s|abbr=on}}) [[Cookbook:Milk|skim milk]]
+* 1 can ({{convert|10.75|oz|g|disp=s|abbr=on}}) condensed cream of mushroom soup (figures are for fat-free)
+* [[Cookbook:Salt|Salt]] to taste
+* [[Cookbook:Pepper|Pepper]] to taste
+* 1 [[Cookbook:Teaspoon|teaspoon]] bottled [[Cookbook:Mincing|minced]] [[Cookbook:Garlic|garlic]]
+* ¼ [[Cookbook: Teaspoon|teaspoon]] (or more to taste) mild or hot [[Cookbook:Paprika|paprika]]
+* ½ cup ({{convert|250|ml|USoz|disp=s|abbr=on}}) [[Cookbook:Sour Cream|sour cream]] (figures are for reduced-fat)
+* ¼ cup ({{convert|125|g|oz|disp=s|abbr=on}}) finely-chopped [[Cookbook:Parsley|fresh parsley]]
+
+==Procedure==
+
+# Prepare noodles according to package directions and drain.
+# As the noodles are boiling, warm oil in very deep [[Cookbook:Skillet|skillet]] or [[Cookbook:Dutch Oven|Dutch oven]] over medium heat.
+# Add mushrooms and onions and cook until onion is soft, about 3 minutes.
+# Add beef tips, milk, and mushroom soup.
+# Add salt and pepper to taste and stir well.
+# Reduce heat to [[Cookbook:Simmering|simmer]] and stir in garlic, paprika, and sour cream.
+# Simmer lightly, without letting it [[Cookbook:Boil|boil]] (that will curdle it).
+# When noodles are finished and drained, serve with noodles on serving plate or individual plates, with sauce over it.
+# [[Cookbook:Garnish|Garnish]] with parsley.
+
+== Notes, tips, and variations ==
+
+* Prepared beef tips with gravy can be found in the a supermarket's refrigerated meat case.
+
+[[Category:Inexpensive recipes]]
+[[Category:Recipes using beef]]
+[[Category:Recipes using mushroom]]
+[[Category:Recipes using onion]]
+[[Category:Recipes using pasta and noodles]]
+[[Category:Boiled recipes]]
+[[Category:Main course recipes]]
+[[Category:Recipes using pasta and noodles]]
+[[Category:Recipes using garlic]]
+[[Category:Recipes using skim milk]]

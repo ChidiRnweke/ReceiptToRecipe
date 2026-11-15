@@ -22,19 +22,10 @@ import {
 	stepsFromGenerated,
 	stepsFromInstructions
 } from './recipes';
+import { unitTypeOf } from './recipes/unitType';
 
 /** Recipes per model call when tagging. */
 const TAG_BATCH = 20;
-
-const WEIGHT_UNITS = ['g', 'kg', 'oz', 'lb', 'lbs', 'mg'];
-const VOLUME_UNITS = ['ml', 'l', 'cup', 'cups', 'tbsp', 'tsp', 'fl oz', 'pint', 'quart', 'gallon'];
-
-function unitTypeOf(unit: string): 'WEIGHT' | 'VOLUME' | 'COUNT' {
-	const lower = unit.toLowerCase();
-	if (WEIGHT_UNITS.includes(lower)) return 'WEIGHT';
-	if (VOLUME_UNITS.includes(lower)) return 'VOLUME';
-	return 'COUNT';
-}
 
 function toStep(row: RecipeStepDao): RecipeStep {
 	return { position: row.position, verb: row.verb, text: row.text, minutes: row.minutes };

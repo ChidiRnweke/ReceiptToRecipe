@@ -83,7 +83,8 @@ export function createBasil(
 			new MockJobQueue(),
 			new MockCulinaryIntelligence()
 		),
-		createPictures(p.recipes, p.ingredients).service
+		createPictures(p.recipes, p.ingredients).service,
+		p.cookbook.service
 	);
 	const controllers: AgentToolControllers = {
 		plan: () => p.planController,

@@ -7,6 +7,7 @@ import type {
 	CompatibilityResult
 } from '../../src/lib/services/interfaces/ITasteProfileService';
 import type { DietTag } from '../../src/lib/models/recipes';
+import type { RecipeWithIngredientsDao } from '../../src/lib/repositories/daos';
 import { dietTagsFor } from '../../src/lib/services/recipes/tags';
 
 /**
@@ -16,6 +17,7 @@ export class MockTasteProfileService implements ITasteProfileService {
 	private profiles = new Map<string, TasteProfile>();
 	private compatibilities = new Map<string, CompatibilityResult>();
 	private householdDiets = new Map<string, string[]>();
+	private householdAllergies = new Map<string, string[]>();
 
 	private getDefaultProfile(): TasteProfile {
 		return {
@@ -96,6 +98,43 @@ export class MockTasteProfileService implements ITasteProfileService {
 				matchScore: 100
 			}
 		);
+	}
+
+	/**
+	 * A compatibility set for the recipe's id wins; otherwise a severe allergy that an
+	 * ingredient name contains blocks the recipe, as in the real check.
+	 */
+	async checkCompatibility(
+		userId: string,
+		recipe: RecipeWithIngredientsDao
+	): Promise<CompatibilityResult> {
+		const set = this.compatibilities.get(`${userId}:${recipe.id}`);
+		if (set) return set;
+		const profile = await this.getUserTasteProfile(userId);
+		const blockers = profile.allergies
+			.filter(
+				(allergy) =>
+					allergy.severity === 'severe' &&
+					recipe.ingredients.some((ingredient) =>
+						ingredient.name.toLowerCase().includes(allergy.allergen.toLowerCase())
+					)
+			)
+			.map((allergy) => `Contains ${allergy.allergen}`);
+		return {
+			compatible: blockers.length === 0,
+			warnings: [],
+			blockers,
+			matchScore: blockers.length ? 0 : 100
+		};
+	}
+
+	async householdAllergens(householdId: string): Promise<string[]> {
+		return this.householdAllergies.get(householdId) ?? [];
+	}
+
+	/** Allergens of the household's members, as `householdAllergens` reports them. */
+	setHouseholdAllergens(householdId: string, allergens: string[]): void {
+		this.householdAllergies.set(householdId, allergens);
 	}
 
 	async householdDietTags(householdId: string): Promise<DietTag[]> {

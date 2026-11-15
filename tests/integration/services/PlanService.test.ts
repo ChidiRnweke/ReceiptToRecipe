@@ -4,6 +4,7 @@ import { actor, createTonight } from '../../fakes/tonight';
 import { DAY0, TZ, at, bought } from '../../helpers/kitchenEvents';
 import { dayNumber } from '../../../src/lib/services/kitchen';
 import type { PlanContext } from '../../../src/lib/services/interfaces/IPlanService';
+import { cookbookRef } from '../../../src/lib/models/recipes';
 
 // Day 0 of the test calendar is Monday 2 November 2026, in UTC. "Now" is Monday 10:00.
 const NOW = at(0, 10);
@@ -169,6 +170,101 @@ describe('PlanService', () => {
 			await p.planOn(tacos, DAY0 + 2);
 			const [idea] = await p.plan.discoverNew(actor, 5, { ...ctx, tracksKitchen: true });
 			expect(idea.missing).toEqual(['chickpeas']);
+		});
+	});
+});
+
+describe('PlanService with the shared cookbook', () => {
+	let p: ReturnType<typeof createPlan>;
+
+	beforeEach(async () => {
+		p = createPlan();
+		await p.addRecipe('Chickpea curry', [{ name: 'Chickpeas', quantity: 1, unit: 'can' }]);
+	});
+
+	describe('suggestions', () => {
+		it('include a catalog recipe in "Something new"', async () => {
+			const dal = await p.cookbook.addCatalogRecipe('Red lentil dal', ['red lentil', 'onion']);
+			const ideas = await p.plan.discoverNew(actor, 5, ctx);
+			expect(ideas.map((idea) => idea.recipeId)).toContain(cookbookRef(dal.id));
+		});
+
+		it('include a catalog recipe among a slot’s ideas', async () => {
+			const dal = await p.cookbook.addCatalogRecipe('Red lentil dal', ['red lentil', 'onion']);
+			const ideas = await p.plan.ideasFor(actor, ctx, { limit: 6 });
+			expect(ideas.map((idea) => idea.recipeId)).toContain(cookbookRef(dal.id));
+		});
+
+		it('leave out a catalog recipe with a member’s allergen', async () => {
+			p.taste.setHouseholdAllergens(actor.householdId, ['peanut']);
+			const satay = await p.cookbook.addCatalogRecipe('Chicken satay', [
+				'chicken',
+				'peanut butter'
+			]);
+			const ideas = await p.plan.discoverNew(actor, 5, ctx);
+			expect(ideas.map((idea) => idea.recipeId)).not.toContain(cookbookRef(satay.id));
+		});
+
+		it('leave out a catalog recipe a member is severely allergic to', async () => {
+			await p.addMember('user-2', 'Sam');
+			p.taste.setProfile('user-2', {
+				dietType: null,
+				allergies: [{ allergen: 'sesame', severity: 'severe' }],
+				ingredientPreferences: [],
+				cuisinePreferences: []
+			});
+			const noodles = await p.cookbook.addCatalogRecipe('Sesame noodles', ['noodle', 'sesame oil']);
+			const ideas = await p.plan.discoverNew(actor, 5, ctx);
+			expect(ideas.map((idea) => idea.recipeId)).not.toContain(cookbookRef(noodles.id));
+		});
+
+		it('leave out a catalog dessert', async () => {
+			const jelly = await p.cookbook.addCatalogRecipe('Agar jelly', ['agar', 'sugar'], {
+				tags: ['dessert']
+			});
+			const ideas = await p.plan.discoverNew(actor, 5, ctx);
+			expect(ideas.map((idea) => idea.recipeId)).not.toContain(cookbookRef(jelly.id));
+		});
+
+		it('leave out a catalog recipe without the household’s diet', async () => {
+			p.taste.setHouseholdDiets(actor.householdId, ['Vegetarian']);
+			const roast = await p.cookbook.addCatalogRecipe('Roast chicken', ['chicken', 'lemon']);
+			const ideas = await p.plan.discoverNew(actor, 5, ctx);
+			expect(ideas.map((idea) => idea.recipeId)).not.toContain(cookbookRef(roast.id));
+		});
+	});
+
+	describe('choosing a catalog recipe', () => {
+		it('plans the household’s copy in the slot', async () => {
+			const dal = await p.cookbook.addCatalogRecipe('Red lentil dal', ['red lentil', 'onion']);
+			const meal = await p.plan.setSlot(
+				actor,
+				{ day: DAY0, mealType: 'DINNER', recipeId: cookbookRef(dal.id) },
+				TZ
+			);
+			expect((await p.recipes.findById(meal.recipeId as string))?.cookbookRecipeId).toBe(dal.id);
+		});
+
+		it('plans the same copy when it is chosen twice', async () => {
+			const dal = await p.cookbook.addCatalogRecipe('Red lentil dal', ['red lentil', 'onion']);
+			const first = await p.plan.planMeal(actor, cookbookRef(dal.id), DAY0, 'DINNER', TZ);
+			const second = await p.plan.planMeal(actor, cookbookRef(dal.id), DAY0 + 1, 'DINNER', TZ);
+			expect(second.recipeId).toBe(first.recipeId);
+		});
+
+		it('fills the plan with household copies only', async () => {
+			await p.cookbook.addCatalogRecipe('Red lentil dal', ['red lentil', 'onion']);
+			await p.cookbook.addCatalogRecipe('Leek soup', ['leek', 'potato']);
+			await p.plan.suggestRest(actor, { start: DAY0, end: DAY0 + 3 }, ctx);
+			const meals = await p.plan.listMeals(actor.householdId, DAY0, DAY0 + 2, TZ);
+			expect(meals.some((meal) => meal.recipeId?.startsWith('cookbook-'))).toBe(false);
+		});
+
+		it('fills the plan from the catalog when the household has few recipes', async () => {
+			await p.cookbook.addCatalogRecipe('Red lentil dal', ['red lentil', 'onion']);
+			await p.cookbook.addCatalogRecipe('Leek soup', ['leek', 'potato']);
+			const result = await p.plan.suggestRest(actor, { start: DAY0, end: DAY0 + 3 }, ctx);
+			expect(result.filled).toBe(3);
 		});
 	});
 });

@@ -119,7 +119,8 @@ export class RecipeRepository implements IRecipeRepository {
 				tags: recipe.tags ?? null,
 				tagSource: recipe.tagSource ?? null,
 				...(recipe.imageSource !== undefined ? { imageSource: recipe.imageSource } : {}),
-				...(recipe.imageCredit !== undefined ? { imageCredit: recipe.imageCredit } : {})
+				...(recipe.imageCredit !== undefined ? { imageCredit: recipe.imageCredit } : {}),
+				cookbookRecipeId: recipe.cookbookRecipeId ?? null
 			})
 			.returning();
 		return this.toDao(created);
@@ -198,6 +199,23 @@ export class RecipeRepository implements IRecipeRepository {
 			.limit(limit);
 	}
 
+	async findByHouseholdAndCookbookId(
+		householdId: string,
+		cookbookRecipeId: string
+	): Promise<RecipeDao | null> {
+		const [row] = await this.db
+			.select()
+			.from(schema.recipes)
+			.where(
+				and(
+					eq(schema.recipes.householdId, householdId),
+					eq(schema.recipes.cookbookRecipeId, cookbookRecipeId)
+				)
+			)
+			.limit(1);
+		return row ? this.toDao(row) : null;
+	}
+
 	async countByHouseholdId(householdId: string): Promise<number> {
 		const result = await this.db
 			.select({ count: sql<number>`count(*)`.as('count') })
@@ -245,6 +263,7 @@ export class RecipeRepository implements IRecipeRepository {
 			estimatedCalories: recipe.estimatedCalories,
 			isPublic: recipe.isPublic ?? false,
 			...tagsOfRow(recipe),
+			cookbookRecipeId: recipe.cookbookRecipeId ?? null,
 			createdAt: recipe.createdAt,
 			updatedAt: recipe.updatedAt
 		};
@@ -338,6 +357,7 @@ export class SavedRecipeRepository implements ISavedRecipeRepository {
 						estimatedCalories: s.recipe.estimatedCalories,
 						isPublic: s.recipe.isPublic ?? false,
 						...tagsOfRow(s.recipe),
+						cookbookRecipeId: s.recipe.cookbookRecipeId ?? null,
 						createdAt: s.recipe.createdAt,
 						updatedAt: s.recipe.updatedAt
 					}

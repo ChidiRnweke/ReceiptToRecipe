@@ -16,6 +16,8 @@ import { InMemoryRecipeStepRepository } from '../../fakes/InMemoryRecipeStepRepo
 import { RecordingCulinaryIntelligence } from '../../fakes/RecordingCulinaryIntelligence';
 import { at } from '../../helpers/kitchenEvents';
 import { createPictures, pngOfSize } from '../../fakes/pictures';
+import { createCookbook } from '../../fakes/cookbook';
+import { cookbookRef } from '../../../src/lib/models/recipes';
 
 /** Lets the picture job, which is fired and forgotten, finish. */
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -43,6 +45,7 @@ describe('RecipesDoorController', () => {
 	let controller: RecipesDoorController;
 	let taste: MockTasteProfileService;
 	let pictures: ReturnType<typeof createPictures>;
+	let cookbook: ReturnType<typeof createCookbook>;
 
 	beforeEach(() => {
 		culinary = new RecordingCulinaryIntelligence();
@@ -58,6 +61,7 @@ describe('RecipesDoorController', () => {
 			culinary
 		);
 		pictures = createPictures(kitchen.recipes, kitchen.ingredients);
+		cookbook = createCookbook(kitchen.recipes, kitchen.ingredients, steps);
 		controller = new RecipesDoorController(
 			culinary,
 			storage,
@@ -69,6 +73,7 @@ describe('RecipesDoorController', () => {
 			new MockSavedRecipeRepository(),
 			kitchen.mealLogs,
 			pictures.service,
+			cookbook.service,
 			() => at(1, 18)
 		);
 	});
@@ -317,6 +322,43 @@ describe('RecipesDoorController', () => {
 			const mine = await controller.listMine(actor, 'all');
 
 			expect(mine.counts).toEqual({ made: 0, saved: 0, added: 1, all: 2 });
+		});
+	});
+
+	describe('somethingNew', () => {
+		it('offers shared-cookbook recipes by their cookbook ref', async () => {
+			const dal = await cookbook.addCatalogRecipe('Red lentil dal', ['red lentil']);
+			expect((await controller.somethingNew(actor)).map((card) => card.id)).toEqual([
+				cookbookRef(dal.id)
+			]);
+		});
+
+		it('leaves out what the household adopted', async () => {
+			const dal = await cookbook.addCatalogRecipe('Red lentil dal', ['red lentil']);
+			await cookbook.service.adopt(actor, dal.id);
+			expect(await controller.somethingNew(actor)).toEqual([]);
+		});
+
+		it('leaves out recipes with a member’s allergen', async () => {
+			taste.setHouseholdAllergens(actor.householdId, ['peanut']);
+			await cookbook.addCatalogRecipe('Satay', ['chicken', 'peanut butter']);
+			expect(await controller.somethingNew(actor)).toEqual([]);
+		});
+
+		it('keeps to the household’s diets', async () => {
+			taste.setHouseholdDiets(actor.householdId, ['Vegetarian']);
+			await cookbook.addCatalogRecipe('Roast chicken', ['chicken']);
+			expect(await controller.somethingNew(actor)).toEqual([]);
+		});
+	});
+
+	describe('findInCookbook', () => {
+		it('finds a recipe by an ingredient', async () => {
+			await cookbook.addCatalogRecipe('Winter soup', ['leek', 'potato']);
+			await cookbook.addCatalogRecipe('Apple pie', ['apple', 'flour']);
+			expect((await controller.findInCookbook(actor, 'leek')).map((card) => card.title)).toEqual([
+				'Winter soup'
+			]);
 		});
 	});
 });

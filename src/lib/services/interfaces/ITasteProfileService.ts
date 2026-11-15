@@ -1,3 +1,4 @@
+import type { RecipeWithIngredientsDao } from '$repositories';
 import type { DietTag } from '$lib/models/recipes';
 
 export interface CompatibilityResult {
@@ -46,6 +47,16 @@ export interface ITasteProfileService {
 		preference: PreferenceLevel
 	): Promise<void>;
 	checkRecipeCompatibility(userId: string, recipeId: string): Promise<CompatibilityResult>;
+	/** The same check on a recipe in hand, such as one from the shared cookbook. */
+	checkCompatibility(
+		userId: string,
+		recipe: RecipeWithIngredientsDao
+	): Promise<CompatibilityResult>;
+	/**
+	 * Every allergen a member of the household listed, in its taste profile or its saved
+	 * preferences, in lower case.
+	 */
+	householdAllergens(householdId: string): Promise<string[]>;
 	/**
 	 * The diet tags every recipe must have to suit all members of the household, from each
 	 * member's diet type and saved dietary restrictions.

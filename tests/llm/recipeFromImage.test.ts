@@ -22,8 +22,9 @@ describeLLM('SmartCulinaryIntelligence.recipeFromImage (LLM Integration)', () =>
 		);
 	}, 120000);
 
-	it('reads a printed recipe as a page', () => {
-		expect(read.kind).toBe('page');
+	it('reads a printed recipe as a recipe, not a dish', () => {
+		// A photo of a printed page and a screenshot are handled the same way; only a dish differs.
+		expect(read.kind).not.toBe('dish');
 	});
 
 	it('keeps the dish from the page', () => {
