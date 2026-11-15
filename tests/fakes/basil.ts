@@ -81,7 +81,8 @@ export function createBasil(
 			p.ingredients,
 			new InMemoryRecipeStepRepository(),
 			new MockImageGenerator(),
-			new MockJobQueue()
+			new MockJobQueue(),
+			new MockCulinaryIntelligence()
 		)
 	);
 	const controllers: AgentToolControllers = {

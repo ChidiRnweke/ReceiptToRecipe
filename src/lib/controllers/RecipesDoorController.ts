@@ -12,16 +12,20 @@ import type {
 	IStorageService,
 	ITasteProfileService,
 	KitchenPicture,
-	LlmGeneratedRecipe
+	LlmGeneratedRecipe,
+	TaggingSummary
 } from '$services';
-import { matchKitchen, stepsFromGenerated } from '$services/recipes';
+import { hasTags, matchKitchen, stepsFromGenerated } from '$services/recipes';
 import type { Actor } from '$lib/models/household';
-import type {
-	MyRecipeRow,
-	MyRecipes,
-	MyRecipesTab,
-	RecipeCardResult,
-	SnapKind
+import {
+	FILTER_TAGS,
+	MY_RECIPE_TABS,
+	type MyRecipeRow,
+	type MyRecipes,
+	type MyRecipesTab,
+	type RecipeCardResult,
+	type RecipeTag,
+	type SnapKind
 } from '$lib/models/recipes';
 
 /** A photo as it arrived from the browser. */
@@ -118,14 +122,18 @@ export class RecipesDoorController {
 	 * - saved: the person's saved recipes they can still see, last saved first
 	 * - added: recipes the household made up or snapped, newest first
 	 * - all: every recipe of the household, newest first
+	 * Every tab keeps the recipes that have all of `tags`. Without tags, the household's diets
+	 * apply, so a vegetarian household sees vegetarian recipes; `[]` shows everything.
 	 */
-	async listMine(actor: Actor, tab: MyRecipesTab): Promise<MyRecipes> {
-		const [household, saved, cooked, mealLogs] = await Promise.all([
+	async listMine(actor: Actor, tab: MyRecipesTab, tags?: RecipeTag[]): Promise<MyRecipes> {
+		const [household, saved, cooked, mealLogs, householdDiets] = await Promise.all([
 			this.recipeRepository.findByHouseholdId(actor.householdId, HOUSEHOLD_RECIPE_LIMIT),
 			this.savedRecipeRepository.findByUserId(actor.userId),
 			this.kitchenService.listCooked(actor.householdId),
-			this.mealLogRepository.findByUserId(actor.userId)
+			this.mealLogRepository.findByUserId(actor.userId),
+			this.tasteProfileService.householdDietTags(actor.householdId)
 		]);
+		const applied: RecipeTag[] = tags ?? householdDiets;
 
 		const visible = (recipe: RecipeDao) =>
 			recipe.isPublic || recipe.householdId === actor.householdId;
@@ -162,16 +170,25 @@ export class RecipesDoorController {
 			all: household.map((recipe) => toRow(recipe, null))
 		};
 
+		const matching = (rows: MyRecipeRow[]) => rows.filter((row) => hasTags(row.tags, applied));
+		const offered = FILTER_TAGS.filter(
+			(tag) => applied.includes(tag) || lists[tab].some((row) => row.tags.includes(tag))
+		);
 		return {
 			tab,
-			rows: lists[tab],
-			counts: {
-				made: lists.made.length,
-				saved: lists.saved.length,
-				added: lists.added.length,
-				all: lists.all.length
-			}
+			rows: matching(lists[tab]),
+			counts: Object.fromEntries(
+				MY_RECIPE_TABS.map((key) => [key, matching(lists[key]).length])
+			) as Record<MyRecipesTab, number>,
+			tags: applied,
+			householdDiets,
+			offered
 		};
+	}
+
+	/** Tags the recipes the model has not tagged yet, in the background; see `tagUntagged`. */
+	resumeTagging(): Promise<TaggingSummary> {
+		return this.recipeBook.queueTagging();
 	}
 }
 
@@ -192,7 +209,8 @@ function toRow(recipe: RecipeDao, madeAt: Date | null): MyRecipeRow {
 		imageUrl: recipe.imageUrl,
 		source: recipe.source,
 		totalMinutes: totalMinutes(recipe),
-		madeAt
+		madeAt,
+		tags: recipe.tags ?? []
 	};
 }
 

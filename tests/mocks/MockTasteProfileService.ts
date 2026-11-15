@@ -6,6 +6,8 @@ import type {
 	AllergySeverity,
 	CompatibilityResult
 } from '../../src/lib/services/interfaces/ITasteProfileService';
+import type { DietTag } from '../../src/lib/models/recipes';
+import { dietTagsFor } from '../../src/lib/services/recipes/tags';
 
 /**
  * Mock implementation of ITasteProfileService for testing
@@ -13,6 +15,7 @@ import type {
 export class MockTasteProfileService implements ITasteProfileService {
 	private profiles = new Map<string, TasteProfile>();
 	private compatibilities = new Map<string, CompatibilityResult>();
+	private householdDiets = new Map<string, string[]>();
 
 	private getDefaultProfile(): TasteProfile {
 		return {
@@ -95,7 +98,16 @@ export class MockTasteProfileService implements ITasteProfileService {
 		);
 	}
 
+	async householdDietTags(householdId: string): Promise<DietTag[]> {
+		return dietTagsFor(this.householdDiets.get(householdId) ?? []);
+	}
+
 	// Test helpers
+	/** The diets the household's members saved, e.g. ["Vegetarian"]. */
+	setHouseholdDiets(householdId: string, diets: string[]): void {
+		this.householdDiets.set(householdId, diets);
+	}
+
 	setProfile(userId: string, profile: TasteProfile): void {
 		this.profiles.set(userId, profile);
 	}
@@ -107,5 +119,6 @@ export class MockTasteProfileService implements ITasteProfileService {
 	clear(): void {
 		this.profiles.clear();
 		this.compatibilities.clear();
+		this.householdDiets.clear();
 	}
 }

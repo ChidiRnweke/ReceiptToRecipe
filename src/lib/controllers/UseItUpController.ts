@@ -1,3 +1,4 @@
+import { tagsOf } from '$lib/services/recipes';
 import type { IKitchenService, IPlanService, KitchenPicture } from '$services';
 import type { RecipeWithIngredientsDao } from '$repositories';
 import type { Actor } from '$lib/models/household';
@@ -84,6 +85,7 @@ export class UseItUpController {
 				id: recipe.id,
 				title: recipe.title,
 				source: recipe,
+				tags: tagsOf(recipe),
 				ingredients: recipe.ingredients
 					.filter((ingredient) => !ingredient.optional)
 					.map((ingredient) => {
@@ -103,7 +105,8 @@ export class UseItUpController {
 			known: recipes
 				.filter((recipe) => known.has(recipe.id))
 				.flatMap((recipe) => recipe.ingredients.map((i) => i.itemKey)),
-			limit: IDEA_COUNT
+			limit: IDEA_COUNT,
+			requiredTags: cookbook.dietTags
 		}).map(({ recipe, uses, missing }) => ({
 			recipeId: recipe.id,
 			title: recipe.title,

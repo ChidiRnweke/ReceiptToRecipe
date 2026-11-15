@@ -3,9 +3,11 @@
  */
 import { z } from 'zod';
 import type { TechniqueVerb } from './techniques';
+import { recipeTagSchema, type DietTag, type RecipeTag } from './tags';
 
 export * from './techniques';
 export * from './generated';
+export * from './tags';
 
 export type RecipeSource = 'GENERATED' | 'RAG' | 'USER' | 'SNAPPED';
 
@@ -41,12 +43,22 @@ export interface MyRecipeRow {
 	totalMinutes: number | null;
 	/** When the household last cooked it; set on the Made tab only. */
 	madeAt: Date | null;
+	/** What the recipe is, e.g. vegetarian or quick. Empty until it is tagged. */
+	tags: RecipeTag[];
 }
 
 export interface MyRecipes {
 	tab: MyRecipesTab;
+	/** The tab's recipes that have every tag in `tags`. */
 	rows: MyRecipeRow[];
+	/** Rows per tab, with the same tags applied. */
 	counts: Record<MyRecipesTab, number>;
+	/** The tags the rows are filtered on. */
+	tags: RecipeTag[];
+	/** The diets of the household's members, applied when no tags were chosen. */
+	householdDiets: DietTag[];
+	/** The filter tags worth offering: those a recipe in the tab carries, plus those applied. */
+	offered: RecipeTag[];
 }
 
 /** A freshly made-up or snapped recipe, with how it fits what is in the kitchen. */
@@ -67,7 +79,12 @@ export interface RecipeCardResult {
 
 export const SNAP_MAX_BYTES = 10 * 1024 * 1024;
 
-export const listMineInput = z.enum(MY_RECIPE_TABS);
+export const listMineInput = z.object({
+	tab: z.enum(MY_RECIPE_TABS),
+	/** Filter tags; left out, the household's diets apply. */
+	tags: z.array(recipeTagSchema).max(15).optional()
+});
+export type ListMineInput = z.infer<typeof listMineInput>;
 
 export const cravingInput = z.object({
 	text: z.string().trim().min(1, 'Say what you fancy').max(200),

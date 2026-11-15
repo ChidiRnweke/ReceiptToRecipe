@@ -1,3 +1,4 @@
+import { tagsOf } from '$lib/services/recipes';
 import type {
 	Cookbook,
 	IHabitService,
@@ -570,6 +571,7 @@ export class ShopController {
 			id: recipe.id,
 			title: recipe.title,
 			source: recipe,
+			tags: tagsOf(recipe),
 			ingredients: recipe.ingredients
 				.filter((ingredient) => !ingredient.optional)
 				.map((ingredient) => {
@@ -595,7 +597,8 @@ export class ShopController {
 			day: ctx.today,
 			tracksKitchen: ctx.picture.tracks,
 			known: knownKeys,
-			limit: IDEA_COUNT
+			limit: IDEA_COUNT,
+			requiredTags: ctx.cookbook.dietTags
 		}).map(({ recipe, uses, missing }) => ({
 			recipeId: recipe.id,
 			title: recipe.title,

@@ -47,6 +47,7 @@ import {
 	WEEK_DAYS
 } from './plan';
 import { rankIdeas } from './tonight/rankIdeas';
+import { tagsOf } from './recipes/tags';
 import { sameItem, spokenName } from './tonight/items';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -91,6 +92,7 @@ function toRankRecipe(recipe: RecipeWithIngredientsDao, stockKeys: string[]): Ra
 		id: recipe.id,
 		title: recipe.title,
 		source: recipe,
+		tags: tagsOf(recipe),
 		ingredients: recipe.ingredients
 			.filter((ingredient) => !ingredient.optional)
 			.map((ingredient) => {
@@ -157,17 +159,19 @@ export class PlanService implements IPlanService {
 
 	async getCookbook(actor: Actor, now: Date): Promise<Cookbook> {
 		const since = new Date(now.getTime() - COOKED_LOOKBACK_DAYS * DAY_MS);
-		const [recipes, saved, recent] = await Promise.all([
+		const [recipes, saved, recent, dietTags] = await Promise.all([
 			this.recipeRepository.findByHouseholdIdWithIngredients(actor.householdId, COOKBOOK_LIMIT),
 			this.savedRecipeRepository.findByUserId(actor.userId),
-			this.plannedMealRepository.findByHouseholdIdAndRange(actor.householdId, since, now)
+			this.plannedMealRepository.findByHouseholdIdAndRange(actor.householdId, since, now),
+			this.compatibility.householdDietTags(actor.householdId)
 		]);
 		const cooked = recent
 			.filter((meal) => meal.status === 'COOKED' && meal.recipeId)
 			.map((meal) => meal.recipeId as string);
 		return {
 			recipes,
-			cookedOrSaved: [...new Set([...cooked, ...saved.map((s) => s.recipeId)])]
+			cookedOrSaved: [...new Set([...cooked, ...saved.map((s) => s.recipeId)])],
+			dietTags
 		};
 	}
 
@@ -560,7 +564,8 @@ export class PlanService implements IPlanService {
 
 	/**
 	 * Household recipes ranked by `rankIdeas`, keeping only those that suit every member: a
-	 * severe allergy or a diet clash of anyone in the household blocks a recipe. Recipes are
+	 * recipe without a member's diet tag, a severe allergy or a diet clash of anyone in the
+	 * household blocks it. Recipes are
 	 * checked in rank order until `limit` suitable ones are found.
 	 */
 	private async suitableRanked(
@@ -573,11 +578,11 @@ export class PlanService implements IPlanService {
 		}
 	) {
 		const today = dayNumber(ctx.now, ctx.timeZone);
-		const [recipes, members, cookbook] = await Promise.all([
-			this.recipeRepository.findByHouseholdIdWithIngredients(actor.householdId, COOKBOOK_LIMIT),
+		const [members, cookbook] = await Promise.all([
 			this.householdRepository.listMembers(actor.householdId),
 			this.getCookbook(actor, ctx.now)
 		]);
+		const recipes = cookbook.recipes;
 		const stockKeys = ctx.stock.map((item) => item.itemKey);
 		const accept = options.accept ?? (() => true);
 		const rankRecipes = recipes.filter(accept).map((recipe) => toRankRecipe(recipe, stockKeys));
@@ -590,7 +595,8 @@ export class PlanService implements IPlanService {
 			tracksKitchen: ctx.tracksKitchen,
 			known,
 			exclude: options.exclude,
-			limit: rankRecipes.length
+			limit: rankRecipes.length,
+			requiredTags: cookbook.dietTags
 		});
 
 		const userIds = members.length ? members.map((member) => member.userId) : [actor.userId];

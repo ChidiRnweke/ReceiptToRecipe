@@ -9,12 +9,15 @@ import type {
 	PlanSlotType
 } from '$lib/models/plan';
 import type { PlannedMealStatus } from '$lib/models/kitchen';
+import type { DietTag } from '$lib/models/recipes';
 import type { RankStock } from '../tonight/items';
 import type { CompatibilityResult } from './ITasteProfileService';
 
 /** Checks a recipe against one person's allergies and diet; the taste profile service does. */
 export interface RecipeCompatibility {
 	checkRecipeCompatibility(userId: string, recipeId: string): Promise<CompatibilityResult>;
+	/** The diet tags a recipe needs to suit every member of the household. */
+	householdDietTags(householdId: string): Promise<DietTag[]>;
 }
 
 /** Makes a new household recipe from a few ingredients; recipe generation does. */
@@ -87,6 +90,8 @@ export interface Cookbook {
 	recipes: RecipeWithIngredientsDao[];
 	/** Recipe ids the household cooked recently or the member saved. */
 	cookedOrSaved: string[];
+	/** The diet tags an idea needs to suit every member; recipes without them are not offered. */
+	dietTags: DietTag[];
 }
 
 export interface PlannedMealWithRecipe {

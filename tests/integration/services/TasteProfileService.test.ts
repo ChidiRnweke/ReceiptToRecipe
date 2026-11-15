@@ -10,6 +10,8 @@ import {
 	MockRecipeRepository,
 	MockRecipeIngredientRepository
 } from '../../mocks/MockRecipeRepositories';
+import { MockUserPreferencesRepository } from '../../mocks/MockUserPreferencesRepository';
+import { InMemoryHouseholdRepository } from '../../fakes/InMemoryHouseholdRepository';
 
 describe('TasteProfileService', () => {
 	let service: TasteProfileService;
@@ -19,6 +21,8 @@ describe('TasteProfileService', () => {
 	let cuisinePrefRepo: MockUserCuisinePreferenceRepository;
 	let recipeRepo: MockRecipeRepository;
 	let recipeIngredientRepo: MockRecipeIngredientRepository;
+	let preferencesRepo: MockUserPreferencesRepository;
+	let households: InMemoryHouseholdRepository;
 
 	const userId = 'user-123';
 
@@ -29,6 +33,8 @@ describe('TasteProfileService', () => {
 		cuisinePrefRepo = new MockUserCuisinePreferenceRepository();
 		recipeRepo = new MockRecipeRepository();
 		recipeIngredientRepo = new MockRecipeIngredientRepository();
+		preferencesRepo = new MockUserPreferencesRepository();
+		households = new InMemoryHouseholdRepository();
 
 		// Wire ingredient repo into recipe repo so findByIdWithIngredients works
 		recipeRepo.setIngredientRepository(recipeIngredientRepo);
@@ -39,7 +45,9 @@ describe('TasteProfileService', () => {
 			ingredientPrefRepo,
 			cuisinePrefRepo,
 			recipeRepo,
-			recipeIngredientRepo
+			recipeIngredientRepo,
+			preferencesRepo,
+			households
 		);
 	});
 
@@ -220,6 +228,34 @@ describe('TasteProfileService', () => {
 	});
 
 	// ---------- checkRecipeCompatibility ----------
+
+	describe('householdDietTags', () => {
+		async function member(userId: string) {
+			await households.createMember({
+				householdId: 'household-1',
+				userId,
+				displayName: userId
+			});
+		}
+
+		it('requires vegetarian when one member saved a vegetarian diet', async () => {
+			await member('noor');
+			await member('sam');
+			await preferencesRepo.create({ userId: 'sam', dietaryRestrictions: ['Vegetarian'] });
+			expect(await service.householdDietTags('household-1')).toEqual(['vegetarian']);
+		});
+
+		it('reads a member’s diet type from the taste profile', async () => {
+			await member('noor');
+			await service.setDietType('noor', 'pescatarian');
+			expect(await service.householdDietTags('household-1')).toEqual(['pescatarian']);
+		});
+
+		it('requires nothing when no member has a diet', async () => {
+			await member('noor');
+			expect(await service.householdDietTags('household-1')).toEqual([]);
+		});
+	});
 
 	describe('checkRecipeCompatibility', () => {
 		it('should return fully compatible for a recipe with no conflicts', async () => {

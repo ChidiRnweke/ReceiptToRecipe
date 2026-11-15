@@ -88,7 +88,8 @@ describe('RecipeController', () => {
 				mockRecipeIngredientRepository,
 				recipeSteps,
 				mockImageGenerator,
-				mockJobQueue
+				mockJobQueue,
+				mockCulinaryIntelligence
 			)
 		);
 	});

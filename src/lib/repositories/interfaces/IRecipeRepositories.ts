@@ -30,6 +30,11 @@ export interface IRecipeRepository {
 	getImageStatus(id: string): Promise<RecipeImageStatusDao | null>;
 	countByReceiptIds(receiptIds: string[]): Promise<RecipeCountByReceiptDao[]>;
 	countByHouseholdId(householdId: string): Promise<number>;
+	/**
+	 * Recipes of every household that the model has not tagged yet, with their ingredients, in id
+	 * order after `afterId`. Pass the last id of one batch to read the next.
+	 */
+	findNeedingTags(afterId: string | null, limit: number): Promise<RecipeWithIngredientsDao[]>;
 }
 
 export interface IRecipeIngredientRepository {

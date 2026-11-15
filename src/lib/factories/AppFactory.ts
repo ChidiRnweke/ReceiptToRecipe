@@ -371,7 +371,9 @@ export class AppFactory {
 				AppFactory.getUserIngredientPreferenceRepository(),
 				AppFactory.getUserCuisinePreferenceRepository(),
 				AppFactory.getRecipeRepository(),
-				AppFactory.getRecipeIngredientRepository()
+				AppFactory.getRecipeIngredientRepository(),
+				AppFactory.getUserPreferencesRepository(),
+				AppFactory.getHouseholdRepository()
 			);
 		}
 		return tasteProfileService;
@@ -479,7 +481,8 @@ export class AppFactory {
 				AppFactory.getRecipeIngredientRepository(),
 				AppFactory.getRecipeStepRepository(),
 				AppFactory.getImageGenerator(),
-				AppFactory.getJobQueue()
+				AppFactory.getJobQueue(),
+				AppFactory.getCulinaryIntelligence()
 			);
 		}
 		return recipeBookService;

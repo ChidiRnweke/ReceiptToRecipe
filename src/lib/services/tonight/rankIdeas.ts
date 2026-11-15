@@ -1,5 +1,7 @@
 import type { PlanRecipe } from '$lib/models/plan';
 import { convertUnit } from '../kitchen/units';
+import type { RecipeTag } from '$lib/models/recipes';
+import { hasTags } from '../recipes/tags';
 import { containsItem, sameItem, type RankStock } from './items';
 
 /** Staples a household that does not track its kitchen is assumed to have. */
@@ -28,6 +30,8 @@ export interface RankOptions {
 	/** Scales recipe amounts to the servings cooked. */
 	factor?: number;
 	limit?: number;
+	/** Diet tags every idea must have, e.g. vegetarian when a member is; others are dropped. */
+	requiredTags?: readonly RecipeTag[];
 }
 
 export interface RankedIdea<R extends PlanRecipe> {
@@ -43,6 +47,7 @@ export interface RankedIdea<R extends PlanRecipe> {
  * kitchen that goes off within two days, minus 1.3 per missing ingredient, minus 6 when the
  * recipe is already planned in the next three days. A household that does not track its
  * kitchen is assumed to have the staples and the ingredients of recipes it cooked or saved.
+ * Recipes without every required diet tag are left out.
  */
 export function rankIdeas<R extends PlanRecipe>(
 	recipes: R[],
@@ -54,6 +59,7 @@ export function rankIdeas<R extends PlanRecipe>(
 	const exclude = new Set(options.exclude ?? []);
 	const soon = new Set(plannedSoon);
 	const known = options.known ?? [];
+	const required = options.requiredTags ?? [];
 	const assumed = (itemKey: string) =>
 		!options.tracksKitchen &&
 		(STAPLES.some((staple) => containsItem(itemKey, staple)) ||
@@ -61,6 +67,7 @@ export function rankIdeas<R extends PlanRecipe>(
 
 	return recipes
 		.filter((recipe) => !exclude.has(recipe.id))
+		.filter((recipe) => required.length === 0 || hasTags(recipe.tags ?? [], required))
 		.map((recipe, index) => {
 			const uses: string[] = [];
 			const missing: string[] = [];

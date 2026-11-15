@@ -55,7 +55,7 @@ export const TOOL_CATALOG = [
 		name: 'find_recipes',
 		classification: 'read',
 		description:
-			"The household's recipes, newest first, with their recipeId. Pass a few words to search titles, or a tab: made (cooked before), saved, added (made up or snapped) or all."
+			'The household\'s recipes, newest first, with their recipeId and tags. Pass a few words to search titles, a tab: made (cooked before), saved, added (made up or snapped) or all, and tags the recipes must have, e.g. ["vegetarian", "quick"]. Tags: vegetarian, vegan, pescatarian, gluten-free, dairy-free, quick, one-pot, keeps-well, freezes, lunchbox, breakfast, main, side, dessert, snack.'
 	},
 	{
 		name: 'get_recipe',
@@ -95,7 +95,7 @@ export const TOOL_CATALOG = [
 		name: 'suggest_ideas',
 		classification: 'proposal',
 		description:
-			'Five other recipes the household could cook tonight instead, ranked by what is at home and what goes off soon. Changes nothing; offer one, then use pick_tonight if the person wants it.'
+			'Five other recipes the household could cook tonight instead, ranked by what is at home and what goes off soon, and suiting every member’s diet. Pass tags to keep only those recipes, e.g. ["quick"] (the same tags as find_recipes). Changes nothing; offer one, then use pick_tonight if the person wants it.'
 	},
 	{
 		name: 'use_up_ideas',

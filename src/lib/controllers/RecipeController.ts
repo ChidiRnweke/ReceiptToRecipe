@@ -334,6 +334,8 @@ export class RecipeController {
 			}
 		}
 
+		await this.recipeBook.retag(recipeId);
+
 		// Return updated recipe
 		const updatedRecipe = await this.getRecipe(recipeId, actor);
 		if (!updatedRecipe) {
@@ -412,6 +414,8 @@ export class RecipeController {
 
 			await this.recipeIngredientRepository.createMany(ingredientValues);
 		}
+
+		await this.recipeBook.retag(recipeId);
 
 		// Return updated recipe
 		const result = await this.getRecipe(recipeId, actor);

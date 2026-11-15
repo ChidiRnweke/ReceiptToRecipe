@@ -6,8 +6,12 @@ import type {
 	IRecipeRepository,
 	IRecipeIngredientRepository,
 	RecipeWithIngredientsDao,
-	RecipeIngredientDao
+	RecipeIngredientDao,
+	IUserPreferencesRepository,
+	IHouseholdRepository
 } from '$repositories';
+import type { DietTag } from '$lib/models/recipes';
+import { dietTagsFor } from './recipes/tags';
 import type {
 	ITasteProfileService,
 	CompatibilityResult,
@@ -32,8 +36,24 @@ export class TasteProfileService implements ITasteProfileService {
 		private ingredientPrefRepo: IUserIngredientPreferenceRepository,
 		private cuisinePrefRepo: IUserCuisinePreferenceRepository,
 		private recipeRepo: IRecipeRepository,
-		private recipeIngredientRepo: IRecipeIngredientRepository
+		private recipeIngredientRepo: IRecipeIngredientRepository,
+		private userPreferencesRepo: IUserPreferencesRepository,
+		private householdRepo: IHouseholdRepository
 	) {}
+
+	async householdDietTags(householdId: string): Promise<DietTag[]> {
+		const members = await this.householdRepo.listMembers(householdId);
+		const diets = await Promise.all(
+			members.map(async (member) => {
+				const [profile, preferences] = await Promise.all([
+					this.dietaryProfileRepo.findByUserId(member.userId),
+					this.userPreferencesRepo.findByUserId(member.userId)
+				]);
+				return [profile?.dietType ?? null, ...(preferences?.dietaryRestrictions ?? [])];
+			})
+		);
+		return dietTagsFor(diets.flat());
+	}
 
 	async getUserTasteProfile(userId: string): Promise<TasteProfile> {
 		const dietProfile = await this.dietaryProfileRepo.findByUserId(userId);

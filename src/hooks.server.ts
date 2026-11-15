@@ -25,7 +25,8 @@ function timeZoneFrom(value: string | undefined): string {
 /**
  * The OCR job queue lives in memory, so a restart loses the receipts it was reading. Once the
  * server is up, their OCR is queued again. This runs in the background: a failure is logged and
- * does not stop the server from starting.
+ * does not stop the server from starting. Recipes the model has not tagged yet are tagged the
+ * same way.
  */
 export const init: ServerInit = async () => {
 	if (building) return;
@@ -43,6 +44,12 @@ export const init: ServerInit = async () => {
 			if (count) console.info(`Recovered ${count} Basil run(s) after start.`);
 		})
 		.catch((error) => console.error('Could not recover Basil runs after start:', error));
+	void Promise.resolve()
+		.then(() => AppFactory.getRecipesDoorController().resumeTagging())
+		.then(({ tagged, judged }) => {
+			if (tagged) console.info(`Tagged ${tagged} recipe(s) after start, ${judged} by the model.`);
+		})
+		.catch((error) => console.error('Could not tag recipes after start:', error));
 };
 
 export const handle: Handle = async ({ event, resolve }) => {

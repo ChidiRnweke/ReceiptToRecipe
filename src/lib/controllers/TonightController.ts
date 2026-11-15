@@ -1,3 +1,5 @@
+import type { RecipeTag } from '$lib/models/recipes';
+import { tagsOf } from '$lib/services/recipes';
 import type {
 	Cookbook,
 	IHabitService,
@@ -90,6 +92,7 @@ function toCookRecipe(recipe: RecipeWithIngredientsDao, stockKeys: string[]): Co
 		id: recipe.id,
 		title: recipe.title,
 		source: recipe,
+		tags: tagsOf(recipe),
 		ingredients: recipe.ingredients
 			.filter((ingredient) => !ingredient.optional)
 			.map((ingredient) => {
@@ -165,12 +168,19 @@ export class TonightController {
 	}
 
 	/** Five ideas instead of the planned meal. */
-	async alternatives(actor: Actor, now: Date, timeZone: string): Promise<TonightIdea[]> {
+	async alternatives(
+		actor: Actor,
+		now: Date,
+		timeZone: string,
+		tags: RecipeTag[] = []
+	): Promise<TonightIdea[]> {
 		const ctx = await this.load(actor, now, timeZone);
 		const planned = ctx.target.meal?.recipeId;
-		return this.rank(ctx, { limit: ALTERNATIVE_COUNT, exclude: planned ? [planned] : [] }).map(
-			(idea) => this.toIdea(idea)
-		);
+		return this.rank(ctx, {
+			limit: ALTERNATIVE_COUNT,
+			exclude: planned ? [planned] : [],
+			tags
+		}).map((idea) => this.toIdea(idea));
 	}
 
 	/** Records the meal as cooked; a recipe on its own becomes today's dinner first. */
@@ -340,7 +350,7 @@ export class TonightController {
 
 	private rank(
 		ctx: TonightContext,
-		options: { limit: number; exclude?: string[]; only?: string }
+		options: { limit: number; exclude?: string[]; only?: string; tags?: RecipeTag[] }
 	): RankedIdea<CookRecipe>[] {
 		const { today } = ctx;
 		const plannedSoon = ctx.meals
@@ -360,7 +370,8 @@ export class TonightController {
 			tracksKitchen: ctx.picture.tracks,
 			known,
 			exclude: options.exclude,
-			limit: options.limit
+			limit: options.limit,
+			requiredTags: options.only ? [] : [...ctx.cookbook.dietTags, ...(options.tags ?? [])]
 		});
 	}
 

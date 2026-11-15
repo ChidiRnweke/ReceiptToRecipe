@@ -11,7 +11,9 @@ import type {
 	CravingContext,
 	ImageRecipe,
 	ImageRecipeContext,
-	RecipeImage
+	RecipeImage,
+	RecipeToTag,
+	JudgedRecipeTags
 } from './interfaces';
 import { NoRecipeInImageError } from './interfaces';
 import {
@@ -19,6 +21,9 @@ import {
 	generatedRecipeSchema,
 	generatedStepSchema,
 	snappedRecipeSchema,
+	JUDGED_TAGS,
+	TAG_COPY,
+	judgedTagsFrom,
 	type GeneratedRecipeJson
 } from '$lib/models/recipes';
 import { formatInstructions, stepsFromGenerated } from './recipes';
@@ -47,6 +52,11 @@ Put that verb in "verb" and the rest of the sentence, without the verb, in "text
 When none of the verbs fits, set "verb" to null and write the whole sentence in "text" (for example {"verb": null, "text": "Crack in the eggs and cover until just set.", "minutes": 5}).
 Use no other verbs in "verb". "minutes" is the time the step takes, or null. Keep each step to one or two short sentences.`;
 
+/** The tags the model judges, with what each means. */
+const TAG_RULES = `Set "tags" to the ones of these that fit the dish, and no others:
+${JUDGED_TAGS.map((tag) => `- ${tag}: ${TAG_COPY[tag].meaning}`).join('\n')}
+Give exactly one of breakfast, main, side, dessert or snack.`;
+
 const RECIPE_JSON_FORMAT = (servings: number) => `{
   "title": "Recipe Name",
   "description": "Brief description of the dish",
@@ -64,8 +74,18 @@ const RECIPE_JSON_FORMAT = (servings: number) => `{
       "optional": false,
       "notes": "optional preparation notes"
     }
-  ]
+  ],
+  "tags": ["main", "keeps-well"]
 }`;
+
+const TAGGING_SYSTEM_PROMPT = `You tag home-cooking recipes for a meal-planning app.
+${TAG_RULES}
+Judge from the title, the ingredients and the steps. Leave a planning tag out when you are not sure.
+Always respond with valid JSON only.`;
+
+const taggedRecipesSchema = z.object({
+	recipes: z.array(z.object({ id: z.string(), tags: z.unknown() })).catch([])
+});
 
 const SNAP_SYSTEM_PROMPT = `You read recipes from photos for a home-cooking app.
 First decide what the photo shows:
@@ -145,7 +165,8 @@ export class SmartCulinaryIntelligence implements ICulinaryIntelligence {
 			`\nServings: ${context.servings} (scale the amounts when the recipe gives another number).`,
 			`\n${STEPS_RULES}`,
 			`\nRespond with JSON: {"kind": "page" | "screenshot" | "dish" | "none", "recipe": ${RECIPE_JSON_FORMAT(context.servings)}}`,
-			'Leave out "recipe" when kind is "none".'
+			'Leave out "recipe" when kind is "none".',
+			`\n${TAG_RULES}`
 		].join('\n');
 
 		const json = await this.completeJson([
@@ -209,8 +230,35 @@ export class SmartCulinaryIntelligence implements ICulinaryIntelligence {
 			cookTime: parsed.cookTime,
 			cuisineType: parsed.cuisineType,
 			estimatedCalories: parsed.estimatedCalories,
-			ingredients: parsed.ingredients
+			ingredients: parsed.ingredients,
+			...(parsed.tags ? { tags: parsed.tags } : {})
 		};
+	}
+
+	async tagRecipes(recipes: RecipeToTag[]): Promise<JudgedRecipeTags[]> {
+		if (recipes.length === 0) return [];
+		const listed = recipes
+			.map((recipe) =>
+				[
+					`id: ${recipe.id}`,
+					`title: ${recipe.title}`,
+					`ingredients: ${recipe.ingredients.join(', ') || 'none listed'}`,
+					`steps: ${recipe.steps.join(' / ') || 'none listed'}`
+				].join('\n')
+			)
+			.join('\n\n');
+		const json = await this.completeJson([
+			{ role: 'system', content: TAGGING_SYSTEM_PROMPT },
+			{
+				role: 'user',
+				content: `Tag each of these recipes.\n\n${listed}\n\nRespond with JSON: {"recipes": [{"id": "<id as given>", "tags": ["main", "keeps-well"]}]}`
+			}
+		]);
+		const known = new Set(recipes.map((recipe) => recipe.id));
+		return taggedRecipesSchema
+			.parse(json)
+			.recipes.filter((entry) => known.has(entry.id))
+			.map((entry) => ({ id: entry.id, tags: judgedTagsFrom(entry.tags) }));
 	}
 
 	private buildCravingPrompt(context: CravingContext): string {
@@ -237,7 +285,8 @@ export class SmartCulinaryIntelligence implements ICulinaryIntelligence {
 		parts.push(`\nServings: ${context.servings}`);
 		parts.push(`\n${STEPS_RULES}`);
 		parts.push(
-			`\nRespond with JSON in this exact format:\n${RECIPE_JSON_FORMAT(context.servings)}`
+			`\nRespond with JSON in this exact format:\n${RECIPE_JSON_FORMAT(context.servings)}`,
+			`\n${TAG_RULES}`
 		);
 		return parts.join('\n');
 	}
@@ -509,6 +558,7 @@ Respond with JSON:
 
 		parts.push(`\n${STEPS_RULES}`);
 		parts.push(`\nRespond with JSON in this exact format:\n${RECIPE_JSON_FORMAT(servings)}`);
+		parts.push(`\n${TAG_RULES}`);
 
 		return parts.join('\n');
 	}

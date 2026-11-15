@@ -16,6 +16,7 @@ import {
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
+import type { RecipeTagSource } from '../models/recipes/tags';
 
 // Enums
 export const processingStatusEnum = pgEnum('processing_status', [
@@ -229,10 +230,17 @@ export const recipes = pgTable(
 		cuisineType: text('cuisine_type'),
 		estimatedCalories: integer('estimated_calories'),
 		isPublic: boolean('is_public').default(false),
+		/** Tags from the vocabulary in models/recipes/tags.ts; null until the recipe is tagged. */
+		tags: text('tags').array(),
+		/** Which tags came from rules and which from the model; `ai` is null until it judged. */
+		tagSource: jsonb('tag_source').$type<RecipeTagSource>(),
 		createdAt: timestamp('created_at').notNull().defaultNow(),
 		updatedAt: timestamp('updated_at').notNull().defaultNow()
 	},
-	(t) => [index('recipes_household_id_idx').on(t.householdId)]
+	(t) => [
+		index('recipes_household_id_idx').on(t.householdId),
+		index('recipes_tags_idx').using('gin', t.tags)
+	]
 );
 
 // Recipe Ingredients

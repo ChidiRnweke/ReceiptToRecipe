@@ -221,7 +221,11 @@ export const agentToolCoverage = {
 	recipesDoor: {
 		craving: { kind: 'mutation', tools: ['make_recipe_from_craving'] },
 		snap: { kind: 'excluded', reason: 'Snapping needs a photo the agent can’t provide.' },
-		listMine: { kind: 'read', tools: ['find_recipes'] }
+		listMine: { kind: 'read', tools: ['find_recipes'] },
+		resumeTagging: {
+			kind: 'excluded',
+			reason: 'Startup work for every household, not one member.'
+		}
 	},
 	shop: {
 		getShop: { kind: 'read', tools: ['get_shop_list', 'why_on_list'] },

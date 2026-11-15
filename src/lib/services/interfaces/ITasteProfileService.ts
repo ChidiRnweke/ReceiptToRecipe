@@ -1,3 +1,5 @@
+import type { DietTag } from '$lib/models/recipes';
+
 export interface CompatibilityResult {
 	compatible: boolean;
 	warnings: string[];
@@ -44,4 +46,9 @@ export interface ITasteProfileService {
 		preference: PreferenceLevel
 	): Promise<void>;
 	checkRecipeCompatibility(userId: string, recipeId: string): Promise<CompatibilityResult>;
+	/**
+	 * The diet tags every recipe must have to suit all members of the household, from each
+	 * member's diet type and saved dietary restrictions.
+	 */
+	householdDietTags(householdId: string): Promise<DietTag[]>;
 }

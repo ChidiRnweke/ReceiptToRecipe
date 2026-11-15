@@ -14,6 +14,25 @@ describe('keepsWell', () => {
 	it('does not keep tacos', () => {
 		expect(keepsWell({ title: 'Chicken tacos' })).toBe(false);
 	});
+
+	it('reads the keeps-well tag of a recipe the model tagged', () => {
+		const tags = ['main' as const, 'keeps-well' as const];
+		expect(keepsWell({ title: 'Chicken tacos', tags, tagSource: { rule: [], ai: tags } })).toBe(
+			true
+		);
+	});
+
+	it('trusts a tagged recipe without the keeps-well tag over its title', () => {
+		expect(
+			keepsWell({ title: 'Quick curry', tags: ['main'], tagSource: { rule: [], ai: ['main'] } })
+		).toBe(false);
+	});
+
+	it('falls back to the title while the model has not judged the recipe', () => {
+		expect(
+			keepsWell({ title: 'Lentil soup', tags: ['vegan'], tagSource: { rule: ['vegan'], ai: null } })
+		).toBe(true);
+	});
 });
 
 describe('mergePrepSteps', () => {

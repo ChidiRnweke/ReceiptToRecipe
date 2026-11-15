@@ -1,4 +1,4 @@
-import type { RecipeSource, TechniqueVerb } from '$lib/models/recipes';
+import type { RecipeSource, RecipeTag, RecipeTagSource, TechniqueVerb } from '$lib/models/recipes';
 
 export interface RecipeDao {
 	id: string;
@@ -17,6 +17,9 @@ export interface RecipeDao {
 	cuisineType: string | null;
 	estimatedCalories: number | null;
 	isPublic: boolean;
+	/** Null until the recipe is tagged. */
+	tags: RecipeTag[] | null;
+	tagSource: RecipeTagSource | null;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -36,6 +39,8 @@ export interface NewRecipeDao {
 	source?: RecipeSource;
 	imageUrl?: string | null;
 	imageStatus?: 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED';
+	tags?: RecipeTag[] | null;
+	tagSource?: RecipeTagSource | null;
 }
 
 export interface UpdateRecipeDao {
@@ -50,6 +55,8 @@ export interface UpdateRecipeDao {
 	cuisineType?: string | null;
 	estimatedCalories?: number | null;
 	isPublic?: boolean;
+	tags?: RecipeTag[] | null;
+	tagSource?: RecipeTagSource | null;
 }
 
 export interface RecipeIngredientDao {

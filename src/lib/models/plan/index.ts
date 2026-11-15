@@ -7,6 +7,7 @@
  */
 
 import type { PlannedMealStatus, PlanningStyle, Weekday } from '$lib/models/kitchen';
+import type { RecipeTag } from '$lib/models/recipes';
 
 /** PREP is a batch-cooking session: it makes the lunches of the following days. */
 export type MealType = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK' | 'PREP';
@@ -50,6 +51,8 @@ export interface PlanRecipe {
 	id: string;
 	title: string;
 	ingredients: { itemKey: string; quantity: number; unit: string }[];
+	/** What the recipe is, e.g. vegetarian; diet filters read it. */
+	tags?: readonly RecipeTag[];
 }
 
 /** A planned meal with the fields the Plan door reads. */
@@ -71,6 +74,8 @@ export interface PlanRecipeInfo {
 	minutes: number | null;
 	calories: number | null;
 	steps: string[];
+	/** It keeps, so "Cook for two days" is offered. */
+	keepsWell: boolean;
 }
 
 /** The slots the Plan door fills. */

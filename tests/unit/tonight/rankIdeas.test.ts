@@ -136,3 +136,22 @@ describe('rankIdeas', () => {
 		expect(first.missing).toEqual(['onion']);
 	});
 });
+
+describe('rankIdeas with required diet tags', () => {
+	const vegan = { ...saag, tags: ['vegan' as const] };
+	const meat = { ...tacos, tags: [] };
+
+	it('leaves out a recipe without the required tag', () => {
+		const ideas = rankIdeas([vegan, meat], kitchen, [], {
+			...tracking,
+			limit: 5,
+			requiredTags: ['vegetarian']
+		});
+		expect(ideas.map((idea) => idea.recipe.id)).toEqual(['saag']);
+	});
+
+	it('leaves out a recipe whose tags are not known', () => {
+		const ideas = rankIdeas([pasta], kitchen, [], { ...tracking, requiredTags: ['vegan'] });
+		expect(ideas).toEqual([]);
+	});
+});

@@ -192,7 +192,8 @@ export function recipesResult(recipes: MyRecipes, query: string | undefined) {
 			recipeId: row.id,
 			title: row.title,
 			minutes: row.totalMinutes,
-			source: row.source
+			source: row.source,
+			tags: row.tags
 		}))
 	};
 }
