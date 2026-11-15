@@ -16,11 +16,12 @@ import type {
 	IVectorService,
 	ITasteProfileService,
 	IRecipeBookService,
-	IRecipePictureService
+	IRecipePictureService,
+	ICookbookService
 } from '$services';
 import { stepsFromGenerated } from '$services/recipes';
 import type { Actor } from '$lib/models/household';
-import type { RecipeStep } from '$lib/models/recipes';
+import { cookbookIdOf, type CookbookAttribution, type RecipeStep } from '$lib/models/recipes';
 
 export interface GenerateRecipeInput {
 	actor: Actor;
@@ -36,6 +37,8 @@ export interface RecipeWithIngredients extends RecipeDao {
 	ingredients: RecipeIngredientDao[];
 	/** The method in the cooking vocabulary, in order. */
 	steps: RecipeStep[];
+	/** The Wikibooks page the recipe was adapted from, with its licence, or null. */
+	cookbook: CookbookAttribution | null;
 }
 
 export class RecipeController {
@@ -49,7 +52,8 @@ export class RecipeController {
 		private userPreferencesRepository: IUserPreferencesRepository,
 		private receiptItemRepository: IReceiptItemRepository,
 		private recipeBook: IRecipeBookService,
-		private recipePictures: IRecipePictureService
+		private recipePictures: IRecipePictureService,
+		private cookbook: ICookbookService
 	) {}
 
 	/**
@@ -157,12 +161,40 @@ export class RecipeController {
 	 * public recipes are visible to anyone, signed in or not.
 	 */
 	async getRecipe(recipeId: string, actor?: Actor | null): Promise<RecipeWithIngredients | null> {
+		const cookbookRecipeId = cookbookIdOf(recipeId);
+		if (cookbookRecipeId) {
+			// A household that adopted the recipe sees its own copy; anyone else sees the catalog's.
+			const own = actor
+				? await this.recipeRepository.findByHouseholdAndCookbookId(
+						actor.householdId,
+						cookbookRecipeId
+					)
+				: null;
+			if (own) return this.getRecipe(own.id, actor);
+			const preview = await this.cookbook.preview(cookbookRecipeId);
+			if (!preview) return null;
+			return { ...preview.recipe, steps: preview.steps, cookbook: preview.attribution };
+		}
+
 		const recipe = await this.recipeRepository.findByIdWithIngredients(recipeId);
 
 		if (!recipe) return null;
 		if (!recipe.isPublic && recipe.householdId !== actor?.householdId) return null;
 
-		return { ...recipe, steps: await this.recipeBook.stepsOf(recipe) };
+		const [steps, cookbook] = await Promise.all([
+			this.recipeBook.stepsOf(recipe),
+			recipe.cookbookRecipeId ? this.cookbook.attribution(recipe.cookbookRecipeId) : null
+		]);
+		return { ...recipe, steps, cookbook };
+	}
+
+	/**
+	 * The household recipe an id names, for an action that needs one: a shared-cookbook recipe
+	 * (`cookbook-<uuid>`) is adopted into the household first; adopting it again returns the
+	 * same copy.
+	 */
+	async adopt(actor: Actor, recipeId: string): Promise<string> {
+		return this.cookbook.resolve(actor, recipeId);
 	}
 
 	/**
@@ -209,6 +241,7 @@ export class RecipeController {
 	 * Save/favorite a recipe (per person)
 	 */
 	async saveRecipe(actor: Actor, recipeId: string): Promise<void> {
+		recipeId = await this.cookbook.resolve(actor, recipeId);
 		const recipe = await this.getRecipe(recipeId, actor);
 		if (!recipe) {
 			throw new Error('Recipe not found');
@@ -224,6 +257,16 @@ export class RecipeController {
 	 * Unsave/unfavorite a recipe (per person)
 	 */
 	async unsaveRecipe(actor: Actor, recipeId: string): Promise<void> {
+		const cookbookRecipeId = cookbookIdOf(recipeId);
+		if (cookbookRecipeId) {
+			// A catalog recipe was saved through the household's copy, if it has one.
+			const own = await this.recipeRepository.findByHouseholdAndCookbookId(
+				actor.householdId,
+				cookbookRecipeId
+			);
+			if (!own) return;
+			recipeId = own.id;
+		}
 		await this.savedRecipeRepository.delete(actor.userId, recipeId);
 	}
 
@@ -243,6 +286,8 @@ export class RecipeController {
 	 * Check if a recipe is saved by the person
 	 */
 	async isSaved(actor: Actor, recipeId: string): Promise<boolean> {
+		// A catalog recipe is saved through the household's copy, which has its own id.
+		if (cookbookIdOf(recipeId)) return false;
 		return this.savedRecipeRepository.exists(actor.userId, recipeId);
 	}
 
@@ -279,6 +324,10 @@ export class RecipeController {
 		recipeId: string,
 		actor?: Actor | null
 	): Promise<{ imageStatus: string | null; imageUrl: string | null } | null> {
+		if (cookbookIdOf(recipeId)) {
+			const shown = await this.getRecipe(recipeId, actor);
+			return shown ? { imageStatus: shown.imageStatus, imageUrl: shown.imageUrl } : null;
+		}
 		const recipe = await this.recipeRepository.findById(recipeId);
 		if (!recipe) return null;
 		if (!recipe.isPublic && recipe.householdId !== actor?.householdId) return null;

@@ -212,6 +212,10 @@ export const agentToolCoverage = {
 			reason: 'Deleting a recipe cannot be undone; it stays a tap on its page.'
 		},
 		getImageStatus: { kind: 'excluded', reason: 'A picture’s progress shows on the recipe page.' },
+		adopt: {
+			kind: 'excluded',
+			reason: 'Saving, planning or cooking a shared-cookbook recipe adopts it on its own.'
+		},
 		fillMissingPictures: {
 			kind: 'excluded',
 			reason: 'A startup job for every household, not something a member asks for.'
@@ -226,6 +230,11 @@ export const agentToolCoverage = {
 		craving: { kind: 'mutation', tools: ['make_recipe_from_craving'] },
 		snap: { kind: 'excluded', reason: 'Snapping needs a photo the agent can’t provide.' },
 		listMine: { kind: 'read', tools: ['find_recipes'] },
+		findInCookbook: { kind: 'read', tools: ['find_cookbook_recipes'] },
+		somethingNew: {
+			kind: 'excluded',
+			reason: 'find_cookbook_recipes searches the shared cookbook; this strip is for browsing.'
+		},
 		resumeTagging: {
 			kind: 'excluded',
 			reason: 'Startup work for every household, not one member.'

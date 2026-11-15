@@ -53,7 +53,7 @@ export async function cleanTables() {
     receipt_items, receipts,
     purchase_history, category_shelf_life,
     cupboard_items,
-    cookbook_embeddings,
+    cookbook_recipes,
     user_allergies, user_ingredient_preferences, 
     user_cuisine_preferences, user_dietary_profiles,
     user_preferences, sessions, users

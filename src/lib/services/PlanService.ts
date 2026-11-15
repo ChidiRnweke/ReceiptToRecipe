@@ -32,6 +32,7 @@ import type {
 	PlanContext,
 	PlanData,
 	PlannedMealWithRecipe,
+	RecipeCatalog,
 	RecipeCompatibility,
 	RecipeMaker,
 	SetSlotInput,
@@ -49,6 +50,7 @@ import {
 import { rankIdeas } from './tonight/rankIdeas';
 import { tagsOf } from './recipes/tags';
 import { sameItem, spokenName } from './tonight/items';
+import { cookbookIdOf, type RecipeTag } from '$lib/models/recipes';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Meals cooked in this window count as "cooked before" for ideas. */
@@ -57,6 +59,10 @@ const COOKED_LOOKBACK_DAYS = 90;
 const PICTURE_LOOKBACK_DAYS = 730;
 /** The most recipes considered for ideas. */
 const COOKBOOK_LIMIT = 200;
+/** Catalog recipes with these course tags are not offered as meals. */
+const NOT_A_MEAL: RecipeTag[] = ['dessert', 'snack'];
+/** The most shared-cookbook recipes considered next to the household's own. */
+const CATALOG_LIMIT = 40;
 /** Filling the plan tops a cookbook smaller than this up with made-up recipes. */
 const POOL_MIN = 10;
 /** The most recipes made up in one go. */
@@ -120,7 +126,8 @@ export class PlanService implements IPlanService {
 		private kitchenEventRepository: IKitchenEventRepository,
 		private householdRepository: IHouseholdRepository,
 		private compatibility: RecipeCompatibility,
-		private recipeMaker: RecipeMaker | null = null
+		private recipeMaker: RecipeMaker | null = null,
+		private catalog: RecipeCatalog | null = null
 	) {}
 
 	async listMeals(
@@ -168,8 +175,9 @@ export class PlanService implements IPlanService {
 		const cooked = recent
 			.filter((meal) => meal.status === 'COOKED' && meal.recipeId)
 			.map((meal) => meal.recipeId as string);
+		const fromCatalog = this.catalog ? await this.catalogFor(actor, now, dietTags) : [];
 		return {
-			recipes,
+			recipes: [...recipes, ...fromCatalog],
 			cookedOrSaved: [...new Set([...cooked, ...saved.map((s) => s.recipeId)])],
 			dietTags
 		};
@@ -182,8 +190,7 @@ export class PlanService implements IPlanService {
 		mealType: MealType,
 		timeZone: string
 	): Promise<PlannedMealDao> {
-		const recipe = await this.recipeRepository.findById(recipeId);
-		if (!recipe || recipe.householdId !== actor.householdId) throw new Error('Recipe not found');
+		const recipe = await this.householdRecipe(actor, recipeId);
 		return this.plannedMealRepository.create({
 			userId: actor.userId,
 			householdId: actor.householdId,
@@ -263,7 +270,7 @@ export class PlanService implements IPlanService {
 		const makeFailures = await this.ensureRecipePool(
 			actor,
 			Math.min(gaps.length + alreadyPlanned.length, POOL_MIN),
-			ctx.stock.map((item) => item.itemKey)
+			ctx
 		);
 		const ranked = await this.suitableRanked(actor, ctx, {
 			limit: gaps.length + alreadyPlanned.length,
@@ -279,10 +286,8 @@ export class PlanService implements IPlanService {
 			gaps,
 			{ calorieTarget: ctx.calorieTarget, alreadyPlanned }
 		);
-		const byId = new Map(ranked.map((idea) => [idea.recipe.id, idea.recipe.source]));
 		for (const pick of picks) {
-			const recipe = byId.get(pick.recipeId);
-			if (!recipe) continue;
+			const recipe = await this.householdRecipe(actor, pick.recipeId);
 			await this.createMeal(actor, recipe, pick.gap.day, pick.gap.mealType, ctx.timeZone);
 		}
 		return { filled: picks.length, open: gaps.length - picks.length, makeFailures };
@@ -293,8 +298,7 @@ export class PlanService implements IPlanService {
 	}
 
 	async setSlot(actor: Actor, input: SetSlotInput, timeZone: string): Promise<PlannedMealDao> {
-		const recipe = await this.recipeRepository.findById(input.recipeId);
-		if (!recipe || recipe.householdId !== actor.householdId) throw new Error('Recipe not found');
+		const recipe = await this.householdRecipe(actor, input.recipeId);
 		const change = {
 			recipeId: recipe.id,
 			mealName: recipe.title,
@@ -390,11 +394,9 @@ export class PlanService implements IPlanService {
 		lunchesPerRecipe: number,
 		timeZone: string
 	): Promise<BatchPrepResult> {
-		const recipes = await Promise.all(recipeIds.map((id) => this.recipeRepository.findById(id)));
-		const own = recipes.filter(
-			(recipe): recipe is RecipeDao => recipe !== null && recipe.householdId === actor.householdId
-		);
-		if (own.length !== recipeIds.length || own.length === 0) throw new Error('Recipe not found');
+		if (recipeIds.length === 0) throw new Error('Recipe not found');
+		const own: RecipeDao[] = [];
+		for (const id of recipeIds) own.push(await this.householdRecipe(actor, id));
 
 		const prepMeals: PlannedMealDao[] = [];
 		for (const recipe of own) {
@@ -537,16 +539,11 @@ export class PlanService implements IPlanService {
 	 * Tops a small cookbook up with recipes made from the kitchen's items. Returns how many could
 	 * not be made; the plan then fills from the recipes that exist.
 	 */
-	private async ensureRecipePool(
-		actor: Actor,
-		minimum: number,
-		stockNames: string[]
-	): Promise<number> {
+	private async ensureRecipePool(actor: Actor, minimum: number, ctx: PlanContext): Promise<number> {
 		if (!this.recipeMaker) return 0;
-		const recipes = await this.recipeRepository.findByHouseholdIdWithIngredients(
-			actor.householdId,
-			COOKBOOK_LIMIT
-		);
+		const stockNames = ctx.stock.map((item) => item.itemKey);
+		// Catalog recipes count: a household with few recipes of its own fills from the cookbook.
+		const { recipes } = await this.getCookbook(actor, ctx.now);
 		const missing = minimum - recipes.length;
 		if (missing <= 0) return 0;
 		let failures = 0;
@@ -604,7 +601,7 @@ export class PlanService implements IPlanService {
 		for (const idea of ranked) {
 			if (suitable.length >= options.limit) break;
 			const results = await Promise.all(
-				userIds.map((userId) => this.compatibility.checkRecipeCompatibility(userId, idea.recipe.id))
+				userIds.map((userId) => this.compatibility.checkCompatibility(userId, idea.recipe.source))
 			);
 			if (!results.some(blocksPlanning)) suitable.push(idea);
 		}
@@ -627,6 +624,60 @@ export class PlanService implements IPlanService {
 			isNew: !cooked.has(source.id),
 			keepsWell: keepsWell(source)
 		};
+	}
+
+	/**
+	 * The household recipe an id names. A catalog recipe (`cookbook-<uuid>`) is adopted into the
+	 * household first; any other id must be one of the household's recipes.
+	 */
+	private async householdRecipe(actor: Actor, recipeId: string): Promise<RecipeDao> {
+		const cookbookRecipeId = cookbookIdOf(recipeId);
+		if (cookbookRecipeId) {
+			if (!this.catalog) throw new Error('Recipe not found');
+			return this.catalog.adopt(actor, cookbookRecipeId);
+		}
+		const recipe = await this.recipeRepository.findById(recipeId);
+		if (!recipe || recipe.householdId !== actor.householdId) throw new Error('Recipe not found');
+		return recipe;
+	}
+
+	/**
+	 * Shared-cookbook recipes for the household: they carry its diets, contain none of its
+	 * members' allergens, and those that use what the kitchen holds come first.
+	 */
+	private async catalogFor(
+		actor: Actor,
+		now: Date,
+		dietTags: Cookbook['dietTags']
+	): Promise<RecipeWithIngredientsDao[]> {
+		if (!this.catalog) return [];
+		const since = new Date(now.getTime() - PICTURE_LOOKBACK_DAYS * DAY_MS);
+		const [avoid, events] = await Promise.all([
+			this.compatibility.householdAllergens(actor.householdId),
+			this.kitchenEventRepository.listByHouseholdSince(actor.householdId, since)
+		]);
+		const lots = projectKitchen(pictureEvents(events, now, actor.timeZone), now, actor.timeZone)
+			.filter((lot) => lot.quantity > 0)
+			.sort((a, b) => a.expiresOn - b.expiresOn);
+		const wanted = [
+			...new Set(
+				lots.flatMap((lot) => {
+					const words = lot.itemKey.split(' ');
+					return words.length > 1 ? [lot.itemKey, words[words.length - 1]] : [lot.itemKey];
+				})
+			)
+		];
+		const candidates = await this.catalog.candidates(actor.householdId, {
+			dietTags,
+			avoid,
+			wanted,
+			day: dayNumber(now, actor.timeZone),
+			limit: CATALOG_LIMIT
+		});
+		// Meals are planned and cooked here; a catalog dessert or snack is not a dinner idea.
+		return candidates.filter(
+			(recipe) => !(recipe.tags ?? []).some((tag) => NOT_A_MEAL.includes(tag))
+		);
 	}
 
 	/** The meal's perishable ingredient in the kitchen that goes off first. */

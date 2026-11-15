@@ -6,6 +6,7 @@ import type {
 } from '../../src/lib/repositories/interfaces/IRecipeRepositories';
 import { RecipePictureService } from '../../src/lib/services/RecipePictureService';
 import { MockImageGenerator, MockJobQueue, MockStorageService } from '../mocks';
+import { InMemoryCookbookRecipeRepository } from './InMemoryCookbookRecipeRepository';
 
 /** Scores every photo the same, as a vision model that likes or dislikes what it sees. */
 export class FakePhotoJudge implements IPhotoJudge {
@@ -40,12 +41,21 @@ export function pngOfSize(width: number, height: number): Uint8Array {
 export function createPictures(
 	recipes: IRecipeRepository,
 	ingredients: IRecipeIngredientRepository,
-	options: { runJobs?: boolean } = {}
+	options: { runJobs?: boolean; cookbook?: InMemoryCookbookRecipeRepository } = {}
 ) {
 	const generator = new MockImageGenerator();
 	const judge = new FakePhotoJudge();
 	const storage = new MockStorageService();
 	const jobs = new MockJobQueue(options.runJobs ?? true);
-	const service = new RecipePictureService(recipes, ingredients, generator, judge, storage, jobs);
-	return { service, generator, judge, storage, jobs };
+	const cookbook = options.cookbook ?? new InMemoryCookbookRecipeRepository();
+	const service = new RecipePictureService(
+		recipes,
+		ingredients,
+		generator,
+		judge,
+		storage,
+		jobs,
+		cookbook
+	);
+	return { service, generator, judge, storage, jobs, cookbook };
 }

@@ -6,9 +6,11 @@ import {
 	MockStorageService
 } from '../../mocks';
 import { createPictures, FakePhotoJudge, pngOfSize } from '../../fakes/pictures';
+import { InMemoryCookbookRecipeRepository } from '../../fakes/InMemoryCookbookRecipeRepository';
 import type { PictureCandidate, PictureSubject } from '../../../src/lib/models/recipes';
 import { SeedPictureGenerator } from '../../../src/lib/services/SeedPictureGenerator';
 import { RecipePictureService } from '../../../src/lib/services/RecipePictureService';
+import { cookbookRow, cookbookStructure } from '../../fakes/cookbook';
 
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -185,7 +187,8 @@ describe('RecipePictureService', () => {
 				}),
 				new FakePhotoJudge(),
 				new MockStorageService(),
-				new MockJobQueue()
+				new MockJobQueue(),
+				new InMemoryCookbookRecipeRepository()
 			);
 
 			await service.ensure(subject);
@@ -264,6 +267,61 @@ describe('RecipePictureService', () => {
 			await pictures.service.fillMissing();
 
 			expect(pictures.generator.prompts).toHaveLength(3);
+		});
+	});
+
+	describe('pictures for the shared cookbook', () => {
+		async function addCatalogRecipe(title: string) {
+			return pictures.cookbook.upsert(cookbookRow(cookbookStructure(title, ['red lentil'])));
+		}
+
+		it('generates a picture for a catalog recipe without one', async () => {
+			const dal = await addCatalogRecipe('Red lentil dal');
+			await pictures.service.fillCookbook({ limit: 10, standIns: false });
+			expect((await pictures.cookbook.findById(dal.id))?.imageSource).toBe('GENERATED');
+		});
+
+		it('never keeps a photo for a catalog recipe', async () => {
+			const dal = await addCatalogRecipe('Red lentil dal');
+			const picture = await pictures.service.ensure(
+				{
+					id: dal.id,
+					title: 'Red lentil dal',
+					description: null,
+					ingredients: [],
+					target: 'cookbook'
+				},
+				dishPhoto()
+			);
+			expect(picture.imageSource).toBe('GENERATED');
+		});
+
+		it('leaves the household recipes alone', async () => {
+			await addCatalogRecipe('Red lentil dal');
+			await pictures.service.fillCookbook({ limit: 10, standIns: false });
+			expect((await recipes.findById(subject.id))?.imageUrl).toBeNull();
+		});
+
+		it('skips a catalog recipe that has a picture, so a second run continues', async () => {
+			await addCatalogRecipe('Red lentil dal');
+			await pictures.service.fillCookbook({ limit: 10, standIns: false });
+			expect((await pictures.service.fillCookbook({ limit: 10, standIns: false })).filled).toBe(0);
+		});
+
+		it('replaces a seed stand-in when asked to', async () => {
+			const dal = await addCatalogRecipe('Red lentil dal');
+			await pictures.cookbook.updatePicture(dal.id, {
+				imageUrl: '/seed/recipes/dal.webp',
+				imageSource: 'COMMONS'
+			});
+			await pictures.service.fillCookbook({ limit: 10, standIns: true });
+			expect((await pictures.cookbook.findById(dal.id))?.imageSource).toBe('GENERATED');
+		});
+
+		it('stops after 3 failures in a row', async () => {
+			for (const title of ['A', 'B', 'C', 'D']) await addCatalogRecipe(title);
+			pictures.generator.failWith = new Error('401');
+			expect((await pictures.service.fillCookbook({ limit: 10, standIns: false })).failed).toBe(3);
 		});
 	});
 });

@@ -389,6 +389,35 @@
 								</p>
 							{/if}
 
+							{#if recipe.cookbook}
+								<p class="text-xs text-text-muted" data-testid="cookbook-attribution">
+									Adapted from the
+									<a
+										href={recipe.cookbook.pageUrl}
+										rel="external noopener"
+										target="_blank"
+										class="underline decoration-dotted underline-offset-2 hover:text-text-secondary"
+										>Wikibooks Cookbook</a
+									>
+									·
+									<a
+										href={recipe.cookbook.licenceUrl}
+										rel="external noopener license"
+										target="_blank"
+										class="underline decoration-dotted underline-offset-2 hover:text-text-secondary"
+										>{recipe.cookbook.licence}</a
+									>
+									·
+									<a
+										href={recipe.cookbook.historyUrl}
+										rel="external noopener"
+										target="_blank"
+										class="underline decoration-dotted underline-offset-2 hover:text-text-secondary"
+										>authors</a
+									>
+								</p>
+							{/if}
+
 							{#if allergyRisk && (allergyRisk.riskLevel === 'medium' || allergyRisk.riskLevel === 'high')}
 								<div
 									class="mt-3 rounded-md border px-3 py-2 text-sm {allergyRisk.riskLevel === 'high'

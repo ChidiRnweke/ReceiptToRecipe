@@ -16,6 +16,7 @@ import {
 	MockUserPreferencesRepository
 } from '../mocks';
 import type { RecipeMaker } from '../../src/lib/services/interfaces/IPlanService';
+import { createCookbook } from './cookbook';
 import { HouseholdEventService } from '../../src/lib/services/HouseholdEventService';
 import { InMemoryHouseholdEventRepository } from './InMemoryHouseholdEventRepository';
 import { InMemoryHabitAnswerRepository } from './InMemoryHabitAnswerRepository';
@@ -53,6 +54,7 @@ export function createTonight(recipeMaker: RecipeMaker | null = null) {
 	const households = new InMemoryHouseholdRepository();
 	const householdEvents = new InMemoryHouseholdEventRepository();
 	const taste = new MockTasteProfileService();
+	const cookbook = createCookbook(recipes, ingredients);
 	const plan = new PlanService(
 		plannedMeals,
 		recipes,
@@ -61,7 +63,8 @@ export function createTonight(recipeMaker: RecipeMaker | null = null) {
 		events,
 		households,
 		taste,
-		recipeMaker
+		recipeMaker,
+		cookbook.service
 	);
 	const kitchen = new KitchenService(
 		events,
@@ -132,6 +135,7 @@ export function createTonight(recipeMaker: RecipeMaker | null = null) {
 	}
 
 	return {
+		cookbook,
 		events,
 		recipes,
 		ingredients,

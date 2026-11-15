@@ -15,9 +15,31 @@ import type { CompatibilityResult } from './ITasteProfileService';
 
 /** Checks a recipe against one person's allergies and diet; the taste profile service does. */
 export interface RecipeCompatibility {
-	checkRecipeCompatibility(userId: string, recipeId: string): Promise<CompatibilityResult>;
+	/** The recipe against the person's allergies and diet; the recipe may be a catalog recipe. */
+	checkCompatibility(
+		userId: string,
+		recipe: RecipeWithIngredientsDao
+	): Promise<CompatibilityResult>;
 	/** The diet tags a recipe needs to suit every member of the household. */
 	householdDietTags(householdId: string): Promise<DietTag[]>;
+	/** Every allergen a member of the household listed, in lower case. */
+	householdAllergens(householdId: string): Promise<string[]>;
+}
+
+/** The shared cookbook, as the plan draws on it; the cookbook service does. */
+export interface RecipeCatalog {
+	candidates(
+		householdId: string,
+		offer: {
+			dietTags: DietTag[];
+			avoid: string[];
+			wanted: string[];
+			day: number;
+			limit: number;
+		}
+	): Promise<RecipeWithIngredientsDao[]>;
+	/** The household's copy of a catalog recipe, made the first time. */
+	adopt(actor: Actor, cookbookRecipeId: string): Promise<RecipeDao>;
 }
 
 /** Makes a new household recipe from a few ingredients; recipe generation does. */
@@ -85,7 +107,11 @@ export interface IdeaOptions {
 	freshOnly?: boolean;
 }
 
-/** The household's recipes, and which of them this member cooked or saved. */
+/**
+ * The household's recipes, and which of them this member cooked or saved. `recipes` also holds
+ * recipes from the shared cookbook that suit the household, with `cookbook-<uuid>` ids and source
+ * COOKBOOK; planning or cooking one adopts it.
+ */
 export interface Cookbook {
 	recipes: RecipeWithIngredientsDao[];
 	/** Recipe ids the household cooked recently or the member saved. */
@@ -117,7 +143,7 @@ export interface IPlanService {
 	getCookbook(actor: Actor, now: Date): Promise<Cookbook>;
 	/** Puts a meal that was eaten out or skipped back on the plan; any other meal is left as it is. */
 	reopenMeal(householdId: string, plannedMealId: string): Promise<PlannedMealDao>;
-	/** Puts a household recipe on a local day. */
+	/** Puts a household recipe on a local day; a catalog recipe is adopted first. */
 	planMeal(
 		actor: Actor,
 		recipeId: string,

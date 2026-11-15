@@ -9,10 +9,13 @@
 import { z } from 'zod';
 import { BASIL_DOORS } from './doors';
 import { recipeTagSchema } from '../recipes/tags';
+import { recipeRefSchema } from '../recipes/cookbook';
 import type { ToolName } from './toolCatalog';
 
 const none = z.object({}).strict();
 const id = z.uuid();
+/** A household recipe's id or a shared-cookbook recipe's `cookbook-<uuid>`. */
+const recipeId = recipeRefSchema;
 const itemKey = z.string().trim().min(1).max(200);
 const quantity = z.number().positive().max(100_000);
 const unit = z.string().trim().min(1).max(20);
@@ -34,11 +37,17 @@ export const TOOL_INPUTS = {
 			tags: tags.optional()
 		})
 		.strict(),
-	get_recipe: z.object({ recipeId: id }).strict(),
+	find_cookbook_recipes: z
+		.object({
+			query: z.string().trim().min(1).max(120).optional(),
+			tags: tags.optional()
+		})
+		.strict(),
+	get_recipe: z.object({ recipeId }).strict(),
 	needs_you: none,
 	habits: none,
 	navigate_to: z
-		.object({ door: z.enum(BASIL_DOORS).optional(), recipeId: id.optional() })
+		.object({ door: z.enum(BASIL_DOORS).optional(), recipeId: recipeId.optional() })
 		.strict()
 		.refine((input) => (input.door ? 1 : 0) + (input.recipeId ? 1 : 0) === 1, {
 			message: 'Pass either a door or a recipeId.'
@@ -60,14 +69,14 @@ export const TOOL_INPUTS = {
 
 	eat_out_tonight: none,
 	eat_in_tonight: none,
-	pick_tonight: z.object({ recipeId: id }).strict(),
+	pick_tonight: z.object({ recipeId }).strict(),
 	mark_cooked: z
-		.object({ plannedMealId: id.optional(), recipeId: id.optional() })
+		.object({ plannedMealId: id.optional(), recipeId: recipeId.optional() })
 		.strict()
 		.refine((input) => (input.plannedMealId ? 1 : 0) + (input.recipeId ? 1 : 0) === 1, {
 			message: 'Pass either a plannedMealId or a recipeId.'
 		}),
-	set_plan_slot: z.object({ daysFromToday, meal, recipeId: id }).strict(),
+	set_plan_slot: z.object({ daysFromToday, meal, recipeId }).strict(),
 	remove_plan_slot: z.object({ plannedMealId: id }).strict(),
 	cook_for_two_days: z.object({ plannedMealId: id }).strict(),
 	fill_plan_rest: none,
@@ -118,7 +127,7 @@ export const TOOL_INPUTS = {
 		})
 		.strict(),
 	make_recipe_from_craving: z.object({ craving: z.string().trim().min(1).max(200) }).strict(),
-	save_recipe: z.object({ recipeId: id }).strict(),
+	save_recipe: z.object({ recipeId }).strict(),
 	unsave_recipe: z.object({ recipeId: id }).strict()
 } as const satisfies Record<ToolName, z.ZodType<Record<string, unknown>>>;
 

@@ -92,3 +92,12 @@ export type {
 	DailyPlannedCaloriesDao,
 	PlannedMealStatusDao
 } from './PlannedMealDaos';
+
+export type {
+	CookbookRecipeDao,
+	NewCookbookRecipeDao,
+	CookbookPictureDao,
+	CookbookFilter,
+	CookbookSampleQuery,
+	CookbookSearchQuery
+} from './CookbookDaos';

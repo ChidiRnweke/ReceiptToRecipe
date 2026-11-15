@@ -4,10 +4,16 @@ import {
 	type PhotoBytes,
 	type PhotoVerdict,
 	type PictureCandidate,
+	type CookbookPicturesSummary,
 	type PictureSubject,
 	type RecipePictureResult
 } from '$lib/models/recipes';
-import type { IRecipeIngredientRepository, IRecipeRepository } from '$repositories';
+import type {
+	CookbookPictureDao,
+	ICookbookRecipeRepository,
+	IRecipeIngredientRepository,
+	IRecipeRepository
+} from '$repositories';
 import type { IImageGenerator } from './interfaces/IImageGenerator';
 import type { IJobQueue } from './interfaces/IJobQueue';
 import type { IPhotoJudge } from './interfaces/IPhotoJudge';
@@ -46,7 +52,8 @@ export class RecipePictureService implements IRecipePictureService {
 		private imageGenerator: IImageGenerator,
 		private photoJudge: IPhotoJudge,
 		private storageService: IStorageService,
-		private jobQueue: IJobQueue
+		private jobQueue: IJobQueue,
+		private cookbookRepository: ICookbookRecipeRepository
 	) {}
 
 	async judgePhoto(
@@ -80,14 +87,15 @@ export class RecipePictureService implements IRecipePictureService {
 		candidate: PictureCandidate | null = null
 	): Promise<RecipePictureResult> {
 		try {
-			await this.recipeRepository.update(subject.id, { imageStatus: 'PROCESSING' });
+			await this.save(subject, { imageStatus: 'PROCESSING' });
+			// A cookbook page's photo is never a candidate: catalog recipes always get a generated one.
+			const keep = subject.target === 'cookbook' ? null : candidate;
 			const picture =
-				(candidate && (await this.keptPhoto(subject, candidate))) ??
-				(await this.generated(subject));
-			await this.recipeRepository.update(subject.id, { ...picture, imageStatus: 'DONE' });
+				(keep && (await this.keptPhoto(subject, keep))) ?? (await this.generated(subject));
+			await this.save(subject, { ...picture, imageStatus: 'DONE' });
 			return picture;
 		} catch (error) {
-			await this.recipeRepository.update(subject.id, { imageStatus: 'FAILED' });
+			await this.save(subject, { imageStatus: 'FAILED' });
 			throw error;
 		}
 	}
@@ -126,6 +134,51 @@ export class RecipePictureService implements IRecipePictureService {
 		return { filled, failed };
 	}
 
+	async fillCookbook(options: {
+		limit: number;
+		standIns: boolean;
+		onPicture?: (title: string, outcome: string) => void;
+	}): Promise<CookbookPicturesSummary> {
+		const recipes = await this.cookbookRepository.findWithoutPicture(
+			options.limit,
+			options.standIns
+		);
+		const summary: CookbookPicturesSummary = { filled: 0, failed: 0, stopped: false };
+		let failedInARow = 0;
+		for (const recipe of recipes) {
+			try {
+				await this.ensure({
+					id: recipe.id,
+					title: recipe.recipe.title,
+					description: recipe.recipe.description || null,
+					ingredients: recipe.recipe.ingredients.map((ingredient) => ingredient.name),
+					target: 'cookbook'
+				});
+				summary.filled += 1;
+				failedInARow = 0;
+				options.onPicture?.(recipe.title, 'done');
+			} catch (error) {
+				summary.failed += 1;
+				failedInARow += 1;
+				options.onPicture?.(recipe.title, `failed: ${(error as Error).message}`);
+				if (failedInARow >= FILL_MAX_FAILURES_IN_A_ROW) {
+					summary.stopped = true;
+					break;
+				}
+			}
+		}
+		return summary;
+	}
+
+	/** Writes the picture fields to the household recipe or the catalog recipe. */
+	private async save(subject: PictureSubject, picture: CookbookPictureDao): Promise<void> {
+		if (subject.target === 'cookbook') {
+			await this.cookbookRepository.updatePicture(subject.id, picture);
+		} else {
+			await this.recipeRepository.update(subject.id, picture);
+		}
+	}
+
 	/** The candidate as the recipe's picture, stored, or null when the judge does not keep it. */
 	private async keptPhoto(
 		subject: PictureSubject,
@@ -140,7 +193,8 @@ export class RecipePictureService implements IRecipePictureService {
 	private async generated(subject: PictureSubject): Promise<RecipePictureResult> {
 		const image = await this.imageGenerator.generateImage(recipePicturePrompt(subject));
 		const bytes = fromDataUrl(image.url);
-		const imageUrl = bytes ? await this.store(subject.id, bytes) : image.url;
+		const name = subject.target === 'cookbook' ? `cookbook-${subject.id}` : subject.id;
+		const imageUrl = bytes ? await this.store(name, bytes) : image.url;
 		// A stand-in generator may answer with someone else's photo; it then comes with its credit.
 		return image.credit
 			? { imageUrl, imageSource: 'COMMONS', imageCredit: image.credit }

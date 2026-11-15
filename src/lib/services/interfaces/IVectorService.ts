@@ -6,6 +6,7 @@ export interface VectorSearchResult {
 	metadata?: Record<string, unknown>;
 }
 
+/** Similarity search over the shared cookbook catalog; the importer writes the embeddings. */
 export interface IVectorService {
 	/**
 	 * Search for similar vectors in the database
@@ -23,37 +24,4 @@ export interface IVectorService {
 	 * @returns Similar documents with similarity scores
 	 */
 	searchByText(query: string, limit?: number): Promise<VectorSearchResult[]>;
-
-	/**
-	 * Upsert a document with its embedding
-	 * @param id - Document ID
-	 * @param recipeTitle - Recipe title
-	 * @param content - Text content to embed and store
-	 * @param metadata - Optional metadata
-	 */
-	upsert(
-		id: string,
-		recipeTitle: string,
-		content: string,
-		metadata?: Record<string, unknown>
-	): Promise<void>;
-
-	/**
-	 * Delete a document by ID
-	 * @param id - Document ID to delete
-	 */
-	delete(id: string): Promise<void>;
-
-	/**
-	 * Batch upsert multiple documents
-	 * @param documents - Array of documents to upsert
-	 */
-	batchUpsert(
-		documents: Array<{
-			id: string;
-			recipeTitle: string;
-			content: string;
-			metadata?: Record<string, unknown>;
-		}>
-	): Promise<void>;
 }

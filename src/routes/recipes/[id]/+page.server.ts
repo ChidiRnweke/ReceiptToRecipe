@@ -4,7 +4,7 @@ import { AppFactory } from '$lib/factories';
 import type { LlmGeneratedRecipe } from '$lib/services';
 import type { RecipeWithIngredients } from '$lib/controllers';
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+import { cookbookIdOf, isRecipeRef } from '$lib/models/recipes';
 
 function toLlmRecipe(recipe: RecipeWithIngredients): LlmGeneratedRecipe {
 	return {
@@ -26,7 +26,7 @@ function toLlmRecipe(recipe: RecipeWithIngredients): LlmGeneratedRecipe {
 }
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-	if (!UUID_PATTERN.test(params.id)) {
+	if (!isRecipeRef(params.id)) {
 		throw error(404, 'Recipe not found');
 	}
 
@@ -40,6 +40,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 		if (!recipe) {
 			throw error(404, 'Recipe not found');
+		}
+		// A shared-cookbook recipe the household adopted opens as its own copy.
+		if (recipe.id !== params.id) {
+			throw redirect(302, `/recipes/${recipe.id}`);
 		}
 
 		// Load related data in parallel
@@ -156,7 +160,10 @@ export const actions: Actions = {
 
 		const recipeController = AppFactory.getRecipeController();
 
-		await recipeController.saveRecipe(locals.actor, params.id);
+		// Saving a shared-cookbook recipe adopts it; the page then shows the household's copy.
+		const recipeId = await recipeController.adopt(locals.actor, params.id);
+		await recipeController.saveRecipe(locals.actor, recipeId);
+		if (recipeId !== params.id) throw redirect(303, `/recipes/${recipeId}`);
 		return { success: true };
 	},
 	unsave: async ({ locals, params }) => {
@@ -193,8 +200,12 @@ export const actions: Actions = {
 		const excludePantry = formData.get('excludePantry') === 'true';
 
 		const recipeController = AppFactory.getRecipeController();
+		// Shopping for a shared-cookbook recipe adopts it, so the list can name the household's copy.
+		const recipeId = cookbookIdOf(params.id)
+			? await recipeController.adopt(locals.actor, params.id)
+			: params.id;
 
-		const recipe = await recipeController.getRecipe(params.id, locals.actor);
+		const recipe = await recipeController.getRecipe(recipeId, locals.actor);
 		if (!recipe) {
 			throw error(404, 'Recipe not found');
 		}
@@ -217,7 +228,7 @@ export const actions: Actions = {
 			await listController.addRecipeIngredients(
 				locals.actor,
 				list.id,
-				params.id,
+				recipeId,
 				excludePantry,
 				pantryItems
 			);

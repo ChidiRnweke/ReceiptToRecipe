@@ -133,6 +133,7 @@ const DAIRY = words([
 	'gouda',
 	'emmental',
 	'burrata',
+	'gelato',
 	'creme fraiche',
 	'fromage frais',
 	'quark',

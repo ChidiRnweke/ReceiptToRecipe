@@ -4,13 +4,14 @@
 import { z } from 'zod';
 import type { TechniqueVerb } from './techniques';
 import { recipeTagSchema, type DietTag, type RecipeTag } from './tags';
+import { recipeRefSchema } from './cookbook';
 
 export * from './techniques';
 export * from './generated';
 export * from './tags';
 export * from './picture';
 
-export type RecipeSource = 'GENERATED' | 'RAG' | 'USER' | 'SNAPPED';
+export type RecipeSource = 'GENERATED' | 'RAG' | 'USER' | 'SNAPPED' | 'COOKBOOK';
 
 /** One step of a recipe as the app shows it: a bold verb (when it names a technique) and the rest. */
 export interface RecipeStep {
@@ -94,12 +95,12 @@ export const cravingInput = z.object({
 export type CravingInput = z.infer<typeof cravingInput>;
 
 export const toggleSaveInput = z.object({
-	recipeId: z.uuid(),
+	recipeId: recipeRefSchema,
 	saved: z.boolean()
 });
 
 /** The recipe whose picture the browser waits for. */
-export const recipePictureInput = z.uuid();
+export const recipePictureInput = recipeRefSchema;
 
 export const snapRecipeInput = z.object({
 	photo: z
@@ -108,3 +109,4 @@ export const snapRecipeInput = z.object({
 		.refine((file) => file.type.startsWith('image/'), 'That file is not a photo')
 		.refine((file) => file.size <= SNAP_MAX_BYTES, 'The photo must be smaller than 10 MB')
 });
+export * from './cookbook';

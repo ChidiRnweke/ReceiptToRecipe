@@ -7,6 +7,7 @@ import {
 	recipePictureInput,
 	snapRecipeInput,
 	toggleSaveInput,
+	type CookbookCard,
 	type MyRecipes,
 	type RecipeCardResult
 } from '$lib/models/recipes';
@@ -18,6 +19,12 @@ import { requireActor } from '../actor';
 export const listMine = query(listMineInput, async ({ tab, tags }): Promise<MyRecipes> => {
 	const actor = requireActor();
 	return AppFactory.getRecipesDoorController().listMine(actor, tab, tags);
+});
+
+/** "Something new": shared-cookbook recipes that suit the household and that it has not used. */
+export const somethingNew = query(async (): Promise<CookbookCard[]> => {
+	const actor = requireActor();
+	return AppFactory.getRecipesDoorController().somethingNew(actor);
 });
 
 /** Where a recipe's picture is: still being made, done (with its address) or failed. */

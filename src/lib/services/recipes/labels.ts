@@ -27,6 +27,8 @@ export function sourceLabel(source: RecipeSource): string {
 			return 'from the cookbook';
 		case 'USER':
 			return 'written by you';
+		case 'COOKBOOK':
+			return 'from the Wikibooks Cookbook';
 	}
 }
 

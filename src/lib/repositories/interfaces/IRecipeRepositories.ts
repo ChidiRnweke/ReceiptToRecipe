@@ -36,6 +36,11 @@ export interface IRecipeRepository {
 	 * order after `afterId`. Pass the last id of one batch to read the next.
 	 */
 	findNeedingTags(afterId: string | null, limit: number): Promise<RecipeWithIngredientsDao[]>;
+	/** The household's copy of a catalog recipe, or null when it has not adopted it. */
+	findByHouseholdAndCookbookId(
+		householdId: string,
+		cookbookRecipeId: string
+	): Promise<RecipeDao | null>;
 	/** Recipes of every household that have no picture, oldest first. */
 	findWithoutPicture(limit: number): Promise<RecipeWithoutPictureDao[]>;
 }

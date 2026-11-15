@@ -19,7 +19,7 @@
 	import { TAG_COPY, type MyRecipeRow, type MyRecipesTab } from '$lib/models/recipes';
 	import { recipeFilter } from '$lib/state/recipeFilter.svelte';
 	import { dietLine } from '$lib/services/recipes';
-	import { listMine } from '$lib/remote/recipes/recipes.remote';
+	import { listMine, somethingNew } from '$lib/remote/recipes/recipes.remote';
 	import { greetingFor } from '$lib/services/doors';
 	import { recipeMeta } from '$lib/services/recipes';
 	import { undoToastState } from '$lib/state/undoToast.svelte';
@@ -104,6 +104,46 @@
 			onclick={() => (snapOpen = true)}
 		/>
 	</div>
+
+	<svelte:boundary>
+		{@const fresh = await somethingNew()}
+		{#if fresh.length > 0}
+			<section aria-labelledby="something-new" class="grid gap-2" id="something-new-strip">
+				<div class="flex items-baseline justify-between gap-3">
+					<h2 id="something-new" class="text-xs font-bold tracking-wider text-text-muted uppercase">
+						Something new
+					</h2>
+					<span class="text-xs text-text-muted">From the Wikibooks Cookbook</span>
+				</div>
+				<ul class="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
+					{#each fresh as card (card.id)}
+						<li class="flex-none snap-start">
+							<a
+								href={resolve('/recipes/[id]', { id: card.id })}
+								class="grid w-36 gap-1.5 rounded-xl border border-border bg-white p-1.75 transition hover:border-sage-300 focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:outline-none"
+							>
+								<RecipePicture
+									title={card.title}
+									imageUrl={card.imageUrl}
+									class="h-20 w-full rounded-lg"
+								/>
+								<b class="line-clamp-2 text-[13px] leading-tight text-ink">{card.title}</b>
+								<span class="truncate text-xs text-text-muted">
+									{[card.cuisine, card.totalMinutes ? `${card.totalMinutes} min` : null]
+										.filter(Boolean)
+										.join(' · ') || 'New to you'}
+								</span>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
+		{#snippet pending()}
+			<Skeleton class="h-36 w-full rounded-xl" />
+		{/snippet}
+		{#snippet failed()}{/snippet}
+	</svelte:boundary>
 
 	<section aria-labelledby="my-recipes" class="grid gap-3">
 		<h2 id="my-recipes" class="text-xs font-bold tracking-wider text-text-muted uppercase">

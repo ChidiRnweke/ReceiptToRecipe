@@ -14,6 +14,8 @@ import {
 	SeedPictureGenerator,
 	OpenRouterPhotoJudge,
 	RecipePictureService,
+	CookbookService,
+	type ICookbookService,
 	type IPhotoJudge,
 	type IRecipePictureService,
 	SmartProductNormalizer,
@@ -98,6 +100,8 @@ import {
 	KitchenEventRepository,
 	HabitAnswerRepository,
 	RecipeStepRepository,
+	CookbookRecipeRepository,
+	type ICookbookRecipeRepository,
 	HouseholdEventRepository,
 	NeedsYouAnswerRepository,
 	AgentConversationRepository,
@@ -203,6 +207,8 @@ let householdRepository: IHouseholdRepository | null = null;
 let kitchenEventRepository: IKitchenEventRepository | null = null;
 let habitAnswerRepository: IHabitAnswerRepository | null = null;
 let recipeStepRepository: IRecipeStepRepository | null = null;
+let cookbookRecipeRepository: ICookbookRecipeRepository | null = null;
+let cookbookService: ICookbookService | null = null;
 let householdEventRepository: IHouseholdEventRepository | null = null;
 let needsYouAnswerRepository: INeedsYouAnswerRepository | null = null;
 let notificationService: INotificationService | null = null;
@@ -332,7 +338,8 @@ export class AppFactory {
 				AppFactory.getImageGenerator(),
 				AppFactory.getPhotoJudge(),
 				AppFactory.getStorageService(),
-				AppFactory.getJobQueue()
+				AppFactory.getJobQueue(),
+				AppFactory.getCookbookRecipeRepository()
 			);
 		}
 		return recipePictureService;
@@ -487,7 +494,8 @@ export class AppFactory {
 							useRag: true
 						});
 					}
-				}
+				},
+				AppFactory.getCookbookService()
 			);
 		}
 		return planService;
@@ -543,7 +551,8 @@ export class AppFactory {
 				AppFactory.getUserPreferencesRepository(),
 				AppFactory.getReceiptItemRepository(),
 				AppFactory.getRecipeBookService(),
-				AppFactory.getRecipePictureService()
+				AppFactory.getRecipePictureService(),
+				AppFactory.getCookbookService()
 			);
 		}
 		return recipeController;
@@ -561,7 +570,8 @@ export class AppFactory {
 				AppFactory.getRecipeRepository(),
 				AppFactory.getSavedRecipeRepository(),
 				AppFactory.getMealLogRepository(),
-				AppFactory.getRecipePictureService()
+				AppFactory.getRecipePictureService(),
+				AppFactory.getCookbookService()
 			);
 		}
 		return recipesDoorController;
@@ -920,6 +930,25 @@ export class AppFactory {
 			habitAnswerRepository = new HabitAnswerRepository(getDb());
 		}
 		return habitAnswerRepository;
+	}
+
+	static getCookbookRecipeRepository(): ICookbookRecipeRepository {
+		if (!cookbookRecipeRepository) {
+			cookbookRecipeRepository = new CookbookRecipeRepository(getDb());
+		}
+		return cookbookRecipeRepository;
+	}
+
+	static getCookbookService(): ICookbookService {
+		if (!cookbookService) {
+			cookbookService = new CookbookService(
+				AppFactory.getCookbookRecipeRepository(),
+				AppFactory.getRecipeRepository(),
+				AppFactory.getRecipeIngredientRepository(),
+				AppFactory.getRecipeStepRepository()
+			);
+		}
+		return cookbookService;
 	}
 
 	static getRecipeStepRepository(): IRecipeStepRepository {

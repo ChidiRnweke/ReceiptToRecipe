@@ -2,6 +2,7 @@ import type {
 	PhotoBytes,
 	PhotoVerdict,
 	PictureCandidate,
+	CookbookPicturesSummary,
 	PictureSubject,
 	RecipePictureResult
 } from '$lib/models/recipes';
@@ -32,4 +33,13 @@ export interface IRecipePictureService {
 	 * got one. A recipe that fails is skipped.
 	 */
 	fillMissing(limit?: number): Promise<{ filled: number; failed: number }>;
+	/**
+	 * Generates pictures for shared-cookbook recipes without one, oldest first, one at a time;
+	 * with `standIns`, seed stand-in photos are replaced too. Stops after 3 failures in a row.
+	 */
+	fillCookbook(options: {
+		limit: number;
+		standIns: boolean;
+		onPicture?: (title: string, outcome: string) => void;
+	}): Promise<CookbookPicturesSummary>;
 }

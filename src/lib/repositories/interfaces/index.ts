@@ -36,3 +36,4 @@ export type { IKitchenEventRepository } from './IKitchenEventRepository';
 export type { IHabitAnswerRepository } from './IHabitAnswerRepository';
 export type { IHouseholdEventRepository } from './IHouseholdEventRepository';
 export type { INeedsYouAnswerRepository, NeedsYouAnswer } from './INeedsYouAnswerRepository';
+export type { ICookbookRecipeRepository } from './ICookbookRecipeRepository';

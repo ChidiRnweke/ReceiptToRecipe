@@ -7,6 +7,7 @@ export {
 	SavedRecipeRepository
 } from './RecipeRepositories';
 export { RecipeStepRepository } from './RecipeStepRepository';
+export { CookbookRecipeRepository } from './CookbookRecipeRepository';
 export { ShoppingListRepository, ShoppingListItemRepository } from './ShoppingListRepositories';
 export { PurchaseHistoryRepository } from './PurchaseHistoryRepository';
 export { CupboardItemRepository } from './CupboardItemRepository';
@@ -75,6 +76,8 @@ export type {
 	IAgentActionRepository,
 	IAgentRunRepository
 } from './interfaces/IAgentRepositories';
+
+export type { ICookbookRecipeRepository } from './interfaces/ICookbookRecipeRepository';
 
 // DAOs
 export * from './daos';

@@ -97,6 +97,7 @@ export class MockRecipeRepository implements IRecipeRepository {
 			isPublic: false,
 			tags: recipe.tags ?? null,
 			tagSource: recipe.tagSource ?? null,
+			cookbookRecipeId: recipe.cookbookRecipeId ?? null,
 			createdAt: now,
 			updatedAt: now
 		};
@@ -124,6 +125,17 @@ export class MockRecipeRepository implements IRecipeRepository {
 
 	async delete(id: string): Promise<void> {
 		this.recipes.delete(id);
+	}
+
+	async findByHouseholdAndCookbookId(
+		householdId: string,
+		cookbookRecipeId: string
+	): Promise<RecipeDao | null> {
+		return (
+			Array.from(this.recipes.values()).find(
+				(r) => r.householdId === householdId && r.cookbookRecipeId === cookbookRecipeId
+			) ?? null
+		);
 	}
 
 	async findNeedingTags(

@@ -1,6 +1,7 @@
 import { command, form, getRequestEvent, query } from '$app/server';
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
+import { recipeRefSchema } from '$lib/models/recipes';
 import { AppFactory } from '$lib/factories';
 import type {
 	ConfirmResult,
@@ -29,7 +30,7 @@ const removedInput = z.object({
 	checked: z.boolean()
 });
 const undoInput = z.object({ undoId: z.uuid() });
-const gotInput = z.object({ ideas: z.array(z.uuid()).max(10).default([]) });
+const gotInput = z.object({ ideas: z.array(recipeRefSchema).max(10).default([]) });
 const receiptInput = z.object({ receiptId: z.uuid() });
 const photoInput = z.object({
 	receipt: z

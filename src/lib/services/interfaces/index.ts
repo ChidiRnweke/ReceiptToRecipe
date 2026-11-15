@@ -81,6 +81,7 @@ export type {
 	PlannedMealWithRecipe,
 	MoveOptions,
 	RecipeCompatibility,
+	RecipeCatalog,
 	RecipeMaker,
 	PlanContext,
 	PlanData,
@@ -96,3 +97,4 @@ export type { IHouseholdEventService, EventAuthor } from './IHouseholdEventServi
 export type { INeedsYouService } from './INeedsYouService';
 export type { IAgentService, BasilTurnInput, BasilTurnOutcome } from './IAgentService';
 export type { IAgentRunService, BasilTurnRunner, SubmitRun } from './IAgentRunService';
+export * from './ICookbook';
