@@ -10,6 +10,7 @@ import type {
 	ShopView
 } from '$lib/models/shop';
 import { requireActor } from '../actor';
+import { getNeedsYou } from '../needsyou/needsyou.remote';
 
 /** Receipt photos up to 10 MB, the same limit as the receipts page. */
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
@@ -85,6 +86,7 @@ export const gotEverything = command(gotInput, async ({ ideas }): Promise<GotEve
 		.gotEverything(requireActor(), new Date(), timeZone(), ideas)
 		.catch(notFound);
 	getShop().refresh();
+	getNeedsYou().refresh();
 	return result;
 });
 
@@ -92,6 +94,7 @@ export const gotEverything = command(gotInput, async ({ ideas }): Promise<GotEve
 export const undoGotEverything = command(undoInput, async ({ undoId }): Promise<void> => {
 	await AppFactory.getShopController().undoGotEverything(requireActor(), undoId).catch(notFound);
 	getShop().refresh();
+	getNeedsYou().refresh();
 });
 
 /** "Snap the receipt": uploads the photo and starts reading it. */
@@ -114,6 +117,7 @@ export const confirmWhatCameHome = command(
 			.confirmWhatCameHome(requireActor(), receiptId)
 			.catch(notFound);
 		getShop().refresh();
+		getNeedsYou().refresh();
 		return result;
 	}
 );

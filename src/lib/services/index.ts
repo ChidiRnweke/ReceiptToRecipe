@@ -51,10 +51,6 @@ export type {
 	DietType,
 	PreferenceLevel,
 	AllergySeverity,
-	IPantryService,
-	PantryItem,
-	ConfidenceFactors,
-	StockOverrides,
 	IAuthService,
 	AuthResult,
 	INutritionService,
@@ -95,6 +91,9 @@ export type {
 	IdeaOptions,
 	IShopService,
 	NewManualItem,
+	IHouseholdEventService,
+	EventAuthor,
+	INeedsYouService,
 	// OAuth interfaces
 	IOAuthService,
 	Auth0Tokens,
@@ -128,7 +127,6 @@ export { SmartProductNormalizer } from './SmartProductNormalizer';
 export { SmartImageGenerator } from './SmartImageGenerator';
 export * from './PgVectorService';
 export * from './JobQueue';
-export { PantryService } from './PantryService';
 export { TasteProfileService } from './TasteProfileService';
 export { NutritionService } from './NutritionService';
 export { GlobalSearchService } from './GlobalSearchService';
@@ -138,6 +136,8 @@ export { HabitService } from './HabitService';
 export { PlanService } from './PlanService';
 export { ShopService } from './ShopService';
 export { RecipeBookService } from './RecipeBookService';
+export { HouseholdEventService } from './HouseholdEventService';
+export { NeedsYouService } from './NeedsYouService';
 export {
 	AppriseNotificationService,
 	MockNotificationService,

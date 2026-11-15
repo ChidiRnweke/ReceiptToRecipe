@@ -4,12 +4,14 @@ import { z } from 'zod';
 import { AppFactory } from '$lib/factories';
 import type {
 	CookResult,
+	EatInResult,
 	EatOutResult,
 	PickResult,
 	TonightIdea,
 	TonightView
 } from '$lib/models/tonight';
 import { requireActor } from '../actor';
+import { getNeedsYou } from '../needsyou/needsyou.remote';
 
 const cookInput = z.union([
 	z.object({ plannedMealId: z.uuid() }),
@@ -43,6 +45,7 @@ export const cookTonight = command(cookInput, async (input): Promise<CookResult>
 		.cook(requireActor(), input, new Date(), timeZone())
 		.catch(notFound);
 	getTonight().refresh();
+	getNeedsYou().refresh();
 	getAlternatives().refresh();
 	return result;
 });
@@ -55,6 +58,20 @@ export const eatOut = command(async (): Promise<EatOutResult> => {
 		timeZone()
 	);
 	getTonight().refresh();
+	getNeedsYou().refresh();
+	getAlternatives().refresh();
+	return result;
+});
+
+/** "Plans changed? We're eating in": the household is home for dinner after all. */
+export const eatIn = command(async (): Promise<EatInResult> => {
+	const result = await AppFactory.getTonightController().eatIn(
+		requireActor(),
+		new Date(),
+		timeZone()
+	);
+	getTonight().refresh();
+	getNeedsYou().refresh();
 	getAlternatives().refresh();
 	return result;
 });
@@ -65,6 +82,7 @@ export const pickAlternative = command(pickInput, async ({ recipeId }): Promise<
 		.pickAlternative(requireActor(), recipeId, new Date(), timeZone())
 		.catch(notFound);
 	getTonight().refresh();
+	getNeedsYou().refresh();
 	getAlternatives().refresh();
 	return result;
 });

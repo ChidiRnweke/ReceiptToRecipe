@@ -1,4 +1,5 @@
 import { PlanController } from '../../src/lib/controllers/PlanController';
+import { HouseholdEventService } from '../../src/lib/services/HouseholdEventService';
 import type { Actor } from '../../src/lib/models/household';
 import type { RecipeMaker } from '../../src/lib/services/interfaces/IPlanService';
 import { actor, createTonight } from './tonight';
@@ -16,7 +17,13 @@ export class RecordingRecipeMaker implements RecipeMaker {
 export function createPlan() {
 	const maker = new RecordingRecipeMaker();
 	const t = createTonight(maker);
-	const planController = new PlanController(t.plan, t.kitchen, t.habits, t.nutrition);
+	const planController = new PlanController(
+		t.plan,
+		t.kitchen,
+		t.habits,
+		t.nutrition,
+		new HouseholdEventService(t.householdEvents)
+	);
 
 	/** Adds a second member to the actor's household. */
 	async function addMember(userId: string, displayName: string) {

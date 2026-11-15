@@ -131,6 +131,10 @@ export class GlobalSearchService {
 		}));
 	}
 
+	/**
+	 * Items the kitchen log recorded as bought in the last 90 days, by the name people know them
+	 * by, once per item. The kitchen picture decides what is still at home; search only finds it.
+	 */
 	private async searchCupboard(
 		householdId: string,
 		query: string,
@@ -138,60 +142,38 @@ export class GlobalSearchService {
 		limit: number,
 		useTrigram: boolean
 	): Promise<GlobalSearchItem[]> {
-		const scoreExpr = useTrigram
-			? sql`
-				(
-					COALESCE(ts_rank(
-						to_tsvector('english', COALESCE(c.item_name, '') || ' ' || COALESCE(c.category, '') || ' ' || COALESCE(c.notes, '')),
-						websearch_to_tsquery('english', ${query})
-					), 0)
-					+ COALESCE(similarity(COALESCE(c.item_name, ''), ${query}), 0) * 0.8
-					+ COALESCE(similarity(COALESCE(c.category, ''), ${query}), 0) * 0.2
-				)
-			`
-			: sql`
-				COALESCE(ts_rank(
-					to_tsvector('english', COALESCE(c.item_name, '') || ' ' || COALESCE(c.category, '') || ' ' || COALESCE(c.notes, '')),
-					websearch_to_tsquery('english', ${query})
-				), 0)
-			`;
+		const nameExpr = sql`COALESCE(k.payload->>'name', k.item_key)`;
+		const scoreExpr = useTrigram ? sql`similarity(${nameExpr}, ${query})` : sql`0.5`;
 
 		const rows = await this.db.execute<{
 			id: string;
-			item_name: string;
+			name: string;
 			category: string | null;
-			quantity: string | null;
-			unit: string | null;
 			score: number;
 		}>(sql`
-			SELECT
-				c.id,
-				c.item_name,
-				c.category,
-				c.quantity::text AS quantity,
-				c.unit,
-				${scoreExpr} AS score
-			FROM cupboard_items c
-			WHERE c.household_id = ${householdId}
-				AND c.is_depleted = false
-				AND (
-					to_tsvector('english', COALESCE(c.item_name, '') || ' ' || COALESCE(c.category, '') || ' ' || COALESCE(c.notes, '')) @@ websearch_to_tsquery('english', ${query})
-					OR COALESCE(c.item_name, '') ILIKE ${likeValue}
-					OR COALESCE(c.category, '') ILIKE ${likeValue}
-				)
-			ORDER BY score DESC, c.updated_at DESC
+			SELECT id, name, category, score FROM (
+				SELECT DISTINCT ON (k.item_key)
+					k.id,
+					${nameExpr} AS name,
+					k.payload->>'category' AS category,
+					${scoreExpr} AS score
+				FROM kitchen_events k
+				WHERE k.household_id = ${householdId}
+					AND k.kind = 'BOUGHT'
+					AND k.item_key IS NOT NULL
+					AND k.occurred_at >= now() - interval '90 days'
+					AND ${nameExpr} ILIKE ${likeValue}
+				ORDER BY k.item_key, k.occurred_at DESC
+			) AS items
+			ORDER BY score DESC, name
 			LIMIT ${limit}
 		`);
 
 		return rows.rows.map((row) => ({
 			id: row.id,
-			title: row.item_name,
-			subtitle: row.quantity
-				? `${row.quantity}${row.unit ? ` ${row.unit}` : ''}${row.category ? ` · ${row.category}` : ''}`
-				: row.category
-					? `Category: ${row.category}`
-					: 'Cupboard item',
-			href: '/cupboard',
+			title: row.name,
+			subtitle: row.category ? `In the kitchen · ${row.category}` : 'In the kitchen',
+			href: '/use-it-up',
 			score: Number(row.score ?? 0)
 		}));
 	}

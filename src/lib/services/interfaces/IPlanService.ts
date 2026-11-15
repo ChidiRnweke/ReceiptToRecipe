@@ -110,6 +110,8 @@ export interface IPlanService {
 	/** A planned meal of the household and its recipe; throws when it is not the household's. */
 	getMeal(householdId: string, plannedMealId: string): Promise<PlannedMealWithRecipe>;
 	getCookbook(actor: Actor, now: Date): Promise<Cookbook>;
+	/** Puts a meal that was eaten out or skipped back on the plan; any other meal is left as it is. */
+	reopenMeal(householdId: string, plannedMealId: string): Promise<PlannedMealDao>;
 	/** Puts a household recipe on a local day. */
 	planMeal(
 		actor: Actor,

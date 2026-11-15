@@ -16,6 +16,8 @@ import {
 	MockUserPreferencesRepository
 } from '../mocks';
 import type { RecipeMaker } from '../../src/lib/services/interfaces/IPlanService';
+import { HouseholdEventService } from '../../src/lib/services/HouseholdEventService';
+import { InMemoryHouseholdEventRepository } from './InMemoryHouseholdEventRepository';
 import { InMemoryHabitAnswerRepository } from './InMemoryHabitAnswerRepository';
 import { InMemoryHouseholdRepository } from './InMemoryHouseholdRepository';
 import { InMemoryKitchenEventRepository } from './InMemoryKitchenEventRepository';
@@ -49,6 +51,7 @@ export function createTonight(recipeMaker: RecipeMaker | null = null) {
 	const preferences = new MockUserPreferencesRepository();
 
 	const households = new InMemoryHouseholdRepository();
+	const householdEvents = new InMemoryHouseholdEventRepository();
 	const taste = new MockTasteProfileService();
 	const plan = new PlanService(
 		plannedMeals,
@@ -81,7 +84,8 @@ export function createTonight(recipeMaker: RecipeMaker | null = null) {
 		kitchen,
 		habits,
 		nutrition,
-		new HouseholdService(households)
+		new HouseholdService(households),
+		new HouseholdEventService(householdEvents)
 	);
 
 	async function addRecipe(
@@ -134,6 +138,7 @@ export function createTonight(recipeMaker: RecipeMaker | null = null) {
 		mealLogs,
 		preferences,
 		households,
+		householdEvents,
 		taste,
 		habits,
 		nutrition,

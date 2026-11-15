@@ -1,35 +1,7 @@
 /**
- * Pure calculation functions for pantry/stock management
+ * Pure shelf-life helpers for the kitchen picture and the purchase history
  * These functions have no side effects and are easily testable
  */
-
-/**
- * Calculate stock confidence (0.0 to 1.0) based on days since purchase
- *
- * @param daysSincePurchase - Number of days since item was purchased
- * @param estimatedLifespan - Expected lifespan in days (from frequency or category)
- * @param quantity - Quantity purchased (affects confidence boost)
- * @returns Confidence score between 0.0 and 1.0
- */
-export function calculateStockConfidencePure(
-	daysSincePurchase: number,
-	estimatedLifespan: number,
-	quantity: number = 1
-): number {
-	// If purchased today or in future, full confidence
-	if (daysSincePurchase <= 0) return 1.0;
-
-	// Linear decay: 1.0 at day 0, 0.0 at estimatedLifespan
-	let confidence = 1.0 - daysSincePurchase / estimatedLifespan;
-
-	// Quantity modifier: Larger quantities extend confidence slightly
-	if (quantity > 1) {
-		confidence += Math.log(quantity) * 0.1; // Small boost
-	}
-
-	// Clamp between 0 and 1
-	return Math.max(0, Math.min(1, confidence));
-}
 
 /**
  * Calculate estimated depletion date

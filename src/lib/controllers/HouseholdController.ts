@@ -1,4 +1,9 @@
-import type { HouseholdUser, IHouseholdService, InvitePreview } from '$services';
+import type {
+	HouseholdUser,
+	IHouseholdEventService,
+	IHouseholdService,
+	InvitePreview
+} from '$services';
 import type {
 	Actor,
 	Household,
@@ -13,7 +18,10 @@ export interface HouseholdOverview {
 }
 
 export class HouseholdController {
-	constructor(private householdService: IHouseholdService) {}
+	constructor(
+		private householdService: IHouseholdService,
+		private householdEventService: IHouseholdEventService
+	) {}
 
 	async getOverview(actor: Actor): Promise<HouseholdOverview> {
 		const [household, members] = await Promise.all([
@@ -39,7 +47,13 @@ export class HouseholdController {
 		return this.householdService.previewInvite(token);
 	}
 
-	async acceptInvite(user: HouseholdUser, token: string): Promise<void> {
-		return this.householdService.acceptInvite(user, token);
+	/** Joins the invite's household; the members already there hear about it in "Needs you". */
+	async acceptInvite(user: HouseholdUser, token: string, now: Date = new Date()): Promise<void> {
+		const before = await this.householdService.resolveActor(user);
+		await this.householdService.acceptInvite(user, token);
+		const after = await this.householdService.resolveActor(user);
+		if (after.householdId !== before.householdId) {
+			await this.householdEventService.recordJoined(after, now);
+		}
 	}
 }
