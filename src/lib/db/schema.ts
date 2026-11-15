@@ -7,6 +7,7 @@ import {
 	decimal,
 	boolean,
 	jsonb,
+	bigserial,
 	pgEnum,
 	vector,
 	index,
@@ -518,6 +519,62 @@ export const needsYouAnswers = pgTable(
 	(t) => [unique('needs_you_answers_household_user_key_unique').on(t.householdId, t.userId, t.key)]
 );
 
+// Basil, the in-app agent: one conversation per member, its messages, and the changes it
+// proposed with what the person decided.
+export const agentConversations = pgTable(
+	'agent_conversations',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		createdAt: timestamp('created_at').notNull().defaultNow()
+	},
+	(t) => [index('agent_conversations_household_user_idx').on(t.householdId, t.userId, t.createdAt)]
+);
+
+export const agentMessages = pgTable(
+	'agent_messages',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		/** Orders the messages of one turn, which share a moment. */
+		seq: bigserial('seq', { mode: 'number' }).notNull(),
+		conversationId: uuid('conversation_id')
+			.notNull()
+			.references(() => agentConversations.id, { onDelete: 'cascade' }),
+		role: text('role').notNull(), // user, assistant, tool
+		content: jsonb('content').notNull(),
+		toolCalls: jsonb('tool_calls'),
+		createdAt: timestamp('created_at').notNull().defaultNow()
+	},
+	(t) => [index('agent_messages_conversation_seq_idx').on(t.conversationId, t.seq)]
+);
+
+export const agentActions = pgTable(
+	'agent_actions',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		conversationId: uuid('conversation_id')
+			.notNull()
+			.references(() => agentConversations.id, { onDelete: 'cascade' }),
+		/** The model's tool call this action answers. */
+		callId: text('call_id').notNull(),
+		tool: text('tool').notNull(),
+		args: jsonb('args').notNull(),
+		/** The change in plain words, as the approval card shows it. */
+		summary: text('summary').notNull(),
+		status: text('status').notNull().default('pending'), // pending, approved, declined, executed, failed
+		result: jsonb('result'),
+		touched: jsonb('touched'),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+		decidedAt: timestamp('decided_at')
+	},
+	(t) => [index('agent_actions_conversation_idx').on(t.conversationId, t.createdAt)]
+);
+
 // Category Shelf Life (for stock estimation)
 export const categoryShelfLife = pgTable('category_shelf_life', {
 	id: uuid('id').primaryKey().defaultRandom(),
@@ -911,6 +968,9 @@ export type NewKitchenEventRow = typeof kitchenEvents.$inferInsert;
 export type HouseholdHabitAnswerRow = typeof householdHabitAnswers.$inferSelect;
 export type HouseholdEventRow = typeof householdEvents.$inferSelect;
 export type NeedsYouAnswerRow = typeof needsYouAnswers.$inferSelect;
+export type AgentConversationRow = typeof agentConversations.$inferSelect;
+export type AgentMessageRow = typeof agentMessages.$inferSelect;
+export type AgentActionRow = typeof agentActions.$inferSelect;
 export type CategoryShelfLife = typeof categoryShelfLife.$inferSelect;
 export type NewCategoryShelfLife = typeof categoryShelfLife.$inferInsert;
 export type CookbookEmbedding = typeof cookbookEmbeddings.$inferSelect;

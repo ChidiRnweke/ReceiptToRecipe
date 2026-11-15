@@ -35,3 +35,4 @@ export { ShopController, type ReceiptIntake } from './ShopController';
 export { RecipesDoorController, type SnapPhoto, type SnappedRecipe } from './RecipesDoorController';
 export { UseItUpController } from './UseItUpController';
 export { NeedsYouController, type ShopCloser } from './NeedsYouController';
+export { BasilController, type ToolboxFor } from './BasilController';

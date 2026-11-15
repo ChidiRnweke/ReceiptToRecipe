@@ -134,6 +134,8 @@ export function createTonight(recipeMaker: RecipeMaker | null = null) {
 	return {
 		events,
 		recipes,
+		ingredients,
+		saved,
 		plannedMeals,
 		mealLogs,
 		preferences,

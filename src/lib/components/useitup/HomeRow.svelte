@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { basilKey } from '$lib/models/agent';
 	import FreshnessDots from '$lib/components/doors/FreshnessDots.svelte';
 	import type { HomeItem } from '$lib/models/useitup';
 
@@ -33,6 +34,7 @@
 {/snippet}
 
 <li
+	data-basil-key={basilKey.kitchenItem(item.itemKey)}
 	class="flex items-center gap-2.5 border-b border-dashed border-border py-1.75 text-sm last:border-b-0"
 >
 	<button

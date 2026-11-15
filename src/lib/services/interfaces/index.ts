@@ -90,3 +90,11 @@ export type { IShopService, NewManualItem } from './IShopService';
 export type { IRecipeBookService, NewRecipeContent } from './IRecipeBookService';
 export type { IHouseholdEventService, EventAuthor } from './IHouseholdEventService';
 export type { INeedsYouService } from './INeedsYouService';
+export type {
+	IAgentModel,
+	AgentModelMessage,
+	AgentModelTool,
+	AgentModelRequest,
+	AgentModelReply
+} from './IAgentModel';
+export type { IAgentService, BasilTurnInput } from './IAgentService';

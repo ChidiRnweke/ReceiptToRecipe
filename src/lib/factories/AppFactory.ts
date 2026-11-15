@@ -23,6 +23,10 @@ import {
 	RecipeBookService,
 	HouseholdEventService,
 	NeedsYouService,
+	AgentService,
+	OpenRouterAgentModel,
+	type IAgentService,
+	type IAgentModel,
 	type IHouseholdEventService,
 	type INeedsYouService,
 	type IStorageService,
@@ -56,7 +60,8 @@ import {
 	ShopController,
 	RecipesDoorController,
 	UseItUpController,
-	NeedsYouController
+	NeedsYouController,
+	BasilController
 } from '$controllers';
 import {
 	UserRepository,
@@ -84,6 +89,9 @@ import {
 	RecipeStepRepository,
 	HouseholdEventRepository,
 	NeedsYouAnswerRepository,
+	AgentConversationRepository,
+	AgentMessageRepository,
+	AgentActionRepository,
 	type IHouseholdEventRepository,
 	type INeedsYouAnswerRepository,
 	type IUserRepository,
@@ -110,6 +118,7 @@ import {
 	type IHabitAnswerRepository,
 	type IRecipeStepRepository
 } from '$repositories';
+import { agentToolbox } from './agent/agentTools';
 
 // Infrastructure Services
 let storageService: IStorageService | null = null;
@@ -135,6 +144,7 @@ let frontDoorController: FrontDoorController | null = null;
 let planController: PlanController | null = null;
 let shopController: ShopController | null = null;
 let recipesDoorController: RecipesDoorController | null = null;
+let basilController: BasilController | null = null;
 
 // Domain Services - Using IOAuthService as the auth interface
 let oauthService: IOAuthService | null = null;
@@ -148,6 +158,8 @@ let habitService: IHabitService | null = null;
 let planService: IPlanService | null = null;
 let shopService: IShopService | null = null;
 let recipeBookService: IRecipeBookService | null = null;
+let agentService: IAgentService | null = null;
+let agentModel: IAgentModel | null = null;
 
 // Repositories
 let userRepository: IUserRepository | null = null;
@@ -623,6 +635,57 @@ export class AppFactory {
 		return shopController;
 	}
 
+	/** Basil's model: `BASIL_MODEL`, else the app's `OPENROUTER_MODEL`. */
+	static getAgentModel(): IAgentModel {
+		if (!agentModel) {
+			const apiKey = ConfigService.get('OPENROUTER_API_KEY');
+			if (!apiKey) {
+				throw new Error('OPENROUTER_API_KEY environment variable is required');
+			}
+			agentModel = new OpenRouterAgentModel(
+				apiKey,
+				ConfigService.get('BASIL_MODEL') ||
+					ConfigService.get('OPENROUTER_MODEL') ||
+					'google/gemini-3-flash-preview'
+			);
+		}
+		return agentModel;
+	}
+
+	static getAgentService(): IAgentService {
+		if (!agentService) {
+			const db = getDb();
+			agentService = new AgentService(
+				new AgentConversationRepository(db),
+				new AgentMessageRepository(db),
+				new AgentActionRepository(db),
+				AppFactory.getAgentModel()
+			);
+		}
+		return agentService;
+	}
+
+	static getBasilController(): BasilController {
+		if (!basilController) {
+			basilController = new BasilController(AppFactory.getAgentService(), (actor, now, timeZone) =>
+				agentToolbox(
+					{
+						kitchen: () => AppFactory.getKitchenController(),
+						needsYou: () => AppFactory.getNeedsYouController(),
+						plan: () => AppFactory.getPlanController(),
+						recipe: () => AppFactory.getRecipeController(),
+						recipesDoor: () => AppFactory.getRecipesDoorController(),
+						shop: () => AppFactory.getShopController(),
+						tonight: () => AppFactory.getTonightController(),
+						useItUp: () => AppFactory.getUseItUpController()
+					},
+					{ actor, now, timeZone }
+				)
+			);
+		}
+		return basilController;
+	}
+
 	// Repositories
 	static getUserRepository(): IUserRepository {
 		if (!userRepository) {
@@ -837,6 +900,8 @@ export class AppFactory {
 		planService = null;
 		shopService = null;
 		recipeBookService = null;
+		agentService = null;
+		agentModel = null;
 
 		// Controllers
 		recipeController = null;
@@ -851,6 +916,7 @@ export class AppFactory {
 		frontDoorController = null;
 		shopController = null;
 		recipesDoorController = null;
+		basilController = null;
 
 		// Repositories
 		userRepository = null;

@@ -145,6 +145,8 @@ export interface IPlanService {
 	setSlot(actor: Actor, input: SetSlotInput, timeZone: string): Promise<PlannedMealDao>;
 	/** Takes a meal and its leftovers off the plan. */
 	removeSlot(actor: Actor, plannedMealId: string): Promise<PlannedMealDao>;
+	/** Sets how many people one planned meal is for; throws when it is not the household's. */
+	setServings(actor: Actor, plannedMealId: string, servings: number): Promise<PlannedMealDao>;
 	/** Toggles cooking a meal for two days: one extra portion and the next day's lunch. */
 	cookForTwoDays(actor: Actor, plannedMealId: string, timeZone: string): Promise<TwoDaysResult>;
 	/**

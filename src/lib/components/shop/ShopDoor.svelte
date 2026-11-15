@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { basilKey } from '$lib/models/agent';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
@@ -181,6 +182,7 @@
 						<section
 							class="border-b border-dashed border-border pt-1 pb-2 last:border-b-0"
 							aria-label="For {group.title}"
+							data-basil-key={basilKey.shopGroup(group.mealId)}
 						>
 							<div class="flex items-center gap-2.5 py-1">
 								<RecipePhoto
@@ -215,6 +217,7 @@
 			<section
 				class="rounded-2xl border border-border bg-bg-card p-3"
 				aria-labelledby="running-low"
+				data-basil-key={basilKey.shopUsuals()}
 			>
 				<h3 id="running-low" class="font-display text-lg text-ink">Running low</h3>
 				<ul>
@@ -254,7 +257,11 @@
 	{/if}
 
 	{#if view.manual.length}
-		<section class="rounded-2xl border border-border bg-bg-card p-3" aria-labelledby="also-list">
+		<section
+			class="rounded-2xl border border-border bg-bg-card p-3"
+			aria-labelledby="also-list"
+			data-basil-key={basilKey.shopManual()}
+		>
 			<h3 id="also-list" class="font-display text-lg text-ink">Also on the list</h3>
 			<ul>
 				{#each view.manual as item (item.id)}

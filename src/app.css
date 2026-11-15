@@ -380,3 +380,27 @@
 		background-image: none;
 	}
 }
+
+/* Basil's highlight: what it points at gets a short sage outline. */
+[data-basil-key].basil-highlight {
+	outline: 3px solid var(--sage-500);
+	outline-offset: 3px;
+	border-radius: 0.75rem;
+	animation: basil-highlight 1.8s ease-out forwards;
+}
+
+@keyframes basil-highlight {
+	0%,
+	70% {
+		outline-color: var(--sage-500);
+	}
+	100% {
+		outline-color: transparent;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	[data-basil-key].basil-highlight {
+		animation: none;
+	}
+}

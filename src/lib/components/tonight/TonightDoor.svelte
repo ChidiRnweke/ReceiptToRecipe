@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { basilKey } from '$lib/models/agent';
 	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
 	import { DoorHeader, PolaroidCard, SlimState } from '$lib/components/doors';
@@ -95,91 +96,102 @@
 		</p>
 	{/if}
 
-	{#if cardState === 'out'}
-		<section class="grid gap-1 rounded-2xl border border-border bg-bg-card p-4" aria-live="polite">
-			<h2 class="font-display text-2xl text-ink">Eating out tonight</h2>
-			<p class="text-sm text-text-muted">Enjoy. Nothing at home is lost.</p>
-			<button
-				type="button"
-				class="justify-self-start pt-1 text-sm font-semibold text-sage-700 underline underline-offset-2 disabled:opacity-60"
-				disabled={busy}
-				onclick={eatingIn}
+	<div class="grid gap-4" data-basil-key={basilKey.tonightCard()}>
+		{#if cardState === 'out'}
+			<section
+				class="grid gap-1 rounded-2xl border border-border bg-bg-card p-4"
+				aria-live="polite"
 			>
-				Plans changed? We’re eating in
-			</button>
-		</section>
-	{:else if view.meal && cardState === 'eaten'}
-		<PolaroidCard>
-			<RecipePhoto title={view.meal.title} imageUrl={view.meal.imageUrl} />
-			<div class="grid justify-items-start gap-2 px-1 pt-3">
-				<h2 class="font-display text-2xl leading-tight text-ink">{view.meal.title}</h2>
-				<Chip tone="ok">eaten</Chip>
-			</div>
-		</PolaroidCard>
-	{:else if view.meal}
-		{@const meal = view.meal}
-		<PolaroidCard>
-			<RecipePhoto title={meal.title} imageUrl={meal.imageUrl} />
-			<div class="grid gap-2.5 px-1 pt-3">
-				<h2 class="font-display text-2xl leading-tight text-ink">{meal.title}</h2>
-				{#if meal.uses.length}
-					<div class="flex flex-wrap gap-1.5">
-						<Chip tone="use">{usesChip(meal.uses)}</Chip>
-					</div>
-				{/if}
-				<p class="text-[13px] text-text-muted">
-					{[
-						meal.minutes ? `${meal.minutes} min` : null,
-						meal.calories ? `${meal.calories} kcal` : null
-					]
-						.filter(Boolean)
-						.join(' · ')}
-					{#if !meal.untracked}
-						{meal.minutes || meal.calories
-							? ' · '
-							: ''}{#if meal.missing.length && !meal.shopBefore}<b class="text-sienna-700"
-								>{availabilityLine(meal.missing, null)}</b
-							>{:else}{availabilityLine(meal.missing, meal.shopBefore)}{/if}
-					{/if}
-				</p>
-				<Button
-					class="h-11 w-full bg-sage-600 text-base text-white hover:bg-sage-700"
-					onclick={() => openCook(meal)}
+				<h2 class="font-display text-2xl text-ink">Eating out tonight</h2>
+				<p class="text-sm text-text-muted">Enjoy. Nothing at home is lost.</p>
+				<button
+					type="button"
+					class="justify-self-start pt-1 text-sm font-semibold text-sage-700 underline underline-offset-2 disabled:opacity-60"
+					disabled={busy}
+					onclick={eatingIn}
 				>
-					Cook this
-				</Button>
-				<div class="flex gap-2">
-					<Button variant="secondary" size="sm" class="flex-1" onclick={() => (altsOpen = true)}>
-						Something else?
-					</Button>
-					{#if canEatOut}
-						<Button variant="secondary" size="sm" class="flex-1" disabled={busy} onclick={goingOut}>
-							We’re eating out
-						</Button>
-					{/if}
+					Plans changed? We’re eating in
+				</button>
+			</section>
+		{:else if view.meal && cardState === 'eaten'}
+			<PolaroidCard>
+				<RecipePhoto title={view.meal.title} imageUrl={view.meal.imageUrl} />
+				<div class="grid justify-items-start gap-2 px-1 pt-3">
+					<h2 class="font-display text-2xl leading-tight text-ink">{view.meal.title}</h2>
+					<Chip tone="ok">eaten</Chip>
 				</div>
+			</PolaroidCard>
+		{:else if view.meal}
+			{@const meal = view.meal}
+			<PolaroidCard>
+				<RecipePhoto title={meal.title} imageUrl={meal.imageUrl} />
+				<div class="grid gap-2.5 px-1 pt-3">
+					<h2 class="font-display text-2xl leading-tight text-ink">{meal.title}</h2>
+					{#if meal.uses.length}
+						<div class="flex flex-wrap gap-1.5">
+							<Chip tone="use">{usesChip(meal.uses)}</Chip>
+						</div>
+					{/if}
+					<p class="text-[13px] text-text-muted">
+						{[
+							meal.minutes ? `${meal.minutes} min` : null,
+							meal.calories ? `${meal.calories} kcal` : null
+						]
+							.filter(Boolean)
+							.join(' · ')}
+						{#if !meal.untracked}
+							{meal.minutes || meal.calories
+								? ' · '
+								: ''}{#if meal.missing.length && !meal.shopBefore}<b class="text-sienna-700"
+									>{availabilityLine(meal.missing, null)}</b
+								>{:else}{availabilityLine(meal.missing, meal.shopBefore)}{/if}
+						{/if}
+					</p>
+					<Button
+						class="h-11 w-full bg-sage-600 text-base text-white hover:bg-sage-700"
+						onclick={() => openCook(meal)}
+					>
+						Cook this
+					</Button>
+					<div class="flex gap-2">
+						<Button variant="secondary" size="sm" class="flex-1" onclick={() => (altsOpen = true)}>
+							Something else?
+						</Button>
+						{#if canEatOut}
+							<Button
+								variant="secondary"
+								size="sm"
+								class="flex-1"
+								disabled={busy}
+								onclick={goingOut}
+							>
+								We’re eating out
+							</Button>
+						{/if}
+					</div>
+				</div>
+			</PolaroidCard>
+		{:else}
+			<SlimState
+				art="plate"
+				title={view.tomorrow ? 'Nothing planned tomorrow' : 'Nothing planned tonight'}
+				hand="How about one of these?"
+			/>
+			<div class="grid gap-2">
+				{#each view.ideas as idea (idea.recipeId)}
+					<IdeaRow {idea} {showCalories} onpick={openCook} />
+				{/each}
 			</div>
-		</PolaroidCard>
-	{:else}
-		<SlimState
-			art="plate"
-			title={view.tomorrow ? 'Nothing planned tomorrow' : 'Nothing planned tonight'}
-			hand="How about one of these?"
-		/>
-		<div class="grid gap-2">
-			{#each view.ideas as idea (idea.recipeId)}
-				<IdeaRow {idea} {showCalories} onpick={openCook} />
-			{/each}
-		</div>
-		<Button variant="secondary" href={resolve('/recipes/generate')} class="h-10 w-full">
-			Or make something completely new
-		</Button>
-		{#if !view.tomorrow}
-			<Button variant="secondary" size="sm" disabled={busy} onclick={goingOut}>
-				We’re eating out tonight
+			<Button variant="secondary" href={resolve('/recipes/generate')} class="h-10 w-full">
+				Or make something completely new
 			</Button>
+			{#if !view.tomorrow}
+				<Button variant="secondary" size="sm" disabled={busy} onclick={goingOut}>
+					We’re eating out tonight
+				</Button>
+			{/if}
 		{/if}
-	{/if}
+	</div>
 
 	{#if view.tomorrowLine}
 		<p class="px-1 text-[13px] text-text-muted">
