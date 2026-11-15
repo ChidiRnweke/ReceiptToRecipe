@@ -2,7 +2,6 @@
 export { MockStorageService } from './MockStorageService';
 export { MockReceiptExtractor } from './MockReceiptExtractor';
 export { MockProductNormalizer } from './MockProductNormalizer';
-export { MockPantryService } from './MockPantryService';
 export { MockCulinaryIntelligence } from './MockCulinaryIntelligence';
 export { MockImageGenerator } from './MockImageGenerator';
 export { MockVectorService } from './MockVectorService';

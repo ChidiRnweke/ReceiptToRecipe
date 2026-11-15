@@ -12,7 +12,6 @@ import {
 	SmartProductNormalizer,
 	PgVectorService,
 	JobQueue,
-	PantryService,
 	TasteProfileService,
 	NutritionService,
 	HouseholdService,
@@ -22,6 +21,10 @@ import {
 	ShopService,
 	type IShopService,
 	RecipeBookService,
+	HouseholdEventService,
+	NeedsYouService,
+	type IHouseholdEventService,
+	type INeedsYouService,
 	type IStorageService,
 	type INormalizationService,
 	type IReceiptExtractor,
@@ -30,7 +33,6 @@ import {
 	type IVectorService,
 	type IProductNormalizer,
 	type IOAuthService,
-	type IPantryService,
 	type ITasteProfileService,
 	type INutritionService,
 	type INotificationService,
@@ -45,7 +47,6 @@ import {
 	RecipeController,
 	PreferencesController,
 	ReceiptController,
-	PantryController,
 	ShoppingListController,
 	HouseholdController,
 	KitchenController,
@@ -53,7 +54,9 @@ import {
 	FrontDoorController,
 	PlanController,
 	ShopController,
-	RecipesDoorController
+	RecipesDoorController,
+	UseItUpController,
+	NeedsYouController
 } from '$controllers';
 import {
 	UserRepository,
@@ -79,6 +82,10 @@ import {
 	KitchenEventRepository,
 	HabitAnswerRepository,
 	RecipeStepRepository,
+	HouseholdEventRepository,
+	NeedsYouAnswerRepository,
+	type IHouseholdEventRepository,
+	type INeedsYouAnswerRepository,
 	type IUserRepository,
 	type ISessionRepository,
 	type IUserPreferencesRepository,
@@ -118,7 +125,8 @@ let jobQueue: JobQueue | null = null;
 let recipeController: RecipeController | null = null;
 let preferencesController: PreferencesController | null = null;
 let receiptController: ReceiptController | null = null;
-let pantryController: PantryController | null = null;
+let useItUpController: UseItUpController | null = null;
+let needsYouController: NeedsYouController | null = null;
 let shoppingListController: ShoppingListController | null = null;
 let householdController: HouseholdController | null = null;
 let kitchenController: KitchenController | null = null;
@@ -130,7 +138,8 @@ let recipesDoorController: RecipesDoorController | null = null;
 
 // Domain Services - Using IOAuthService as the auth interface
 let oauthService: IOAuthService | null = null;
-let pantryService: IPantryService | null = null;
+let householdEventService: IHouseholdEventService | null = null;
+let needsYouService: INeedsYouService | null = null;
 let tasteProfileService: ITasteProfileService | null = null;
 let nutritionService: INutritionService | null = null;
 let householdService: IHouseholdService | null = null;
@@ -164,6 +173,8 @@ let householdRepository: IHouseholdRepository | null = null;
 let kitchenEventRepository: IKitchenEventRepository | null = null;
 let habitAnswerRepository: IHabitAnswerRepository | null = null;
 let recipeStepRepository: IRecipeStepRepository | null = null;
+let householdEventRepository: IHouseholdEventRepository | null = null;
+let needsYouAnswerRepository: INeedsYouAnswerRepository | null = null;
 let notificationService: INotificationService | null = null;
 
 /**
@@ -317,11 +328,18 @@ export class AppFactory {
 		return AppFactory.getOAuthService();
 	}
 
-	static getPantryService(): IPantryService {
-		if (!pantryService) {
-			pantryService = new PantryService();
+	static getHouseholdEventService(): IHouseholdEventService {
+		if (!householdEventService) {
+			householdEventService = new HouseholdEventService(AppFactory.getHouseholdEventRepository());
 		}
-		return pantryService;
+		return householdEventService;
+	}
+
+	static getNeedsYouService(): INeedsYouService {
+		if (!needsYouService) {
+			needsYouService = new NeedsYouService(AppFactory.getNeedsYouAnswerRepository());
+		}
+		return needsYouService;
 	}
 
 	static getTasteProfileService(): ITasteProfileService {
@@ -415,7 +433,8 @@ export class AppFactory {
 				AppFactory.getPlanService(),
 				AppFactory.getKitchenService(),
 				AppFactory.getHabitService(),
-				AppFactory.getNutritionService()
+				AppFactory.getNutritionService(),
+				AppFactory.getHouseholdEventService()
 			);
 		}
 		return planController;
@@ -494,7 +513,6 @@ export class AppFactory {
 				AppFactory.getReceiptExtractor(),
 				AppFactory.getNormalizationService(),
 				AppFactory.getProductNormalizer(),
-				AppFactory.getPantryService(),
 				AppFactory.getReceiptRepository(),
 				AppFactory.getReceiptItemRepository(),
 				AppFactory.getPurchaseHistoryRepository(),
@@ -505,19 +523,30 @@ export class AppFactory {
 		return receiptController;
 	}
 
-	static getPantryController(): PantryController {
-		if (!pantryController) {
-			pantryController = new PantryController(
-				AppFactory.getPantryService(),
-				AppFactory.getPurchaseHistoryRepository(),
-				AppFactory.getReceiptItemRepository(),
-				AppFactory.getCupboardItemRepository(),
+	static getUseItUpController(): UseItUpController {
+		if (!useItUpController) {
+			useItUpController = new UseItUpController(
 				AppFactory.getKitchenService(),
-				AppFactory.getShoppingListRepository(),
-				AppFactory.getShoppingListItemRepository()
+				AppFactory.getPlanService()
 			);
 		}
-		return pantryController;
+		return useItUpController;
+	}
+
+	static getNeedsYouController(): NeedsYouController {
+		if (!needsYouController) {
+			needsYouController = new NeedsYouController(
+				AppFactory.getKitchenService(),
+				AppFactory.getHabitService(),
+				AppFactory.getPlanService(),
+				AppFactory.getHouseholdService(),
+				AppFactory.getHouseholdEventService(),
+				AppFactory.getNeedsYouService(),
+				AppFactory.getShopService(),
+				AppFactory.getShopController()
+			);
+		}
+		return needsYouController;
 	}
 
 	static getShoppingListController(): ShoppingListController {
@@ -536,7 +565,10 @@ export class AppFactory {
 
 	static getHouseholdController(): HouseholdController {
 		if (!householdController) {
-			householdController = new HouseholdController(AppFactory.getHouseholdService());
+			householdController = new HouseholdController(
+				AppFactory.getHouseholdService(),
+				AppFactory.getHouseholdEventService()
+			);
 		}
 		return householdController;
 	}
@@ -558,7 +590,8 @@ export class AppFactory {
 				AppFactory.getKitchenService(),
 				AppFactory.getHabitService(),
 				AppFactory.getNutritionService(),
-				AppFactory.getHouseholdService()
+				AppFactory.getHouseholdService(),
+				AppFactory.getHouseholdEventService()
 			);
 		}
 		return tonightController;
@@ -583,7 +616,8 @@ export class AppFactory {
 				AppFactory.getPlanService(),
 				AppFactory.getKitchenService(),
 				AppFactory.getHabitService(),
-				AppFactory.getReceiptController()
+				AppFactory.getReceiptController(),
+				AppFactory.getHouseholdEventService()
 			);
 		}
 		return shopController;
@@ -751,6 +785,20 @@ export class AppFactory {
 		return recipeStepRepository;
 	}
 
+	static getHouseholdEventRepository(): IHouseholdEventRepository {
+		if (!householdEventRepository) {
+			householdEventRepository = new HouseholdEventRepository(getDb());
+		}
+		return householdEventRepository;
+	}
+
+	static getNeedsYouAnswerRepository(): INeedsYouAnswerRepository {
+		if (!needsYouAnswerRepository) {
+			needsYouAnswerRepository = new NeedsYouAnswerRepository(getDb());
+		}
+		return needsYouAnswerRepository;
+	}
+
 	static getNotificationService(): INotificationService {
 		if (!notificationService) {
 			const endpoint = ConfigService.get('NOTIFICATION_ENDPOINT');
@@ -779,7 +827,8 @@ export class AppFactory {
 
 		// Domain Services
 		oauthService = null;
-		pantryService = null;
+		householdEventService = null;
+		needsYouService = null;
 		tasteProfileService = null;
 		nutritionService = null;
 		householdService = null;
@@ -793,7 +842,8 @@ export class AppFactory {
 		recipeController = null;
 		preferencesController = null;
 		receiptController = null;
-		pantryController = null;
+		useItUpController = null;
+		needsYouController = null;
 		shoppingListController = null;
 		householdController = null;
 		kitchenController = null;
@@ -826,6 +876,8 @@ export class AppFactory {
 		kitchenEventRepository = null;
 		habitAnswerRepository = null;
 		recipeStepRepository = null;
+		householdEventRepository = null;
+		needsYouAnswerRepository = null;
 		notificationService = null;
 	}
 }

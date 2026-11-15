@@ -1,9 +1,9 @@
 <script lang="ts">
 	import OnboardingModal from '$lib/components/OnboardingModal.svelte';
-	import NoticeToast from '$lib/components/NoticeToast.svelte';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import TonightDoor from '$lib/components/tonight/TonightDoor.svelte';
-	import { workflowStore } from '$lib/state/workflow.svelte';
+
+	let { data } = $props();
 </script>
 
 <svelte:head>
@@ -38,5 +38,4 @@
 	</svelte:boundary>
 </div>
 
-<NoticeToast />
-<OnboardingModal receiptCount={workflowStore.receipts} recipeCount={workflowStore.recipes} />
+<OnboardingModal receiptCount={data.receipts} recipeCount={data.recipes} />

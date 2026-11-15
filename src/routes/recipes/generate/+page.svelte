@@ -6,7 +6,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import Notepad from '$lib/components/Notepad.svelte';
-	import StockBadge from '$lib/components/StockBadge.svelte';
+	import FreshnessDots from '$lib/components/doors/FreshnessDots.svelte';
 	import WashiTape from '$lib/components/WashiTape.svelte';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import {
@@ -117,23 +117,20 @@
 	function groupPantry(pantryItems: PantryItem[]) {
 		const groups: Record<string, PantryItem[]> = {};
 		for (const item of pantryItems || []) {
-			const category = item.category || 'Kitchen Staples';
-			const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
-			if (!groups[displayCategory]) groups[displayCategory] = [];
-			groups[displayCategory].push(item);
+			const group = item.perishable || item.leftover ? 'Fresh' : 'Cupboard staples';
+			if (!groups[group]) groups[group] = [];
+			groups[group].push(item);
 		}
 		return groups;
 	}
 
-	// Pre-select high-confidence pantry items once the streamed data resolves.
+	// Pre-select the items that have not gone off once the streamed data resolves.
 	// Must run in $effect (not a template expression) to avoid state_unsafe_mutation.
 	$effect(() => {
 		data.streamed.pantry.then((pantryItems) => {
 			if (pantryInitialized) return;
 			selectedIngredients = new Map(
-				pantryItems
-					.filter((i): i is PantryItem & { id: string } => i.stockConfidence > 0.6 && !!i.id)
-					.map((i) => [i.id, i.itemName])
+				pantryItems.filter((i) => !i.off).map((i) => [i.itemKey, i.name])
 			);
 			pantryInitialized = true;
 		});
@@ -212,7 +209,7 @@
 							<h2 class="font-display text-xl text-ink">Kitchen Inventory</h2>
 							<div class="flex items-center gap-3">
 								<a
-									href={resolve('/cupboard')}
+									href={resolve('/use-it-up')}
 									class="font-ui text-[10px] tracking-wide text-primary-600 uppercase hover:underline"
 								>
 									Manage cupboard
@@ -245,38 +242,33 @@
 										<div>
 											<h3 class="mb-2 font-serif text-base text-ink-light italic">{category}</h3>
 											<div class="flex flex-wrap gap-2">
-												{#each items as item (item.id ?? item.itemName)}
-													{#if item.id}
-														{@const itemId = item.id}
-														<button
-															type="button"
-															onclick={() => togglePantryItem(itemId, item.itemName)}
-															class="group relative flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm transition-all duration-200
-                              {selectedIngredients.has(item.id)
-																? 'border-sage-400 bg-sage-50 text-sage-900 shadow-sm'
-																: 'border-border bg-white text-text-secondary hover:border-primary-300 hover:shadow-sm'}"
+												{#each items as item (item.itemKey)}
+													{@const itemId = item.itemKey}
+													<button
+														type="button"
+														onclick={() => togglePantryItem(itemId, item.name)}
+														class="group relative flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm transition-all duration-200
+                              {selectedIngredients.has(itemId)
+															? 'border-sage-400 bg-sage-50 text-sage-900 shadow-sm'
+															: 'border-border bg-white text-text-secondary hover:border-primary-300 hover:shadow-sm'}"
+													>
+														<div
+															class="flex h-3.5 w-3.5 items-center justify-center rounded-full border transition-colors
+                                {selectedIngredients.has(itemId)
+																? 'border-sage-500 bg-sage-500 text-white'
+																: 'border-border group-hover:border-primary-400'}"
 														>
-															<div
-																class="flex h-3.5 w-3.5 items-center justify-center rounded-full border transition-colors
-                                {selectedIngredients.has(item.id)
-																	? 'border-sage-500 bg-sage-500 text-white'
-																	: 'border-border group-hover:border-primary-400'}"
-															>
-																{#if selectedIngredients.has(item.id)}
-																	<span class="text-[9px] leading-none">✓</span>
-																{/if}
-															</div>
-															<span class={selectedIngredients.has(item.id) ? 'font-medium' : ''}
-																>{item.itemName}</span
-															>
-															{#if item.stockConfidence}
-																<StockBadge
-																	confidence={item.stockConfidence}
-																	className="scale-75 opacity-70"
-																/>
+															{#if selectedIngredients.has(itemId)}
+																<span class="text-[9px] leading-none">✓</span>
 															{/if}
-														</button>
-													{/if}
+														</div>
+														<span class={selectedIngredients.has(itemId) ? 'font-medium' : ''}
+															>{item.name}</span
+														>
+														{#if item.perishable || item.leftover}
+															<FreshnessDots daysLeft={item.off ? -1 : item.daysLeft} />
+														{/if}
+													</button>
 												{/each}
 											</div>
 										</div>

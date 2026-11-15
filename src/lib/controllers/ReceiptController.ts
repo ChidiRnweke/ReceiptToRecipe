@@ -4,10 +4,10 @@ import type {
 	INormalizationService,
 	IProductNormalizer,
 	RawReceiptData,
-	IPantryService,
 	IKitchenService
 } from '$services';
 import { dayNumber } from '$lib/services/kitchen';
+import { calculateDepletionDatePure, getShelfLifePure } from '$lib/services/pantryCalculations';
 import type {
 	IReceiptRepository,
 	IReceiptItemRepository,
@@ -40,7 +40,6 @@ export class ReceiptController {
 		private receiptExtractor: IReceiptExtractor,
 		private normalizationService: INormalizationService,
 		private productNormalizer: IProductNormalizer,
-		private pantryService: IPantryService,
 		private receiptRepository: IReceiptRepository,
 		private receiptItemRepository: IReceiptItemRepository,
 		private purchaseHistoryRepository: IPurchaseHistoryRepository,
@@ -261,11 +260,10 @@ export class ReceiptController {
 				item.normalizedName
 			);
 
-			// Calculate depletion date using PantryService
-			const estimatedDepleteDate = this.pantryService.calculateDepletionDate(
+			// The item runs out after its usual purchase interval, or its category's shelf life.
+			const estimatedDepleteDate = calculateDepletionDatePure(
 				purchaseDate,
-				existing?.avgFrequencyDays || null,
-				item.category || null
+				existing?.avgFrequencyDays || getShelfLifePure(item.category || null)
 			);
 
 			if (existing) {

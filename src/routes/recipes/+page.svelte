@@ -21,7 +21,6 @@
 	import { greetingFor } from '$lib/services/doors';
 	import { recipeMeta } from '$lib/services/recipes';
 	import { undoToastState } from '$lib/state/undoToast.svelte';
-	import { workflowStore } from '$lib/state/workflow.svelte';
 	import type { RecipeFit } from './+page.server';
 
 	let { data } = $props();
@@ -200,11 +199,9 @@
 												action="?/addToShopping"
 												use:enhance={() => {
 													addingToShoppingId = row.id;
-													workflowStore.incrementShopping();
 													return async ({ result }) => {
 														addingToShoppingId = null;
-														if (result.type === 'failure') workflowStore.decrementShopping();
-														else await invalidateAll();
+														if (result.type !== 'failure') await invalidateAll();
 													};
 												}}
 											>
