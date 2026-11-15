@@ -5,7 +5,6 @@ import { InMemoryRecipeStepRepository } from '../../fakes/InMemoryRecipeStepRepo
 import type { RecipeContext } from '../../../src/lib/services/interfaces/ICulinaryIntelligence';
 import {
 	MockCulinaryIntelligence,
-	MockImageGenerator,
 	MockVectorService,
 	MockRecipeRepository,
 	MockRecipeIngredientRepository,
@@ -13,16 +12,16 @@ import {
 	MockUserPreferencesRepository,
 	MockReceiptItemRepository,
 	MockReceiptRepository,
-	MockJobQueue,
-	MockTasteProfileService
+	MockTasteProfileService,
+	MockJobQueue
 } from '../../mocks';
+import { createPictures } from '../../fakes/pictures';
 import type { GeneratedRecipe } from '../../../src/lib/services/interfaces/ICulinaryIntelligence';
 import type { Actor } from '../../../src/lib/models/household';
 
 describe('RecipeController', () => {
 	let controller: RecipeController;
 	let mockCulinaryIntelligence: MockCulinaryIntelligence;
-	let mockImageGenerator: MockImageGenerator;
 	let mockVectorService: MockVectorService;
 	let mockTasteProfileService: MockTasteProfileService;
 	let mockRecipeRepository: MockRecipeRepository;
@@ -30,7 +29,6 @@ describe('RecipeController', () => {
 	let mockSavedRecipeRepository: MockSavedRecipeRepository;
 	let mockUserPreferencesRepository: MockUserPreferencesRepository;
 	let mockReceiptItemRepository: MockReceiptItemRepository;
-	let mockJobQueue: MockJobQueue;
 	let recipeSteps: InMemoryRecipeStepRepository;
 
 	const userId = 'user-123';
@@ -63,7 +61,6 @@ describe('RecipeController', () => {
 
 	beforeEach(() => {
 		mockCulinaryIntelligence = new MockCulinaryIntelligence();
-		mockImageGenerator = new MockImageGenerator();
 		mockVectorService = new MockVectorService();
 		mockTasteProfileService = new MockTasteProfileService();
 		mockRecipeRepository = new MockRecipeRepository();
@@ -71,7 +68,6 @@ describe('RecipeController', () => {
 		mockSavedRecipeRepository = new MockSavedRecipeRepository();
 		mockUserPreferencesRepository = new MockUserPreferencesRepository();
 		mockReceiptItemRepository = new MockReceiptItemRepository();
-		mockJobQueue = new MockJobQueue();
 		recipeSteps = new InMemoryRecipeStepRepository();
 
 		controller = new RecipeController(
@@ -87,10 +83,10 @@ describe('RecipeController', () => {
 				mockRecipeRepository,
 				mockRecipeIngredientRepository,
 				recipeSteps,
-				mockImageGenerator,
-				mockJobQueue,
+				new MockJobQueue(),
 				mockCulinaryIntelligence
-			)
+			),
+			createPictures(mockRecipeRepository, mockRecipeIngredientRepository).service
 		);
 	});
 
@@ -298,19 +294,15 @@ describe('RecipeController', () => {
 			expect(ingredients[2].optional).toBe(true);
 		});
 
-		it('should queue image generation job', async () => {
-			await controller.generateRecipe({
+		it('gives the new recipe a generated picture', async () => {
+			const result = await controller.generateRecipe({
 				actor,
 				customIngredients: ['eggs', 'cheese']
 			});
-
-			// The job is fired-and-forgotten (not awaited) inside generateRecipe,
-			// so we need to flush microtasks before asserting.
+			// The picture job is fired and forgotten; let it finish.
 			await new Promise((resolve) => setTimeout(resolve, 0));
 
-			const jobs = mockJobQueue.getExecutedJobs();
-			expect(jobs.length).toBeGreaterThan(0);
-			expect(jobs[0].name).toMatch(/^recipe-image:/);
+			expect((await mockRecipeRepository.findById(result.id))?.imageSource).toBe('GENERATED');
 		});
 
 		it('should set sourceReceiptId when provided', async () => {

@@ -11,6 +11,11 @@ import {
 	MockOcrService,
 	SmartCulinaryIntelligence,
 	SmartImageGenerator,
+	SeedPictureGenerator,
+	OpenRouterPhotoJudge,
+	RecipePictureService,
+	type IPhotoJudge,
+	type IRecipePictureService,
 	SmartProductNormalizer,
 	PgVectorService,
 	JobQueue,
@@ -127,6 +132,8 @@ import {
 	type IRecipeStepRepository
 } from '$repositories';
 import { agentToolbox } from './agent/agentTools';
+import seedPictures from '../../../static/seed/recipes/credits.json';
+import type { SeedPictureCatalog } from '$services/recipes';
 
 // Infrastructure Services
 let storageService: IStorageService | null = null;
@@ -135,6 +142,8 @@ let productNormalizer: IProductNormalizer | null = null;
 let receiptExtractor: IReceiptExtractor | null = null;
 let culinaryIntelligence: ICulinaryIntelligence | null = null;
 let imageGenerator: IImageGenerator | null = null;
+let photoJudge: IPhotoJudge | null = null;
+let recipePictureService: IRecipePictureService | null = null;
 let vectorService: IVectorService | null = null;
 let jobQueue: JobQueue | null = null;
 
@@ -281,18 +290,52 @@ export class AppFactory {
 		return AppFactory.getCulinaryIntelligence();
 	}
 
+	/**
+	 * The image model through OpenRouter. With `IMAGE_GENERATOR=seed`, or without an OpenRouter
+	 * key, the committed seed photos stand in for generated pictures.
+	 */
 	static getImageGenerator(): IImageGenerator {
 		if (!imageGenerator) {
+			const apiKey = ConfigService.get('OPENROUTER_API_KEY');
+			imageGenerator =
+				ConfigService.get('IMAGE_GENERATOR') === 'seed' || !apiKey
+					? new SeedPictureGenerator(seedPictures as SeedPictureCatalog)
+					: new SmartImageGenerator(
+							apiKey,
+							ConfigService.get('OPENROUTER_IMAGE_MODEL') || 'google/gemini-2.5-flash-image'
+						);
+		}
+		return imageGenerator;
+	}
+
+	static getPhotoJudge(): IPhotoJudge {
+		if (!photoJudge) {
 			const apiKey = ConfigService.get('OPENROUTER_API_KEY');
 			if (!apiKey) {
 				throw new Error('OPENROUTER_API_KEY environment variable is required');
 			}
-			imageGenerator = new SmartImageGenerator(
+			photoJudge = new OpenRouterPhotoJudge(
 				apiKey,
-				ConfigService.get('OPENROUTER_IMAGE_MODEL') || 'google/gemini-2.5-flash-image'
+				ConfigService.get('OPENROUTER_VISION_MODEL') ||
+					ConfigService.get('OPENROUTER_MODEL') ||
+					'google/gemini-3-flash-preview'
 			);
 		}
-		return imageGenerator;
+		return photoJudge;
+	}
+
+	static getRecipePictureService(): IRecipePictureService {
+		if (!recipePictureService) {
+			recipePictureService = new RecipePictureService(
+				AppFactory.getRecipeRepository(),
+				AppFactory.getRecipeIngredientRepository(),
+				AppFactory.getImageGenerator(),
+				AppFactory.getPhotoJudge(),
+				AppFactory.getStorageService(),
+				AppFactory.getJobQueue()
+			);
+		}
+		return recipePictureService;
 	}
 
 	// Deprecated alias
@@ -480,7 +523,6 @@ export class AppFactory {
 				AppFactory.getRecipeRepository(),
 				AppFactory.getRecipeIngredientRepository(),
 				AppFactory.getRecipeStepRepository(),
-				AppFactory.getImageGenerator(),
 				AppFactory.getJobQueue(),
 				AppFactory.getCulinaryIntelligence()
 			);
@@ -500,7 +542,8 @@ export class AppFactory {
 				AppFactory.getSavedRecipeRepository(),
 				AppFactory.getUserPreferencesRepository(),
 				AppFactory.getReceiptItemRepository(),
-				AppFactory.getRecipeBookService()
+				AppFactory.getRecipeBookService(),
+				AppFactory.getRecipePictureService()
 			);
 		}
 		return recipeController;
@@ -517,7 +560,8 @@ export class AppFactory {
 				AppFactory.getUserPreferencesRepository(),
 				AppFactory.getRecipeRepository(),
 				AppFactory.getSavedRecipeRepository(),
-				AppFactory.getMealLogRepository()
+				AppFactory.getMealLogRepository(),
+				AppFactory.getRecipePictureService()
 			);
 		}
 		return recipesDoorController;
@@ -922,6 +966,8 @@ export class AppFactory {
 		receiptExtractor = null;
 		culinaryIntelligence = null;
 		imageGenerator = null;
+		photoJudge = null;
+		recipePictureService = null;
 		vectorService = null;
 		jobQueue = null;
 

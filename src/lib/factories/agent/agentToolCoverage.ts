@@ -212,6 +212,10 @@ export const agentToolCoverage = {
 			reason: 'Deleting a recipe cannot be undone; it stays a tap on its page.'
 		},
 		getImageStatus: { kind: 'excluded', reason: 'A picture’s progress shows on the recipe page.' },
+		fillMissingPictures: {
+			kind: 'excluded',
+			reason: 'A startup job for every household, not something a member asks for.'
+		},
 		updateRecipe: { kind: 'excluded', reason: 'A recipe is edited on its page, step by step.' },
 		adjustRecipeWithAi: {
 			kind: 'excluded',

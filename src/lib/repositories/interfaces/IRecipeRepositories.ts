@@ -10,7 +10,8 @@ import type {
 	RecipeImageStatusDao,
 	RecipeCountByReceiptDao,
 	RecipeStepDao,
-	NewRecipeStepDao
+	NewRecipeStepDao,
+	RecipeWithoutPictureDao
 } from '../daos';
 
 export interface IRecipeRepository {
@@ -35,6 +36,8 @@ export interface IRecipeRepository {
 	 * order after `afterId`. Pass the last id of one batch to read the next.
 	 */
 	findNeedingTags(afterId: string | null, limit: number): Promise<RecipeWithIngredientsDao[]>;
+	/** Recipes of every household that have no picture, oldest first. */
+	findWithoutPicture(limit: number): Promise<RecipeWithoutPictureDao[]>;
 }
 
 export interface IRecipeIngredientRepository {

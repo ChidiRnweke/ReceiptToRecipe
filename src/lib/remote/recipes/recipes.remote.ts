@@ -4,6 +4,7 @@ import { AppFactory } from '$lib/factories';
 import {
 	cravingInput,
 	listMineInput,
+	recipePictureInput,
 	snapRecipeInput,
 	toggleSaveInput,
 	type MyRecipes,
@@ -18,6 +19,17 @@ export const listMine = query(listMineInput, async ({ tab, tags }): Promise<MyRe
 	const actor = requireActor();
 	return AppFactory.getRecipesDoorController().listMine(actor, tab, tags);
 });
+
+/** Where a recipe's picture is: still being made, done (with its address) or failed. */
+export const getRecipePicture = query(
+	recipePictureInput,
+	async (recipeId): Promise<{ imageStatus: string | null; imageUrl: string | null }> => {
+		const actor = requireActor();
+		const picture = await AppFactory.getRecipeController().getImageStatus(recipeId, actor);
+		if (!picture) error(404, 'Recipe not found');
+		return picture;
+	}
+);
 
 /** Makes up a recipe for a craving. "Another one" passes the titles already shown. */
 export const makeSomethingNew = command(

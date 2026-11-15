@@ -13,7 +13,8 @@ import type {
 	SavedRecipeDao,
 	NewSavedRecipeDao,
 	RecipeImageStatusDao,
-	RecipeCountByReceiptDao
+	RecipeCountByReceiptDao,
+	RecipeWithoutPictureDao
 } from '../../src/lib/repositories/daos';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -88,6 +89,8 @@ export class MockRecipeRepository implements IRecipeRepository {
 			cookTime: recipe.cookTime || null,
 			imageUrl: recipe.imageUrl ?? null,
 			imageStatus: recipe.imageStatus ?? 'QUEUED',
+			imageSource: recipe.imageSource ?? null,
+			imageCredit: recipe.imageCredit ?? null,
 			source: recipe.source || 'GENERATED',
 			cuisineType: recipe.cuisineType || null,
 			estimatedCalories: recipe.estimatedCalories || null,
@@ -142,6 +145,14 @@ export class MockRecipeRepository implements IRecipeRepository {
 		recipe.isPublic = !recipe.isPublic;
 		recipe.updatedAt = new Date();
 		return recipe.isPublic;
+	}
+
+	async findWithoutPicture(limit: number): Promise<RecipeWithoutPictureDao[]> {
+		return Array.from(this.recipes.values())
+			.filter((recipe) => recipe.imageUrl === null)
+			.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+			.slice(0, limit)
+			.map(({ id, title, description }) => ({ id, title, description }));
 	}
 
 	async getImageStatus(id: string): Promise<RecipeImageStatusDao | null> {

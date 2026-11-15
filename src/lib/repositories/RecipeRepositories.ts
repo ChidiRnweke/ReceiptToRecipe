@@ -1,4 +1,4 @@
-import { eq, and, asc, desc, gt, inArray, sql } from 'drizzle-orm';
+import { eq, and, asc, desc, gt, inArray, isNull, sql } from 'drizzle-orm';
 import { isRecipeTag } from '$lib/models/recipes';
 import type { Database } from '$db/client';
 import * as schema from '$db/schema';
@@ -17,7 +17,8 @@ import type {
 	SavedRecipeDao,
 	NewSavedRecipeDao,
 	RecipeImageStatusDao,
-	RecipeCountByReceiptDao
+	RecipeCountByReceiptDao,
+	RecipeWithoutPictureDao
 } from './daos';
 
 /** The row's tags, keeping only words of the vocabulary. */
@@ -116,7 +117,9 @@ export class RecipeRepository implements IRecipeRepository {
 				...(recipe.imageUrl !== undefined ? { imageUrl: recipe.imageUrl } : {}),
 				...(recipe.imageStatus ? { imageStatus: recipe.imageStatus } : {}),
 				tags: recipe.tags ?? null,
-				tagSource: recipe.tagSource ?? null
+				tagSource: recipe.tagSource ?? null,
+				...(recipe.imageSource !== undefined ? { imageSource: recipe.imageSource } : {}),
+				...(recipe.imageCredit !== undefined ? { imageCredit: recipe.imageCredit } : {})
 			})
 			.returning();
 		return this.toDao(created);
@@ -182,6 +185,19 @@ export class RecipeRepository implements IRecipeRepository {
 			.map((c) => ({ receiptId: c.sourceReceiptId!, count: c.count }));
 	}
 
+	async findWithoutPicture(limit: number): Promise<RecipeWithoutPictureDao[]> {
+		return this.db
+			.select({
+				id: schema.recipes.id,
+				title: schema.recipes.title,
+				description: schema.recipes.description
+			})
+			.from(schema.recipes)
+			.where(isNull(schema.recipes.imageUrl))
+			.orderBy(asc(schema.recipes.createdAt))
+			.limit(limit);
+	}
+
 	async countByHouseholdId(householdId: string): Promise<number> {
 		const result = await this.db
 			.select({ count: sql<number>`count(*)`.as('count') })
@@ -222,6 +238,8 @@ export class RecipeRepository implements IRecipeRepository {
 			cookTime: recipe.cookTime,
 			imageUrl: recipe.imageUrl,
 			imageStatus: recipe.imageStatus as 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED',
+			imageSource: recipe.imageSource,
+			imageCredit: recipe.imageCredit,
 			source: recipe.source,
 			cuisineType: recipe.cuisineType,
 			estimatedCalories: recipe.estimatedCalories,
@@ -313,6 +331,8 @@ export class SavedRecipeRepository implements ISavedRecipeRepository {
 						cookTime: s.recipe.cookTime,
 						imageUrl: s.recipe.imageUrl,
 						imageStatus: s.recipe.imageStatus as 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED',
+						imageSource: s.recipe.imageSource,
+						imageCredit: s.recipe.imageCredit,
 						source: s.recipe.source,
 						cuisineType: s.recipe.cuisineType,
 						estimatedCalories: s.recipe.estimatedCalories,

@@ -9,6 +9,7 @@ import type {
 	ICulinaryIntelligence,
 	IKitchenService,
 	IRecipeBookService,
+	IRecipePictureService,
 	IStorageService,
 	ITasteProfileService,
 	KitchenPicture,
@@ -23,6 +24,7 @@ import {
 	type MyRecipeRow,
 	type MyRecipes,
 	type MyRecipesTab,
+	type PictureSubject,
 	type RecipeCardResult,
 	type RecipeTag,
 	type SnapKind
@@ -37,6 +39,16 @@ export interface SnapPhoto {
 
 export interface SnappedRecipe extends RecipeCardResult {
 	kind: SnapKind;
+}
+
+/** What a picture of a just-saved recipe is drawn from. */
+function pictureSubject(recipe: RecipeDao, generated: LlmGeneratedRecipe): PictureSubject {
+	return {
+		id: recipe.id,
+		title: recipe.title,
+		description: recipe.description,
+		ingredients: generated.ingredients.map((ingredient) => ingredient.name)
+	};
 }
 
 /** How many of the household's recipes "My recipes" reads. */
@@ -54,6 +66,7 @@ export class RecipesDoorController {
 		private recipeRepository: IRecipeRepository,
 		private savedRecipeRepository: ISavedRecipeRepository,
 		private mealLogRepository: IMealLogRepository,
+		private recipePictures: IRecipePictureService,
 		private now: () => Date = () => new Date()
 	) {}
 
@@ -78,12 +91,14 @@ export class RecipesDoorController {
 			servings: preferences?.defaultServings ?? 2
 		});
 		const recipe = await this.recipeBook.create(actor, { recipe: generated, source: 'GENERATED' });
+		this.recipePictures.queue(pictureSubject(recipe, generated));
 		return toCard(recipe, generated, available);
 	}
 
 	/**
-	 * Stores the photo, reads a recipe from it and saves the recipe as SNAPPED. A cookbook page
-	 * or a dish keeps the photo as the recipe's picture; a screenshot gets a generated one.
+	 * Stores the photo, reads a recipe from it and saves the recipe as SNAPPED. A photo of the
+	 * dish becomes the recipe's picture when the photo judge keeps it; a cookbook page, a
+	 * screenshot or a poor photo gets a generated picture.
 	 */
 	async snap(actor: Actor, photo: SnapPhoto): Promise<SnappedRecipe> {
 		const [preferences, tasteProfile, picture, upload] = await Promise.all([
@@ -108,11 +123,17 @@ export class RecipesDoorController {
 				throw error;
 			});
 
-		const recipe = await this.recipeBook.create(actor, {
-			recipe: generated,
-			source: 'SNAPPED',
-			photoUrl: kind === 'screenshot' ? null : upload.url
-		});
+		const recipe = await this.recipeBook.create(actor, { recipe: generated, source: 'SNAPPED' });
+		this.recipePictures.queue(
+			pictureSubject(recipe, generated),
+			kind === 'dish'
+				? {
+						photo: { data: photo.bytes, contentType: photo.mimeType },
+						source: 'SNAPPED',
+						url: upload.url
+					}
+				: null
+		);
 		return { ...toCard(recipe, generated, stockNames(picture)), kind };
 	}
 

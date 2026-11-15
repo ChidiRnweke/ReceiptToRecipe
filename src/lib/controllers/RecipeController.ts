@@ -15,7 +15,8 @@ import type {
 	ICulinaryIntelligence,
 	IVectorService,
 	ITasteProfileService,
-	IRecipeBookService
+	IRecipeBookService,
+	IRecipePictureService
 } from '$services';
 import { stepsFromGenerated } from '$services/recipes';
 import type { Actor } from '$lib/models/household';
@@ -47,7 +48,8 @@ export class RecipeController {
 		private savedRecipeRepository: ISavedRecipeRepository,
 		private userPreferencesRepository: IUserPreferencesRepository,
 		private receiptItemRepository: IReceiptItemRepository,
-		private recipeBook: IRecipeBookService
+		private recipeBook: IRecipeBookService,
+		private recipePictures: IRecipePictureService
 	) {}
 
 	/**
@@ -103,12 +105,27 @@ export class RecipeController {
 			cookbookContext
 		});
 
-		// Save the recipe with its steps; its picture is generated in the background
-		return this.recipeBook.create(actor, {
+		// Save the recipe with its steps; its picture is made in the background
+		const recipe = await this.recipeBook.create(actor, {
 			recipe: generatedRecipe,
 			source: useRag ? 'RAG' : 'GENERATED',
 			sourceReceiptId
 		});
+		this.recipePictures.queue({
+			id: recipe.id,
+			title: recipe.title,
+			description: recipe.description,
+			ingredients: generatedRecipe.ingredients.map((ingredient) => ingredient.name)
+		});
+		return recipe;
+	}
+
+	/**
+	 * Gives a picture to every recipe that has none, one at a time. Runs once after the server
+	 * starts, for all households.
+	 */
+	async fillMissingPictures(): Promise<{ filled: number; failed: number }> {
+		return this.recipePictures.fillMissing();
 	}
 
 	/**

@@ -24,6 +24,9 @@ export type {
 	TaggingSummary,
 	IImageGenerator,
 	GeneratedImage,
+	IPhotoJudge,
+	PhotoScore,
+	IRecipePictureService,
 	IVectorService,
 	VectorSearchResult,
 	INormalizationService,
@@ -134,6 +137,9 @@ export { MockOcrService } from './MockOcrService';
 export { SmartCulinaryIntelligence } from './SmartCulinaryIntelligence';
 export { SmartProductNormalizer } from './SmartProductNormalizer';
 export { SmartImageGenerator } from './SmartImageGenerator';
+export { SeedPictureGenerator } from './SeedPictureGenerator';
+export { OpenRouterPhotoJudge } from './OpenRouterPhotoJudge';
+export { RecipePictureService } from './RecipePictureService';
 export * from './PgVectorService';
 export * from './JobQueue';
 export { TasteProfileService } from './TasteProfileService';

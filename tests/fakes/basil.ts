@@ -6,12 +6,12 @@ import { RecipeController } from '../../src/lib/controllers/RecipeController';
 import { RecipeBookService } from '../../src/lib/services/RecipeBookService';
 import {
 	MockCulinaryIntelligence,
-	MockImageGenerator,
 	MockJobQueue,
 	MockReceiptItemRepository,
 	MockVectorService
 } from '../mocks';
 import { InMemoryRecipeStepRepository } from './InMemoryRecipeStepRepository';
+import { createPictures } from './pictures';
 import { createPlan } from './plan';
 import {
 	InMemoryAgentActionRepository,
@@ -80,10 +80,10 @@ export function createBasil(
 			p.recipes,
 			p.ingredients,
 			new InMemoryRecipeStepRepository(),
-			new MockImageGenerator(),
 			new MockJobQueue(),
 			new MockCulinaryIntelligence()
-		)
+		),
+		createPictures(p.recipes, p.ingredients).service
 	);
 	const controllers: AgentToolControllers = {
 		plan: () => p.planController,

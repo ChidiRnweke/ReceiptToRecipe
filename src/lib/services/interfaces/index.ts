@@ -18,6 +18,8 @@ export type {
 } from './ICulinaryIntelligence';
 export { NoRecipeInImageError } from './ICulinaryIntelligence';
 export * from './IImageGenerator';
+export * from './IPhotoJudge';
+export * from './IRecipePictureService';
 export * from './IVectorService';
 export * from './INormalizationService';
 export type { IProductNormalizer, NormalizedProductInfo } from './IProductNormalizer';
