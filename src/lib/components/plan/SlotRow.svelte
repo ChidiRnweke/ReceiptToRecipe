@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { basilKey } from '$lib/models/agent';
 	import type { PlanSlot } from '$lib/models/plan';
 	import { weekdayName } from '$lib/services/tonight';
 	import Chip from '$lib/components/tonight/Chip.svelte';
@@ -17,6 +18,7 @@
 
 <button
 	type="button"
+	data-basil-key={basilKey.planSlot(slot.day, slot.mealType)}
 	onclick={() => onopen(slot)}
 	aria-label={slot.meal
 		? `${weekdayName(slot.weekday)} ${slotName}: ${slot.meal.title}`
