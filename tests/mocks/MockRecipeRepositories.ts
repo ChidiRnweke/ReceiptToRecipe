@@ -92,6 +92,8 @@ export class MockRecipeRepository implements IRecipeRepository {
 			cuisineType: recipe.cuisineType || null,
 			estimatedCalories: recipe.estimatedCalories || null,
 			isPublic: false,
+			tags: recipe.tags ?? null,
+			tagSource: recipe.tagSource ?? null,
 			createdAt: now,
 			updatedAt: now
 		};
@@ -119,6 +121,19 @@ export class MockRecipeRepository implements IRecipeRepository {
 
 	async delete(id: string): Promise<void> {
 		this.recipes.delete(id);
+	}
+
+	async findNeedingTags(
+		afterId: string | null,
+		limit: number
+	): Promise<RecipeWithIngredientsDao[]> {
+		const ids = [...this.recipes.values()]
+			.filter((r) => !Array.isArray(r.tagSource?.ai) && (afterId === null || r.id > afterId))
+			.map((r) => r.id)
+			.sort()
+			.slice(0, limit);
+		const found = await Promise.all(ids.map((id) => this.findByIdWithIngredients(id)));
+		return found.filter((r): r is RecipeWithIngredientsDao => r !== null);
 	}
 
 	async togglePublic(id: string): Promise<boolean> {

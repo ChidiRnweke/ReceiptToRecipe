@@ -13,10 +13,10 @@ import { NoRecipeInImageError } from '$lib/services';
 import type { SnappedRecipe } from '$lib/controllers';
 import { requireActor } from '../actor';
 
-/** One tab of "My recipes", with the count of every tab. */
-export const listMine = query(listMineInput, async (tab): Promise<MyRecipes> => {
+/** One tab of "My recipes" filtered on tags (the household's diets when left out), with counts. */
+export const listMine = query(listMineInput, async ({ tab, tags }): Promise<MyRecipes> => {
 	const actor = requireActor();
-	return AppFactory.getRecipesDoorController().listMine(actor, tab);
+	return AppFactory.getRecipesDoorController().listMine(actor, tab, tags);
 });
 
 /** Makes up a recipe for a craving. "Another one" passes the titles already shown. */

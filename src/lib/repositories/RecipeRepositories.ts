@@ -1,4 +1,5 @@
-import { eq, and, desc, inArray, sql } from 'drizzle-orm';
+import { eq, and, asc, desc, gt, inArray, sql } from 'drizzle-orm';
+import { isRecipeTag } from '$lib/models/recipes';
 import type { Database } from '$db/client';
 import * as schema from '$db/schema';
 import type {
@@ -18,6 +19,16 @@ import type {
 	RecipeImageStatusDao,
 	RecipeCountByReceiptDao
 } from './daos';
+
+/** The row's tags, keeping only words of the vocabulary. */
+function tagsOfRow(
+	row: Pick<typeof schema.recipes.$inferSelect, 'tags' | 'tagSource'>
+): Pick<RecipeDao, 'tags' | 'tagSource'> {
+	return {
+		tags: row.tags ? row.tags.filter(isRecipeTag) : null,
+		tagSource: row.tagSource ?? null
+	};
+}
 
 export class RecipeRepository implements IRecipeRepository {
 	constructor(private db: Database) {}
@@ -103,7 +114,9 @@ export class RecipeRepository implements IRecipeRepository {
 				estimatedCalories: recipe.estimatedCalories ?? null,
 				source: recipe.source || 'GENERATED',
 				...(recipe.imageUrl !== undefined ? { imageUrl: recipe.imageUrl } : {}),
-				...(recipe.imageStatus ? { imageStatus: recipe.imageStatus } : {})
+				...(recipe.imageStatus ? { imageStatus: recipe.imageStatus } : {}),
+				tags: recipe.tags ?? null,
+				tagSource: recipe.tagSource ?? null
 			})
 			.returning();
 		return this.toDao(created);
@@ -178,6 +191,23 @@ export class RecipeRepository implements IRecipeRepository {
 		return result[0]?.count || 0;
 	}
 
+	async findNeedingTags(
+		afterId: string | null,
+		limit: number
+	): Promise<RecipeWithIngredientsDao[]> {
+		const untagged = sql`jsonb_typeof(${schema.recipes.tagSource} -> 'ai') IS DISTINCT FROM 'array'`;
+		const recipes = await this.db.query.recipes.findMany({
+			where: afterId ? and(untagged, gt(schema.recipes.id, afterId)) : untagged,
+			orderBy: [asc(schema.recipes.id)],
+			limit,
+			with: { ingredients: { orderBy: [schema.recipeIngredients.orderIndex] } }
+		});
+		return recipes.map((r) => ({
+			...this.toDao(r),
+			ingredients: r.ingredients.map((ing) => this.ingredientToDao(ing))
+		}));
+	}
+
 	private toDao(recipe: typeof schema.recipes.$inferSelect): RecipeDao {
 		return {
 			id: recipe.id,
@@ -196,6 +226,7 @@ export class RecipeRepository implements IRecipeRepository {
 			cuisineType: recipe.cuisineType,
 			estimatedCalories: recipe.estimatedCalories,
 			isPublic: recipe.isPublic ?? false,
+			...tagsOfRow(recipe),
 			createdAt: recipe.createdAt,
 			updatedAt: recipe.updatedAt
 		};
@@ -286,6 +317,7 @@ export class SavedRecipeRepository implements ISavedRecipeRepository {
 						cuisineType: s.recipe.cuisineType,
 						estimatedCalories: s.recipe.estimatedCalories,
 						isPublic: s.recipe.isPublic ?? false,
+						...tagsOfRow(s.recipe),
 						createdAt: s.recipe.createdAt,
 						updatedAt: s.recipe.updatedAt
 					}

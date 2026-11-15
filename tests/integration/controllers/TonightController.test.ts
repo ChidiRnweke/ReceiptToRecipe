@@ -156,6 +156,19 @@ describe('TonightController', () => {
 			const ideas = await t.controller.alternatives(actor, NOW, TZ);
 			expect(ideas.map((idea) => idea.title)).toEqual(['Saag paneer']);
 		});
+
+		it('leaves out a recipe that does not suit a vegetarian member', async () => {
+			await t.addRecipe('Chorizo hash', [{ name: 'Chorizo', quantity: 100, unit: 'g' }]);
+			t.taste.setHouseholdDiets(actor.householdId, ['Vegetarian']);
+			const ideas = await t.controller.alternatives(actor, NOW, TZ);
+			expect(ideas.map((idea) => idea.title)).not.toContain('Chorizo hash');
+		});
+
+		it('keeps only recipes with the tags asked for', async () => {
+			await t.addRecipe('Chorizo hash', [{ name: 'Chorizo', quantity: 100, unit: 'g' }]);
+			const ideas = await t.controller.alternatives(actor, NOW, TZ, ['vegetarian']);
+			expect(ideas.map((idea) => idea.title)).not.toContain('Chorizo hash');
+		});
 	});
 
 	describe('eatOut', () => {

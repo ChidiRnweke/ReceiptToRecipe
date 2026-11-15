@@ -4,6 +4,7 @@
  * placeholder the app used before ("Untitled Recipe", "count", 1); a wrong shape is an error.
  */
 import { z } from 'zod';
+import { generatedTagsSchema } from './tags';
 
 const minutes = z
 	.number()
@@ -54,7 +55,9 @@ export const generatedRecipeSchema = z.object({
 		.nonnegative()
 		.nullish()
 		.transform((value) => (value == null ? undefined : Math.round(value))),
-	ingredients: z.array(generatedIngredientSchema).default([])
+	ingredients: z.array(generatedIngredientSchema).default([]),
+	/** The judged tags (planning and course); unknown ones are dropped. */
+	tags: generatedTagsSchema
 });
 
 export type GeneratedRecipeJson = z.infer<typeof generatedRecipeSchema>;

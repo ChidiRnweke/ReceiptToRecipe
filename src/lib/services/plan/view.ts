@@ -159,7 +159,7 @@ export function buildPlanView(input: PlanViewInput): PlanView {
 					? meal.servings
 					: null,
 			isNew: meal.recipeId !== null && !cooked.has(meal.recipeId),
-			keepsWell: keepsWell({ title }),
+			keepsWell: recipe ? recipe.keepsWell : keepsWell({ title }),
 			isPrep: false
 		};
 	};

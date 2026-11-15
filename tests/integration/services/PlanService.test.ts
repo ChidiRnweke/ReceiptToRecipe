@@ -61,6 +61,17 @@ describe('PlanService', () => {
 			expect(result.open).toBe(1);
 		});
 
+		it('skips a recipe without the diet tag a member needs', async () => {
+			const chicken = await p.addRecipe('Chicken traybake', [
+				{ name: 'Chicken thighs', quantity: 4, unit: 'count' }
+			]);
+			p.taste.setHouseholdDiets(actor.householdId, ['Vegetarian']);
+			await p.plan.suggestRest(actor, { start: DAY0, end: DAY0 + 3 }, ctx);
+			const planned = [0, 1, 2].map((d) => mealsOn(DAY0 + d));
+			const ids = (await Promise.all(planned)).flat().map((meal) => meal.recipeId);
+			expect(ids).not.toContain(chicken.id);
+		});
+
 		it('fills every open dinner of the range', async () => {
 			const result = await p.plan.suggestRest(actor, { start: DAY0, end: DAY0 + 2 }, ctx);
 			expect(result.filled).toBe(2);

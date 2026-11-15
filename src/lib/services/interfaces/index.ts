@@ -12,7 +12,9 @@ export type {
 	ChatMessage,
 	AllergyRiskReview,
 	AllergyRiskReviewInput,
-	AllergyRiskLevel
+	AllergyRiskLevel,
+	RecipeToTag,
+	JudgedRecipeTags
 } from './ICulinaryIntelligence';
 export { NoRecipeInImageError } from './ICulinaryIntelligence';
 export * from './IImageGenerator';
@@ -87,7 +89,7 @@ export type {
 	IdeaOptions
 } from './IPlanService';
 export type { IShopService, NewManualItem } from './IShopService';
-export type { IRecipeBookService, NewRecipeContent } from './IRecipeBookService';
+export type { IRecipeBookService, NewRecipeContent, TaggingSummary } from './IRecipeBookService';
 export type { IHouseholdEventService, EventAuthor } from './IHouseholdEventService';
 export type { INeedsYouService } from './INeedsYouService';
 export type { IAgentService, BasilTurnInput, BasilTurnOutcome } from './IAgentService';

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { RecipesDoorController } from '../../../src/lib/controllers/RecipesDoorController';
 import { RecipeBookService } from '../../../src/lib/services/RecipeBookService';
 import type { Actor } from '../../../src/lib/models/household';
+import type { RecipeTag } from '../../../src/lib/models/recipes';
 import type { NewKitchenEvent } from '../../../src/lib/models/kitchen';
 import {
 	MockImageGenerator,
@@ -37,24 +38,27 @@ describe('RecipesDoorController', () => {
 	let kitchen: ReturnType<typeof createKitchen>;
 	let steps: InMemoryRecipeStepRepository;
 	let controller: RecipesDoorController;
+	let taste: MockTasteProfileService;
 
 	beforeEach(() => {
 		culinary = new RecordingCulinaryIntelligence();
 		storage = new MockStorageService();
 		kitchen = createKitchen();
 		steps = new InMemoryRecipeStepRepository();
+		taste = new MockTasteProfileService();
 		const book = new RecipeBookService(
 			kitchen.recipes,
 			kitchen.ingredients,
 			steps,
 			new MockImageGenerator(),
-			new MockJobQueue(false)
+			new MockJobQueue(false),
+			culinary
 		);
 		controller = new RecipesDoorController(
 			culinary,
 			storage,
 			kitchen.service,
-			new MockTasteProfileService(),
+			taste,
 			book,
 			new MockUserPreferencesRepository(),
 			kitchen.recipes,
@@ -169,6 +173,52 @@ describe('RecipesDoorController', () => {
 			await controller.snap(actor, photo).catch(() => undefined);
 
 			expect(storage.getStored('recipes/orzo.jpg')).toBeUndefined();
+		});
+	});
+
+	describe('listMine with tags', () => {
+		async function tagged(title: string, tags: RecipeTag[]) {
+			return kitchen.recipes.create({
+				userId: actor.userId,
+				householdId: actor.householdId,
+				title,
+				instructions: 'Serve.',
+				source: 'GENERATED',
+				tags,
+				tagSource: { rule: tags, ai: [] }
+			});
+		}
+
+		beforeEach(async () => {
+			await tagged('Dal', ['vegan', 'quick']);
+			await tagged('Chicken traybake', ['keeps-well']);
+		});
+
+		it('applies the household’s diets when no tags are chosen', async () => {
+			taste.setHouseholdDiets(actor.householdId, ['Vegetarian']);
+			const mine = await controller.listMine(actor, 'all');
+			expect(mine.rows.map((row) => row.title)).toEqual(['Dal']);
+		});
+
+		it('shows everything when the person clears the tags', async () => {
+			taste.setHouseholdDiets(actor.householdId, ['Vegetarian']);
+			const mine = await controller.listMine(actor, 'all', []);
+			expect(mine.rows).toHaveLength(2);
+		});
+
+		it('offers the applied tags first', async () => {
+			const mine = await controller.listMine(actor, 'all', ['vegan']);
+			expect(mine.offered).toEqual(['vegan', 'quick', 'keeps-well']);
+		});
+
+		it('counts the tabs with the same tags', async () => {
+			const mine = await controller.listMine(actor, 'all', ['quick']);
+			expect(mine.counts.all).toBe(1);
+		});
+
+		it('offers only the filter tags some recipe has', async () => {
+			const mine = await controller.listMine(actor, 'all', []);
+			expect(mine.offered).toEqual(['quick', 'keeps-well', 'vegan']);
 		});
 	});
 

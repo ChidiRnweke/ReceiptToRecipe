@@ -16,7 +16,9 @@
 	import MakeSomethingNewSheet from '$lib/components/recipes/MakeSomethingNewSheet.svelte';
 	import RecipePicture from '$lib/components/recipes/RecipePicture.svelte';
 	import SnapRecipeSheet from '$lib/components/recipes/SnapRecipeSheet.svelte';
-	import type { MyRecipeRow, MyRecipesTab } from '$lib/models/recipes';
+	import { TAG_COPY, type MyRecipeRow, type MyRecipesTab } from '$lib/models/recipes';
+	import { recipeFilter } from '$lib/state/recipeFilter.svelte';
+	import { dietLine } from '$lib/services/recipes';
 	import { listMine } from '$lib/remote/recipes/recipes.remote';
 	import { greetingFor } from '$lib/services/doors';
 	import { recipeMeta } from '$lib/services/recipes';
@@ -68,7 +70,7 @@
 	}
 
 	function refreshLists() {
-		listMine(tab).refresh();
+		listMine(recipeFilter.input(tab)).refresh();
 	}
 
 	function openSnap() {
@@ -109,7 +111,7 @@
 		</h2>
 
 		<svelte:boundary>
-			{@const mine = await listMine(tab)}
+			{@const mine = await listMine(recipeFilter.input(tab))}
 			<Tabs.Root bind:value={tab} class="flex-col gap-3">
 				<Tabs.List class="h-9 w-full bg-paper-dark">
 					{#each TABS as item (item.key)}
@@ -148,11 +150,43 @@
 					</div>
 				{/if}
 
+				{#if mine.offered.length > 0}
+					<div class="grid gap-1.5">
+						<ul
+							class="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none]"
+							aria-label="Show only"
+						>
+							{#each mine.offered as tag (tag)}
+								{@const on = mine.tags.includes(tag)}
+								<li class="shrink-0">
+									<button
+										type="button"
+										aria-pressed={on}
+										onclick={() => recipeFilter.toggle(tag, mine.tags)}
+										class="rounded-full border px-2.5 py-0.5 text-[12px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none {on
+											? 'border-sage-300 bg-sage-100 text-sage-800'
+											: 'border-transparent bg-paper-dark text-ink-light hover:text-ink'}"
+									>
+										{TAG_COPY[tag].label}
+									</button>
+								</li>
+							{/each}
+						</ul>
+						{#if recipeFilter.tags === undefined && mine.householdDiets.length > 0}
+							<p class="text-[12px] text-text-muted">{dietLine(mine.householdDiets)}</p>
+						{/if}
+					</div>
+				{/if}
+
 				{#each TABS as item (item.key)}
 					<Tabs.Content value={item.key}>
 						{#if item.key === mine.tab}
 							{@const rows = shown(mine.rows)}
-							{#if mine.rows.length === 0}
+							{#if mine.rows.length === 0 && mine.tags.length > 0}
+								<p class="py-6 text-center text-sm text-text-muted">
+									Nothing {mine.tags.map((tag) => TAG_COPY[tag].label).join(', ')} here yet.
+								</p>
+							{:else if mine.rows.length === 0}
 								<EmptyState
 									art="book"
 									title={EMPTY[item.key].title}

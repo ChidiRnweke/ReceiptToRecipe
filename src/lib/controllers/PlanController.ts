@@ -30,6 +30,7 @@ import {
 	DINNER_SHARE,
 	FILLED_MESSAGE,
 	JUST_TONIGHT_MESSAGE,
+	keepsWell,
 	NO_RECIPES_MESSAGE,
 	NOTHING_TO_FILL_MESSAGE,
 	pickedStretch,
@@ -96,7 +97,8 @@ function toInfo(recipe: RecipeWithIngredientsDao): PlanRecipeInfo {
 		servings: recipe.servings,
 		minutes: minutesOf(recipe),
 		calories: recipe.estimatedCalories,
-		steps: splitSteps(recipe.instructions)
+		steps: splitSteps(recipe.instructions),
+		keepsWell: keepsWell(recipe)
 	};
 }
 

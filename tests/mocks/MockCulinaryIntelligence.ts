@@ -8,8 +8,11 @@ import type {
 	CravingContext,
 	ImageRecipe,
 	ImageRecipeContext,
-	RecipeImage
+	RecipeImage,
+	RecipeToTag,
+	JudgedRecipeTags
 } from '../../src/lib/services/interfaces/ICulinaryIntelligence';
+import type { JudgedTag } from '../../src/lib/models/recipes';
 
 const FORMS = ['skillet', 'traybake', 'rice bowl'];
 
@@ -150,6 +153,23 @@ export class MockCulinaryIntelligence implements ICulinaryIntelligence {
 					: 'No allergy matches in ingredient names.',
 			confidence: 0.75
 		};
+	}
+
+	/** When set, tagging fails as an unreachable model would. */
+	taggingFails = false;
+	/** The batches the model was asked to tag. */
+	readonly tagBatches: RecipeToTag[][] = [];
+
+	/** Tags soups and curries keeps-well and every recipe a main. */
+	async tagRecipes(recipes: RecipeToTag[]): Promise<JudgedRecipeTags[]> {
+		this.tagBatches.push(recipes);
+		if (this.taggingFails) throw new Error('401 Missing Authentication header');
+		return recipes.map((recipe) => {
+			const tags: JudgedTag[] = /soup|curry/i.test(recipe.title)
+				? ['keeps-well', 'main']
+				: ['main'];
+			return { id: recipe.id, tags };
+		});
 	}
 
 	// Test helpers

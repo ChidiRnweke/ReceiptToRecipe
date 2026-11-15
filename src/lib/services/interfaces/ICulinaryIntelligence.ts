@@ -1,4 +1,5 @@
 import type { UserPreferences } from '$db/schema';
+import type { JudgedTag } from '$lib/models/recipes';
 import type { TasteProfile } from '../TasteProfileService';
 
 /** One step as the model writes it; the verb should come from the cooking vocabulary. */
@@ -27,6 +28,22 @@ export interface GeneratedRecipe {
 		optional: boolean;
 		notes?: string;
 	}[];
+	/** The planning and course tags the model judged; absent when it said nothing about tags. */
+	tags?: JudgedTag[];
+}
+
+/** A stored recipe, as the model reads it to judge its tags. */
+export interface RecipeToTag {
+	id: string;
+	title: string;
+	ingredients: string[];
+	steps: string[];
+}
+
+/** The tags the model judged for one recipe. */
+export interface JudgedRecipeTags {
+	id: string;
+	tags: JudgedTag[];
 }
 
 export interface RecipeContext {
@@ -153,6 +170,13 @@ export interface ICulinaryIntelligence {
 	 * @returns Structured risk review
 	 */
 	reviewRecipeAllergyRisk(input: AllergyRiskReviewInput): Promise<AllergyRiskReview>;
+
+	/**
+	 * Judges the planning and course tags (keeps-well, freezes, lunchbox, breakfast, main, side,
+	 * dessert, snack) of up to 20 recipes in one call. Recipes the model leaves out are missing
+	 * from the result; unknown tags are dropped.
+	 */
+	tagRecipes(recipes: RecipeToTag[]): Promise<JudgedRecipeTags[]>;
 }
 
 /** The photo shows no recipe and no dish. */

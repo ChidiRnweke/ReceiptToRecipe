@@ -15,6 +15,7 @@ import { listMine } from '$lib/remote/recipes/recipes.remote';
 import { getNeedsYou } from '$lib/remote/needsyou/needsyou.remote';
 import { MY_RECIPE_TABS } from '$lib/models/recipes';
 import { planRange } from '$lib/state/planRange.svelte';
+import { recipeFilter } from '$lib/state/recipeFilter.svelte';
 
 const DOOR_OF: Record<DoorKey, BasilDoor> = {
 	tonight: 'tonight',
@@ -107,7 +108,7 @@ export function refreshDoors(doors: BasilDoor[]): void {
 		} else if (door === 'use-it-up') {
 			getUseItUp().refresh();
 		} else if (door === 'recipes') {
-			for (const tab of MY_RECIPE_TABS) listMine(tab).refresh();
+			for (const tab of MY_RECIPE_TABS) listMine(recipeFilter.input(tab)).refresh();
 		}
 	}
 }

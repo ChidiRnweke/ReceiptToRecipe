@@ -279,8 +279,11 @@ export function agentToolBuilders(controllers: AgentToolControllers, scope: Tool
 			})
 		}),
 		find_recipes: defineTool('find_recipes', {
-			run: async ({ query, tab }) => ({
-				result: recipesResult(await c.recipesDoor().listMine(actor, tab ?? 'all'), query)
+			run: async ({ query, tab, tags }) => ({
+				result: recipesResult(
+					await c.recipesDoor().listMine(actor, tab ?? 'all', tags ?? []),
+					query
+				)
 			})
 		}),
 		get_recipe: defineTool('get_recipe', {
@@ -328,9 +331,9 @@ export function agentToolBuilders(controllers: AgentToolControllers, scope: Tool
 
 		// ─── Proposal ───────────────────────────────────────────────────
 		suggest_ideas: defineTool('suggest_ideas', {
-			run: async () => ({
+			run: async ({ tags }) => ({
 				result: {
-					ideas: (await c.tonight().alternatives(actor, now, timeZone)).map(ideaResult)
+					ideas: (await c.tonight().alternatives(actor, now, timeZone, tags ?? [])).map(ideaResult)
 				}
 			})
 		}),

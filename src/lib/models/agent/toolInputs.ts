@@ -8,6 +8,7 @@
 
 import { z } from 'zod';
 import { BASIL_DOORS } from './doors';
+import { recipeTagSchema } from '../recipes/tags';
 import type { ToolName } from './toolCatalog';
 
 const none = z.object({}).strict();
@@ -17,6 +18,7 @@ const quantity = z.number().positive().max(100_000);
 const unit = z.string().trim().min(1).max(20);
 const daysFromToday = z.number().int().min(0).max(9);
 const meal = z.enum(['DINNER', 'LUNCH']);
+const tags = z.array(recipeTagSchema).min(1).max(5);
 
 export const TOOL_INPUTS = {
 	whats_for_tonight: none,
@@ -28,7 +30,8 @@ export const TOOL_INPUTS = {
 	find_recipes: z
 		.object({
 			query: z.string().trim().min(1).max(120).optional(),
-			tab: z.enum(['made', 'saved', 'added', 'all']).optional()
+			tab: z.enum(['made', 'saved', 'added', 'all']).optional(),
+			tags: tags.optional()
 		})
 		.strict(),
 	get_recipe: z.object({ recipeId: id }).strict(),
@@ -51,7 +54,7 @@ export const TOOL_INPUTS = {
 		})
 		.strict(),
 
-	suggest_ideas: none,
+	suggest_ideas: z.object({ tags: tags.optional() }).strict(),
 	use_up_ideas: z.object({ itemKey }).strict(),
 	suggest_plan_rest: none,
 
