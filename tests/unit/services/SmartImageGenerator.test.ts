@@ -24,6 +24,19 @@ function fakeFetch(status: number, body: unknown): { fetch: FetchLike; sent: Sen
 	return { fetch, sent };
 }
 
+/** A server that answers the images endpoint with a `url` and serves the picture at that URL. */
+function urlServer(): { fetch: FetchLike; fetched: string[] } {
+	const fetched: string[] = [];
+	const fetch: FetchLike = async (url) => {
+		fetched.push(url);
+		if (url.endsWith('/images/generations')) {
+			return Response.json({ data: [{ url: 'http://localhost:8189/files/1.webp' }] });
+		}
+		return new Response(new Uint8Array([1, 2, 3]), { headers: { 'Content-Type': 'image/webp' } });
+	};
+	return { fetch, fetched };
+}
+
 const PICTURE = {
 	data: [{ b64_json: 'iVBORw0KGgo=', media_type: 'image/png' }],
 	usage: { cost: 0.009 }
@@ -65,6 +78,21 @@ describe('SmartImageGenerator', () => {
 			expect(sent[0].headers.Authorization).toBe('Bearer sk-test');
 		});
 
+		it('posts to the images endpoint of the base URL it was given', async () => {
+			const { fetch, sent } = fakeFetch(200, PICTURE);
+			await new SmartImageGenerator('', 'm', {
+				fetch,
+				baseUrl: 'http://localhost:8189/v1/'
+			}).generateImage('soup');
+			expect(sent[0].url).toBe('http://localhost:8189/v1/images/generations');
+		});
+
+		it('sends no Authorization header without an API key', async () => {
+			const { fetch, sent } = fakeFetch(200, PICTURE);
+			await new SmartImageGenerator('', 'm', { fetch }).generateImage('soup');
+			expect(sent[0].headers.Authorization).toBeUndefined();
+		});
+
 		it('uses FLUX 3 Image Klein when no model is given', async () => {
 			const { fetch, sent } = fakeFetch(200, PICTURE);
 			await new SmartImageGenerator('key', undefined, { fetch }).generateImage('soup');
@@ -79,6 +107,12 @@ describe('SmartImageGenerator', () => {
 			});
 			const image = await new SmartImageGenerator('key', 'm', { fetch }).generateImage('soup');
 			expect(image.url).toBe('data:image/jpeg;base64,AAAA');
+		});
+
+		it('downloads a picture the server answers with as a URL', async () => {
+			const { fetch } = urlServer();
+			const image = await new SmartImageGenerator('', 'm', { fetch }).generateImage('soup');
+			expect(image.url).toBe('data:image/webp;base64,AQID');
 		});
 
 		it('reports what OpenRouter charged', async () => {

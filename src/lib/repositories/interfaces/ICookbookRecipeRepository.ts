@@ -1,4 +1,5 @@
 import type {
+	CookbookBundleRowDao,
 	CookbookPictureDao,
 	CookbookRecipeDao,
 	CookbookSampleQuery,
@@ -24,5 +25,7 @@ export interface ICookbookRecipeRepository {
 	sample(query: CookbookSampleQuery): Promise<CookbookRecipeDao[]>;
 	/** Recipes that pass the filter and match the words, or rank closest to the embedding. */
 	search(query: CookbookSearchQuery): Promise<CookbookRecipeDao[]>;
+	/** Rows with their item keys and embedding, by page id after `afterPageId`, for a bundle. */
+	listForBundle(afterPageId: number, limit: number): Promise<CookbookBundleRowDao[]>;
 	count(): Promise<number>;
 }

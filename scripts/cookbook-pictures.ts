@@ -4,13 +4,12 @@
  *
  *   npm run cookbook:pictures [-- --model google/gemini-2.5-flash-image] [-- --limit 100]
  *                             [-- --replace-stand-ins] [-- --yes]
- *   npm run pictures:local [-- --limit 100]
  *
- * --model sets OPENROUTER_IMAGE_MODEL for this run (FLUX 3 Image Klein by default). Without a
- * working OpenRouter key, or with IMAGE_GENERATOR=seed, the committed seed photos stand in.
- * `pictures:local` sets IMAGE_GENERATOR=local and makes the pictures with FLUX on this Mac
- * (docs/local-pictures.md). The spend estimate (from the bake-off's per-picture costs), or for a
- * local run the expected duration, is printed first; a run that costs money waits 5 seconds, so
+ * Pictures come from OpenRouter's images endpoint (FLUX 3 Image Klein by default), or from any
+ * OpenAI-compatible images endpoint set in PREPROCESS_IMAGE_BASE_URL (docs/cookbook.md). --model
+ * sets PREPROCESS_IMAGE_MODEL for this run. Without a working OpenRouter key and no other server,
+ * or with IMAGE_GENERATOR=seed, the committed seed photos stand in. The spend estimate (from the
+ * bake-off's per-picture costs) is printed first; a run that may cost money waits 5 seconds, so
  * Ctrl-C stops it, unless --yes is passed.
  */
 import { appModules, argument, integerArgument } from './lib/appModules.ts';
@@ -22,7 +21,7 @@ export async function runCookbookPictures(
 	costs: typeof Costs,
 	options: { limit: number; standIns: boolean; wait: boolean }
 ): Promise<void> {
-	const { pictures, model } = jobs.cookbookPictures();
+	const { pictures, model, baseUrl } = jobs.cookbookPictures();
 	const repository = jobs.cookbookRecipes();
 	const waiting = await repository.countWithoutPicture(options.standIns);
 	const count = Math.min(waiting, options.limit);
@@ -31,7 +30,7 @@ export async function runCookbookPictures(
 		return;
 	}
 
-	const notice = costs.pictureRunNotice(model, count);
+	const notice = costs.pictureRunNotice(model, count, baseUrl);
 	console.log(notice.message);
 	if (notice.costsMoney && options.wait) {
 		console.log('Starting in 5 s; Ctrl-C to stop.');
@@ -41,7 +40,7 @@ export async function runCookbookPictures(
 	const summary = await pictures.fillCookbook({
 		limit: options.limit,
 		standIns: options.standIns,
-		onPicture: (title, outcome) => console.log(`  ${title}: ${outcome}`)
+		onPicture: (title, outcome) => console.log(`  ${new Date().toISOString()} ${title}: ${outcome}`)
 	});
 	console.log(
 		`Pictures: ${summary.filled} made, ${summary.failed} failed${summary.stopped ? ' (stopped after 3 failures in a row)' : ''}.`
@@ -51,7 +50,7 @@ export async function runCookbookPictures(
 async function main() {
 	const args = process.argv.slice(2);
 	const model = argument(args, 'model');
-	if (model) process.env.OPENROUTER_IMAGE_MODEL = model;
+	if (model) process.env.PREPROCESS_IMAGE_MODEL = model;
 	const modules = await appModules();
 	try {
 		const jobs = await modules.load<typeof Jobs>('/src/lib/factories/cookbookJobs.ts');

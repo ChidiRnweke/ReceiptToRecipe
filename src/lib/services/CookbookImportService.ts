@@ -56,7 +56,10 @@ export class CookbookImportService implements ICookbookImportService {
 		for await (const page of this.client.recipePages(options.limit)) {
 			summary.seen += 1;
 			const existing = await this.repository.findByPageId(page.pageId);
-			if (existing && existing.revisionId === page.revisionId) {
+			// A model run structures again a page the rules structured; nothing else at the same
+			// revision is done twice.
+			const upgrade = existing?.structuredBy === 'rules' && this.structurer.kind === 'model';
+			if (existing && existing.revisionId === page.revisionId && !upgrade) {
 				skip(page.title, 'unchanged');
 				continue;
 			}
@@ -76,7 +79,8 @@ export class CookbookImportService implements ICookbookImportService {
 				continue;
 			}
 
-			let embedding: number[] | null = null;
+			// Undefined keeps the embedding already stored for the page, when one is.
+			let embedding: number[] | undefined;
 			if (embedderUp && this.embedder) {
 				try {
 					embedding = await this.embedder.embed(embeddingText(recipe));
@@ -86,7 +90,7 @@ export class CookbookImportService implements ICookbookImportService {
 					console.error('Embedding failed; importing the rest without embeddings:', error);
 				}
 			}
-			if (!embedding) summary.unembedded += 1;
+			if (!embedding && !existing?.embedded) summary.unembedded += 1;
 
 			const stored = await this.repository.upsert({
 				pageId: page.pageId,
@@ -100,7 +104,7 @@ export class CookbookImportService implements ICookbookImportService {
 				cuisine: recipe.cuisine,
 				itemKeys: itemKeysOf(recipe),
 				structuredBy: this.structurer.kind,
-				embedding
+				...(embedding ? { embedding } : existing ? {} : { embedding: null })
 			});
 			if (existing) {
 				summary.updated += 1;

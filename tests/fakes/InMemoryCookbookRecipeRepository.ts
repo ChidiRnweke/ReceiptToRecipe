@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type {
+	CookbookBundleRowDao,
 	CookbookFilter,
 	CookbookPictureDao,
 	CookbookRecipeDao,
@@ -52,6 +53,9 @@ export class InMemoryCookbookRecipeRepository implements ICookbookRecipeReposito
 	async upsert(recipe: NewCookbookRecipeDao): Promise<CookbookRecipeDao> {
 		const existing = await this.findByPageId(recipe.pageId);
 		const at = new Date(Date.UTC(2026, 0, 1) + this.clock++ * 1000);
+		const previous = existing ? this.rows.get(existing.id) : undefined;
+		const embedding =
+			recipe.embedding === undefined ? (previous?.embedding ?? null) : recipe.embedding;
 		const stored: Stored = {
 			id: existing?.id ?? randomUUID(),
 			imageUrl: existing?.imageUrl ?? null,
@@ -60,7 +64,9 @@ export class InMemoryCookbookRecipeRepository implements ICookbookRecipeReposito
 			imageCredit: existing?.imageCredit ?? null,
 			importedAt: existing?.importedAt ?? at,
 			updatedAt: at,
-			...recipe
+			...recipe,
+			embedding,
+			embedded: embedding !== null
 		};
 		this.rows.set(stored.id, stored);
 		return stored;
@@ -69,6 +75,14 @@ export class InMemoryCookbookRecipeRepository implements ICookbookRecipeReposito
 	async updatePicture(id: string, picture: CookbookPictureDao): Promise<void> {
 		const row = this.rows.get(id);
 		if (row) this.rows.set(id, { ...row, ...picture });
+	}
+
+	async listForBundle(afterPageId: number, limit: number): Promise<CookbookBundleRowDao[]> {
+		return [...this.rows.values()]
+			.filter((row) => row.pageId > afterPageId)
+			.sort((a, b) => a.pageId - b.pageId)
+			.slice(0, limit)
+			.map((row) => ({ ...row }));
 	}
 
 	async findWithoutPicture(limit: number, standIns: boolean): Promise<CookbookRecipeDao[]> {

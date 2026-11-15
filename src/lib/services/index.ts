@@ -29,6 +29,9 @@ export type {
 	IRecipePictureService,
 	ICookbookService,
 	ICookbookImportService,
+	ICookbookBundleService,
+	CookbookBundleFiles,
+	CookbookBundleExportOptions,
 	ICookbookStructurer,
 	IWikibooksClient,
 	CookbookEmbedder,
@@ -145,14 +148,18 @@ export { MockOcrService } from './MockOcrService';
 export { SmartCulinaryIntelligence } from './SmartCulinaryIntelligence';
 export { SmartProductNormalizer } from './SmartProductNormalizer';
 export { SmartImageGenerator } from './SmartImageGenerator';
-export { LocalFluxImageGenerator } from './LocalFluxImageGenerator';
 export { SeedPictureGenerator } from './SeedPictureGenerator';
 export { OpenRouterPhotoJudge } from './OpenRouterPhotoJudge';
 export { RecipePictureService } from './RecipePictureService';
 export { CookbookService } from './CookbookService';
 export { CookbookImportService } from './CookbookImportService';
 export { WikibooksClient, WIKIBOOKS_USER_AGENT } from './WikibooksClient';
-export { RulesCookbookStructurer, OpenRouterCookbookStructurer } from './CookbookStructurers';
+export {
+	RulesCookbookStructurer,
+	ChatCookbookStructurer,
+	type ChatCookbookStructurerOptions
+} from './CookbookStructurers';
+export { CookbookBundleService, directoryBundleFiles } from './CookbookBundleService';
 export * from './PgVectorService';
 export * from './JobQueue';
 export { TasteProfileService } from './TasteProfileService';

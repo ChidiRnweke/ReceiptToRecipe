@@ -48,26 +48,16 @@ export function spendEstimate(
 	return { low: low * count, high: high * count, perPicture: { low, high } };
 }
 
-/** About how long the local FLUX worker takes per 1024×768 picture on an M5 Pro, in seconds. */
-export const LOCAL_SECONDS_PER_PICTURE = 30;
-
-/** A duration as people read it: `45 s`, `12 min`, `2 h 5 min`. */
-export function readableDuration(seconds: number): string {
-	if (seconds < 60) return `${Math.round(seconds)} s`;
-	const minutes = Math.round(seconds / 60);
-	if (minutes < 60) return `${minutes} min`;
-	const rest = minutes % 60;
-	return `${Math.floor(minutes / 60)} h${rest ? ` ${rest} min` : ''}`;
-}
-
 /**
  * What a picture run prints before it starts: the cost of `count` pictures with `model` (`seed`
- * for the stand-in photos, `local` for FLUX on this machine), or how long the local run takes.
- * `costsMoney` says whether the run spends money, so the script gives a moment to stop it.
+ * for the stand-in photos) through OpenRouter, or, for another server (`baseUrl`), that its price
+ * is not known here. `costsMoney` says whether the run may spend money, so the script gives a
+ * moment to stop it.
  */
 export function pictureRunNotice(
 	model: string,
-	count: number
+	count: number,
+	baseUrl: string | null = null
 ): { message: string; costsMoney: boolean } {
 	if (model === 'seed') {
 		return {
@@ -75,10 +65,10 @@ export function pictureRunNotice(
 			costsMoney: false
 		};
 	}
-	if (model === 'local') {
+	if (baseUrl) {
 		return {
-			message: `${count} picture(s) with FLUX on this machine: $0, about ${readableDuration(count * LOCAL_SECONDS_PER_PICTURE)} (~${LOCAL_SECONDS_PER_PICTURE} s each, plus loading the model).`,
-			costsMoney: false
+			message: `${count} picture(s) with ${model} at ${baseUrl}: its price is not known here.`,
+			costsMoney: true
 		};
 	}
 	const estimate = spendEstimate(model, count);

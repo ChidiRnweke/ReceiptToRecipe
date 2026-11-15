@@ -1,6 +1,8 @@
 import type { Actor } from '$lib/models/household';
 import type {
 	CookbookAttribution,
+	CookbookBundleLoadSummary,
+	CookbookBundleManifest,
 	CookbookImportSummary,
 	CookbookRecipe,
 	CookbookStructure,
@@ -101,4 +103,40 @@ export interface ICookbookService {
 	adopt(actor: Actor, cookbookRecipeId: string): Promise<RecipeDao>;
 	/** The household recipe an id names: a household id as it is, a catalog ref adopted. */
 	resolve(actor: Actor, recipeId: string): Promise<string>;
+}
+
+/** The files of a cookbook bundle, by path inside it, e.g. `catalog.jsonl` or `pictures/12.webp`. */
+export interface CookbookBundleFiles {
+	read(path: string): Promise<Buffer>;
+	write(path: string, data: Buffer | string): Promise<void>;
+}
+
+export interface CookbookBundleExportOptions {
+	/** Turns a stored picture into the bundle's smaller WebP. */
+	shrink(picture: Buffer): Promise<Buffer>;
+	/** The models the catalog was made with, for the manifest. */
+	models: Record<string, string>;
+	onRecipe?: (title: string, outcome: string) => void;
+}
+
+/**
+ * Writes the catalog and its pictures as a bundle, and loads a bundle into a catalog, so a
+ * server gets the preprocessed cookbook without calling a model.
+ */
+export interface ICookbookBundleService {
+	/** Writes `catalog.jsonl`, `pictures/<pageId>.webp` and `manifest.json`. */
+	export(
+		files: CookbookBundleFiles,
+		options: CookbookBundleExportOptions
+	): Promise<CookbookBundleManifest>;
+	/**
+	 * Writes the bundle's recipes into the catalog and stores their pictures. A page already
+	 * stored at the bundle's revision, with a picture when the bundle has one, is left alone, so
+	 * loading the same bundle twice changes nothing. Refuses a bundle whose catalog does not match
+	 * its manifest's checksum.
+	 */
+	load(
+		files: CookbookBundleFiles,
+		options?: { onRecipe?: (title: string, outcome: string) => void }
+	): Promise<CookbookBundleLoadSummary>;
 }

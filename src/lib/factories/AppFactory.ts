@@ -11,7 +11,6 @@ import {
 	MockOcrService,
 	SmartCulinaryIntelligence,
 	SmartImageGenerator,
-	LocalFluxImageGenerator,
 	SeedPictureGenerator,
 	OpenRouterPhotoJudge,
 	RecipePictureService,
@@ -141,7 +140,6 @@ import seedPictures from '../../../static/seed/recipes/credits.json';
 import {
 	chooseImageGenerator,
 	DEFAULT_IMAGE_MODEL,
-	DEFAULT_LOCAL_FLUX_MODEL,
 	type SeedPictureCatalog
 } from '$services/recipes';
 
@@ -305,31 +303,19 @@ export class AppFactory {
 	/**
 	 * The image model through OpenRouter (FLUX 3 Image Klein unless OPENROUTER_IMAGE_MODEL says
 	 * otherwise). With `IMAGE_GENERATOR=seed`, or without an OpenRouter key, the committed seed
-	 * photos stand in. With `IMAGE_GENERATOR=local`, FLUX runs on this machine; a production
-	 * server refuses that.
+	 * photos stand in.
 	 */
 	static getImageGenerator(): IImageGenerator {
 		if (!imageGenerator) {
 			const apiKey = ConfigService.get('OPENROUTER_API_KEY');
-			const kind = chooseImageGenerator({
-				setting: ConfigService.get('IMAGE_GENERATOR'),
-				apiKey,
-				// A built server (`dev` false) counts as production even when NODE_ENV is unset.
-				production: !dev || process.env.NODE_ENV === 'production'
-			});
+			const kind = chooseImageGenerator({ setting: ConfigService.get('IMAGE_GENERATOR'), apiKey });
 			imageGenerator =
-				kind === 'local'
-					? new LocalFluxImageGenerator({
-							env: {
-								FLUX_LOCAL_MODEL: ConfigService.get('FLUX_LOCAL_MODEL') || DEFAULT_LOCAL_FLUX_MODEL
-							}
-						})
-					: kind === 'openrouter' && apiKey
-						? new SmartImageGenerator(
-								apiKey,
-								ConfigService.get('OPENROUTER_IMAGE_MODEL') || DEFAULT_IMAGE_MODEL
-							)
-						: new SeedPictureGenerator(seedPictures as SeedPictureCatalog);
+				kind === 'openrouter' && apiKey
+					? new SmartImageGenerator(
+							apiKey,
+							ConfigService.get('OPENROUTER_IMAGE_MODEL') || DEFAULT_IMAGE_MODEL
+						)
+					: new SeedPictureGenerator(seedPictures as SeedPictureCatalog);
 		}
 		return imageGenerator;
 	}
@@ -352,19 +338,24 @@ export class AppFactory {
 
 	static getRecipePictureService(): IRecipePictureService {
 		if (!recipePictureService) {
-			recipePictureService = new RecipePictureService(
-				AppFactory.getRecipeRepository(),
-				AppFactory.getRecipeIngredientRepository(),
-				AppFactory.getImageGenerator(),
-				// The judge needs an OpenRouter key; build it when a photo is judged, so picture runs
-				// without a key (seed photos, local FLUX) can start.
-				{ score: (photo, dish) => AppFactory.getPhotoJudge().score(photo, dish) },
-				AppFactory.getStorageService(),
-				AppFactory.getJobQueue(),
-				AppFactory.getCookbookRecipeRepository()
-			);
+			recipePictureService = AppFactory.recipePictureServiceWith(AppFactory.getImageGenerator());
 		}
 		return recipePictureService;
+	}
+
+	/** A picture service over another image generator, e.g. a preprocessing script's server. */
+	static recipePictureServiceWith(generator: IImageGenerator): IRecipePictureService {
+		return new RecipePictureService(
+			AppFactory.getRecipeRepository(),
+			AppFactory.getRecipeIngredientRepository(),
+			generator,
+			// The judge needs an OpenRouter key; build it when a photo is judged, so picture runs
+			// without a key (seed photos, a preprocessing image server) can start.
+			{ score: (photo, dish) => AppFactory.getPhotoJudge().score(photo, dish) },
+			AppFactory.getStorageService(),
+			AppFactory.getJobQueue(),
+			AppFactory.getCookbookRecipeRepository()
+		);
 	}
 
 	// Deprecated alias

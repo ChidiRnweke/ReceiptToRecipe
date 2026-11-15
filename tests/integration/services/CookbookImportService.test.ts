@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CookbookImportService } from '../../../src/lib/services/CookbookImportService';
+import { RulesCookbookStructurer } from '../../../src/lib/services/CookbookStructurers';
 import { InMemoryCookbookRecipeRepository } from '../../fakes/InMemoryCookbookRecipeRepository';
 import {
 	FakeEmbedder,
@@ -127,6 +128,45 @@ describe('CookbookImportService', () => {
 			client.pages = [fixturePage('beef-stroganoff'), fixturePage('adobo-chicken')];
 			await service().import({ limit: 10 });
 			expect(embedder.asked).toBe(1);
+		});
+	});
+
+	describe('a model run after a rules run', () => {
+		const rulesRun = () =>
+			new CookbookImportService(client, new RulesCookbookStructurer(), repository, embedder).import(
+				{
+					limit: 10
+				}
+			);
+
+		it('structures again the page the rules structured', async () => {
+			await rulesRun();
+			expect((await service().import({ limit: 10 })).updated).toBe(1);
+		});
+
+		it('stores the page as structured by the model', async () => {
+			await rulesRun();
+			await service().import({ limit: 10 });
+			expect((await repository.findByPageId(127881))?.structuredBy).toBe('model');
+		});
+
+		it('keeps the stored embedding when the embedding model fails', async () => {
+			await rulesRun();
+			embedder = new FakeEmbedder(true);
+			await service().import({ limit: 10 });
+			expect((await repository.findByPageId(127881))?.embedded).toBe(true);
+		});
+
+		it('does not count a page that keeps its embedding as unembedded', async () => {
+			await rulesRun();
+			embedder = new FakeEmbedder(true);
+			expect((await service().import({ limit: 10 })).unembedded).toBe(0);
+		});
+
+		it('leaves a page the model structured alone in a later rules run', async () => {
+			await service().import({ limit: 10 });
+			const again = await rulesRun();
+			expect(again.skipped.unchanged).toBe(1);
 		});
 	});
 });

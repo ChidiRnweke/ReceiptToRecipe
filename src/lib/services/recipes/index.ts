@@ -42,13 +42,11 @@ export {
 	PICTURE_COST_ESTIMATES,
 	spendEstimate,
 	pictureRunNotice,
-	readableDuration,
-	LOCAL_SECONDS_PER_PICTURE,
 	type PictureCostEstimate
 } from './pictureCosts';
 export {
 	chooseImageGenerator,
 	DEFAULT_IMAGE_MODEL,
-	DEFAULT_LOCAL_FLUX_MODEL,
+	OPENROUTER_BASE_URL,
 	type ImageGeneratorKind
 } from './imageGeneratorChoice';
