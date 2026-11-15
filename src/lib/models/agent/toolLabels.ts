@@ -9,6 +9,7 @@ export const TOOL_LABEL = {
 	get_shop_list: 'Reading the shopping list…',
 	why_on_list: 'Working out why that’s on the list…',
 	find_recipes: 'Looking through your recipes…',
+	find_cookbook_recipes: 'Looking through the cookbook…',
 	get_recipe: 'Opening the recipe…',
 	needs_you: 'Checking what needs you…',
 	habits: 'Remembering how you shop and plan…',
