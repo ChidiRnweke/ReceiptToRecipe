@@ -334,6 +334,16 @@ export class PlanService implements IPlanService {
 		return meal;
 	}
 
+	async setServings(
+		actor: Actor,
+		plannedMealId: string,
+		servings: number
+	): Promise<PlannedMealDao> {
+		if (!Number.isInteger(servings) || servings < 1) throw new Error('Servings must be at least 1');
+		const { meal } = await this.getMeal(actor.householdId, plannedMealId);
+		return this.plannedMealRepository.update(meal.id, { servings });
+	}
+
 	async cookForTwoDays(
 		actor: Actor,
 		plannedMealId: string,

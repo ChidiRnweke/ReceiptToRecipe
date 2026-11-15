@@ -24,6 +24,11 @@ export { KitchenEventRepository } from './KitchenEventRepository';
 export { HabitAnswerRepository } from './HabitAnswerRepository';
 export { HouseholdEventRepository } from './HouseholdEventRepository';
 export { NeedsYouAnswerRepository } from './NeedsYouAnswerRepository';
+export {
+	AgentConversationRepository,
+	AgentMessageRepository,
+	AgentActionRepository
+} from './AgentRepositories';
 
 // Repository Interfaces
 export type {
@@ -61,6 +66,11 @@ export type {
 	INeedsYouAnswerRepository,
 	NeedsYouAnswer
 } from './interfaces/INeedsYouAnswerRepository';
+export type {
+	IAgentConversationRepository,
+	IAgentMessageRepository,
+	IAgentActionRepository
+} from './interfaces/IAgentRepositories';
 
 // DAOs
 export * from './daos';

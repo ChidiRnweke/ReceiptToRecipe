@@ -195,6 +195,12 @@ export class PlanController {
 		return { message: `${meal.mealName} is off the plan.` };
 	}
 
+	/** "Friends over Friday": one meal is for more people, so the list buys the extra. */
+	async setServings(actor: Actor, plannedMealId: string, servings: number): Promise<PlanResult> {
+		const meal = await this.planService.setServings(actor, plannedMealId, servings);
+		return { message: `${meal.mealName} is for ${servings} now.` };
+	}
+
 	async cookForTwoDays(actor: Actor, timeZone: string, plannedMealId: string): Promise<PlanResult> {
 		const result = await this.planService.cookForTwoDays(actor, plannedMealId, timeZone);
 		return {

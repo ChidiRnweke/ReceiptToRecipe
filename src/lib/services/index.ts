@@ -94,6 +94,13 @@ export type {
 	IHouseholdEventService,
 	EventAuthor,
 	INeedsYouService,
+	IAgentModel,
+	AgentModelMessage,
+	AgentModelTool,
+	AgentModelRequest,
+	AgentModelReply,
+	IAgentService,
+	BasilTurnInput,
 	// OAuth interfaces
 	IOAuthService,
 	Auth0Tokens,
@@ -143,3 +150,6 @@ export {
 	MockNotificationService,
 	type INotificationService
 } from './NotificationService';
+export { AgentService } from './agent/AgentService';
+export { OpenRouterAgentModel } from './agent/OpenRouterAgentModel';
+export type { AgentTool, AgentToolbox, ToolOutcome, ToolRun } from './agent/toolbox';

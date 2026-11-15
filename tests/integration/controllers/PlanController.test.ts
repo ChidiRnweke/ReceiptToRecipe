@@ -67,4 +67,50 @@ describe('PlanController', () => {
 			expect(result.message).toBe('Monday’s lunch is sorted: chickpea curry.');
 		});
 	});
+
+	describe('setServings', () => {
+		it('plans the meal for the new number of people', async () => {
+			const dinner = await p.planOn(curry, DAY0 + 6);
+			await p.planController.setServings(actor, dinner.id, 4);
+			expect((await p.plannedMeals.findById(dinner.id))?.servings).toBe(4);
+		});
+
+		it('says who the meal is for now', async () => {
+			const dinner = await p.planOn(curry, DAY0 + 6);
+			const result = await p.planController.setServings(actor, dinner.id, 4);
+			expect(result.message).toBe('Chickpea curry is for 4 now.');
+		});
+
+		it('shows the servings on the slot', async () => {
+			const dinner = await p.planOn(curry, DAY0 + 6);
+			await p.planController.setServings(actor, dinner.id, 6);
+			const view = await p.planController.getPlan(actor, NOW, TZ, {
+				start: DAY0 + 6,
+				end: DAY0 + 7
+			});
+			expect(view.slots[0]?.meal?.servings).toBe(6);
+		});
+
+		it('refuses a meal of another household', async () => {
+			const theirs = await p.plannedMeals.create({
+				userId: 'user-9',
+				householdId: 'household-9',
+				recipeId: curry.id,
+				mealName: curry.title,
+				plannedDate: at(6),
+				plannedCalories: 600,
+				mealType: 'DINNER'
+			});
+			await expect(p.planController.setServings(actor, theirs.id, 4)).rejects.toThrow(
+				'Planned meal not found'
+			);
+		});
+
+		it('refuses fewer than one person', async () => {
+			const dinner = await p.planOn(curry, DAY0 + 6);
+			await expect(p.planController.setServings(actor, dinner.id, 0)).rejects.toThrow(
+				'Servings must be at least 1'
+			);
+		});
+	});
 });
