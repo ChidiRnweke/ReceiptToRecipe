@@ -16,7 +16,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 export const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
 // Use the cheapest viable models for integration tests
-export const CHEAP_CHAT_MODEL = 'google/gemini-2.0-flash-lite';
+export const CHEAP_CHAT_MODEL = 'google/gemini-3.1-flash-lite';
 export const EMBEDDING_MODEL = 'openai/text-embedding-3-small'; // used by embed() internally
 
 export const hasApiKey = !!OPENROUTER_API_KEY;
