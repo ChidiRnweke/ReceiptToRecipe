@@ -7,10 +7,8 @@ import type {
 	RecipeStepDao
 } from '$repositories';
 import type { JudgedTag, RecipeStep } from '$lib/models/recipes';
-import type { IImageGenerator } from './interfaces/IImageGenerator';
 import type { IJobQueue } from './interfaces/IJobQueue';
 import type { KitchenAuthor } from './interfaces/IKitchenService';
-import type { GeneratedRecipe } from './interfaces/ICulinaryIntelligence';
 import type {
 	IRecipeBookService,
 	NewRecipeContent,
@@ -47,7 +45,6 @@ export class RecipeBookService implements IRecipeBookService {
 		private recipeRepository: IRecipeRepository,
 		private recipeIngredientRepository: IRecipeIngredientRepository,
 		private recipeStepRepository: IRecipeStepRepository,
-		private imageGenerator: IImageGenerator,
 		private jobQueue: IJobQueue,
 		private tagger: RecipeTagger
 	) {}
@@ -73,8 +70,7 @@ export class RecipeBookService implements IRecipeBookService {
 			cuisineType: generated.cuisineType,
 			estimatedCalories: generated.estimatedCalories,
 			source,
-			...combineTags(rule, generated.tags ?? null),
-			...(content.photoUrl ? { imageUrl: content.photoUrl, imageStatus: 'DONE' as const } : {})
+			...combineTags(rule, generated.tags ?? null)
 		});
 
 		const ingredients: NewRecipeIngredientDao[] = generated.ingredients.map((ing, index) => ({
@@ -89,8 +85,6 @@ export class RecipeBookService implements IRecipeBookService {
 		}));
 		await this.recipeIngredientRepository.createMany(ingredients);
 		await this.recipeStepRepository.replaceForRecipe(recipe.id, steps);
-
-		if (!content.photoUrl) this.queuePicture(recipe.id, generated);
 		return recipe;
 	}
 
@@ -162,26 +156,5 @@ export class RecipeBookService implements IRecipeBookService {
 			}
 		});
 		return summary;
-	}
-
-	/** Generates the recipe's picture in the background; a failure marks the picture FAILED. */
-	private queuePicture(recipeId: string, generated: GeneratedRecipe): void {
-		const run = async () => {
-			try {
-				await this.recipeRepository.update(recipeId, { imageStatus: 'PROCESSING' });
-				const image = await this.imageGenerator.generateRecipeImage(
-					generated.title,
-					generated.description,
-					generated.ingredients.slice(0, 5).map((ingredient) => ingredient.name)
-				);
-				await this.recipeRepository.update(recipeId, { imageUrl: image.url, imageStatus: 'DONE' });
-			} catch (error) {
-				console.error(`Picture generation failed for recipe ${recipeId}:`, error);
-				await this.recipeRepository.update(recipeId, { imageStatus: 'FAILED' });
-			}
-		};
-		this.jobQueue.add({ name: `recipe-image:${recipeId}`, run }).catch((error) => {
-			console.error(`Could not queue the picture for recipe ${recipeId}:`, error);
-		});
 	}
 }

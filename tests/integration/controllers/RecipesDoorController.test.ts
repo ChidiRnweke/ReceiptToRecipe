@@ -5,7 +5,6 @@ import type { Actor } from '../../../src/lib/models/household';
 import type { RecipeTag } from '../../../src/lib/models/recipes';
 import type { NewKitchenEvent } from '../../../src/lib/models/kitchen';
 import {
-	MockImageGenerator,
 	MockJobQueue,
 	MockSavedRecipeRepository,
 	MockStorageService,
@@ -16,6 +15,10 @@ import { createKitchen } from '../../fakes/kitchen';
 import { InMemoryRecipeStepRepository } from '../../fakes/InMemoryRecipeStepRepository';
 import { RecordingCulinaryIntelligence } from '../../fakes/RecordingCulinaryIntelligence';
 import { at } from '../../helpers/kitchenEvents';
+import { createPictures, pngOfSize } from '../../fakes/pictures';
+
+/** Lets the picture job, which is fired and forgotten, finish. */
+const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 const actor: Actor = {
 	userId: 'user-1',
@@ -27,7 +30,7 @@ const actor: Actor = {
 };
 
 const photo = {
-	bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+	bytes: pngOfSize(1200, 900),
 	name: 'orzo.jpg',
 	mimeType: 'image/jpeg'
 };
@@ -39,6 +42,7 @@ describe('RecipesDoorController', () => {
 	let steps: InMemoryRecipeStepRepository;
 	let controller: RecipesDoorController;
 	let taste: MockTasteProfileService;
+	let pictures: ReturnType<typeof createPictures>;
 
 	beforeEach(() => {
 		culinary = new RecordingCulinaryIntelligence();
@@ -50,10 +54,10 @@ describe('RecipesDoorController', () => {
 			kitchen.recipes,
 			kitchen.ingredients,
 			steps,
-			new MockImageGenerator(),
 			new MockJobQueue(false),
 			culinary
 		);
+		pictures = createPictures(kitchen.recipes, kitchen.ingredients);
 		controller = new RecipesDoorController(
 			culinary,
 			storage,
@@ -64,6 +68,7 @@ describe('RecipesDoorController', () => {
 			kitchen.recipes,
 			new MockSavedRecipeRepository(),
 			kitchen.mealLogs,
+			pictures.service,
 			() => at(1, 18)
 		);
 	});
@@ -153,18 +158,52 @@ describe('RecipesDoorController', () => {
 			expect((await kitchen.recipes.findById(card.id))?.source).toBe('SNAPPED');
 		});
 
-		it('shows a cookbook page as the recipe picture', async () => {
+		it('keeps a good photo of the dish as the recipe picture', async () => {
+			culinary.snapKind = 'dish';
+
 			const card = await controller.snap(actor, photo);
+			await settled();
 
 			expect((await kitchen.recipes.findById(card.id))?.imageUrl).toBe('mock://recipes/orzo.jpg');
+		});
+
+		it('credits a kept dish photo as snapped', async () => {
+			culinary.snapKind = 'dish';
+
+			const card = await controller.snap(actor, photo);
+			await settled();
+
+			expect((await kitchen.recipes.findById(card.id))?.imageSource).toBe('SNAPPED');
+		});
+
+		it('generates a picture when the photo of the dish is poor', async () => {
+			culinary.snapKind = 'dish';
+			pictures.judge.answer = { score: 2, reason: 'Dark and blurry.' };
+
+			const card = await controller.snap(actor, photo);
+			await settled();
+
+			expect((await kitchen.recipes.findById(card.id))?.imageSource).toBe('GENERATED');
+		});
+
+		it('generates a picture for a cookbook page', async () => {
+			culinary.snapKind = 'page';
+
+			const card = await controller.snap(actor, photo);
+			await settled();
+
+			expect((await kitchen.recipes.findById(card.id))?.imageSource).toBe('GENERATED');
 		});
 
 		it('does not show a screenshot as the recipe picture', async () => {
 			culinary.snapKind = 'screenshot';
 
 			const card = await controller.snap(actor, photo);
+			await settled();
 
-			expect((await kitchen.recipes.findById(card.id))?.imageUrl).toBeNull();
+			expect((await kitchen.recipes.findById(card.id))?.imageUrl).not.toBe(
+				'mock://recipes/orzo.jpg'
+			);
 		});
 
 		it('forgets the photo when it holds no recipe', async () => {

@@ -1,30 +1,18 @@
+import type { ImageCredit } from '$lib/models/recipes';
+
 export interface GeneratedImage {
+	/** A `data:` URL with the image, or the URL of an image that is already hosted. */
 	url: string;
 	revisedPrompt?: string;
+	/** Set when the "generated" image is someone else's photo, as the seed pictures are. */
+	credit?: ImageCredit;
 }
 
 export interface IImageGenerator {
 	/**
 	 * Generate an image from a text prompt
 	 * @param prompt - Text description of the image to generate
-	 * @param size - Image size (default: 1024x1024)
-	 * @returns Generated image URL
+	 * @returns The generated image
 	 */
-	generateImage(
-		prompt: string,
-		size?: '256x256' | '512x512' | '1024x1024' | '1792x1024' | '1024x1792'
-	): Promise<GeneratedImage>;
-
-	/**
-	 * Generate a food/recipe image with optimized prompt
-	 * @param recipeTitle - Title of the recipe
-	 * @param description - Recipe description
-	 * @param ingredients - List of main ingredients
-	 * @returns Generated image URL
-	 */
-	generateRecipeImage(
-		recipeTitle: string,
-		description?: string,
-		ingredients?: string[]
-	): Promise<GeneratedImage>;
+	generateImage(prompt: string): Promise<GeneratedImage>;
 }

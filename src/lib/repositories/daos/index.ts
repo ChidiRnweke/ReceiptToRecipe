@@ -31,6 +31,7 @@ export type {
 	NewSavedRecipeDao,
 	RecipeImageStatusDao,
 	RecipeCountByReceiptDao,
+	RecipeWithoutPictureDao,
 	RecipeStepDao,
 	NewRecipeStepDao
 } from './RecipeDaos';

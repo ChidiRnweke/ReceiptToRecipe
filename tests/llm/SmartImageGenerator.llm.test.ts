@@ -1,6 +1,7 @@
 /// <reference types="vitest/globals" />
 import { describeLLM, OPENROUTER_API_KEY, withRetry } from './setup';
 import { SmartImageGenerator } from '../../src/lib/services/SmartImageGenerator';
+import { recipePicturePrompt } from '../../src/lib/services/recipes/pictureStyle';
 
 /**
  * Image generation tests use google/gemini-2.0-flash-exp:free which supports
@@ -31,29 +32,21 @@ describeLLM('SmartImageGenerator (LLM Integration)', () => {
 		}, 60000);
 	});
 
-	describe('generateRecipeImage', () => {
-		it('should generate an image for a recipe', async () => {
+	describe('house style', () => {
+		it('generates a recipe picture from the house style prompt', async () => {
 			const result = await withRetry(
 				() =>
-					service.generateRecipeImage(
-						'Spaghetti Bolognese',
-						'Classic Italian pasta with meat sauce',
-						['spaghetti', 'ground beef', 'tomato sauce']
+					service.generateImage(
+						recipePicturePrompt({
+							title: 'Spinach & feta frittata',
+							description: 'Eggs, potato and spinach, finished under the grill',
+							ingredients: ['eggs', 'potato', 'spinach', 'feta']
+						})
 					),
 				2,
 				2000
 			);
 
-			expect(result).toHaveProperty('url');
-			expect(typeof result.url).toBe('string');
-			expect(result.url.length).toBeGreaterThan(0);
-		}, 60000);
-
-		it('should work with just a title', async () => {
-			const result = await withRetry(() => service.generateRecipeImage('Chocolate Cake'), 2, 2000);
-
-			expect(result).toHaveProperty('url');
-			expect(typeof result.url).toBe('string');
 			expect(result.url.length).toBeGreaterThan(0);
 		}, 60000);
 	});

@@ -17,6 +17,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 import type { RecipeTagSource } from '../models/recipes/tags';
+import type { ImageCredit } from '../models/recipes/picture';
 
 // Enums
 export const processingStatusEnum = pgEnum('processing_status', [
@@ -27,6 +28,13 @@ export const processingStatusEnum = pgEnum('processing_status', [
 ]);
 
 export const recipeSourceEnum = pgEnum('recipe_source', ['GENERATED', 'RAG', 'USER', 'SNAPPED']);
+
+export const recipeImageSourceEnum = pgEnum('recipe_image_source', [
+	'GENERATED',
+	'COMMONS',
+	'USER',
+	'SNAPPED'
+]);
 
 export const userRoleEnum = pgEnum('user_role', ['WAITING', 'USER', 'ADMIN']);
 
@@ -226,6 +234,10 @@ export const recipes = pgTable(
 		cookTime: integer('cook_time'), // in minutes
 		imageUrl: text('image_url'),
 		imageStatus: processingStatusEnum('image_status').default('QUEUED'),
+		/** Where the picture came from; null while the recipe has none. */
+		imageSource: recipeImageSourceEnum('image_source'),
+		/** Who took the picture and under which licence, for photos someone else took. */
+		imageCredit: jsonb('image_credit').$type<ImageCredit>(),
 		source: recipeSourceEnum('source').notNull().default('GENERATED'),
 		cuisineType: text('cuisine_type'),
 		estimatedCalories: integer('estimated_calories'),

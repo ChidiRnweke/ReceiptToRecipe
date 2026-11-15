@@ -8,6 +8,7 @@ import { recipeTagSchema, type DietTag, type RecipeTag } from './tags';
 export * from './techniques';
 export * from './generated';
 export * from './tags';
+export * from './picture';
 
 export type RecipeSource = 'GENERATED' | 'RAG' | 'USER' | 'SNAPPED';
 
@@ -96,6 +97,9 @@ export const toggleSaveInput = z.object({
 	recipeId: z.uuid(),
 	saved: z.boolean()
 });
+
+/** The recipe whose picture the browser waits for. */
+export const recipePictureInput = z.uuid();
 
 export const snapRecipeInput = z.object({
 	photo: z

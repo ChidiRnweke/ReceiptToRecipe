@@ -14,6 +14,8 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
 		"db:studio": "drizzle-kit studio",
+		"db:seed:personas": "node scripts/seed-personas.ts",
+		"pictures:bakeoff": "node scripts/picture-bakeoff.ts",
 		"test": "vitest run --exclude 'tests/llm/**'",
 		"test:watch": "vitest --exclude 'tests/llm/**'",
 		"test:coverage": "vitest run --coverage --exclude 'tests/llm/**'",

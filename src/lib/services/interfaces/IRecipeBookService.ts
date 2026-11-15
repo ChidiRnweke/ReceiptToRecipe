@@ -7,8 +7,6 @@ export interface NewRecipeContent {
 	recipe: GeneratedRecipe;
 	source: RecipeSource;
 	sourceReceiptId?: string | null;
-	/** A photo to show for the recipe. Without one, a picture is generated in the background. */
-	photoUrl?: string | null;
 }
 
 /** Judges recipes' planning and course tags; the culinary intelligence does. */
@@ -25,7 +23,8 @@ export interface TaggingSummary {
 /** Writes recipes with their ingredients, steps and tags, and reads steps back. */
 export interface IRecipeBookService {
 	/**
-	 * Saves a recipe for the author's household. Its steps come from `recipe.steps`, or from its
+	 * Saves a recipe for the author's household, without a picture: the caller asks the picture
+	 * service for one. Its steps come from `recipe.steps`, or from its
 	 * instructions when it has none; `instructions` is stored as the same steps joined as text.
 	 * Its tags are the rule tags plus the tags the model gave with the recipe.
 	 */

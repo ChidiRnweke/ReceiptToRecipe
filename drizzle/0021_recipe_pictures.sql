@@ -1,0 +1,11 @@
+CREATE TYPE "public"."recipe_image_source" AS ENUM('GENERATED', 'COMMONS', 'USER', 'SNAPPED');--> statement-breakpoint
+ALTER TABLE "recipes" ADD COLUMN "image_source" "recipe_image_source";--> statement-breakpoint
+ALTER TABLE "recipes" ADD COLUMN "image_credit" jsonb;--> statement-breakpoint
+-- BEGIN HAND-WRITTEN
+-- Recipes that already have a picture get a source: a snapped recipe kept the snapped photo,
+-- every other picture was generated. `source` is compared as text: on a new database the value
+-- SNAPPED is added in the same transaction, and Postgres refuses a new enum value before commit.
+UPDATE "recipes"
+SET "image_source" = CASE WHEN "source"::text = 'SNAPPED' THEN 'SNAPPED'::"recipe_image_source" ELSE 'GENERATED'::"recipe_image_source" END
+WHERE "image_url" IS NOT NULL AND "image_source" IS NULL;
+-- END HAND-WRITTEN

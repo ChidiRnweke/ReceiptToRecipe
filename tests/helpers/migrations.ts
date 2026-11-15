@@ -55,3 +55,14 @@ export async function applyMigrationsUpTo(pool: pg.Pool, prefix: string): Promis
 		if (entry.tag === last) return;
 	}
 }
+
+/**
+ * The tag of the migration named `name` (e.g. `recipe_pictures` → `0019_recipe_pictures`) and
+ * of the one before it, so a test keeps working when the migration is renumbered.
+ */
+export function migrationNamed(name: string): { tag: string; previous: string } {
+	const entries = journal();
+	const index = entries.findIndex((entry) => entry.tag.replace(/^\d+_/, '') === name);
+	if (index < 1) throw new Error(`No migration named ${name} with one before it`);
+	return { tag: entries[index].tag, previous: entries[index - 1].tag };
+}

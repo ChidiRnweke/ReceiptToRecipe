@@ -23,10 +23,10 @@ function timeZoneFrom(value: string | undefined): string {
 }
 
 /**
- * The OCR job queue lives in memory, so a restart loses the receipts it was reading. Once the
- * server is up, their OCR is queued again. This runs in the background: a failure is logged and
- * does not stop the server from starting. Recipes the model has not tagged yet are tagged the
- * same way.
+ * The job queue lives in memory, so a restart loses the receipts it was reading and the
+ * pictures it was making. Once the server is up, their OCR is queued again, and recipes without
+ * a picture get one, one at a time. Recipes the model has not tagged yet are tagged the same way.
+ * This runs in the background: a failure is logged and does not stop the server from starting.
  */
 export const init: ServerInit = async () => {
 	if (building) return;
@@ -50,6 +50,14 @@ export const init: ServerInit = async () => {
 			if (tagged) console.info(`Tagged ${tagged} recipe(s) after start, ${judged} by the model.`);
 		})
 		.catch((error) => console.error('Could not tag recipes after start:', error));
+	void Promise.resolve()
+		.then(() => AppFactory.getRecipeController().fillMissingPictures())
+		.then(({ filled, failed }) => {
+			if (filled || failed) {
+				console.info(`Recipe pictures after start: ${filled} made, ${failed} failed.`);
+			}
+		})
+		.catch((error) => console.error('Could not fill missing recipe pictures after start:', error));
 };
 
 export const handle: Handle = async ({ event, resolve }) => {

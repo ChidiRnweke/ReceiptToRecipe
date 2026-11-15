@@ -3,7 +3,6 @@ import { RecipeBookService } from '../../../src/lib/services/RecipeBookService';
 import type { LlmGeneratedRecipe } from '../../../src/lib/services';
 import {
 	MockCulinaryIntelligence,
-	MockImageGenerator,
 	MockJobQueue,
 	MockRecipeIngredientRepository,
 	MockRecipeRepository
@@ -45,7 +44,6 @@ describe('RecipeBookService tags', () => {
 			recipes,
 			ingredients,
 			new InMemoryRecipeStepRepository(),
-			new MockImageGenerator(),
 			new MockJobQueue(false),
 			model
 		);

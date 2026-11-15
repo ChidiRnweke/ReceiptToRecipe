@@ -1,4 +1,11 @@
-import type { RecipeSource, RecipeTag, RecipeTagSource, TechniqueVerb } from '$lib/models/recipes';
+import type {
+	ImageCredit,
+	RecipeImageSource,
+	RecipeSource,
+	RecipeTag,
+	RecipeTagSource,
+	TechniqueVerb
+} from '$lib/models/recipes';
 
 export interface RecipeDao {
 	id: string;
@@ -13,6 +20,8 @@ export interface RecipeDao {
 	cookTime: number | null;
 	imageUrl: string | null;
 	imageStatus: 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED';
+	imageSource: RecipeImageSource | null;
+	imageCredit: ImageCredit | null;
 	source: RecipeSource;
 	cuisineType: string | null;
 	estimatedCalories: number | null;
@@ -41,6 +50,8 @@ export interface NewRecipeDao {
 	imageStatus?: 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED';
 	tags?: RecipeTag[] | null;
 	tagSource?: RecipeTagSource | null;
+	imageSource?: RecipeImageSource | null;
+	imageCredit?: ImageCredit | null;
 }
 
 export interface UpdateRecipeDao {
@@ -52,6 +63,8 @@ export interface UpdateRecipeDao {
 	cookTime?: number | null;
 	imageUrl?: string | null;
 	imageStatus?: 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED';
+	imageSource?: RecipeImageSource | null;
+	imageCredit?: ImageCredit | null;
 	cuisineType?: string | null;
 	estimatedCalories?: number | null;
 	isPublic?: boolean;
@@ -124,4 +137,11 @@ export interface NewRecipeStepDao {
 	verb: TechniqueVerb | null;
 	text: string;
 	minutes: number | null;
+}
+
+/** A recipe that has no picture yet, with what a picture of it needs. */
+export interface RecipeWithoutPictureDao {
+	id: string;
+	title: string;
+	description: string | null;
 }

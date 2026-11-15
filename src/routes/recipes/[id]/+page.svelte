@@ -12,7 +12,6 @@
 		Users,
 		Share2,
 		Trash2,
-		ChefHat,
 		Check,
 		Printer,
 		PenLine,
@@ -22,10 +21,10 @@
 		AlertTriangle,
 		ShieldAlert
 	} from 'lucide-svelte';
-	import LoadingState from '$lib/components/LoadingState.svelte';
 	import RecipeNarrator from '$lib/components/RecipeNarrator.svelte';
 	import RecipeAdjuster from '$lib/components/RecipeAdjuster.svelte';
 	import RecipeSteps from '$lib/components/recipes/RecipeSteps.svelte';
+	import RecipePicture from '$lib/components/recipes/RecipePicture.svelte';
 	import { formatInstructions } from '$lib/services/recipes';
 
 	import type { PageData } from './$types';
@@ -291,28 +290,17 @@
 			</div>
 
 			<!-- Hero Image Area (Compact) -->
-			<div class="group relative h-32 w-full overflow-hidden bg-bg-card md:h-75">
-				{#if recipe.imageStatus === 'DONE' && recipe.imageUrl}
-					<img
-						src={recipe.imageUrl}
-						alt={recipe.title}
-						class="h-full w-full object-cover transition-transform duration-[2s] group-hover:scale-105"
-					/>
+			<div class="group relative h-56 w-full overflow-hidden bg-bg-card md:h-75">
+				<RecipePicture
+					title={recipe.title}
+					imageUrl={recipe.imageUrl}
+					pending={recipe.imageStatus === 'PROCESSING' || recipe.imageStatus === 'QUEUED'}
+					class="h-full w-full"
+				/>
+				{#if recipe.imageUrl}
 					<div
-						class="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent opacity-60"
+						class="pointer-events-none absolute inset-0 bg-linear-to-t from-black/30 via-transparent to-transparent"
 					></div>
-				{:else if recipe.imageStatus === 'PROCESSING' || recipe.imageStatus === 'QUEUED'}
-					<LoadingState
-						size="lg"
-						text="Developing photo..."
-						class="h-full w-full bg-bg-paper-dark"
-					/>
-				{:else}
-					<div
-						class="pattern-grid-lg flex h-full w-full items-center justify-center bg-bg-card text-text-muted/50"
-					>
-						<ChefHat class="h-16 w-16 opacity-20" />
-					</div>
 				{/if}
 
 				<!-- Actions Toolbar (Floating on Image) -->
@@ -373,6 +361,31 @@
 							{#if recipe.description}
 								<p class="font-body text-base leading-snug text-text-secondary italic">
 									{recipe.description}
+								</p>
+							{/if}
+
+							{#if recipe.imageCredit}
+								<p class="text-xs text-text-muted" data-testid="photo-credit">
+									Photo:
+									<a
+										href={recipe.imageCredit.sourceUrl}
+										rel="external noopener"
+										target="_blank"
+										class="underline decoration-dotted underline-offset-2 hover:text-text-secondary"
+										>{recipe.imageCredit.author}</a
+									>
+									·
+									{#if recipe.imageCredit.licenceUrl}
+										<a
+											href={recipe.imageCredit.licenceUrl}
+											rel="external noopener license"
+											target="_blank"
+											class="underline decoration-dotted underline-offset-2 hover:text-text-secondary"
+											>{recipe.imageCredit.licence}</a
+										>
+									{:else}
+										{recipe.imageCredit.licence}
+									{/if}
 								</p>
 							{/if}
 
