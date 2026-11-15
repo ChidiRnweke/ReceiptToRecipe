@@ -149,6 +149,12 @@ export class PlanService implements IPlanService {
 		return { meal, recipe };
 	}
 
+	async reopenMeal(householdId: string, plannedMealId: string): Promise<PlannedMealDao> {
+		const { meal } = await this.getMeal(householdId, plannedMealId);
+		if (meal.status !== 'EATEN_OUT' && meal.status !== 'SKIPPED') return meal;
+		return this.plannedMealRepository.update(meal.id, { status: 'PLANNED' });
+	}
+
 	async getCookbook(actor: Actor, now: Date): Promise<Cookbook> {
 		const since = new Date(now.getTime() - COOKED_LOOKBACK_DAYS * DAY_MS);
 		const [recipes, saved, recent] = await Promise.all([

@@ -22,6 +22,8 @@ export { WaitlistRepository } from './WaitlistRepository';
 export { HouseholdRepository } from './HouseholdRepository';
 export { KitchenEventRepository } from './KitchenEventRepository';
 export { HabitAnswerRepository } from './HabitAnswerRepository';
+export { HouseholdEventRepository } from './HouseholdEventRepository';
+export { NeedsYouAnswerRepository } from './NeedsYouAnswerRepository';
 
 // Repository Interfaces
 export type {
@@ -54,6 +56,11 @@ export type { IWaitlistRepository } from './interfaces/IWaitlistRepository';
 export type { IHouseholdRepository } from './interfaces/IHouseholdRepository';
 export type { IKitchenEventRepository } from './interfaces/IKitchenEventRepository';
 export type { IHabitAnswerRepository } from './interfaces/IHabitAnswerRepository';
+export type { IHouseholdEventRepository } from './interfaces/IHouseholdEventRepository';
+export type {
+	INeedsYouAnswerRepository,
+	NeedsYouAnswer
+} from './interfaces/INeedsYouAnswerRepository';
 
 // DAOs
 export * from './daos';

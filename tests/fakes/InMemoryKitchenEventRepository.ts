@@ -37,6 +37,10 @@ export class InMemoryKitchenEventRepository implements IKitchenEventRepository {
 		return stored;
 	}
 
+	async findById(householdId: string, id: string): Promise<KitchenEvent | null> {
+		return this.events.find((e) => e.householdId === householdId && e.id === id) ?? null;
+	}
+
 	async listByHouseholdSince(householdId: string, since: Date): Promise<KitchenEvent[]> {
 		return this.sorted().filter(
 			(event) => event.householdId === householdId && event.occurredAt >= since

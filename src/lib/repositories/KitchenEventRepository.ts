@@ -26,6 +26,13 @@ export class KitchenEventRepository implements IKitchenEventRepository {
 		return rows.map((row) => this.toEvent(row));
 	}
 
+	async findById(householdId: string, id: string): Promise<KitchenEvent | null> {
+		const row = await this.db.query.kitchenEvents.findFirst({
+			where: and(eq(schema.kitchenEvents.householdId, householdId), eq(schema.kitchenEvents.id, id))
+		});
+		return row ? this.toEvent(row) : null;
+	}
+
 	async listByHouseholdSince(householdId: string, since: Date): Promise<KitchenEvent[]> {
 		const rows = await this.db.query.kitchenEvents.findMany({
 			where: and(

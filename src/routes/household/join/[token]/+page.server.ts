@@ -7,13 +7,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	// Login always lands on `/`, so a signed-out invitee opens the link again after signing in.
 	if (!locals.user || !locals.actor) throw redirect(302, '/login');
 
-	const preview = await AppFactory.getHouseholdController().previewInvite(params.token);
-
-	return {
-		status: preview.status,
-		householdName: preview.household?.name ?? null,
-		alreadyMember: preview.household?.id === locals.actor.householdId
-	};
+	return AppFactory.getHouseholdController().previewJoin(locals.actor, params.token);
 };
 
 export const actions: Actions = {

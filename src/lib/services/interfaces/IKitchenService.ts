@@ -50,6 +50,8 @@ export interface CorrectionInput {
 	category?: string | null;
 	/** The cupboard row the correction was made on. */
 	cupboardItemId?: string | null;
+	/** The name the person saw, kept as the item's display name. */
+	name?: string | null;
 	at: Date;
 }
 
@@ -93,6 +95,11 @@ export interface IKitchenService {
 	/** The household's cooked meals that name a recipe, newest first. */
 	listCooked(householdId: string): Promise<CookedRecipe[]>;
 	correct(input: CorrectionInput): Promise<KitchenEvent>;
+	/**
+	 * Takes back a correction, or an item added by hand, as if it never happened. Throws when the
+	 * event is not one of the household's, or is another kind of event.
+	 */
+	undoEvent(householdId: string, eventId: string): Promise<KitchenEvent>;
 	/**
 	 * One BOUGHT per item, then the SHOP_DONE that closes the shop. Every event of the shop
 	 * carries the same `shopId` in its payload, so the shop can be found and forgotten as one.

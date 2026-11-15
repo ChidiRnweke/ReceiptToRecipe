@@ -1,6 +1,7 @@
 import type {
 	Cookbook,
 	IHabitService,
+	IHouseholdEventService,
 	IKitchenService,
 	IPlanService,
 	IShopService,
@@ -144,7 +145,8 @@ export class ShopController {
 		private planService: IPlanService,
 		private kitchenService: IKitchenService,
 		private habitService: IHabitService,
-		private receipts: ReceiptIntake
+		private receipts: ReceiptIntake,
+		private householdEventService: IHouseholdEventService
 	) {}
 
 	/** Syncs the list from the plan, then returns it grouped by dish. */
@@ -281,6 +283,9 @@ export class ShopController {
 			);
 			const shopId = events.find((event) => event.kind === 'SHOP_DONE')?.payload?.shopId;
 			undoId = undo && typeof shopId === 'string' ? shopId : null;
+			await this.householdEventService.recordShopDone(actor, now, {
+				shopId: typeof shopId === 'string' ? shopId : undefined
+			});
 		}
 		return {
 			recorded: bought.length,
@@ -293,13 +298,14 @@ export class ShopController {
 	 * Undo for "Got everything": the items are back on the list as they were, the purchase
 	 * history counts as before, and the kitchen forgets the shop and what it bought.
 	 */
-	async undoGotEverything(actor: Actor, undoId: string): Promise<void> {
+	async undoGotEverything(actor: Actor, undoId: string, now: Date = new Date()): Promise<void> {
 		const shop = await this.kitchenService.findShop(actor.householdId, undoId);
 		const undo = shop?.method === 'TICK' ? (shop.payload?.undo as GotEverythingUndo) : undefined;
 		if (!undo) throw new Error('Shop not found');
 		await this.shopService.restoreItems(actor, undo.items);
 		await this.shopService.undoPurchases(actor, undo.purchases);
 		await this.kitchenService.forgetShop(actor.householdId, undoId);
+		await this.householdEventService.forgetShop(actor.householdId, undoId, now);
 	}
 
 	/**
@@ -346,7 +352,11 @@ export class ShopController {
 	 * "Looks right": what the receipt matched leaves the list, and what it did not stays on it,
 	 * unticked. The OCR job already put every line in the kitchen (see the class comment).
 	 */
-	async confirmWhatCameHome(actor: Actor, receiptId: string): Promise<ConfirmResult> {
+	async confirmWhatCameHome(
+		actor: Actor,
+		receiptId: string,
+		now: Date = new Date()
+	): Promise<ConfirmResult> {
 		const receipt = await this.receiptFor(actor, receiptId);
 		if (receipt.status !== 'DONE') throw new Error('The receipt is still being read');
 		const list = await this.shopService.getList(actor);
@@ -361,6 +371,7 @@ export class ShopController {
 			actor,
 			match.missing.filter((item) => live.get(item.id)?.checked).map((item) => item.id)
 		);
+		await this.householdEventService.recordShopDone(actor, now, { receiptId });
 		return {
 			message: cameHomeMessage(
 				receipt.items.length,

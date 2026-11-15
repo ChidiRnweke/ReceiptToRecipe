@@ -1,16 +1,19 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { splitMarked } from '$lib/services/doors';
+	import NeedsYouButton from '$lib/components/needsyou/NeedsYouButton.svelte';
 
 	interface Props {
 		/** The door's question; wrap the word to highlight in stars, e.g. `What's for *dinner*?`. */
 		question: string;
 		greeting: string;
 		actions?: Snippet;
+		/** The ⓘ "Needs you" button; off only where nobody is signed in, such as /dev/doors. */
+		needsYou?: boolean;
 		class?: string;
 	}
 
-	let { question, greeting, actions, class: className = '' }: Props = $props();
+	let { question, greeting, actions, needsYou = true, class: className = '' }: Props = $props();
 
 	const parts = $derived(splitMarked(question));
 </script>
@@ -23,9 +26,12 @@
 					>{:else}{part.text}{/if}{/each}
 		</h1>
 	</div>
-	{#if actions}
-		<div class="flex shrink-0 items-center gap-2">
-			{@render actions()}
+	{#if actions || needsYou}
+		<div class="flex shrink-0 items-center gap-2 self-center">
+			{@render actions?.()}
+			{#if needsYou}
+				<NeedsYouButton />
+			{/if}
 		</div>
 	{/if}
 </header>

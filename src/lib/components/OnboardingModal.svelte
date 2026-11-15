@@ -72,7 +72,7 @@
 				'Your scanned items land in your cupboard so you can track what you have and what is running low.',
 			cta: 'Edit anything at any time.',
 			actionLabel: 'Open cupboard',
-			actionHref: '/cupboard'
+			actionHref: '/use-it-up'
 		},
 		{
 			icon: ChefHat,

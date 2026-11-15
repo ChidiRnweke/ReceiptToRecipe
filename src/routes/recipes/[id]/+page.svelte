@@ -23,7 +23,6 @@
 		ShieldAlert
 	} from 'lucide-svelte';
 	import LoadingState from '$lib/components/LoadingState.svelte';
-	import { workflowStore } from '$lib/state/workflow.svelte';
 	import RecipeNarrator from '$lib/components/RecipeNarrator.svelte';
 	import RecipeAdjuster from '$lib/components/RecipeAdjuster.svelte';
 	import RecipeSteps from '$lib/components/recipes/RecipeSteps.svelte';
@@ -115,9 +114,6 @@
 
 	const pantrySet = $derived(
 		new Set(Object.keys(pantryMatches).map((i: string) => i.toLowerCase()))
-	);
-	const missingCount = $derived(
-		recipe?.ingredients?.filter((i) => !pantrySet.has(i.name.toLowerCase())).length ?? 0
 	);
 
 	function toggleStep(index: number) {
@@ -515,14 +511,9 @@
 									use:enhance={({ formData }) => {
 										addingToList = true;
 										formData.set('excludePantry', excludePantry.toString());
-										const countToAdd = excludePantry
-											? missingCount
-											: (recipe?.ingredients.length ?? 0);
-										workflowStore.shoppingItems += countToAdd;
 										return async ({ result }) => {
 											addingToList = false;
-											if (result.type === 'failure') workflowStore.shoppingItems -= countToAdd;
-											else await invalidateAll();
+											if (result.type !== 'failure') await invalidateAll();
 										};
 									}}
 								>

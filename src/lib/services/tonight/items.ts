@@ -30,13 +30,19 @@ export function containsItem(itemKey: string, phrase: string): boolean {
 	return words.includes(` ${singularKey(phrase)} `);
 }
 
-/** Stock items marked perishable when any of their lots still good on `day` is perishable. */
+/**
+ * Stock items marked perishable when any of their lots still good on `day` is perishable. An
+ * item that has gone off has no good lots, so its expired lots decide.
+ */
 export function withPerishable(stock: StockItem[], lots: Lot[], day: number): RankStock[] {
 	return stock.map((item) => ({
 		...item,
 		perishable: lots.some(
 			(lot) =>
-				lot.itemKey === item.itemKey && lot.perishable && lot.expiresOn >= day && lot.quantity > 0
+				lot.itemKey === item.itemKey &&
+				lot.perishable &&
+				(item.off || lot.expiresOn >= day) &&
+				lot.quantity > 0
 		)
 	}));
 }

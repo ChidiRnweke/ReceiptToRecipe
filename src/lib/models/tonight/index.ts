@@ -98,6 +98,10 @@ export interface EatOutResult {
 	message: string;
 }
 
+export interface EatInResult {
+	message: string;
+}
+
 export interface PickResult {
 	title: string;
 	message: string;

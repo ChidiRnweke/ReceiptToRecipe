@@ -63,12 +63,16 @@
 		<h2 id="dev-header" class="text-xs font-semibold tracking-widest text-text-muted uppercase">
 			DoorHeader
 		</h2>
-		<DoorHeader question="What's for *dinner*?" greeting={greetingFor(18, 'Noor')}>
+		<DoorHeader question="What's for *dinner*?" greeting={greetingFor(18, 'Noor')} needsYou={false}>
 			{#snippet actions()}
 				<Button variant="outline" size="sm">Needs you</Button>
 			{/snippet}
 		</DoorHeader>
-		<DoorHeader question="What needs eating *first*?" greeting={greetingFor(9, 'Sam')} />
+		<DoorHeader
+			question="What needs eating *first*?"
+			greeting={greetingFor(9, 'Sam')}
+			needsYou={false}
+		/>
 		{#if page.data.user}
 			<svelte:boundary>
 				{@const me = await getMe()}

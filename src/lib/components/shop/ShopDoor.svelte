@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import Notepad from '$lib/components/Notepad.svelte';
@@ -31,7 +32,8 @@
 	/** Dinners picked from the ideas, for a household that does not plan. */
 	let picked = $state<string[]>([]);
 	let busy = $state(false);
-	let receiptOpen = $state(false);
+	// "Snap the receipt" in Needs you opens the door with `?snap=1`.
+	let receiptOpen = $state(page.url.searchParams.get('snap') === '1');
 	let newItem = $state('');
 
 	const ideaItems = $derived(ideaList(view.ideas, picked));

@@ -4,6 +4,7 @@ import { mayHaveAtHome } from '../../../src/lib/services/shop';
 
 const stock = (itemKey: string, options: Partial<StockItem> = {}): StockItem => ({
 	itemKey,
+	name: itemKey,
 	quantity: 1,
 	unit: 'l',
 	expiresOn: 100,

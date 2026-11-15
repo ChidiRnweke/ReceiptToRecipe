@@ -32,6 +32,8 @@ export interface UsedIngredient {
 	unit: string;
 	/** True when the recipe unit could not be converted, so the amount is a guess. */
 	estimate?: boolean;
+	/** The ingredient as the recipe names it ("Cherry tomatoes"). */
+	name?: string;
 }
 
 export interface KitchenEventPayload {
@@ -42,6 +44,13 @@ export interface KitchenEventPayload {
 	servings?: number;
 	/** Where the event came from, e.g. `receipt`, `manual`, `list`. */
 	source?: string;
+	/**
+	 * The item as people know it ("Cherry tomatoes"), from the receipt line, the cupboard row or
+	 * the list item. The item key is the singular, lower-case form used to match.
+	 */
+	name?: string;
+	/** The recipe title of a COOKED event; it names the leftovers. */
+	title?: string;
 	[key: string]: unknown;
 }
 
@@ -104,12 +113,16 @@ export interface Lot {
 	/** Shelf life of 7 days or less. */
 	perishable: boolean;
 	source: LotSource;
+	/** The most recent name people used for the item, when an event recorded one. */
+	name?: string;
 }
 
 /** What the kitchen holds of one item on a given day. */
 export interface StockItem {
 	itemKey: string;
-	/** Sum of the lots that are still good. */
+	/** The name to show: the most recent recorded name, else the key capitalised. */
+	name: string;
+	/** Sum of the lots that are still good, or of the expired ones once it has gone off. */
 	quantity: number;
 	unit: string;
 	/** Soonest expiry of the good lots, or the latest expiry when only expired lots remain. */
@@ -197,4 +210,13 @@ export const SCRAP_SHARE = 0.15;
 
 export function leftoverKey(sourceId: string): string {
 	return `${LEFTOVER_PREFIX}${sourceId}`;
+}
+
+/** What leftovers are called when the meal they came from has no recorded title. */
+export const LEFTOVERS_NAME = 'Leftovers';
+
+/** The name of an item no event named: its key with a capital ("Egg"). */
+export function nameFromKey(itemKey: string): string {
+	if (itemKey.startsWith(LEFTOVER_PREFIX)) return LEFTOVERS_NAME;
+	return itemKey ? itemKey[0].toUpperCase() + itemKey.slice(1) : itemKey;
 }

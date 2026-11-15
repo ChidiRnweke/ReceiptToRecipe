@@ -71,20 +71,20 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	})();
 
 	// Non-critical data - stream as promises
-	const pantryController = AppFactory.getPantryController();
+	const useItUp = AppFactory.getUseItUpController();
 	const pantryMatchesPromise = viewer
 		? recipeDataPromise.then(({ recipe }) => {
-				return pantryController.getHouseholdPantry(viewer).then((pantry) => {
+				return useItUp.listHome(viewer, new Date(), locals.timeZone).then((home) => {
+					const pantry = home.filter((item) => !item.off);
 					const matches: Record<string, number> = {};
 					recipe.ingredients.forEach((ing) => {
 						const ingName = ing.name.toLowerCase();
 						const match = pantry.find((p) => {
-							const pName = p.itemName.toLowerCase();
+							const pName = p.name.toLowerCase();
 							return pName.includes(ingName) || ingName.includes(pName);
 						});
-						if (match) {
-							matches[ing.name] = match.stockConfidence;
-						}
+						// 1 for an amount the household confirmed, less for an estimate.
+						if (match) matches[ing.name] = match.known ? 1 : 0.6;
 					});
 					return matches;
 				});
@@ -206,9 +206,12 @@ export const actions: Actions = {
 			// Get pantry items if excluding
 			let pantryItems: string[] = [];
 			if (excludePantry) {
-				const pantryController = AppFactory.getPantryController();
-				const pantry = await pantryController.getHouseholdPantry(locals.actor);
-				pantryItems = pantry.map((i: { itemName: string }) => i.itemName);
+				const home = await AppFactory.getUseItUpController().listHome(
+					locals.actor,
+					new Date(),
+					locals.timeZone
+				);
+				pantryItems = home.filter((item) => !item.off).map((item) => item.name);
 			}
 
 			await listController.addRecipeIngredients(

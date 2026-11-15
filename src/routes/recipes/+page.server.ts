@@ -134,14 +134,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const actor = locals.actor;
 
 	const recipeController = AppFactory.getRecipeController();
-	const pantryController = AppFactory.getPantryController();
+	const useItUp = AppFactory.getUseItUpController();
 	const tasteProfileController = new TasteProfileController(AppFactory.getTasteProfileService());
 
 	const fitPromise = Promise.all([
 		recipeController.getHouseholdRecipesWithIngredients(actor, MATCHED_RECIPE_LIMIT),
-		pantryController.getHouseholdPantry(actor)
+		useItUp.listHome(actor, new Date(), locals.timeZone)
 	]).then(async ([recipes, pantry]) => {
-		const pantryNames = pantry.map((item) => item.itemName.toLowerCase());
+		const pantryNames = pantry.filter((item) => !item.off).map((item) => item.name.toLowerCase());
 		const entries = await Promise.all(
 			recipes.map(async (recipe): Promise<[string, RecipeFit]> => {
 				const missingIngredients = recipe.ingredients

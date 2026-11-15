@@ -191,4 +191,40 @@ describe('TonightController', () => {
 			expect(result.message).toBe('Enjoy! Mushroom risotto is tomorrow now.');
 		});
 	});
+
+	describe('eating out after a reload', () => {
+		it('still shows "Eating out tonight" when the dinner moved to tomorrow', async () => {
+			await t.planOn(risotto, DAY0);
+			await t.controller.eatOut(actor, NOW, TZ);
+			const view = await t.controller.getTonight(actor, at(0, 19), TZ);
+			expect(view.state).toBe('out');
+		});
+
+		it('still shows it when nothing was planned', async () => {
+			await t.controller.eatOut(actor, NOW, TZ);
+			const view = await t.controller.getTonight(actor, at(0, 19), TZ);
+			expect(view.state).toBe('out');
+		});
+
+		it('is over the next day', async () => {
+			await t.controller.eatOut(actor, NOW, TZ);
+			const view = await t.controller.getTonight(actor, at(1, 18), TZ);
+			expect(view.state).toBe('ideas');
+		});
+
+		it('"We’re eating in" brings back the ideas', async () => {
+			await t.controller.eatOut(actor, NOW, TZ);
+			await t.controller.eatIn(actor, at(0, 18.5), TZ);
+			const view = await t.controller.getTonight(actor, at(0, 19), TZ);
+			expect(view.state).toBe('ideas');
+		});
+
+		it('"We’re eating in" puts a dinner that left the plan back on', async () => {
+			const meal = await t.planOn(risotto, DAY0);
+			for (const day of [1, 2, 3]) await t.planOn(saag, DAY0 + day);
+			await t.controller.eatOut(actor, NOW, TZ);
+			await t.controller.eatIn(actor, at(0, 18.5), TZ);
+			expect((await t.plannedMeals.findById(meal.id))?.status).toBe('PLANNED');
+		});
+	});
 });

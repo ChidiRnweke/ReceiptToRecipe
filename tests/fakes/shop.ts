@@ -10,7 +10,6 @@ import type { MealType } from '../../src/lib/models/plan';
 import { atLocalHour } from '../../src/lib/services/kitchen';
 import {
 	MockJobQueue,
-	MockPantryService,
 	MockProductNormalizer,
 	MockPurchaseHistoryRepository,
 	MockReceiptExtractor,
@@ -24,6 +23,8 @@ import {
 	MockStorageService,
 	MockTasteProfileService
 } from '../mocks';
+import { HouseholdEventService } from '../../src/lib/services/HouseholdEventService';
+import { InMemoryHouseholdEventRepository } from './InMemoryHouseholdEventRepository';
 import { InMemoryHabitAnswerRepository } from './InMemoryHabitAnswerRepository';
 import { InMemoryHouseholdRepository } from './InMemoryHouseholdRepository';
 import { InMemoryKitchenEventRepository } from './InMemoryKitchenEventRepository';
@@ -92,19 +93,13 @@ export function createShop() {
 		new InMemoryMealLogRepository(),
 		households
 	);
-	const habits = new HabitService(
-		events,
-		new InMemoryHabitAnswerRepository(),
-		plannedMeals,
-		history,
-		households
-	);
+	const habitAnswers = new InMemoryHabitAnswerRepository();
+	const habits = new HabitService(events, habitAnswers, plannedMeals, history, households);
 	const receiptController = new ReceiptController(
 		storage,
 		extractor,
 		new NormalizationService(),
 		new MockProductNormalizer(),
-		new MockPantryService(),
 		receipts,
 		receiptItems,
 		history,
@@ -112,7 +107,15 @@ export function createShop() {
 		new MockJobQueue()
 	);
 	const shopService = new ShopService(lists, items, history);
-	const controller = new ShopController(shopService, plan, kitchen, habits, receiptController);
+	const householdEvents = new InMemoryHouseholdEventRepository();
+	const controller = new ShopController(
+		shopService,
+		plan,
+		kitchen,
+		habits,
+		receiptController,
+		new HouseholdEventService(householdEvents)
+	);
 
 	async function addRecipe(title: string, specs: IngredientSpec[]) {
 		const recipe = await recipes.create({
@@ -169,6 +172,10 @@ export function createShop() {
 	}
 
 	return {
+		householdEvents,
+		habits,
+		habitAnswers,
+		lists,
 		events,
 		households,
 		kitchen,

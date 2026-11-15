@@ -5,7 +5,6 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import DoorNav from '$lib/components/doors/DoorNav.svelte';
 	import { Settings, LogOut, Receipt, Search, Clock3, Users } from 'lucide-svelte';
-	import { workflowStore } from '$lib/state/workflow.svelte';
 	import logo from '$lib/assets/logo.svg';
 	import favicon from '$lib/assets/favicon.svg';
 	import { pwaInfo } from 'virtual:pwa-info';
@@ -14,6 +13,7 @@
 	import { resolve } from '$app/paths';
 	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
 	import UndoToast from '$lib/components/UndoToast.svelte';
+	import NoticeToast from '$lib/components/NoticeToast.svelte';
 	import { getMe } from '$lib/remote/household/household.remote';
 
 	let { data, children } = $props();
@@ -53,13 +53,6 @@
 	]);
 
 	const hasSearchResults = $derived(flattenedSearchResults.length > 0);
-
-	// Pages still read these counts from the store (the home page, cupboard and shopping list).
-	$effect(() => {
-		if (data.workflowCounts) {
-			workflowStore.sync(data.workflowCounts);
-		}
-	});
 
 	// Server rules read the day and hour in the browser's time zone, sent as the `tz` cookie.
 	$effect(() => {
@@ -556,6 +549,7 @@
 
 {#if data.user}
 	<UndoToast />
+	<NoticeToast />
 {/if}
 
 <!-- Mobile door bar -->

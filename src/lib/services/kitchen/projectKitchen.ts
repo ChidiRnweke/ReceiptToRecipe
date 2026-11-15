@@ -2,6 +2,7 @@ import {
 	LEFTOVER_KEEP_DAYS,
 	LEFTOVER_PREFIX,
 	PERISHABLE_MAX_DAYS,
+	nameFromKey,
 	SCRAP_SHARE,
 	leftoverKey,
 	type KitchenEvent,
@@ -85,8 +86,9 @@ export function consume(
 	return remaining > EPSILON ? remaining : 0;
 }
 
-function leftoverLot(sourceId: string, portions: number, day: number): Lot {
+function leftoverLot(sourceId: string, portions: number, day: number, name?: string): Lot {
 	return {
+		...(name ? { name } : {}),
 		itemKey: leftoverKey(sourceId),
 		quantity: portions,
 		initialQuantity: portions,
@@ -99,11 +101,25 @@ function leftoverLot(sourceId: string, portions: number, day: number): Lot {
 }
 
 /** Adds the leftover lot a meal puts aside. Shared with the forecast. */
-export function putAside(lots: Lot[], sourceId: string, portions: number, day: number): void {
-	if (portions > 0) lots.push(leftoverLot(sourceId, portions, day));
+export function putAside(
+	lots: Lot[],
+	sourceId: string,
+	portions: number,
+	day: number,
+	name?: string
+): void {
+	if (portions > 0) lots.push(leftoverLot(sourceId, portions, day, name));
 }
 
-function applyEvent(lots: Lot[], event: KitchenEvent, timeZone: string): void {
+/** The latest name recorded per item key, as the events are replayed. */
+type Names = Map<string, string>;
+
+function remember(names: Names, itemKey: string | null, name: unknown): void {
+	if (!itemKey || typeof name !== 'string' || !name.trim()) return;
+	names.set(itemKey, name.trim());
+}
+
+function applyEvent(lots: Lot[], event: KitchenEvent, timeZone: string, names: Names): void {
 	const day = dayNumber(event.occurredAt, timeZone);
 	// Keys are matched in their current normal form, so events stored under an older form
 	// ("eggs", "Baby  Spinach") merge with new ones.
@@ -112,6 +128,7 @@ function applyEvent(lots: Lot[], event: KitchenEvent, timeZone: string): void {
 	switch (event.kind) {
 		case 'BOUGHT': {
 			if (!itemKey) return;
+			remember(names, itemKey, event.payload?.name);
 			const quantity = event.quantity ?? 1;
 			const expiresOn = boughtExpiresOn(event, timeZone);
 			lots.push({
@@ -129,18 +146,28 @@ function applyEvent(lots: Lot[], event: KitchenEvent, timeZone: string): void {
 		case 'COOKED': {
 			for (const used of event.payload?.ingredients ?? []) {
 				const usedKey = canonicalItemKey(used.itemKey);
+				remember(names, usedKey, used.name);
 				const before = lots.filter((lot) => lot.itemKey === usedKey);
 				consume(lots, usedKey, used.quantity, used.unit, day, true);
 				if (used.estimate) before.forEach((lot) => (lot.known = false));
 			}
-			putAside(lots, event.plannedMealId ?? event.id, event.portions ?? 0, day);
+			const title = event.payload?.title;
+			putAside(
+				lots,
+				event.plannedMealId ?? event.id,
+				event.portions ?? 0,
+				day,
+				typeof title === 'string' ? title : undefined
+			);
 			return;
 		}
 		case 'CORRECTED_GONE': {
+			remember(names, itemKey, event.payload?.name);
 			for (const lot of lots) if (lot.itemKey === itemKey) lot.quantity = 0;
 			return;
 		}
 		case 'CORRECTED_STILL_GOOD': {
+			remember(names, itemKey, event.payload?.name);
 			for (const lot of lots) {
 				if (lot.itemKey !== itemKey || lot.quantity <= EPSILON) continue;
 				lot.known = true;
@@ -150,6 +177,7 @@ function applyEvent(lots: Lot[], event: KitchenEvent, timeZone: string): void {
 		}
 		case 'CORRECTED_QUANTITY': {
 			if (!itemKey) return;
+			remember(names, itemKey, event.payload?.name);
 			const existing = lots.filter((lot) => lot.itemKey === itemKey);
 			const fresh = existing.filter((lot) => lot.quantity > EPSILON && lot.expiresOn >= day);
 			existing.forEach((lot) => (lot.quantity = 0));
@@ -181,14 +209,24 @@ function chronological(events: KitchenEvent[]): KitchenEvent[] {
 	);
 }
 
-/** Replays the events up to `at` and returns the lots they leave in the kitchen. */
+/**
+ * Replays the events up to `at` and returns the lots they leave in the kitchen. Each lot carries
+ * the most recent name an event recorded for its item, so "Cherry tomatoes" bought last week and
+ * "tomatoes" cooked today show as "tomatoes".
+ */
 export function projectKitchen(events: KitchenEvent[], at: Date, timeZone: string): Lot[] {
 	const lots: Lot[] = [];
+	const names: Names = new Map();
 	for (const event of chronological(events)) {
 		if (event.occurredAt.getTime() > at.getTime()) break;
-		applyEvent(lots, event, timeZone);
+		applyEvent(lots, event, timeZone, names);
 	}
-	return lots.filter((lot) => lot.quantity > EPSILON);
+	return lots
+		.filter((lot) => lot.quantity > EPSILON)
+		.map((lot) => {
+			const name = names.get(lot.itemKey);
+			return name && !isLeftover(lot.itemKey) ? { ...lot, name } : lot;
+		});
 }
 
 /** Sums the lots per item as they stand on `day`. */
@@ -205,12 +243,15 @@ export function stockAt(lots: Lot[], day: number): StockItem[] {
 	return [...byItem.entries()].map(([itemKey, group]) => {
 		const unit = group[0].unit;
 		const fresh = group.filter((lot) => lot.expiresOn >= day);
-		const quantity = fresh.reduce(
+		// An item that has gone off still shows how much of it is there to bin.
+		const quantity = (fresh.length ? fresh : group).reduce(
 			(sum, lot) => sum + (convertUnit(lot.quantity, lot.unit, unit) ?? lot.quantity),
 			0
 		);
+		const named = [...group].reverse().find((lot) => lot.name);
 		const item: StockItem = {
 			itemKey,
+			name: named?.name ?? nameFromKey(itemKey),
 			quantity,
 			unit,
 			expiresOn: fresh.length

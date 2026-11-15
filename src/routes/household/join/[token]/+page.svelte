@@ -7,6 +7,10 @@
 	let { data, form } = $props();
 	let joining = $state(false);
 
+	/** "Sam", "Sam and Linus", "Sam, Linus and Ada". */
+	const names = (list: string[]) =>
+		list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : (list[0] ?? '');
+
 	const invalidMessages: Record<string, string> = {
 		expired: 'This invite link has expired. Ask for a new one.',
 		used: 'This invite link has already been used. Ask for a new one.',
@@ -35,7 +39,11 @@
 					{:else}
 						<p class="font-serif text-lg text-ink-light italic">
 							You will share receipts, recipes, the cupboard, the shopping list and the meal plan.
-							Everything in your current kitchen comes with you.
+							{#if data.staysWith.length === 0}
+								Everything in your current kitchen comes with you.
+							{:else}
+								Your current kitchen stays with {names(data.staysWith)}.
+							{/if}
 						</p>
 
 						{#if form?.error}

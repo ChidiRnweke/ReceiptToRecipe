@@ -1,6 +1,7 @@
 import type {
 	Cookbook,
 	IHabitService,
+	IHouseholdEventService,
 	IHouseholdService,
 	IKitchenService,
 	INutritionService,
@@ -15,6 +16,7 @@ import { MEAL_HOUR, type MealType, type PlanRecipe } from '$lib/models/plan';
 import type {
 	CookIngredient,
 	CookResult,
+	EatInResult,
 	EatOutResult,
 	PickResult,
 	ShopBefore,
@@ -76,6 +78,8 @@ interface TonightContext {
 	target: TonightTarget<PlannedMealDao>;
 	/** Who shops, when it is someone else in a household of several; else null. */
 	shopper: string | null;
+	/** A member said the household is eating out today. */
+	eatingOut: boolean;
 }
 
 export type CookTarget = { plannedMealId: string } | { recipeId: string };
@@ -118,7 +122,8 @@ export class TonightController {
 		private kitchenService: IKitchenService,
 		private habitService: IHabitService,
 		private nutritionService: INutritionService,
-		private householdService: IHouseholdService
+		private householdService: IHouseholdService,
+		private householdEventService: IHouseholdEventService
 	) {}
 
 	async getTonight(actor: Actor, now: Date, timeZone: string): Promise<TonightView> {
@@ -130,7 +135,17 @@ export class TonightController {
 		const missingByMeal = this.forecast(ctx, timeZone);
 		const meal = target.meal ? this.toMeal(ctx, target.meal, missingByMeal, now, timeZone) : null;
 
-		const state = !meal ? 'ideas' : target.eaten ? 'eaten' : target.out ? 'out' : 'planned';
+		// "We're eating out" is kept as a household event, so the card survives a reload even when
+		// the dinner moved to another day and tonight's slot is empty.
+		const outTonight = ctx.eatingOut && target.slot === 'dinner' && !target.tomorrow;
+		const state =
+			meal && target.eaten
+				? 'eaten'
+				: target.out || outTonight
+					? 'out'
+					: !meal
+						? 'ideas'
+						: 'planned';
 		const ideas =
 			state === 'ideas'
 				? this.rank(ctx, { limit: IDEA_COUNT }).map((idea) => this.toIdea(idea))
@@ -181,6 +196,7 @@ export class TonightController {
 			servings: meal.servings ?? recipe.servings,
 			at: now
 		});
+		await this.householdEventService.recordCooked(actor, now, recipe.title);
 		return { plannedMealId: meal.id, title: recipe.title };
 	}
 
@@ -234,6 +250,7 @@ export class TonightController {
 	async eatOut(actor: Actor, now: Date, timeZone: string): Promise<EatOutResult> {
 		const ctx = await this.load(actor, now, timeZone);
 		const { today } = ctx;
+		if (!ctx.eatingOut) await this.householdEventService.recordEatingOut(actor, now, today);
 		const dinner = ctx.meals.find(
 			(meal) =>
 				meal.mealType === 'DINNER' &&
@@ -280,14 +297,30 @@ export class TonightController {
 		return { ...result, message: eatOutMessage(result) };
 	}
 
+	/**
+	 * "Plans changed? We're eating in": the household is no longer out tonight, and a dinner that
+	 * was taken off the plan for it is back.
+	 */
+	async eatIn(actor: Actor, now: Date, timeZone: string): Promise<EatInResult> {
+		const today = dayNumber(now, timeZone);
+		await this.householdEventService.clearEatingOut(actor.householdId, today, now);
+		const meals = await this.planService.listMeals(actor.householdId, today, today, timeZone);
+		const dinner = meals.find((meal) => meal.mealType === 'DINNER' && meal.status === 'EATEN_OUT');
+		if (dinner) await this.planService.reopenMeal(actor.householdId, dinner.id);
+		return {
+			message: dinner ? `Eating in. ${dinner.mealName} is back on.` : 'Eating in tonight.'
+		};
+	}
+
 	private async load(actor: Actor, now: Date, timeZone: string): Promise<TonightContext> {
 		const today = dayNumber(now, timeZone);
-		const [meals, cookbook, picture, habits, members] = await Promise.all([
+		const [meals, cookbook, picture, habits, members, eatingOut] = await Promise.all([
 			this.planService.listMeals(actor.householdId, today, today + PLAN_AHEAD_DAYS, timeZone),
 			this.planService.getCookbook(actor, now),
 			this.kitchenService.getPicture(actor.householdId, now, timeZone),
 			this.habitService.getHabits(actor.householdId, now, timeZone),
-			this.householdService.listMembers(actor)
+			this.householdService.listMembers(actor),
+			this.householdEventService.isEatingOut(actor.householdId, today, now)
 		]);
 		const stockKeys = picture.stock.map((item) => item.itemKey);
 		return {
@@ -300,7 +333,8 @@ export class TonightController {
 			stock: withPerishable(picture.stock, picture.lots, today),
 			habits,
 			target: tonightTarget(meals, now, timeZone),
-			shopper: otherShopper(actor, members)
+			shopper: otherShopper(actor, members),
+			eatingOut
 		};
 	}
 

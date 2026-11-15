@@ -4,7 +4,6 @@ import { NormalizationService } from '../../../src/lib/services/NormalizationSer
 import { MockStorageService } from '../../mocks/MockStorageService';
 import { MockReceiptExtractor } from '../../mocks/MockReceiptExtractor';
 import { MockProductNormalizer } from '../../mocks/MockProductNormalizer';
-import { MockPantryService } from '../../mocks/MockPantryService';
 import {
 	MockReceiptRepository,
 	MockReceiptItemRepository
@@ -22,7 +21,6 @@ describe('ReceiptController', () => {
 	let receiptExtractor: MockReceiptExtractor;
 	let normalizationService: NormalizationService;
 	let productNormalizer: MockProductNormalizer;
-	let pantryService: MockPantryService;
 	let receiptRepo: MockReceiptRepository;
 	let receiptItemRepo: MockReceiptItemRepository;
 	let purchaseHistoryRepo: MockPurchaseHistoryRepository;
@@ -83,7 +81,6 @@ describe('ReceiptController', () => {
 		receiptExtractor = new MockReceiptExtractor();
 		normalizationService = new NormalizationService();
 		productNormalizer = new MockProductNormalizer();
-		pantryService = new MockPantryService();
 		receiptRepo = new MockReceiptRepository();
 		receiptItemRepo = new MockReceiptItemRepository();
 		purchaseHistoryRepo = new MockPurchaseHistoryRepository();
@@ -100,7 +97,6 @@ describe('ReceiptController', () => {
 			receiptExtractor,
 			normalizationService,
 			productNormalizer,
-			pantryService,
 			receiptRepo,
 			receiptItemRepo,
 			purchaseHistoryRepo,
@@ -423,7 +419,6 @@ describe('ReceiptController', () => {
 				receiptExtractor,
 				normalizationService,
 				productNormalizer,
-				pantryService,
 				receiptRepo,
 				receiptItemRepo,
 				purchaseHistoryRepo,

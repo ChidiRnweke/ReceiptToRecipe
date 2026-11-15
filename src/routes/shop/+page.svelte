@@ -1,5 +1,4 @@
 <script lang="ts">
-	import NoticeToast from '$lib/components/NoticeToast.svelte';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import ShopDoor from '$lib/components/shop/ShopDoor.svelte';
 </script>
@@ -35,5 +34,3 @@
 		{/snippet}
 	</svelte:boundary>
 </div>
-
-<NoticeToast />

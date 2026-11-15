@@ -101,7 +101,8 @@ export class HouseholdService implements IHouseholdService {
 		await this.householdRepository.moveMemberWithData(
 			user.id,
 			actor.householdId,
-			invite.householdId
+			invite.householdId,
+			this.now()
 		);
 		await this.householdRepository.markInviteUsed(invite.id, user.id, this.now());
 	}

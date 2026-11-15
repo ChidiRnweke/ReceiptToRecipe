@@ -33,7 +33,6 @@ export type {
 export * from './IReceiptService';
 export * from './IPreferencesService';
 export * from './ITasteProfileService';
-export * from './IPantryService';
 export type {
 	INutritionService,
 	CaloriesToday,
@@ -89,3 +88,5 @@ export type {
 } from './IPlanService';
 export type { IShopService, NewManualItem } from './IShopService';
 export type { IRecipeBookService, NewRecipeContent } from './IRecipeBookService';
+export type { IHouseholdEventService, EventAuthor } from './IHouseholdEventService';
+export type { INeedsYouService } from './INeedsYouService';

@@ -1,5 +1,6 @@
 import type {
 	IHabitService,
+	IHouseholdEventService,
 	IKitchenService,
 	INutritionService,
 	IPlanService,
@@ -36,7 +37,8 @@ import {
 	setSlotMessage,
 	slotTypesFor,
 	stretchLine,
-	twoDaysMessage
+	twoDaysMessage,
+	WEEK_DAYS
 } from '$lib/services/plan';
 import { sameItem, spokenName, splitSteps, withPerishable } from '$lib/services/tonight';
 
@@ -104,7 +106,8 @@ export class PlanController {
 		private planService: IPlanService,
 		private kitchenService: IKitchenService,
 		private habitService: IHabitService,
-		private nutritionService: INutritionService
+		private nutritionService: INutritionService,
+		private householdEventService: IHouseholdEventService
 	) {}
 
 	async getPlan(actor: Actor, now: Date, timeZone: string, range?: PlanRange): Promise<PlanView> {
@@ -142,6 +145,14 @@ export class PlanController {
 	): Promise<PlanResult> {
 		const load = await this.load(actor, now, timeZone, range);
 		const result = await this.planService.suggestRest(actor, load.stretch, load.ctx);
+		if (result.filled > 0) {
+			await this.householdEventService.recordPlanned(
+				actor,
+				now,
+				load.stretch.start,
+				load.stretch.end - 1
+			);
+		}
 		return { message: this.fillMessage(result.filled, result.open) };
 	}
 
@@ -153,6 +164,14 @@ export class PlanController {
 	): Promise<PlanResult> {
 		const load = await this.load(actor, now, timeZone, range);
 		const result = await this.planService.planWholeWeek(actor, load.stretch, load.ctx);
+		if (result.filled > 0) {
+			await this.householdEventService.recordPlanned(
+				actor,
+				now,
+				load.stretch.start,
+				load.stretch.start + WEEK_DAYS - 1
+			);
+		}
 		return { message: this.fillMessage(result.filled, result.open) };
 	}
 

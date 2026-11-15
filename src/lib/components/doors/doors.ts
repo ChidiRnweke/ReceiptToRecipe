@@ -3,7 +3,7 @@ import { BookOpen, CalendarDays, Moon, Recycle, ShoppingBasket } from 'lucide-sv
 export type DoorKey = 'tonight' | 'plan' | 'shop' | 'recipes' | 'use';
 
 /** Routes the doors open today; each door PR moves its own entry. */
-export type DoorHref = '/tonight' | '/plan' | '/shop' | '/recipes' | '/cupboard';
+export type DoorHref = '/tonight' | '/plan' | '/shop' | '/recipes' | '/use-it-up';
 
 export interface Door {
 	key: DoorKey;
@@ -30,7 +30,7 @@ export const DOORS: readonly Door[] = [
 	{ key: 'plan', label: 'Plan', href: '/plan', icon: CalendarDays, matches: at('/plan') },
 	{ key: 'shop', label: 'Shop', href: '/shop', icon: ShoppingBasket, matches: at('/shop') },
 	{ key: 'recipes', label: 'Recipes', href: '/recipes', icon: BookOpen, matches: at('/recipes') },
-	{ key: 'use', label: 'Use it up', href: '/cupboard', icon: Recycle, matches: at('/cupboard') }
+	{ key: 'use', label: 'Use it up', href: '/use-it-up', icon: Recycle, matches: at('/use-it-up') }
 ];
 
 export function doorFor(key: DoorKey): Door {

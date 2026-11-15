@@ -14,12 +14,6 @@ export {
 	type ShoppingListWithItems,
 	type AddItemInput
 } from './ShoppingListController';
-export {
-	PantryController,
-	type CupboardStats,
-	type AddManualItemInput,
-	type UpdateItemInput
-} from './PantryController';
 export { TasteProfileController } from './TasteProfileController';
 export { HouseholdController, type HouseholdOverview } from './HouseholdController';
 export {
@@ -39,3 +33,5 @@ export {
 } from './PlanController';
 export { ShopController, type ReceiptIntake } from './ShopController';
 export { RecipesDoorController, type SnapPhoto, type SnappedRecipe } from './RecipesDoorController';
+export { UseItUpController } from './UseItUpController';
+export { NeedsYouController, type ShopCloser } from './NeedsYouController';
