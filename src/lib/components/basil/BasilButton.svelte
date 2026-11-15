@@ -48,8 +48,12 @@
 	let stream: RunStream | null = null;
 	/** Steps for the browser, carried out once Basil has finished. */
 	let pendingClientActions: ClientAction[] = [];
-	/** The run that just ended; the conversation may name it active for a moment longer. */
-	let finishedRunId: string | null = null;
+	/**
+	 * The run that just ended and its last cursor. The conversation may name it active for a
+	 * moment longer; a decision resumes it later with new events.
+	 */
+	let finished: { runId: string; cursor: number } | null = null;
+	let lastCursor = 0;
 
 	const view = $derived<BasilConversationView>(
 		conversation.current ?? { entries: [], pendingActionId: null, activeRun: null }
@@ -80,6 +84,7 @@
 
 	async function handle(record: BasilRunEventRecord, replayed: boolean) {
 		const event = record.event;
+		lastCursor = record.cursor;
 		switch (event.type) {
 			case 'text_delta':
 				toolLabel = null;
@@ -115,7 +120,7 @@
 		await conversation.refresh();
 		streaming = '';
 		toolLabel = null;
-		finishedRunId = runId;
+		finished = runId ? { runId, cursor: lastCursor } : null;
 		runId = null;
 		stopping = false;
 		stream = null;
@@ -133,7 +138,8 @@
 	// Follow the run still answering after a reload, or one started in another tab.
 	$effect(() => {
 		const active = conversation.current?.activeRun;
-		if (!active || sending || runId === active.id || finishedRunId === active.id) return;
+		if (!active || sending || runId === active.id) return;
+		if (finished?.runId === active.id && active.cursor <= finished.cursor) return;
 		const remembered = sessionRunMemory.load();
 		const appliedUpTo = remembered?.runId === active.id ? remembered.cursor : active.cursor;
 		follow(active.id, 0, appliedUpTo);
@@ -171,13 +177,7 @@
 	}
 
 	const decide = (actionId: string, yes: boolean) =>
-		start(() =>
-			(yes ? approve : decline)({
-				actionId,
-				requestId: crypto.randomUUID(),
-				pageContext: readPageContext(page.url.pathname)
-			})
-		);
+		start(() => (yes ? approve : decline)({ actionId }));
 
 	async function stop() {
 		if (!runId || stopping) return;

@@ -27,6 +27,7 @@ export { NeedsYouAnswerRepository } from './NeedsYouAnswerRepository';
 export {
 	AgentConversationRepository,
 	AgentMessageRepository,
+	AgentSessionRepository,
 	AgentActionRepository,
 	AgentRunRepository
 } from './AgentRepositories';
@@ -70,6 +71,7 @@ export type {
 export type {
 	IAgentConversationRepository,
 	IAgentMessageRepository,
+	IAgentSessionRepository,
 	IAgentActionRepository,
 	IAgentRunRepository
 } from './interfaces/IAgentRepositories';

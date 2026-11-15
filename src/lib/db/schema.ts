@@ -545,7 +545,7 @@ export const agentMessages = pgTable(
 		conversationId: uuid('conversation_id')
 			.notNull()
 			.references(() => agentConversations.id, { onDelete: 'cascade' }),
-		role: text('role').notNull(), // user, assistant, tool
+		role: text('role').notNull(), // user, assistant
 		content: jsonb('content').notNull(),
 		toolCalls: jsonb('tool_calls'),
 		createdAt: timestamp('created_at').notNull().defaultNow()
@@ -575,8 +575,27 @@ export const agentActions = pgTable(
 	(t) => [index('agent_actions_conversation_idx').on(t.conversationId, t.createdAt)]
 );
 
-// One run of Basil's loop: a message from the person, or their decision on a change. The run's
-// events are the stream the sheet reads; a reload replays them from a cursor.
+// What Basil's agent reads back: the conversation as agent SDK items (messages, tool calls and
+// their results), in order. The sheet shows agent_messages; the model reads these.
+export const agentSessionItems = pgTable(
+	'agent_session_items',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		conversationId: uuid('conversation_id')
+			.notNull()
+			.references(() => agentConversations.id, { onDelete: 'cascade' }),
+		position: integer('position').notNull(),
+		item: jsonb('item').notNull(),
+		createdAt: timestamp('created_at').notNull().defaultNow()
+	},
+	(t) => [
+		uniqueIndex('agent_session_items_conversation_position_idx').on(t.conversationId, t.position)
+	]
+);
+
+// One run of Basil: the answer to a message. A run that proposes a change parks with the agent's
+// serialized state, and the person's yes or not now resumes it. The run's events are the stream
+// the sheet reads; a reload replays them from a cursor.
 export const agentRuns = pgTable(
 	'agent_runs',
 	{
@@ -592,11 +611,12 @@ export const agentRuns = pgTable(
 			.references(() => users.id, { onDelete: 'cascade' }),
 		/** Chosen by the browser, so a retried submit finds the run it already started. */
 		requestId: uuid('request_id').notNull(),
-		kind: text('kind').notNull(), // message, decision
-		/** What the run answers and who asked: the text and page, or the decision. */
+		/** What the run answers and who asked: the text and the page. */
 		input: jsonb('input').notNull(),
 		// queued, running, awaiting_approval, cancelling, completed, failed, cancelled
 		status: text('status').notNull().default('queued'),
+		/** The agent's RunState while the run waits for a yes on a change. */
+		serializedState: text('serialized_state'),
 		failure: text('failure'),
 		cancelRequestedAt: timestamp('cancel_requested_at'),
 		createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -1021,6 +1041,7 @@ export type NeedsYouAnswerRow = typeof needsYouAnswers.$inferSelect;
 export type AgentConversationRow = typeof agentConversations.$inferSelect;
 export type AgentMessageRow = typeof agentMessages.$inferSelect;
 export type AgentActionRow = typeof agentActions.$inferSelect;
+export type AgentSessionItemRow = typeof agentSessionItems.$inferSelect;
 export type AgentRunRow = typeof agentRuns.$inferSelect;
 export type AgentRunEventRow = typeof agentRunEvents.$inferSelect;
 export type CategoryShelfLife = typeof categoryShelfLife.$inferSelect;

@@ -18,8 +18,8 @@ export type ToolboxFor = (actor: Actor, now: Date, timeZone: string) => AgentToo
 
 /**
  * Basil's sheet: the conversation, a message, yes or not now on a proposed change, Stop and
- * Start over. Every message and decision starts a run that executes in the background; the sheet
- * follows its events.
+ * Start over. A message starts a run that executes in the background; a decision resumes the run
+ * that proposed the change. The sheet follows the run's events.
  */
 export class BasilController {
 	constructor(
@@ -38,7 +38,10 @@ export class BasilController {
 		return { ...view, activeRun };
 	}
 
-	/** Stores the message and starts Basil's answer. A change still waiting is dropped. */
+	/**
+	 * Stores the message and starts Basil's answer. A change still waiting for a yes is declined:
+	 * the new message is the person's answer.
+	 */
 	async submit(
 		actor: Actor,
 		input: SendMessageInput,
@@ -49,50 +52,36 @@ export class BasilController {
 		if (existing) return this.receipt(existing);
 		const conversation = await this.agentService.conversationFor(actor, now);
 		if (await this.runService.activeRun(conversation.id)) throw new BasilBusyError();
-		await this.agentService.dropPending(conversation.id, now);
+		await this.declineWaiting(conversation.id, now);
 		return this.start(actor, {
 			conversationId: conversation.id,
 			requestId: input.requestId,
-			request: { kind: 'message', text: input.text, pageContext: input.pageContext },
-			userMessage: input.text,
+			request: { text: input.text, pageContext: input.pageContext },
 			now,
 			timeZone
 		});
 	}
 
 	/**
-	 * Yes runs the waiting change, not now drops it; then a run lets Basil go on. A change decided
-	 * already, by another tap or tab, starts nothing.
+	 * Yes or not now on the waiting change resumes the run that proposed it: yes runs the change,
+	 * not now runs nothing, and Basil goes on. A change decided already, by another tap or tab,
+	 * resumes nothing.
 	 */
 	async decide(
 		actor: Actor,
 		input: ActionInput,
 		approve: boolean,
-		now: Date,
-		timeZone: string
+		now: Date
 	): Promise<BasilDecisionReceipt> {
-		const existing = await this.runService.findByRequest(actor, input.requestId);
-		if (existing) return this.receipt(existing);
-		const decision = await this.agentService.decide(actor, this.toolboxFor(actor, now, timeZone), {
-			actionId: input.actionId,
-			approve,
-			now
-		});
-		if (!decision.decided) return { runId: null, cursor: 0 };
-		return this.start(actor, {
-			conversationId: decision.conversationId,
-			requestId: input.requestId,
-			request: {
-				kind: 'decision',
-				actionId: input.actionId,
-				decision: approve ? 'approve' : 'decline',
-				staleDoors: decision.staleDoors,
-				pageContext: input.pageContext ?? null
-			},
-			userMessage: null,
-			now,
-			timeZone
-		});
+		const action = await this.agentService.pendingAction(actor, input.actionId);
+		if (!action) return { runId: null, cursor: 0 };
+		const parked = await this.runService.parkedRun(action.conversationId);
+		// The run is the lock: whoever queues it again decides the change.
+		const resumed = parked ? await this.runService.resume(parked.id, now) : null;
+		if (!resumed) return { runId: null, cursor: 0 };
+		await this.agentService.decide(action.id, approve, now);
+		this.runService.launch(resumed.run, this.runner);
+		return { runId: resumed.run.id, cursor: resumed.cursor };
 	}
 
 	/** Stop: Basil keeps what it had said. */
@@ -104,6 +93,7 @@ export class BasilController {
 	async startOver(actor: Actor, now: Date): Promise<void> {
 		const current = await this.agentService.latestConversation(actor);
 		if (current && (await this.runService.activeRun(current.id))) throw new BasilBusyError();
+		if (current) await this.declineWaiting(current.id, now);
 		await this.agentService.startOver(actor, now);
 	}
 
@@ -138,13 +128,25 @@ export class BasilController {
 		return interrupted.length + queued.length;
 	}
 
+	/** Settles the run waiting for a yes in the conversation, declining its change. */
+	private async declineWaiting(conversationId: string, now: Date): Promise<void> {
+		const parked = await this.runService.parkedRun(conversationId);
+		const closed = parked ? await this.runService.close(parked.id, now) : null;
+		if (!closed) return;
+		const { actor, timeZone } = closed.input;
+		await this.agentService.declineWaiting({
+			toolbox: this.toolboxFor(actor, closed.createdAt, timeZone),
+			run: closed,
+			now
+		});
+	}
+
 	private async start(
 		actor: Actor,
 		input: {
 			conversationId: string;
 			requestId: string;
 			request: BasilRunRequest;
-			userMessage: string | null;
 			now: Date;
 			timeZone: string;
 		}
@@ -155,7 +157,7 @@ export class BasilController {
 				conversationId: input.conversationId,
 				requestId: input.requestId,
 				input: { request: input.request, actor, timeZone: input.timeZone },
-				userMessage: input.userMessage
+				userMessage: input.request.text
 			},
 			input.now
 		);
@@ -167,15 +169,17 @@ export class BasilController {
 		return { runId: run.id, cursor: 0 };
 	}
 
-	/** One turn for a claimed run, as the member who asked, at the moment they asked. */
+	/**
+	 * One turn for a claimed run, as the member who asked, at the moment they asked: a resumed run
+	 * reads the change's arguments as they were meant when it was proposed.
+	 */
 	private runner: BasilTurnRunner = (run, signal) => {
-		const { actor, timeZone, request } = run.input;
+		const { actor, timeZone } = run.input;
 		const now = run.createdAt;
 		return this.agentService.turn({
 			actor,
 			toolbox: this.toolboxFor(actor, now, timeZone),
-			conversationId: run.conversationId,
-			request,
+			run,
 			now,
 			signal
 		});

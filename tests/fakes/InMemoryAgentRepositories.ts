@@ -9,6 +9,7 @@ import type {
 	AgentRun,
 	AgentRunStatus,
 	AgentRunTransition,
+	AgentSessionItem,
 	BasilEvent,
 	BasilRunEventRecord,
 	NewAgentAction,
@@ -19,7 +20,8 @@ import type {
 	IAgentActionRepository,
 	IAgentConversationRepository,
 	IAgentMessageRepository,
-	IAgentRunRepository
+	IAgentRunRepository,
+	IAgentSessionRepository
 } from '../../src/lib/repositories/interfaces/IAgentRepositories';
 
 export class InMemoryAgentConversationRepository implements IAgentConversationRepository {
@@ -57,6 +59,18 @@ export class InMemoryAgentMessageRepository implements IAgentMessageRepository {
 	}
 }
 
+export class InMemoryAgentSessionRepository implements IAgentSessionRepository {
+	readonly items = new Map<string, AgentSessionItem[]>();
+
+	async list(conversationId: string): Promise<AgentSessionItem[]> {
+		return structuredClone(this.items.get(conversationId) ?? []);
+	}
+
+	async replace(conversationId: string, items: readonly AgentSessionItem[]): Promise<void> {
+		this.items.set(conversationId, structuredClone([...items]));
+	}
+}
+
 export class InMemoryAgentActionRepository implements IAgentActionRepository {
 	readonly actions: AgentAction[] = [];
 
@@ -77,6 +91,13 @@ export class InMemoryAgentActionRepository implements IAgentActionRepository {
 
 	async findById(id: string): Promise<AgentAction | null> {
 		const action = this.actions.find((a) => a.id === id);
+		return action ? { ...action } : null;
+	}
+
+	async findByCall(conversationId: string, callId: string): Promise<AgentAction | null> {
+		const action = this.actions.find(
+			(a) => a.conversationId === conversationId && a.callId === callId
+		);
 		return action ? { ...action } : null;
 	}
 
@@ -109,7 +130,7 @@ export class InMemoryAgentRunRepository implements IAgentRunRepository {
 
 	async submit(
 		run: NewAgentRun,
-		userMessage: AgentMessageBody | null,
+		userMessage: AgentMessageBody,
 		at: Date
 	): Promise<{ run: AgentRun; created: boolean; cursor: number }> {
 		const existing = await this.findByRequest(run.userId, run.requestId);
@@ -120,15 +141,15 @@ export class InMemoryAgentRunRepository implements IAgentRunRepository {
 		const stored: AgentRun = {
 			...structuredClone(run),
 			id: uuid(),
-			kind: run.input.request.kind,
 			status: 'queued',
+			serializedState: null,
 			failure: null,
 			cancelRequestedAt: null,
 			createdAt: at,
 			finishedAt: null
 		};
 		this.runs.push(stored);
-		if (userMessage) await this.messages.append(run.conversationId, userMessage, at);
+		await this.messages.append(run.conversationId, userMessage, at);
 		const record = await this.appendEvent(stored.id, { type: 'run_queued' });
 		return { run: { ...stored }, created: true, cursor: record.cursor };
 	}
@@ -152,6 +173,13 @@ export class InMemoryAgentRunRepository implements IAgentRunRepository {
 		return run ? { ...run } : null;
 	}
 
+	async findParked(conversationId: string): Promise<AgentRun | null> {
+		const run = this.runs.findLast(
+			(r) => r.conversationId === conversationId && r.status === 'awaiting_approval'
+		);
+		return run ? { ...run } : null;
+	}
+
 	async listByStatus(statuses: readonly AgentRunStatus[]): Promise<AgentRun[]> {
 		return this.runs.filter((r) => statuses.includes(r.status)).map((r) => ({ ...r }));
 	}
@@ -165,6 +193,7 @@ export class InMemoryAgentRunRepository implements IAgentRunRepository {
 		const run = this.runs.find((r) => r.id === id);
 		if (!run || !from.includes(run.status)) return null;
 		run.status = to.status;
+		if (to.serializedState !== undefined) run.serializedState = to.serializedState;
 		if (to.failure !== undefined) run.failure = to.failure;
 		if (to.cancelRequestedAt) run.cancelRequestedAt = to.cancelRequestedAt;
 		if (to.finishedAt) run.finishedAt = to.finishedAt;

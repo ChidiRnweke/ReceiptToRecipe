@@ -24,7 +24,8 @@ import {
 	failureFromError,
 	toolFailure,
 	type AgentTool,
-	type AgentToolbox
+	type AgentToolbox,
+	type ToolParameters
 } from '$lib/services/agent/toolbox';
 import {
 	eatFirstResult,
@@ -82,6 +83,26 @@ interface ToolBody<N extends ToolName> {
 const BAD_ARGUMENTS =
 	'Fix the arguments to match the tool’s schema and call it again. Ids come from the read tools’ results.';
 
+/**
+ * The object schema the model is shown, read off zod's JSON schema: the properties and the
+ * required ones, and no other fields. Every tool input is a strict zod object.
+ */
+function toolParameters(schema: z.core.JSONSchema.BaseSchema): ToolParameters {
+	if (schema.type !== 'object' || schema.additionalProperties !== false) {
+		throw new Error('A tool input must be a strict object');
+	}
+	const properties: ToolParameters['properties'] = {};
+	for (const [key, value] of Object.entries(schema.properties ?? {})) {
+		if (typeof value === 'object') properties[key] = { ...value };
+	}
+	return {
+		type: 'object',
+		properties,
+		required: schema.required ?? [],
+		additionalProperties: false
+	};
+}
+
 /** Builds one tool from its catalog entry, its schema and its body. */
 function defineTool<N extends ToolName>(name: N, body: ToolBody<N>): AgentTool<N> {
 	const entry = toolEntry(name);
@@ -91,9 +112,7 @@ function defineTool<N extends ToolName>(name: N, body: ToolBody<N>): AgentTool<N
 	if (entry.classification === 'mutation' && !body.preview) {
 		throw new Error(`The change tool ${name} needs a preview`);
 	}
-	// The provider takes the bare object schema, without the draft marker.
-	const parameters: Record<string, unknown> = z.toJSONSchema(TOOL_INPUTS[name], { io: 'input' });
-	delete parameters.$schema;
+	const parameters = toolParameters(z.toJSONSchema(TOOL_INPUTS[name], { io: 'input' }));
 	const parse = (args: unknown) => {
 		const parsed = schema.safeParse(args ?? {});
 		return parsed.success

@@ -13,7 +13,8 @@ import {
 	AgentActionRepository,
 	AgentConversationRepository,
 	AgentMessageRepository,
-	AgentRunRepository
+	AgentRunRepository,
+	AgentSessionRepository
 } from '../../src/lib/repositories/AgentRepositories';
 import { BasilBusyError, type NewAgentRun } from '../../src/lib/models/agent';
 import { v4 as uuid } from 'uuid';
@@ -23,6 +24,7 @@ const AT = new Date('2026-11-14T16:50:00Z');
 describe('Agent repositories (DB)', () => {
 	let conversations: AgentConversationRepository;
 	let messages: AgentMessageRepository;
+	let sessions: AgentSessionRepository;
 	let actions: AgentActionRepository;
 	let runs: AgentRunRepository;
 	let userId: string;
@@ -34,6 +36,7 @@ describe('Agent repositories (DB)', () => {
 		await cleanTables();
 		conversations = new AgentConversationRepository(db);
 		messages = new AgentMessageRepository(db);
+		sessions = new AgentSessionRepository(db);
 		actions = new AgentActionRepository(db);
 		runs = new AgentRunRepository(db);
 		const users = new UserRepository(db);
@@ -76,13 +79,8 @@ describe('Agent repositories (DB)', () => {
 				},
 				AT
 			);
-			await messages.append(
-				conversation.id,
-				{ role: 'tool', callId: 'c1', name: 'get_plan', result: { slots: [] } },
-				AT
-			);
 			const listed = await messages.list(conversation.id);
-			expect(listed.map((message) => message.role)).toEqual(['user', 'assistant', 'tool']);
+			expect(listed.map((message) => message.role)).toEqual(['user', 'assistant']);
 		});
 
 		it('keeps the tool calls of an assistant message', async () => {
@@ -96,17 +94,38 @@ describe('Agent repositories (DB)', () => {
 			const [stored] = await messages.list(conversation.id);
 			expect(stored).toMatchObject({ role: 'assistant', toolCalls });
 		});
+	});
 
-		it('keeps a tool result', async () => {
+	describe('agent_session_items', () => {
+		const items = [
+			{ type: 'message' as const, role: 'user' as const, content: 'What’s for dinner?' },
+			{
+				type: 'function_call' as const,
+				callId: 'c1',
+				name: 'get_plan',
+				arguments: '{}',
+				status: 'completed' as const
+			}
+		];
+
+		it('reads back the items in order', async () => {
 			const conversation = await conversations.create(householdId, userId, AT);
-			const result = { failure: 'Recipe not found', recovery: 'Look it up.' };
-			await messages.append(
-				conversation.id,
-				{ role: 'tool', callId: 'c1', name: 'get_recipe', result },
-				AT
-			);
-			const [stored] = await messages.list(conversation.id);
-			expect(stored).toMatchObject({ role: 'tool', callId: 'c1', result });
+			await sessions.replace(conversation.id, items, AT);
+			expect(await sessions.list(conversation.id)).toEqual(items);
+		});
+
+		it('replaces the items of a conversation', async () => {
+			const conversation = await conversations.create(householdId, userId, AT);
+			await sessions.replace(conversation.id, items, AT);
+			await sessions.replace(conversation.id, items.slice(0, 1), AT);
+			expect(await sessions.list(conversation.id)).toHaveLength(1);
+		});
+
+		it('keeps one conversation’s items from another', async () => {
+			const conversation = await conversations.create(householdId, userId, AT);
+			const other = await conversations.create(householdId, otherUserId, AT);
+			await sessions.replace(conversation.id, items, AT);
+			expect(await sessions.list(other.id)).toEqual([]);
 		});
 	});
 
@@ -138,6 +157,11 @@ describe('Agent repositories (DB)', () => {
 			expect((await actions.findById(action.id))?.touched).toEqual(touched);
 		});
 
+		it('finds the action that answers a tool call', async () => {
+			const action = await propose();
+			expect((await actions.findByCall(action.conversationId, 'c1'))?.id).toBe(action.id);
+		});
+
 		it('decides an action only once', async () => {
 			const action = await propose();
 			await actions.decide(action.id, 'pending', { status: 'declined', decidedAt: AT });
@@ -156,13 +180,14 @@ describe('Agent repositories (DB)', () => {
 	});
 
 	describe('agent_runs', () => {
+		const HELLO = { role: 'user' as const, text: 'Hello' };
 		const newRun = (conversationId: string, requestId = uuid()): NewAgentRun => ({
 			conversationId,
 			householdId,
 			userId,
 			requestId,
 			input: {
-				request: { kind: 'message', text: 'Hello', pageContext: null },
+				request: { text: 'Hello', pageContext: null },
 				actor: {
 					userId,
 					householdId,
@@ -183,7 +208,7 @@ describe('Agent repositories (DB)', () => {
 
 		it('starts the stream with run_queued', async () => {
 			const conversation = await conversations.create(householdId, userId, AT);
-			const { run } = await runs.submit(newRun(conversation.id), null, AT);
+			const { run } = await runs.submit(newRun(conversation.id), HELLO, AT);
 			expect((await runs.listEvents(run.id, 0)).map((r) => r.event)).toEqual([
 				{ type: 'run_queued' }
 			]);
@@ -192,37 +217,37 @@ describe('Agent repositories (DB)', () => {
 		it('returns the earlier run for a request id used again', async () => {
 			const conversation = await conversations.create(householdId, userId, AT);
 			const requestId = uuid();
-			const first = await runs.submit(newRun(conversation.id, requestId), null, AT);
-			const second = await runs.submit(newRun(conversation.id, requestId), null, AT);
+			const first = await runs.submit(newRun(conversation.id, requestId), HELLO, AT);
+			const second = await runs.submit(newRun(conversation.id, requestId), HELLO, AT);
 			expect([second.run.id, second.created]).toEqual([first.run.id, false]);
 		});
 
 		it('refuses a second active run in the conversation', async () => {
 			const conversation = await conversations.create(householdId, userId, AT);
-			await runs.submit(newRun(conversation.id), null, AT);
-			await expect(runs.submit(newRun(conversation.id), null, AT)).rejects.toThrow(BasilBusyError);
+			await runs.submit(newRun(conversation.id), HELLO, AT);
+			await expect(runs.submit(newRun(conversation.id), HELLO, AT)).rejects.toThrow(BasilBusyError);
 		});
 
 		it('stores no message for a refused run', async () => {
 			const conversation = await conversations.create(householdId, userId, AT);
-			await runs.submit(newRun(conversation.id), null, AT);
+			await runs.submit(newRun(conversation.id), HELLO, AT);
 			await runs
 				.submit(newRun(conversation.id), { role: 'user', text: 'Again' }, AT)
 				.catch(() => undefined);
-			expect(await messages.list(conversation.id)).toEqual([]);
+			expect(await messages.list(conversation.id)).toHaveLength(1);
 		});
 
 		it('takes a new run once the active one has settled', async () => {
 			const conversation = await conversations.create(householdId, userId, AT);
-			const { run } = await runs.submit(newRun(conversation.id), null, AT);
+			const { run } = await runs.submit(newRun(conversation.id), HELLO, AT);
 			await runs.transition(run.id, ['queued'], { status: 'completed', finishedAt: AT }, null, AT);
-			const next = await runs.submit(newRun(conversation.id), null, AT);
+			const next = await runs.submit(newRun(conversation.id), HELLO, AT);
 			expect(next.created).toBe(true);
 		});
 
 		it('moves a run on only from the expected status', async () => {
 			const conversation = await conversations.create(householdId, userId, AT);
-			const { run } = await runs.submit(newRun(conversation.id), null, AT);
+			const { run } = await runs.submit(newRun(conversation.id), HELLO, AT);
 			expect(
 				await runs.transition(run.id, ['running'], { status: 'completed' }, null, AT)
 			).toBeNull();
@@ -230,14 +255,14 @@ describe('Agent repositories (DB)', () => {
 
 		it('appends the transition’s event with it', async () => {
 			const conversation = await conversations.create(householdId, userId, AT);
-			const { run } = await runs.submit(newRun(conversation.id), null, AT);
+			const { run } = await runs.submit(newRun(conversation.id), HELLO, AT);
 			await runs.transition(run.id, ['queued'], { status: 'running' }, { type: 'run_started' }, AT);
 			expect((await runs.listEvents(run.id, 0)).at(-1)?.event).toEqual({ type: 'run_started' });
 		});
 
 		it('lists events after a cursor', async () => {
 			const conversation = await conversations.create(householdId, userId, AT);
-			const { run, cursor } = await runs.submit(newRun(conversation.id), null, AT);
+			const { run, cursor } = await runs.submit(newRun(conversation.id), HELLO, AT);
 			await runs.appendEvent(run.id, { type: 'text_delta', text: 'Hi' }, AT);
 			expect((await runs.listEvents(run.id, cursor)).map((r) => r.event)).toEqual([
 				{ type: 'text_delta', text: 'Hi' }
@@ -246,14 +271,47 @@ describe('Agent repositories (DB)', () => {
 
 		it('reads the latest cursor', async () => {
 			const conversation = await conversations.create(householdId, userId, AT);
-			const { run } = await runs.submit(newRun(conversation.id), null, AT);
+			const { run } = await runs.submit(newRun(conversation.id), HELLO, AT);
 			const last = await runs.appendEvent(run.id, { type: 'completed' }, AT);
 			expect(await runs.latestCursor(run.id)).toBe(last.cursor);
 		});
 
+		it('stores the agent’s state when a run parks on a change', async () => {
+			const conversation = await conversations.create(householdId, userId, AT);
+			const { run } = await runs.submit(newRun(conversation.id), HELLO, AT);
+			await runs.transition(
+				run.id,
+				['queued'],
+				{ status: 'awaiting_approval', serializedState: '{"state":1}' },
+				null,
+				AT
+			);
+			expect((await runs.findParked(conversation.id))?.serializedState).toBe('{"state":1}');
+		});
+
+		it('clears the agent’s state once the run settles', async () => {
+			const conversation = await conversations.create(householdId, userId, AT);
+			const { run } = await runs.submit(newRun(conversation.id), HELLO, AT);
+			await runs.transition(
+				run.id,
+				['queued'],
+				{ status: 'awaiting_approval', serializedState: '{"state":1}' },
+				null,
+				AT
+			);
+			const done = await runs.transition(
+				run.id,
+				['awaiting_approval'],
+				{ status: 'completed', serializedState: null },
+				null,
+				AT
+			);
+			expect(done?.serializedState).toBeNull();
+		});
+
 		it('finds the active run of a conversation', async () => {
 			const conversation = await conversations.create(householdId, userId, AT);
-			const { run } = await runs.submit(newRun(conversation.id), null, AT);
+			const { run } = await runs.submit(newRun(conversation.id), HELLO, AT);
 			expect((await runs.findActive(conversation.id))?.id).toBe(run.id);
 		});
 	});

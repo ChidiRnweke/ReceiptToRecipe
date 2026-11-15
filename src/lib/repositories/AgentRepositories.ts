@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, gt, inArray, max } from 'drizzle-orm';
+import { protocol } from '@openai/agents';
 import type { Database } from '$db/client';
 import * as schema from '$db/schema';
 import type {
@@ -12,6 +13,7 @@ import type {
 	AgentRun,
 	AgentRunStatus,
 	AgentRunTransition,
+	AgentSessionItem,
 	BasilEvent,
 	BasilRunEventRecord,
 	NewAgentAction,
@@ -29,7 +31,8 @@ import type {
 	IAgentActionRepository,
 	IAgentConversationRepository,
 	IAgentMessageRepository,
-	IAgentRunRepository
+	IAgentRunRepository,
+	IAgentSessionRepository
 } from './interfaces/IAgentRepositories';
 
 const STATUSES: readonly AgentActionStatus[] = [
@@ -91,6 +94,35 @@ export class AgentMessageRepository implements IAgentMessageRepository {
 	}
 }
 
+export class AgentSessionRepository implements IAgentSessionRepository {
+	constructor(private db: Database) {}
+
+	async list(conversationId: string): Promise<AgentSessionItem[]> {
+		const rows = await this.db.query.agentSessionItems.findMany({
+			where: eq(schema.agentSessionItems.conversationId, conversationId),
+			orderBy: [asc(schema.agentSessionItems.position)]
+		});
+		// Read back through the SDK's own schema, so a stored row is an item the SDK accepts.
+		return rows.map((row) => protocol.ModelItem.parse(row.item));
+	}
+
+	async replace(
+		conversationId: string,
+		items: readonly AgentSessionItem[],
+		at: Date
+	): Promise<void> {
+		await this.db.transaction(async (tx) => {
+			await tx
+				.delete(schema.agentSessionItems)
+				.where(eq(schema.agentSessionItems.conversationId, conversationId));
+			if (items.length === 0) return;
+			await tx
+				.insert(schema.agentSessionItems)
+				.values(items.map((item, position) => ({ conversationId, position, item, createdAt: at })));
+		});
+	}
+}
+
 export class AgentActionRepository implements IAgentActionRepository {
 	constructor(private db: Database) {}
 
@@ -113,6 +145,16 @@ export class AgentActionRepository implements IAgentActionRepository {
 	async findById(id: string): Promise<AgentAction | null> {
 		const row = await this.db.query.agentActions.findFirst({
 			where: eq(schema.agentActions.id, id)
+		});
+		return row ? toAction(row) : null;
+	}
+
+	async findByCall(conversationId: string, callId: string): Promise<AgentAction | null> {
+		const row = await this.db.query.agentActions.findFirst({
+			where: and(
+				eq(schema.agentActions.conversationId, conversationId),
+				eq(schema.agentActions.callId, callId)
+			)
 		});
 		return row ? toAction(row) : null;
 	}
@@ -152,7 +194,7 @@ export class AgentRunRepository implements IAgentRunRepository {
 
 	async submit(
 		run: NewAgentRun,
-		userMessage: AgentMessageBody | null,
+		userMessage: AgentMessageBody,
 		at: Date
 	): Promise<{ run: AgentRun; created: boolean; cursor: number }> {
 		try {
@@ -165,7 +207,6 @@ export class AgentRunRepository implements IAgentRunRepository {
 							householdId: run.householdId,
 							userId: run.userId,
 							requestId: run.requestId,
-							kind: run.input.request.kind,
 							input: run.input,
 							status: 'queued',
 							createdAt: at
@@ -175,16 +216,14 @@ export class AgentRunRepository implements IAgentRunRepository {
 						})
 						.returning();
 					if (!row) return null;
-					if (userMessage) {
-						const { role, content, toolCalls } = toColumns(userMessage);
-						await tx.insert(schema.agentMessages).values({
-							conversationId: run.conversationId,
-							role,
-							content,
-							toolCalls,
-							createdAt: at
-						});
-					}
+					const { role, content, toolCalls } = toColumns(userMessage);
+					await tx.insert(schema.agentMessages).values({
+						conversationId: run.conversationId,
+						role,
+						content,
+						toolCalls,
+						createdAt: at
+					});
 					const [event] = await tx
 						.insert(schema.agentRunEvents)
 						.values({ runId: row.id, event: { type: 'run_queued' }, createdAt: at })
@@ -229,6 +268,17 @@ export class AgentRunRepository implements IAgentRunRepository {
 		return row ? toRun(row) : null;
 	}
 
+	async findParked(conversationId: string): Promise<AgentRun | null> {
+		const row = await this.db.query.agentRuns.findFirst({
+			where: and(
+				eq(schema.agentRuns.conversationId, conversationId),
+				eq(schema.agentRuns.status, 'awaiting_approval')
+			),
+			orderBy: [desc(schema.agentRuns.createdAt)]
+		});
+		return row ? toRun(row) : null;
+	}
+
 	async listByStatus(statuses: readonly AgentRunStatus[]): Promise<AgentRun[]> {
 		if (statuses.length === 0) return [];
 		const rows = await this.db.query.agentRuns.findMany({
@@ -250,6 +300,7 @@ export class AgentRunRepository implements IAgentRunRepository {
 				.update(schema.agentRuns)
 				.set({
 					status: to.status,
+					...(to.serializedState !== undefined ? { serializedState: to.serializedState } : {}),
 					...(to.failure !== undefined ? { failure: to.failure } : {}),
 					...(to.cancelRequestedAt ? { cancelRequestedAt: to.cancelRequestedAt } : {}),
 					...(to.finishedAt ? { finishedAt: to.finishedAt } : {})
@@ -309,9 +360,9 @@ function toRun(row: schema.AgentRunRow): AgentRun {
 		householdId: row.householdId,
 		userId: row.userId,
 		requestId: row.requestId,
-		kind: input.request.kind,
 		input,
 		status,
+		serializedState: row.serializedState,
 		failure: row.failure,
 		cancelRequestedAt: row.cancelRequestedAt,
 		createdAt: row.createdAt,
@@ -333,12 +384,6 @@ function toColumns(body: AgentMessageBody): {
 			return { role: 'user', content: { text: body.text }, toolCalls: null };
 		case 'assistant':
 			return { role: 'assistant', content: { text: body.text }, toolCalls: body.toolCalls };
-		case 'tool':
-			return {
-				role: 'tool',
-				content: { callId: body.callId, name: body.name, result: body.result ?? null },
-				toolCalls: null
-			};
 	}
 }
 
@@ -354,14 +399,6 @@ function toMessage(row: schema.AgentMessageRow): AgentMessage {
 				role: 'assistant',
 				text: typeof content.text === 'string' ? content.text : null,
 				toolCalls: Array.isArray(row.toolCalls) ? (row.toolCalls as AgentToolCall[]) : []
-			};
-		case 'tool':
-			return {
-				...base,
-				role: 'tool',
-				callId: String(content.callId ?? ''),
-				name: String(content.name ?? ''),
-				result: content.result ?? null
 			};
 		default:
 			throw new Error(`Unknown agent message role ${row.role}`);

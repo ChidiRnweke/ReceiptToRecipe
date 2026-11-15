@@ -1,4 +1,5 @@
 import { dev } from '$app/environment';
+import type { ModelProvider } from '@openai/agents';
 import { ConfigService } from '$services/ConfigService';
 import { getDb } from '$db/client';
 import {
@@ -28,11 +29,10 @@ import {
 	AgentRunService,
 	ActiveRuns,
 	InProcessRunEventBus,
-	DevScriptedAgentModel,
-	OpenRouterAgentModel,
+	DevScriptedModelProvider,
+	openRouterModelProvider,
 	type IAgentService,
 	type IAgentRunService,
-	type IAgentModel,
 	type IHouseholdEventService,
 	type INeedsYouService,
 	type IStorageService,
@@ -97,6 +97,7 @@ import {
 	NeedsYouAnswerRepository,
 	AgentConversationRepository,
 	AgentMessageRepository,
+	AgentSessionRepository,
 	AgentActionRepository,
 	AgentRunRepository,
 	type IHouseholdEventRepository,
@@ -166,7 +167,7 @@ let planService: IPlanService | null = null;
 let shopService: IShopService | null = null;
 let recipeBookService: IRecipeBookService | null = null;
 let agentService: IAgentService | null = null;
-let agentModel: IAgentModel | null = null;
+let agentModels: { provider: ModelProvider; model: string } | null = null;
 let agentRunService: IAgentRunService | null = null;
 
 // Repositories
@@ -644,26 +645,27 @@ export class AppFactory {
 	}
 
 	/**
-	 * Basil's model: `BASIL_MODEL`, else the app's `OPENROUTER_MODEL`. In development only,
-	 * `BASIL_MODEL=scripted` uses a scripted stand-in that needs no provider key.
+	 * Basil's models and the model it asks for: `BASIL_MODEL`, else the app's `OPENROUTER_MODEL`,
+	 * on OpenRouter. In development only, `BASIL_MODEL=scripted` uses a scripted stand-in that
+	 * needs no provider key.
 	 */
-	static getAgentModel(): IAgentModel {
-		if (!agentModel) {
+	static getAgentModels(): { provider: ModelProvider; model: string } {
+		if (!agentModels) {
 			const named = ConfigService.get('BASIL_MODEL');
 			if (named === 'scripted' && dev) {
-				agentModel = new DevScriptedAgentModel();
-				return agentModel;
+				agentModels = { provider: new DevScriptedModelProvider(), model: 'scripted' };
+				return agentModels;
 			}
 			const apiKey = ConfigService.get('OPENROUTER_API_KEY');
 			if (!apiKey) {
 				throw new Error('OPENROUTER_API_KEY environment variable is required');
 			}
-			agentModel = new OpenRouterAgentModel(
-				apiKey,
-				named || ConfigService.get('OPENROUTER_MODEL') || 'google/gemini-3-flash-preview'
-			);
+			agentModels = {
+				provider: openRouterModelProvider(apiKey, { appURL: ConfigService.get('ORIGIN') }),
+				model: named || ConfigService.get('OPENROUTER_MODEL') || 'google/gemini-3-flash-preview'
+			};
 		}
-		return agentModel;
+		return agentModels;
 	}
 
 	/** One per process: the bus and the running runs live in this process (adapter-node). */
@@ -681,11 +683,14 @@ export class AppFactory {
 	static getAgentService(): IAgentService {
 		if (!agentService) {
 			const db = getDb();
+			const { provider, model } = AppFactory.getAgentModels();
 			agentService = new AgentService(
 				new AgentConversationRepository(db),
 				new AgentMessageRepository(db),
+				new AgentSessionRepository(db),
 				new AgentActionRepository(db),
-				AppFactory.getAgentModel()
+				provider,
+				model
 			);
 		}
 		return agentService;
@@ -930,7 +935,7 @@ export class AppFactory {
 		shopService = null;
 		recipeBookService = null;
 		agentService = null;
-		agentModel = null;
+		agentModels = null;
 
 		// Controllers
 		recipeController = null;

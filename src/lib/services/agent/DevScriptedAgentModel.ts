@@ -1,13 +1,20 @@
-import type { AgentToolCall } from '$lib/models/agent';
 import type {
-	AgentModelDelta,
-	AgentModelMessage,
-	AgentModelRequest,
-	IAgentModel
-} from '../interfaces/IAgentModel';
+	AgentInputItem,
+	Model,
+	ModelProvider,
+	ModelRequest,
+	ModelResponse,
+	StreamEvent
+} from '@openai/agents';
 
 /** How long the scripted model waits between pieces of its words. */
 const PIECE_MS = 180;
+
+interface ScriptedCall {
+	callId: string;
+	name: string;
+	arguments: string;
+}
 
 /**
  * A stand-in for the real model, for local development only (`BASIL_MODEL=scripted` in dev). It
@@ -15,38 +22,65 @@ const PIECE_MS = 180;
  * off", and streams its words a few at a time, so the sheet can be tried without a provider key.
  * It understands a handful of phrasings; it is not a model.
  */
-export class DevScriptedAgentModel implements IAgentModel {
+export class DevScriptedAgentModel implements Model {
 	private sequence = 0;
 
 	constructor(private pieceMs = PIECE_MS) {}
 
-	async *stream(request: AgentModelRequest, signal: AbortSignal): AsyncGenerator<AgentModelDelta> {
-		const reply = this.answer(request.messages);
-		// A real model takes a moment to read a tool's result before it answers.
-		if (request.messages.at(-1)?.role === 'tool') await pause(this.pieceMs * 5, signal);
-		if (reply.text) {
-			for (const piece of pieces(reply.text)) {
-				await pause(this.pieceMs, signal);
-				if (signal.aborted) return;
-				yield { type: 'text', text: piece };
-			}
-		}
-		if (reply.calls.length) {
-			await pause(this.pieceMs * 2, signal);
-			if (signal.aborted) return;
-			yield { type: 'tool_calls', calls: reply.calls };
-		}
+	async getResponse(): Promise<ModelResponse> {
+		throw new Error('The scripted model only streams');
 	}
 
-	private answer(messages: AgentModelMessage[]): { text: string; calls: AgentToolCall[] } {
-		const last = messages.at(-1);
-		const asked = [...messages].reverse().find((message) => message.role === 'user');
-		const question = asked?.role === 'user' ? asked.content.toLowerCase() : '';
+	async *getStreamedResponse(request: ModelRequest): AsyncIterable<StreamEvent> {
+		const signal = request.signal ?? new AbortController().signal;
+		const items = typeof request.input === 'string' ? [userItem(request.input)] : request.input;
+		const reply = this.answer(items);
+		yield { type: 'response_started' };
+		// A real model takes a moment to read a tool's result before it answers.
+		if (items.at(-1)?.type === 'function_call_result') await pause(this.pieceMs * 5, signal);
+		for (const piece of reply.text ? pieces(reply.text) : []) {
+			await pause(this.pieceMs, signal);
+			if (signal.aborted) return;
+			yield { type: 'output_text_delta', delta: piece };
+		}
+		if (reply.calls.length) await pause(this.pieceMs * 2, signal);
+		if (signal.aborted) return;
+		yield {
+			type: 'response_done',
+			response: {
+				id: `scripted-${Date.now()}`,
+				usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+				output: [
+					...(reply.text
+						? [
+								{
+									type: 'message' as const,
+									role: 'assistant' as const,
+									status: 'completed' as const,
+									content: [{ type: 'output_text' as const, text: reply.text }]
+								}
+							]
+						: []),
+					...reply.calls.map((call) => ({
+						type: 'function_call' as const,
+						status: 'completed' as const,
+						...call
+					}))
+				]
+			}
+		};
+	}
 
-		if (last?.role === 'tool') {
-			const result = parse(last.content);
-			const called = toolOf(messages, last.toolCallId);
-			return this.afterTool(called, result, question);
+	private answer(items: AgentInputItem[]): { text: string; calls: ScriptedCall[] } {
+		const last = items.at(-1);
+		const question = lastQuestion(items).toLowerCase();
+
+		if (last?.type === 'function_call_result') {
+			const output = last.output;
+			const result = parse(
+				typeof output === 'string' ? output : 'text' in output ? output.text : ''
+			);
+			return this.afterTool(last.name, result, question);
 		}
 		if (/\b(take|remove)\b.*\boff\b/.test(question)) {
 			return { text: 'Let me find it on the plan first. ', calls: [this.call('get_plan')] };
@@ -73,7 +107,7 @@ export class DevScriptedAgentModel implements IAgentModel {
 		tool: string,
 		result: Record<string, unknown>,
 		question: string
-	): { text: string; calls: AgentToolCall[] } {
+	): { text: string; calls: ScriptedCall[] } {
 		if ('declined' in result) return { text: 'No problem, I’ve left it as it was.', calls: [] };
 		if ('failure' in result) {
 			return { text: `That didn’t work: ${String(result.failure)}`, calls: [] };
@@ -133,9 +167,13 @@ export class DevScriptedAgentModel implements IAgentModel {
 		return { text: 'Done.', calls: [] };
 	}
 
-	private call(name: string, args: Record<string, unknown> = {}): AgentToolCall {
+	private call(name: string, args: Record<string, unknown> = {}): ScriptedCall {
 		this.sequence += 1;
-		return { id: `scripted-${Date.now()}-${this.sequence}`, name, arguments: JSON.stringify(args) };
+		return {
+			callId: `scripted-${Date.now()}-${this.sequence}`,
+			name,
+			arguments: JSON.stringify(args)
+		};
 	}
 }
 
@@ -171,13 +209,18 @@ function parse(content: string): Record<string, unknown> {
 	}
 }
 
-function toolOf(messages: AgentModelMessage[], callId: string): string {
-	for (const message of messages) {
-		if (message.role !== 'assistant') continue;
-		const call = message.toolCalls.find((candidate) => candidate.id === callId);
-		if (call) return call.name;
+/** What the person last asked. */
+function lastQuestion(items: AgentInputItem[]): string {
+	for (const item of [...items].reverse()) {
+		if (item.type !== 'message' || item.role !== 'user') continue;
+		if (typeof item.content === 'string') return item.content;
+		return item.content.map((part) => (part.type === 'input_text' ? part.text : '')).join('');
 	}
 	return '';
+}
+
+function userItem(text: string): AgentInputItem {
+	return { type: 'message', role: 'user', content: text };
 }
 
 function plannedMeals(
@@ -194,4 +237,13 @@ function plannedMeals(
 			{ title: s.planned.title, weekday: s.weekday ?? '', plannedMealId: s.planned.plannedMealId }
 		];
 	});
+}
+
+/** Hands out the scripted model, whatever model name the agent asks for. */
+export class DevScriptedModelProvider implements ModelProvider {
+	constructor(private model: Model = new DevScriptedAgentModel()) {}
+
+	async getModel(): Promise<Model> {
+		return this.model;
+	}
 }

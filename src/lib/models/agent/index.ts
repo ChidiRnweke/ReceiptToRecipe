@@ -7,6 +7,7 @@
  */
 
 import { z } from 'zod';
+import type { AgentInputItem } from '@openai/agents';
 import type { ToolName } from './toolCatalog';
 import type { BasilActiveRun } from './runs';
 import type { BasilDoor } from './doors';
@@ -52,9 +53,7 @@ export const sendMessageInput = z
 	.strict();
 export type SendMessageInput = z.infer<typeof sendMessageInput>;
 
-export const actionInput = z
-	.object({ actionId: z.uuid(), requestId: z.uuid(), pageContext: pageContextInput.optional() })
-	.strict();
+export const actionInput = z.object({ actionId: z.uuid() }).strict();
 export type ActionInput = z.infer<typeof actionInput>;
 
 export const runInput = z.object({ runId: z.uuid() }).strict();
@@ -120,10 +119,17 @@ export interface AgentToolCall {
 	arguments: string;
 }
 
+/**
+ * One line of the conversation as the sheet shows it. Basil's words carry the tool calls they
+ * came with, so a change's card shows right after the words that proposed it. What the model
+ * reads is the session, kept apart.
+ */
 export type AgentMessageBody =
 	| { role: 'user'; text: string }
-	| { role: 'assistant'; text: string | null; toolCalls: AgentToolCall[] }
-	| { role: 'tool'; callId: string; name: string; result: unknown };
+	| { role: 'assistant'; text: string | null; toolCalls: AgentToolCall[] };
+
+/** One item of the conversation as the agent SDK reads it back: a message, a call, a result. */
+export type AgentSessionItem = AgentInputItem;
 
 export type AgentMessage = AgentMessageBody & {
 	id: string;

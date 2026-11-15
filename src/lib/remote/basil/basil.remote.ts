@@ -41,19 +41,19 @@ export const sendMessage = command(sendMessageInput, async (input): Promise<Basi
 	return receipt;
 });
 
-/** "Yes" on a proposed change: it runs, and a run lets Basil say what changed. */
+/** "Yes" on a proposed change: its run resumes, runs the change and says what changed. */
 export const approve = command(actionInput, async (input): Promise<BasilDecisionReceipt> => {
 	const receipt = await AppFactory.getBasilController()
-		.decide(requireActor(), input, true, new Date(), timeZone())
+		.decide(requireActor(), input, true, new Date())
 		.catch(asHttp);
 	getConversation().refresh();
 	return receipt;
 });
 
-/** "Not now" on a proposed change: nothing runs. */
+/** "Not now" on a proposed change: its run resumes without running it. */
 export const decline = command(actionInput, async (input): Promise<BasilDecisionReceipt> => {
 	const receipt = await AppFactory.getBasilController()
-		.decide(requireActor(), input, false, new Date(), timeZone())
+		.decide(requireActor(), input, false, new Date())
 		.catch(asHttp);
 	getConversation().refresh();
 	return receipt;

@@ -78,11 +78,40 @@ export class AgentRunService implements IAgentRunService {
 				requestId: input.requestId,
 				input: input.input
 			},
-			input.userMessage === null ? null : { role: 'user', text: input.userMessage },
+			{ role: 'user', text: input.userMessage },
 			now
 		);
 		if (submitted.created) this.bus.notify(submitted.run.id);
 		return submitted;
+	}
+
+	parkedRun(conversationId: string): Promise<AgentRun | null> {
+		return this.runs.findParked(conversationId);
+	}
+
+	async resume(runId: string, now: Date): Promise<{ run: AgentRun; cursor: number } | null> {
+		const run = await this.runs.transition(
+			runId,
+			['awaiting_approval'],
+			{ status: 'queued' },
+			{ type: 'run_queued' },
+			now
+		);
+		if (!run) return null;
+		this.bus.notify(runId);
+		return { run, cursor: await this.runs.latestCursor(runId) };
+	}
+
+	async close(runId: string, now: Date): Promise<AgentRun | null> {
+		const parked = await this.runs.findById(runId);
+		const closed = await this.runs.transition(
+			runId,
+			['awaiting_approval'],
+			{ status: 'completed', serializedState: null, finishedAt: now },
+			null,
+			now
+		);
+		return closed && parked;
 	}
 
 	launch(run: AgentRun, runner: BasilTurnRunner): void {
@@ -234,7 +263,9 @@ export class AgentRunService implements IAgentRunService {
 		const settled = await this.runs.transition(
 			runId,
 			['running'],
-			{ status: outcome.status, finishedAt: at },
+			outcome.status === 'awaiting_approval'
+				? { status: outcome.status, serializedState: outcome.serializedState, finishedAt: at }
+				: { status: outcome.status, serializedState: null, finishedAt: at },
 			outcome.status === 'completed' ? { type: 'completed' } : null,
 			at
 		);

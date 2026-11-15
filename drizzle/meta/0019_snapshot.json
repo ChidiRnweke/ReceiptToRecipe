@@ -1,5 +1,5 @@
 {
-  "id": "52274490-6fbc-4bd6-9290-9acb6e6a6262",
+  "id": "d7c864f7-a94d-4371-8ef8-ea48f75b5828",
   "prevId": "4989b692-4484-4d11-a9ad-df4869b7fd6f",
   "version": "7",
   "dialect": "postgresql",
@@ -418,12 +418,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
         "input": {
           "name": "input",
           "type": "jsonb",
@@ -436,6 +430,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'queued'"
+        },
+        "serialized_state": {
+          "name": "serialized_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "failure": {
           "name": "failure",
@@ -550,6 +550,87 @@
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.agent_session_items": {
+      "name": "agent_session_items",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item": {
+          "name": "item",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agent_session_items_conversation_position_idx": {
+          "name": "agent_session_items_conversation_position_idx",
+          "columns": [
+            {
+              "expression": "conversation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agent_session_items_conversation_id_agent_conversations_id_fk": {
+          "name": "agent_session_items_conversation_id_agent_conversations_id_fk",
+          "tableFrom": "agent_session_items",
+          "tableTo": "agent_conversations",
+          "columnsFrom": [
+            "conversation_id"
           ],
           "columnsTo": [
             "id"

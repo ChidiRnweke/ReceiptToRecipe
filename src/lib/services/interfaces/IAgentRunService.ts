@@ -18,8 +18,8 @@ export interface SubmitRun {
 	conversationId: string;
 	requestId: string;
 	input: BasilRunInput;
-	/** The person's message, stored with the run; null for a decision. */
-	userMessage: string | null;
+	/** The person's message, stored with the run. */
+	userMessage: string;
 }
 
 /** The life of Basil's runs: start, execute in the background, stop, recover, replay. */
@@ -36,6 +36,18 @@ export interface IAgentRunService {
 		input: SubmitRun,
 		now: Date
 	): Promise<{ run: AgentRun; created: boolean; cursor: number }>;
+	/** The conversation's run waiting for a yes on a change, if any. */
+	parkedRun(conversationId: string): Promise<AgentRun | null>;
+	/**
+	 * Queues a parked run again, after the person answered its change, with `run_queued`. Null
+	 * when it was no longer parked: another tap, tab or message got there first.
+	 */
+	resume(runId: string, now: Date): Promise<{ run: AgentRun; cursor: number } | null>;
+	/**
+	 * Settles a parked run as completed without resuming it, because the person moved on. Returns
+	 * the run as it was parked, with its state; null when it was no longer parked.
+	 */
+	close(runId: string, now: Date): Promise<AgentRun | null>;
 	/** Executes the run in the background: claims it, streams its events, settles it. */
 	launch(run: AgentRun, runner: BasilTurnRunner): void;
 	/**

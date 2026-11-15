@@ -1,9 +1,10 @@
 /**
  * Basil's runs and the events they stream.
  *
- * A run is one go of Basil's loop: it answers a message, or carries on after the person said yes
- * or not now to a change. Its events are stored in order with a cursor, and the sheet reads
- * them over server-sent events, so a reload picks the stream up again from a cursor.
+ * A run answers one message. When Basil proposes a change the run parks, holding the agent's
+ * serialized state, and the person's yes or not now resumes the same run. Its events are stored
+ * in order with a cursor, and the sheet reads them over server-sent events, so a reload picks the
+ * stream up again from a cursor.
  */
 
 import { z } from 'zod';
@@ -133,19 +134,11 @@ export const basilRunEventRecordSchema: z.ZodType<BasilRunEventRecord> = z.objec
 	event: basilEventSchema
 });
 
-/** What a run answers. */
-export type BasilRunRequest =
-	| { kind: 'message'; text: string; pageContext: PageContext | null }
-	| {
-			kind: 'decision';
-			actionId: string;
-			decision: 'approve' | 'decline';
-			/** Doors the approved change made stale; the run tells the page first. */
-			staleDoors: BasilDoor[];
-			pageContext: PageContext | null;
-	  };
-
-export type AgentRunKind = BasilRunRequest['kind'];
+/** What a run answers: the person's message and the page they sent it from. */
+export interface BasilRunRequest {
+	text: string;
+	pageContext: PageContext | null;
+}
 
 /** A run's input: the request, and who asked from where, so it can run without the request. */
 export interface BasilRunInput {
@@ -166,20 +159,7 @@ const actorSchema = z.object({
 
 /** Reads a stored run input back. */
 export const basilRunInputSchema: z.ZodType<BasilRunInput> = z.object({
-	request: z.discriminatedUnion('kind', [
-		z.object({
-			kind: z.literal('message'),
-			text: z.string(),
-			pageContext: pageContextInput.nullable()
-		}),
-		z.object({
-			kind: z.literal('decision'),
-			actionId: z.string(),
-			decision: z.enum(['approve', 'decline']),
-			staleDoors: z.array(z.enum(BASIL_DOORS)),
-			pageContext: pageContextInput.nullable()
-		})
-	]),
+	request: z.object({ text: z.string(), pageContext: pageContextInput.nullable() }),
 	actor: actorSchema,
 	timeZone: z.string()
 });
@@ -190,9 +170,10 @@ export interface AgentRun {
 	householdId: string;
 	userId: string;
 	requestId: string;
-	kind: AgentRunKind;
 	input: BasilRunInput;
 	status: AgentRunStatus;
+	/** The agent's state while the run waits for a yes; null otherwise. */
+	serializedState: string | null;
 	failure: string | null;
 	cancelRequestedAt: Date | null;
 	createdAt: Date;
@@ -210,6 +191,8 @@ export interface NewAgentRun {
 /** A status change, applied only when the run is still in one of the expected statuses. */
 export interface AgentRunTransition {
 	status: AgentRunStatus;
+	/** Stored when the run parks on a change, cleared (null) when it settles otherwise. */
+	serializedState?: string | null;
 	failure?: string;
 	cancelRequestedAt?: Date;
 	finishedAt?: Date;
@@ -221,7 +204,7 @@ export interface BasilRunReceipt {
 	cursor: number;
 }
 
-/** A decision that was already made starts no run. */
+/** A decision that was already made resumes nothing. */
 export interface BasilDecisionReceipt {
 	runId: string | null;
 	cursor: number;

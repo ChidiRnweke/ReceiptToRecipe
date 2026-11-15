@@ -1,65 +1,58 @@
 import type { Actor } from '$lib/models/household';
 import type {
+	AgentAction,
 	AgentConversation,
+	AgentRun,
 	BasilConversationView,
-	BasilDoor,
-	BasilRunRequest,
 	BasilTurnEvent
 } from '$lib/models/agent';
 import type { AgentToolbox } from '../agent/toolbox';
 
-/** How one turn of Basil's loop ended. */
+/** How one turn of Basil ended. */
 export type BasilTurnOutcome =
 	| { status: 'completed' }
-	| { status: 'awaiting_approval' }
+	/** A change waits for a yes; the agent's state resumes the run once the person answers. */
+	| { status: 'awaiting_approval'; serializedState: string }
 	| { status: 'cancelled' }
 	| { status: 'failed'; message: string; retryable: boolean };
 
 export interface BasilTurnInput {
 	actor: Actor;
 	toolbox: AgentToolbox;
-	conversationId: string;
-	request: BasilRunRequest;
+	/** The claimed run: a new message, or, with its serialized state, a run resuming after a decision. */
+	run: AgentRun;
 	now: Date;
 	/** Aborts when the person taps Stop. */
 	signal: AbortSignal;
 }
 
-/** What deciding on a change did. */
-export interface BasilDecision {
-	conversationId: string;
-	/** False when another tap or tab decided it first; nothing ran. */
-	decided: boolean;
-	/** Doors whose data the approved change made stale. */
-	staleDoors: BasilDoor[];
-}
-
-/** Basil's conversations and the loop that answers them. */
+/** Basil's conversations and the agent that answers them. */
 export interface IAgentService {
 	/** The member's latest conversation, or null before they ever asked. */
 	latestConversation(actor: Actor): Promise<AgentConversation | null>;
 	/** The member's latest conversation, started when there is none. */
 	conversationFor(actor: Actor, now: Date): Promise<AgentConversation>;
-	/** A new, empty conversation. A change still waiting in the old one is dropped. */
+	/** A new, empty conversation. */
 	startOver(actor: Actor, now: Date): Promise<AgentConversation>;
 	/** The conversation as the sheet shows it, without its run. */
 	view(conversationId: string): Promise<Omit<BasilConversationView, 'activeRun'>>;
-	/** Drops a change still waiting for a yes: the person sent a new message instead. */
-	dropPending(conversationId: string, now: Date): Promise<void>;
 	/**
-	 * Yes runs the waiting change; not now runs nothing. Either way the model reads the outcome
-	 * on the next turn. Throws "not found" for another member's action.
+	 * The member's change still waiting for a yes; null once it was decided. Throws "not found"
+	 * for another member's action.
 	 */
-	decide(
-		actor: Actor,
-		toolbox: AgentToolbox,
-		input: { actionId: string; approve: boolean; now: Date }
-	): Promise<BasilDecision>;
+	pendingAction(actor: Actor, actionId: string): Promise<AgentAction | null>;
+	/** Records yes or not now; false when another tap or tab decided it first. */
+	decide(actionId: string, approve: boolean, now: Date): Promise<boolean>;
+	/**
+	 * Declines the change a parked run waits on, because the person sent a new message instead:
+	 * the SDK rejects the pending call, so the model reads that nothing changed.
+	 */
+	declineWaiting(input: { toolbox: AgentToolbox; run: AgentRun; now: Date }): Promise<void>;
 	/** Adds Basil's words to the conversation, outside a turn. */
 	say(conversationId: string, text: string, now: Date): Promise<void>;
 	/**
-	 * One turn: calls the model until it answers in words, asks for a yes, runs out of steps, or
-	 * is stopped. Yields what the sheet shows as it happens; never throws.
+	 * One turn: the agent answers until it replies in words, asks for a yes, runs out of turns,
+	 * or is stopped. Yields what the sheet shows as it happens; never throws.
 	 */
 	turn(input: BasilTurnInput): AsyncGenerator<BasilTurnEvent, BasilTurnOutcome>;
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { v4 as uuid } from 'uuid';
 import { createBasil } from '../../fakes/basil';
-import { ScriptedAgentModel, call, calls, holds, says } from '../../fakes/ScriptedAgentModel';
+import { ScriptedModel, call, calls, holds, says } from '../../fakes/InMemoryModelProvider';
 import { actor } from '../../fakes/tonight';
 import { DAY0, at } from '../../helpers/kitchenEvents';
 import {
@@ -24,12 +24,12 @@ const textOf = (events: BasilEvent[]) =>
 	events.map((event) => (event.type === 'text_delta' ? event.text : '')).join('');
 
 describe('Basil’s runs', () => {
-	let model: ScriptedAgentModel;
+	let model: ScriptedModel;
 	let b: ReturnType<typeof createBasil>;
 	let dinnerId: string;
 
 	beforeEach(async () => {
-		model = new ScriptedAgentModel();
+		model = new ScriptedModel();
 		b = createBasil(model);
 		const curry = await b.addRecipe('Chickpea curry', [
 			{ name: 'Chickpeas', quantity: 1, unit: 'can' }
@@ -51,7 +51,7 @@ describe('Basil’s runs', () => {
 
 	/** A run that has said its words and keeps going until it is stopped. */
 	async function runningRun(text = 'Thursday is'): Promise<string> {
-		model.then(holds(text));
+		model.queue(holds(text));
 		const held = model.held();
 		const { runId } = await submit('What’s on Thursday?');
 		await held;
@@ -60,13 +60,13 @@ describe('Basil’s runs', () => {
 
 	describe('streaming', () => {
 		it('streams Basil’s words in order', async () => {
-			model.then(says(REPLY));
+			model.queue(says(REPLY));
 			const runId = await answered('What are we eating?');
 			expect(textOf(b.runs.eventsOf(runId))).toBe(REPLY);
 		});
 
 		it('starts with the run being queued and started, and ends with completed', async () => {
-			model.then(says(REPLY));
+			model.queue(says(REPLY));
 			const runId = await answered('What are we eating?');
 			const types = b.runs.eventsOf(runId).map((event) => event.type);
 			expect([types[0], types[1], types.at(-1)]).toEqual([
@@ -80,14 +80,14 @@ describe('Basil’s runs', () => {
 			b = createBasil(model, { flushMs: 10_000 });
 			const curry = await b.addRecipe('Curry', []);
 			await b.planOn(curry, TODAY);
-			model.then(says(REPLY));
+			model.queue(says(REPLY));
 			const runId = await answered('What are we eating?');
 			const deltas = b.runs.eventsOf(runId).filter((event) => event.type === 'text_delta');
 			expect(deltas).toHaveLength(1);
 		});
 
 		it('names the tool it is using, in the doors’ words', async () => {
-			model.then(calls(call('get_plan')), says('Curry tonight.'));
+			model.queue(calls(call('get_plan')), says('Curry tonight.'));
 			const runId = await answered('What are we eating?');
 			expect(b.runs.eventsOf(runId)).toContainEqual(
 				expect.objectContaining({ type: 'tool_started', label: 'Looking at your plan…' })
@@ -95,7 +95,7 @@ describe('Basil’s runs', () => {
 		});
 
 		it('says when the tool has finished', async () => {
-			model.then(calls(call('get_plan')), says('Curry tonight.'));
+			model.queue(calls(call('get_plan')), says('Curry tonight.'));
 			const runId = await answered('What are we eating?');
 			expect(b.runs.eventsOf(runId)).toContainEqual(
 				expect.objectContaining({ type: 'tool_finished', name: 'get_plan', ok: true })
@@ -103,14 +103,14 @@ describe('Basil’s runs', () => {
 		});
 
 		it('is complete for the stream once settled and every event was read', async () => {
-			model.then(says(REPLY));
+			model.queue(says(REPLY));
 			const runId = await answered('What are we eating?');
 			const last = await b.runs.latestCursor(runId);
 			expect(await b.basil.isStreamComplete(actor, runId, last)).toBe(true);
 		});
 
 		it('is not complete for the stream while events remain unread', async () => {
-			model.then(says(REPLY));
+			model.queue(says(REPLY));
 			const runId = await answered('What are we eating?');
 			expect(await b.basil.isStreamComplete(actor, runId, 0)).toBe(false);
 		});
@@ -118,7 +118,7 @@ describe('Basil’s runs', () => {
 
 	describe('a change', () => {
 		async function proposed() {
-			model.then(calls(call('remove_plan_slot', { plannedMealId: dinnerId })));
+			model.queue(calls(call('remove_plan_slot', { plannedMealId: dinnerId })));
 			return answered('Take the curry off tonight');
 		}
 
@@ -135,33 +135,71 @@ describe('Basil’s runs', () => {
 			});
 		});
 
-		it('lets Basil go on in a new run once approved', async () => {
-			await proposed();
+		/** Yes or not now on the waiting card, once the run has finished. */
+		async function decided(approve: boolean) {
 			const { pendingActionId } = await b.basil.getConversation(actor);
-			model.then(says('Done, it’s off.'));
-			await b.basil.decide(
-				actor,
-				{ actionId: pendingActionId!, requestId: uuid(), pageContext: ON_PLAN },
-				true,
-				NOW,
-				'UTC'
-			);
+			const receipt = await b.basil.decide(actor, { actionId: pendingActionId! }, approve, NOW);
 			await b.runService.idle();
+			return receipt;
+		}
+
+		it('keeps the agent’s state while it waits', async () => {
+			const runId = await proposed();
+			expect((await runOf(runId)).serializedState).toEqual(expect.any(String));
+		});
+
+		it('lets Basil go on once approved', async () => {
+			await proposed();
+			model.queue(says('Done, it’s off.'));
+			await decided(true);
 			expect(await lastEntry()).toMatchObject({ kind: 'basil', text: 'Done, it’s off.' });
 		});
 
-		it('runs the decision as a run of its own kind', async () => {
+		it('resumes the same run on a decision', async () => {
+			const runId = await proposed();
+			const receipt = await decided(false);
+			expect(receipt.runId).toBe(runId);
+		});
+
+		it('streams the resumed run after the cursor the decision returned', async () => {
+			const runId = await proposed();
+			model.queue(says('No problem.'));
+			const receipt = await decided(false);
+			const resumed = await b.runs.listEvents(runId, receipt.cursor - 1);
+			expect(resumed.map((record) => record.event.type).slice(0, 2)).toEqual([
+				'run_queued',
+				'run_started'
+			]);
+		});
+
+		it('completes the resumed run', async () => {
+			const runId = await proposed();
+			model.queue(says('No problem.'));
+			await decided(false);
+			expect((await runOf(runId)).status).toBe('completed');
+		});
+
+		it('clears the agent’s state once the resumed run completes', async () => {
+			const runId = await proposed();
+			model.queue(says('No problem.'));
+			await decided(false);
+			expect((await runOf(runId)).serializedState).toBeNull();
+		});
+
+		it('settles the waiting run when the person sends a new message', async () => {
+			const runId = await proposed();
+			model.queue(says('Sure.'));
+			await answered('Never mind');
+			expect((await runOf(runId)).status).toBe('completed');
+		});
+
+		it('resumes nothing for a card answered by a new message', async () => {
 			await proposed();
 			const { pendingActionId } = await b.basil.getConversation(actor);
-			const receipt = await b.basil.decide(
-				actor,
-				{ actionId: pendingActionId!, requestId: uuid(), pageContext: ON_PLAN },
-				false,
-				NOW,
-				'UTC'
-			);
-			await b.runService.idle();
-			expect((await runOf(receipt.runId!)).kind).toBe('decision');
+			model.queue(says('Sure.'));
+			await answered('Never mind');
+			const receipt = await b.basil.decide(actor, { actionId: pendingActionId! }, true, NOW);
+			expect(receipt.runId).toBeNull();
 		});
 	});
 
@@ -239,9 +277,9 @@ describe('Basil’s runs', () => {
 		});
 
 		it('settles a run that does not stop by itself after the grace period', async () => {
-			const stuck = new ScriptedAgentModel();
-			stuck.stream = async function* () {
-				yield { type: 'text' as const, text: 'Hmm' };
+			const stuck = new ScriptedModel();
+			stuck.getStreamedResponse = async function* () {
+				yield { type: 'output_text_delta' as const, delta: 'Hmm' };
 				await new Promise(() => undefined);
 			};
 			b = createBasil(stuck, { graceMs: 20 });
@@ -292,7 +330,7 @@ describe('Basil’s runs', () => {
 		});
 
 		it('starts a queued run again', async () => {
-			model.then(says('Hi Noor.'));
+			model.queue(says('Hi Noor.'));
 			const runId = await storedRun('Hello', 'queued');
 			await b.basil.recoverInterruptedRuns(NOW);
 			await b.runService.idle();
@@ -303,7 +341,7 @@ describe('Basil’s runs', () => {
 
 function inputFor(text: string): BasilRunInput {
 	return {
-		request: { kind: 'message', text, pageContext: ON_PLAN },
+		request: { text, pageContext: ON_PLAN },
 		actor,
 		timeZone: 'UTC'
 	};
