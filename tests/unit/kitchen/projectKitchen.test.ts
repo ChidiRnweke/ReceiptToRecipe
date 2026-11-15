@@ -14,6 +14,7 @@ describe('projectKitchen', () => {
 			expect(stock).toEqual([
 				{
 					itemKey: 'rice',
+					name: 'Rice',
 					quantity: 1000,
 					unit: 'g',
 					expiresOn: DAY0 + 90,
@@ -159,6 +160,7 @@ describe('projectKitchen', () => {
 			expect(stock).toEqual([
 				{
 					itemKey: 'leftover:meal-1',
+					name: 'Leftovers',
 					quantity: 2,
 					unit: 'portion',
 					expiresOn: DAY0 + 4,

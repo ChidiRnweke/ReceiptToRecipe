@@ -66,6 +66,7 @@ describe('KitchenService', () => {
 
 			expect(event.payload?.ingredients?.[0]).toEqual({
 				itemKey: 'pasta',
+				name: 'Pasta',
 				quantity: 400,
 				unit: 'g'
 			});
@@ -76,6 +77,7 @@ describe('KitchenService', () => {
 
 			expect(event.payload?.ingredients?.[1]).toEqual({
 				itemKey: 'olive oil',
+				name: 'Olive oil',
 				quantity: 30,
 				unit: 'ml'
 			});

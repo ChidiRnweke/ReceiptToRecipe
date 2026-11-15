@@ -207,7 +207,8 @@ export function usualsLow(lots: Lot[], usuals: string[], day: number): ShopNeedI
 		if (have >= size.initialQuantity * USUAL_LOW_SHARE) continue;
 		out.push({
 			itemKey,
-			name: itemKey,
+			// The name people bought it as ("Eggs"), not the singular key ("egg").
+			name: size.name ?? itemKey,
 			quantity: roundPack(size.initialQuantity, size.unit),
 			unit: size.unit,
 			mealIds: [],

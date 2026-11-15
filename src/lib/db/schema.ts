@@ -483,6 +483,41 @@ export const householdHabitAnswers = pgTable(
 	(t) => [unique('household_habit_answers_household_key_unique').on(t.householdId, t.key)]
 );
 
+// Household events: what one member did that the others should hear about ("Sam got the
+// shopping"), and today's "we're eating out".
+export const householdEvents = pgTable(
+	'household_events',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+		kind: text('kind').notNull(), // SHOP_DONE, PLANNED, EATING_OUT, COOKED, JOINED
+		payload: jsonb('payload'),
+		createdAt: timestamp('created_at').notNull().defaultNow()
+	},
+	(t) => [index('household_events_household_created_idx').on(t.householdId, t.createdAt)]
+);
+
+// Answers to the questions in "Needs you", per member, so an answered question is not asked again.
+export const needsYouAnswers = pgTable(
+	'needs_you_answers',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		key: text('key').notNull(),
+		answer: text('answer').notNull(),
+		answeredAt: timestamp('answered_at').notNull().defaultNow()
+	},
+	(t) => [unique('needs_you_answers_household_user_key_unique').on(t.householdId, t.userId, t.key)]
+);
+
 // Category Shelf Life (for stock estimation)
 export const categoryShelfLife = pgTable('category_shelf_life', {
 	id: uuid('id').primaryKey().defaultRandom(),
@@ -874,6 +909,8 @@ export type NewCupboardItem = typeof cupboardItems.$inferInsert;
 export type KitchenEventRow = typeof kitchenEvents.$inferSelect;
 export type NewKitchenEventRow = typeof kitchenEvents.$inferInsert;
 export type HouseholdHabitAnswerRow = typeof householdHabitAnswers.$inferSelect;
+export type HouseholdEventRow = typeof householdEvents.$inferSelect;
+export type NeedsYouAnswerRow = typeof needsYouAnswers.$inferSelect;
 export type CategoryShelfLife = typeof categoryShelfLife.$inferSelect;
 export type NewCategoryShelfLife = typeof categoryShelfLife.$inferInsert;
 export type CookbookEmbedding = typeof cookbookEmbeddings.$inferSelect;

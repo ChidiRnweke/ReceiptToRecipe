@@ -4,6 +4,8 @@ import type { KitchenEvent, KitchenEventKind, NewKitchenEvent } from '$lib/model
 export interface IKitchenEventRepository {
 	append(event: NewKitchenEvent): Promise<KitchenEvent>;
 	appendMany(events: NewKitchenEvent[]): Promise<KitchenEvent[]>;
+	/** One event of the household, or null. */
+	findById(householdId: string, id: string): Promise<KitchenEvent | null>;
 	/** Events at or after `since`, oldest first. */
 	listByHouseholdSince(householdId: string, since: Date): Promise<KitchenEvent[]>;
 	/** Events of one kind, oldest first, optionally only those at or after `since`. */

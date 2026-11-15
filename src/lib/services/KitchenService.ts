@@ -32,6 +32,16 @@ import { householdTimeZone } from './householdTimeZone';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** A correction, or an item added by hand: the changes a person can take back. */
+function isUndoable(event: KitchenEvent): boolean {
+	if (event.kind === 'BOUGHT') return event.payload?.source === 'manual';
+	return (
+		event.kind === 'CORRECTED_GONE' ||
+		event.kind === 'CORRECTED_STILL_GOOD' ||
+		event.kind === 'CORRECTED_QUANTITY'
+	);
+}
+
 /** How far back the picture looks for purchases that may still be good (tins, rice, frozen). */
 const PICTURE_LOOKBACK_DAYS = 730;
 
@@ -99,9 +109,10 @@ export class KitchenService implements IKitchenService {
 				const itemKey = normalizeItemKey(ingredient.name);
 				const quantity = parseFloat(ingredient.quantity) * factor;
 				const base = toBaseUnit(quantity, ingredient.unit);
+				const name = ingredient.name.trim();
 				return base
-					? { itemKey, quantity: base.quantity, unit: base.unit }
-					: { itemKey, quantity, unit: ingredient.unit, estimate: true };
+					? { itemKey, name, quantity: base.quantity, unit: base.unit }
+					: { itemKey, name, quantity, unit: ingredient.unit, estimate: true };
 			});
 
 		const event = await this.kitchenEventRepository.append({
@@ -112,7 +123,7 @@ export class KitchenService implements IKitchenService {
 			recipeId: recipe.id,
 			plannedMealId: plannedMeal?.id ?? null,
 			portions: extraPortions > 0 ? extraPortions : null,
-			payload: { ingredients: used, servings: input.servings }
+			payload: { ingredients: used, servings: input.servings, title: recipe.title }
 		});
 
 		if (plannedMeal) {
@@ -135,6 +146,10 @@ export class KitchenService implements IKitchenService {
 	}
 
 	async correct(input: CorrectionInput): Promise<KitchenEvent> {
+		const payload = {
+			...(input.category ? { category: input.category } : {}),
+			...(input.name?.trim() ? { name: input.name.trim() } : {})
+		};
 		return this.kitchenEventRepository.append({
 			householdId: input.actor.householdId,
 			actorUserId: input.actor.userId,
@@ -144,8 +159,15 @@ export class KitchenService implements IKitchenService {
 			quantity: input.kind === 'CORRECTED_QUANTITY' ? (input.quantity ?? 0) : null,
 			unit: input.unit ?? null,
 			cupboardItemId: input.cupboardItemId ?? null,
-			payload: input.category ? { category: input.category } : null
+			payload: Object.keys(payload).length ? payload : null
 		});
+	}
+
+	async undoEvent(householdId: string, eventId: string): Promise<KitchenEvent> {
+		const event = await this.kitchenEventRepository.findById(householdId, eventId);
+		if (!event || !isUndoable(event)) throw new Error('Change not found');
+		await this.kitchenEventRepository.deleteByIds(householdId, [event.id]);
+		return event;
 	}
 
 	async withdrawCupboardItem(input: WithdrawCupboardItemInput): Promise<KitchenEvent[]> {
@@ -244,7 +266,7 @@ export class KitchenService implements IKitchenService {
 				known: true,
 				receiptItemId: item.receiptItemId ?? null,
 				cupboardItemId: item.cupboardItemId ?? null,
-				payload: { category: item.category ?? null, source }
+				payload: { category: item.category ?? null, source, name: item.name.trim() }
 			}));
 	}
 }

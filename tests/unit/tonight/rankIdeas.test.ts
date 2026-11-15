@@ -21,6 +21,7 @@ function stock(
 ): RankStock {
 	return {
 		itemKey,
+		name: itemKey,
 		quantity,
 		unit,
 		expiresOn: DAY + expiresIn,
