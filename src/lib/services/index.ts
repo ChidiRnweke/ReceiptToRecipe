@@ -145,6 +145,7 @@ export { MockOcrService } from './MockOcrService';
 export { SmartCulinaryIntelligence } from './SmartCulinaryIntelligence';
 export { SmartProductNormalizer } from './SmartProductNormalizer';
 export { SmartImageGenerator } from './SmartImageGenerator';
+export { LocalFluxImageGenerator } from './LocalFluxImageGenerator';
 export { SeedPictureGenerator } from './SeedPictureGenerator';
 export { OpenRouterPhotoJudge } from './OpenRouterPhotoJudge';
 export { RecipePictureService } from './RecipePictureService';

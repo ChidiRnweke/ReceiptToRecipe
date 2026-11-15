@@ -38,4 +38,17 @@ export {
 } from './cookbookRules';
 export { itemKeysOf, cookbookTags, embeddingText } from './cookbookText';
 export { unitTypeOf } from './unitType';
-export { PICTURE_COST_ESTIMATES, spendEstimate, type PictureCostEstimate } from './pictureCosts';
+export {
+	PICTURE_COST_ESTIMATES,
+	spendEstimate,
+	pictureRunNotice,
+	readableDuration,
+	LOCAL_SECONDS_PER_PICTURE,
+	type PictureCostEstimate
+} from './pictureCosts';
+export {
+	chooseImageGenerator,
+	DEFAULT_IMAGE_MODEL,
+	DEFAULT_LOCAL_FLUX_MODEL,
+	type ImageGeneratorKind
+} from './imageGeneratorChoice';

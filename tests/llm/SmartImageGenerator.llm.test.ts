@@ -2,10 +2,11 @@
 import { describeLLM, OPENROUTER_API_KEY, withRetry } from './setup';
 import { SmartImageGenerator } from '../../src/lib/services/SmartImageGenerator';
 import { recipePicturePrompt } from '../../src/lib/services/recipes/pictureStyle';
+import { DEFAULT_IMAGE_MODEL } from '../../src/lib/services/recipes/imageGeneratorChoice';
 
 /**
- * Image generation tests use the app's image model (OPENROUTER_IMAGE_MODEL, else
- * google/gemini-2.5-flash-image) through OpenRouter. These tests are more expensive and slower.
+ * Image generation tests use the app's image model (OPENROUTER_IMAGE_MODEL, else FLUX 3 Image
+ * Klein) through OpenRouter's images endpoint. These tests are more expensive and slower.
  *
  * NOTE: Image generation is inherently non-deterministic and can fail
  * due to content policy filters, so tests are lenient.
@@ -16,7 +17,7 @@ describeLLM('SmartImageGenerator (LLM Integration)', () => {
 	beforeAll(() => {
 		service = new SmartImageGenerator(
 			OPENROUTER_API_KEY,
-			process.env.OPENROUTER_IMAGE_MODEL || 'google/gemini-2.5-flash-image'
+			process.env.OPENROUTER_IMAGE_MODEL || DEFAULT_IMAGE_MODEL
 		);
 	});
 
@@ -49,7 +50,7 @@ describeLLM('SmartImageGenerator (LLM Integration)', () => {
 				2000
 			);
 
-			expect(result.url.length).toBeGreaterThan(0);
+			expect(result.url).toMatch(/^data:image\/[a-z]+;base64,/);
 		}, 60000);
 	});
 });

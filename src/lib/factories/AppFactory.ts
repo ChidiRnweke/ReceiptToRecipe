@@ -11,6 +11,7 @@ import {
 	MockOcrService,
 	SmartCulinaryIntelligence,
 	SmartImageGenerator,
+	LocalFluxImageGenerator,
 	SeedPictureGenerator,
 	OpenRouterPhotoJudge,
 	RecipePictureService,
@@ -137,7 +138,12 @@ import {
 } from '$repositories';
 import { agentToolbox } from './agent/agentTools';
 import seedPictures from '../../../static/seed/recipes/credits.json';
-import type { SeedPictureCatalog } from '$services/recipes';
+import {
+	chooseImageGenerator,
+	DEFAULT_IMAGE_MODEL,
+	DEFAULT_LOCAL_FLUX_MODEL,
+	type SeedPictureCatalog
+} from '$services/recipes';
 
 // Infrastructure Services
 let storageService: IStorageService | null = null;
@@ -297,19 +303,33 @@ export class AppFactory {
 	}
 
 	/**
-	 * The image model through OpenRouter. With `IMAGE_GENERATOR=seed`, or without an OpenRouter
-	 * key, the committed seed photos stand in for generated pictures.
+	 * The image model through OpenRouter (FLUX 3 Image Klein unless OPENROUTER_IMAGE_MODEL says
+	 * otherwise). With `IMAGE_GENERATOR=seed`, or without an OpenRouter key, the committed seed
+	 * photos stand in. With `IMAGE_GENERATOR=local`, FLUX runs on this machine; a production
+	 * server refuses that.
 	 */
 	static getImageGenerator(): IImageGenerator {
 		if (!imageGenerator) {
 			const apiKey = ConfigService.get('OPENROUTER_API_KEY');
+			const kind = chooseImageGenerator({
+				setting: ConfigService.get('IMAGE_GENERATOR'),
+				apiKey,
+				// A built server (`dev` false) counts as production even when NODE_ENV is unset.
+				production: !dev || process.env.NODE_ENV === 'production'
+			});
 			imageGenerator =
-				ConfigService.get('IMAGE_GENERATOR') === 'seed' || !apiKey
-					? new SeedPictureGenerator(seedPictures as SeedPictureCatalog)
-					: new SmartImageGenerator(
-							apiKey,
-							ConfigService.get('OPENROUTER_IMAGE_MODEL') || 'google/gemini-2.5-flash-image'
-						);
+				kind === 'local'
+					? new LocalFluxImageGenerator({
+							env: {
+								FLUX_LOCAL_MODEL: ConfigService.get('FLUX_LOCAL_MODEL') || DEFAULT_LOCAL_FLUX_MODEL
+							}
+						})
+					: kind === 'openrouter' && apiKey
+						? new SmartImageGenerator(
+								apiKey,
+								ConfigService.get('OPENROUTER_IMAGE_MODEL') || DEFAULT_IMAGE_MODEL
+							)
+						: new SeedPictureGenerator(seedPictures as SeedPictureCatalog);
 		}
 		return imageGenerator;
 	}
@@ -336,7 +356,9 @@ export class AppFactory {
 				AppFactory.getRecipeRepository(),
 				AppFactory.getRecipeIngredientRepository(),
 				AppFactory.getImageGenerator(),
-				AppFactory.getPhotoJudge(),
+				// The judge needs an OpenRouter key; build it when a photo is judged, so picture runs
+				// without a key (seed photos, local FLUX) can start.
+				{ score: (photo, dish) => AppFactory.getPhotoJudge().score(photo, dish) },
 				AppFactory.getStorageService(),
 				AppFactory.getJobQueue(),
 				AppFactory.getCookbookRecipeRepository()

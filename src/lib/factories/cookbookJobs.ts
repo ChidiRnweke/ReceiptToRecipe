@@ -2,6 +2,7 @@
  * The system compositions the cookbook scripts run: the importer and the picture run. They act
  * for no household, so they are built here and not per request.
  */
+import { dev } from '$app/environment';
 import { ConfigService } from '$services/ConfigService';
 import {
 	CookbookImportService,
@@ -12,6 +13,7 @@ import {
 	type ICookbookStructurer,
 	type IRecipePictureService
 } from '$services';
+import { chooseImageGenerator, DEFAULT_IMAGE_MODEL } from '$services/recipes';
 import { AppFactory } from './AppFactory';
 
 export interface CookbookImportSetup {
@@ -50,15 +52,23 @@ export function cookbookImport(options: { cacheDir: string | null }): CookbookIm
 	};
 }
 
-/** The picture service, and which image model it uses (`seed` for the stand-in photos). */
+/**
+ * The picture service, and which image model it uses: `seed` for the stand-in photos, `local`
+ * for FLUX on this machine, else the OpenRouter model.
+ */
 export function cookbookPictures(): { pictures: IRecipePictureService; model: string } {
-	const apiKey = ConfigService.get('OPENROUTER_API_KEY');
-	const seed = ConfigService.get('IMAGE_GENERATOR') === 'seed' || !apiKey;
+	const kind = chooseImageGenerator({
+		setting: ConfigService.get('IMAGE_GENERATOR'),
+		apiKey: ConfigService.get('OPENROUTER_API_KEY'),
+		// A built server (`dev` false) counts as production even when NODE_ENV is unset.
+		production: !dev || process.env.NODE_ENV === 'production'
+	});
 	return {
 		pictures: AppFactory.getRecipePictureService(),
-		model: seed
-			? 'seed'
-			: ConfigService.get('OPENROUTER_IMAGE_MODEL') || 'google/gemini-2.5-flash-image'
+		model:
+			kind === 'openrouter'
+				? ConfigService.get('OPENROUTER_IMAGE_MODEL') || DEFAULT_IMAGE_MODEL
+				: kind
 	};
 }
 

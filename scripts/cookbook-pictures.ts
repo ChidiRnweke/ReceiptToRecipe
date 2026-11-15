@@ -2,12 +2,15 @@
  * Gives shared-cookbook recipes their picture, generated in the house style. Resumable: a run
  * only looks at recipes without a picture, so stopping and starting again continues.
  *
- *   npm run cookbook:pictures [-- --model openai/gpt-5-image-mini] [-- --limit 100]
+ *   npm run cookbook:pictures [-- --model google/gemini-2.5-flash-image] [-- --limit 100]
  *                             [-- --replace-stand-ins] [-- --yes]
+ *   npm run pictures:local [-- --limit 100]
  *
- * --model sets OPENROUTER_IMAGE_MODEL for this run. Without a working OpenRouter key, or with
- * IMAGE_GENERATOR=seed, the committed seed photos stand in. The spend estimate (from the
- * bake-off's per-picture costs) is printed first; a run that costs money waits 5 seconds, so
+ * --model sets OPENROUTER_IMAGE_MODEL for this run (FLUX 3 Image Klein by default). Without a
+ * working OpenRouter key, or with IMAGE_GENERATOR=seed, the committed seed photos stand in.
+ * `pictures:local` sets IMAGE_GENERATOR=local and makes the pictures with FLUX on this Mac
+ * (docs/local-pictures.md). The spend estimate (from the bake-off's per-picture costs), or for a
+ * local run the expected duration, is printed first; a run that costs money waits 5 seconds, so
  * Ctrl-C stops it, unless --yes is passed.
  */
 import { appModules, argument, integerArgument } from './lib/appModules.ts';
@@ -28,19 +31,11 @@ export async function runCookbookPictures(
 		return;
 	}
 
-	if (model === 'seed') {
-		console.log(`${count} picture(s) from the committed seed photos (stand-ins): $0.`);
-	} else {
-		const estimate = costs.spendEstimate(model, count);
-		console.log(
-			estimate
-				? `${count} picture(s) with ${model}: about $${estimate.low.toFixed(2)}–$${estimate.high.toFixed(2)} ($${estimate.perPicture.low}–$${estimate.perPicture.high} each, bake-off estimate).`
-				: `${count} picture(s) with ${model}: no estimate for this model; see scripts/picture-bakeoff.ts.`
-		);
-		if (options.wait) {
-			console.log('Starting in 5 s; Ctrl-C to stop.');
-			await new Promise((resolve) => setTimeout(resolve, 5000));
-		}
+	const notice = costs.pictureRunNotice(model, count);
+	console.log(notice.message);
+	if (notice.costsMoney && options.wait) {
+		console.log('Starting in 5 s; Ctrl-C to stop.');
+		await new Promise((resolve) => setTimeout(resolve, 5000));
 	}
 
 	const summary = await pictures.fillCookbook({

@@ -6,6 +6,8 @@ export interface GeneratedImage {
 	revisedPrompt?: string;
 	/** Set when the "generated" image is someone else's photo, as the seed pictures are. */
 	credit?: ImageCredit;
+	/** What the provider charged for the picture, in USD, when it reports it. */
+	cost?: number;
 }
 
 export interface IImageGenerator {

@@ -1,8 +1,8 @@
 /**
  * Picture bake-off: generates the same dishes in the house style with several image models
- * through OpenRouter, so we can choose the model for recipe pictures by looking at them.
+ * through OpenRouter (its images endpoint for FLUX, chat completions for the others), so we can choose the model for recipe pictures by looking at them.
  *
- *   npm run pictures:bakeoff [-- --dishes 3] [-- --only gemini-2.5-flash-image]
+ *   npm run pictures:bakeoff [-- --dishes 3] [-- --only flux-3-image-klein]
  *
  * Needs OPENROUTER_API_KEY. Writes artifacts/bakeoff/<variant>/<dish>.<ext>, plus
  * artifacts/bakeoff/index.html (a grid of dishes × variants with the cost OpenRouter reported)
@@ -18,6 +18,11 @@ interface Variant {
 	/** Folder name and column heading. */
 	id: string;
 	model: string;
+	/**
+	 * `images` for OpenRouter's images endpoint, which image-only models such as FLUX need (they
+	 * refuse chat completions); `chat` for models that answer chat completions with an image.
+	 */
+	api: 'images' | 'chat';
 	/** Extra request fields for this variant, e.g. an image quality. */
 	extra?: Record<string, unknown>;
 }
@@ -41,26 +46,37 @@ interface Result {
 }
 
 const VARIANTS: Variant[] = [
+	{
+		id: 'flux-3-image-klein',
+		model: 'black-forest-labs/flux-3-image-klein',
+		api: 'images',
+		// FLUX takes a resolution tier and an aspect ratio, not pixel sizes: 1K at 4:3 is 1184×880.
+		extra: { size: '1K', aspect_ratio: '4:3' }
+	},
 	// OpenAI image models take a quality. OpenRouter passes `image_config` through to the
 	// provider; check the generated files if the two qualities look identical.
 	{
 		id: 'gpt-5-image-mini-low',
 		model: 'openai/gpt-5-image-mini',
+		api: 'chat',
 		extra: { image_config: { quality: 'low' } }
 	},
 	{
 		id: 'gpt-5-image-mini-medium',
 		model: 'openai/gpt-5-image-mini',
+		api: 'chat',
 		extra: { image_config: { quality: 'medium' } }
 	},
 	{
 		id: 'gemini-3.1-flash-lite-image',
 		model: 'google/gemini-3.1-flash-lite-image',
+		api: 'chat',
 		extra: { image_config: { aspect_ratio: '4:3' } }
 	},
 	{
 		id: 'gemini-2.5-flash-image',
 		model: 'google/gemini-2.5-flash-image',
+		api: 'chat',
 		extra: { image_config: { aspect_ratio: '4:3' } }
 	}
 ];
@@ -153,29 +169,40 @@ async function generate(key: string, variant: Variant, dish: Dish): Promise<Resu
 	const started = Date.now();
 	const base = { variant: variant.id, model: variant.model, dish: dish.slug };
 	try {
-		const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+		const prompt = recipePicturePrompt(dish);
+		const request =
+			variant.api === 'images'
+				? { url: 'images/generations', body: { model: variant.model, prompt, n: 1 } }
+				: {
+						url: 'chat/completions',
+						body: {
+							model: variant.model,
+							messages: [{ role: 'user', content: prompt }],
+							modalities: ['image', 'text'],
+							usage: { include: true }
+						}
+					};
+		const response = await fetch(`https://openrouter.ai/api/v1/${request.url}`, {
 			method: 'POST',
 			headers: {
 				Authorization: `Bearer ${key}`,
 				'Content-Type': 'application/json',
 				'X-Title': 'ReceiptToRecipe picture bake-off'
 			},
-			body: JSON.stringify({
-				model: variant.model,
-				messages: [{ role: 'user', content: recipePicturePrompt(dish) }],
-				modalities: ['image', 'text'],
-				usage: { include: true },
-				...variant.extra
-			})
+			body: JSON.stringify({ ...request.body, ...variant.extra })
 		});
 		const body = (await response.json()) as {
 			error?: { message?: string };
 			usage?: { cost?: number };
+			data?: { b64_json?: string; media_type?: string }[];
 			choices?: { message?: { images?: { image_url?: { url?: string } }[] } }[];
 		};
 		if (!response.ok)
 			throw new Error(`${response.status} ${body.error?.message ?? response.statusText}`);
-		const url = body.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+		const image = body.data?.[0];
+		const url = image?.b64_json
+			? `data:${image.media_type ?? 'image/png'};base64,${image.b64_json}`
+			: body.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 		const match = url ? /^data:([^;,]+);base64,(.*)$/s.exec(url) : null;
 		if (!match) throw new Error('No image in the answer');
 		const file = `${dish.slug}.${EXTENSIONS[match[1]] ?? 'png'}`;

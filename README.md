@@ -184,21 +184,22 @@ src/
 
 ## Scripts
 
-| Command                 | Description                         |
-| ----------------------- | ----------------------------------- |
-| `npm run dev`           | Start development server            |
-| `npm run build`         | Build for production                |
-| `npm run preview`       | Preview production build            |
-| `npm run check`         | TypeScript and Svelte type checking |
-| `npm run lint`          | Run ESLint and Prettier checks      |
-| `npm run format`        | Auto-format code with Prettier      |
-| `npm run test`          | Run unit tests                      |
-| `npm run test:watch`    | Run tests in watch mode             |
-| `npm run test:coverage` | Run tests with coverage report      |
-| `npm run db:generate`   | Generate Drizzle migrations         |
-| `npm run db:migrate`    | Run database migrations             |
-| `npm run db:push`       | Push schema directly to database    |
-| `npm run db:studio`     | Open Drizzle Studio GUI             |
+| Command                  | Description                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `npm run dev`            | Start development server                                                                               |
+| `npm run build`          | Build for production                                                                                   |
+| `npm run preview`        | Preview production build                                                                               |
+| `npm run check`          | TypeScript and Svelte type checking                                                                    |
+| `npm run lint`           | Run ESLint and Prettier checks                                                                         |
+| `npm run format`         | Auto-format code with Prettier                                                                         |
+| `npm run test`           | Run unit tests                                                                                         |
+| `npm run test:watch`     | Run tests in watch mode                                                                                |
+| `npm run test:coverage`  | Run tests with coverage report                                                                         |
+| `npm run db:generate`    | Generate Drizzle migrations                                                                            |
+| `npm run db:migrate`     | Run database migrations                                                                                |
+| `npm run db:push`        | Push schema directly to database                                                                       |
+| `npm run db:studio`      | Open Drizzle Studio GUI                                                                                |
+| `npm run pictures:local` | Make cookbook recipe pictures with FLUX on this Mac ([docs/local-pictures.md](docs/local-pictures.md)) |
 
 ## Architecture
 

@@ -18,6 +18,7 @@
 		"pictures:bakeoff": "node scripts/picture-bakeoff.ts",
 		"cookbook:import": "node scripts/import-cookbook.ts",
 		"cookbook:pictures": "node scripts/cookbook-pictures.ts",
+		"pictures:local": "IMAGE_GENERATOR=local node scripts/cookbook-pictures.ts",
 		"test": "vitest run --exclude 'tests/llm/**'",
 		"test:watch": "vitest --exclude 'tests/llm/**'",
 		"test:coverage": "vitest run --coverage --exclude 'tests/llm/**'",
