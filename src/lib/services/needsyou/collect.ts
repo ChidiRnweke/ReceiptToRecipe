@@ -299,7 +299,7 @@ export function eventText(event: HouseholdEvent, today: number): string | null {
 		case 'COOKED':
 			return event.payload.title ? `cooked ${event.payload.title.toLowerCase()}` : 'cooked dinner';
 		case 'JOINED':
-			return 'joined the household';
+			return 'joined the kitchen';
 	}
 }
 

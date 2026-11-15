@@ -260,6 +260,13 @@ describe('collectNeedsYou', () => {
 			]);
 		});
 
+		it('says that another member joined the kitchen', () => {
+			const joined = event({ kind: 'JOINED', payload: {} });
+			expect(texts(collectNeedsYou(context({ members, events: [joined] })))).toEqual([
+				'Sam joined the kitchen'
+			]);
+		});
+
 		it('hides an event from before the viewer joined the household', () => {
 			const ctx = context({
 				members,

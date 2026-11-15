@@ -206,6 +206,14 @@ describe('NeedsYouController', () => {
 
 		const textsFor = async (actor: Actor) => (await items(actor)).map((item) => item.text);
 
+		it('tells the household that Grace joined the kitchen', async () => {
+			expect(await textsFor(shopper)).toContain('Grace joined the kitchen');
+		});
+
+		it('does not tell Grace that she joined', async () => {
+			expect(await textsFor(grace)).not.toContain('Grace joined the kitchen');
+		});
+
 		it('does not tell Grace what the household did before she joined', async () => {
 			expect(await textsFor(grace)).not.toContain('Sam got the shopping');
 		});
