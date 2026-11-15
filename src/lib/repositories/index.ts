@@ -27,7 +27,9 @@ export { NeedsYouAnswerRepository } from './NeedsYouAnswerRepository';
 export {
 	AgentConversationRepository,
 	AgentMessageRepository,
-	AgentActionRepository
+	AgentSessionRepository,
+	AgentActionRepository,
+	AgentRunRepository
 } from './AgentRepositories';
 
 // Repository Interfaces
@@ -69,7 +71,9 @@ export type {
 export type {
 	IAgentConversationRepository,
 	IAgentMessageRepository,
-	IAgentActionRepository
+	IAgentSessionRepository,
+	IAgentActionRepository,
+	IAgentRunRepository
 } from './interfaces/IAgentRepositories';
 
 // DAOs

@@ -545,7 +545,7 @@ export const agentMessages = pgTable(
 		conversationId: uuid('conversation_id')
 			.notNull()
 			.references(() => agentConversations.id, { onDelete: 'cascade' }),
-		role: text('role').notNull(), // user, assistant, tool
+		role: text('role').notNull(), // user, assistant
 		content: jsonb('content').notNull(),
 		toolCalls: jsonb('tool_calls'),
 		createdAt: timestamp('created_at').notNull().defaultNow()
@@ -573,6 +573,76 @@ export const agentActions = pgTable(
 		decidedAt: timestamp('decided_at')
 	},
 	(t) => [index('agent_actions_conversation_idx').on(t.conversationId, t.createdAt)]
+);
+
+// What Basil's agent reads back: the conversation as agent SDK items (messages, tool calls and
+// their results), in order. The sheet shows agent_messages; the model reads these.
+export const agentSessionItems = pgTable(
+	'agent_session_items',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		conversationId: uuid('conversation_id')
+			.notNull()
+			.references(() => agentConversations.id, { onDelete: 'cascade' }),
+		position: integer('position').notNull(),
+		item: jsonb('item').notNull(),
+		createdAt: timestamp('created_at').notNull().defaultNow()
+	},
+	(t) => [
+		uniqueIndex('agent_session_items_conversation_position_idx').on(t.conversationId, t.position)
+	]
+);
+
+// One run of Basil: the answer to a message. A run that proposes a change parks with the agent's
+// serialized state, and the person's yes or not now resumes it. The run's events are the stream
+// the sheet reads; a reload replays them from a cursor.
+export const agentRuns = pgTable(
+	'agent_runs',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		conversationId: uuid('conversation_id')
+			.notNull()
+			.references(() => agentConversations.id, { onDelete: 'cascade' }),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		/** Chosen by the browser, so a retried submit finds the run it already started. */
+		requestId: uuid('request_id').notNull(),
+		/** What the run answers and who asked: the text and the page. */
+		input: jsonb('input').notNull(),
+		// queued, running, awaiting_approval, cancelling, completed, failed, cancelled
+		status: text('status').notNull().default('queued'),
+		/** The agent's RunState while the run waits for a yes on a change. */
+		serializedState: text('serialized_state'),
+		failure: text('failure'),
+		cancelRequestedAt: timestamp('cancel_requested_at'),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+		finishedAt: timestamp('finished_at')
+	},
+	(t) => [
+		uniqueIndex('agent_runs_user_request_idx').on(t.userId, t.requestId),
+		// One run at a time per conversation, while it is queued, running or stopping.
+		uniqueIndex('agent_runs_one_active_idx')
+			.on(t.conversationId)
+			.where(sql`${t.status} in ('queued', 'running', 'cancelling')`),
+		index('agent_runs_status_idx').on(t.status)
+	]
+);
+
+export const agentRunEvents = pgTable(
+	'agent_run_events',
+	{
+		cursor: bigserial('cursor', { mode: 'number' }).primaryKey(),
+		runId: uuid('run_id')
+			.notNull()
+			.references(() => agentRuns.id, { onDelete: 'cascade' }),
+		event: jsonb('event').notNull(),
+		createdAt: timestamp('created_at').notNull().defaultNow()
+	},
+	(t) => [index('agent_run_events_run_cursor_idx').on(t.runId, t.cursor)]
 );
 
 // Category Shelf Life (for stock estimation)
@@ -971,6 +1041,9 @@ export type NeedsYouAnswerRow = typeof needsYouAnswers.$inferSelect;
 export type AgentConversationRow = typeof agentConversations.$inferSelect;
 export type AgentMessageRow = typeof agentMessages.$inferSelect;
 export type AgentActionRow = typeof agentActions.$inferSelect;
+export type AgentSessionItemRow = typeof agentSessionItems.$inferSelect;
+export type AgentRunRow = typeof agentRuns.$inferSelect;
+export type AgentRunEventRow = typeof agentRunEvents.$inferSelect;
 export type CategoryShelfLife = typeof categoryShelfLife.$inferSelect;
 export type NewCategoryShelfLife = typeof categoryShelfLife.$inferInsert;
 export type CookbookEmbedding = typeof cookbookEmbeddings.$inferSelect;

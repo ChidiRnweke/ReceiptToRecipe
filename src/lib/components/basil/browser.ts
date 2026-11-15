@@ -14,6 +14,7 @@ import { getUseItUp } from '$lib/remote/useitup/useitup.remote';
 import { listMine } from '$lib/remote/recipes/recipes.remote';
 import { getNeedsYou } from '$lib/remote/needsyou/needsyou.remote';
 import { MY_RECIPE_TABS } from '$lib/models/recipes';
+import { planRange } from '$lib/state/planRange.svelte';
 
 const DOOR_OF: Record<DoorKey, BasilDoor> = {
 	tonight: 'tonight',
@@ -98,6 +99,8 @@ export function refreshDoors(doors: BasilDoor[]): void {
 			getTonight().refresh();
 			getAlternatives().refresh();
 		} else if (door === 'plan') {
+			// The range the member picked on the Plan door, and the default the other doors read.
+			if (planRange.picked) getPlan(planRange.picked).refresh();
 			getPlan(undefined).refresh();
 		} else if (door === 'shop') {
 			getShop().refresh();

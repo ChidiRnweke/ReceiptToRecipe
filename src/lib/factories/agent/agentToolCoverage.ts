@@ -57,9 +57,21 @@ export const agentToolCoverage = {
 			kind: 'excluded',
 			reason: 'Basil does not read its own conversation as a tool.'
 		},
-		sendMessage: { kind: 'excluded', reason: 'Basil does not talk to itself.' },
-		approve: { kind: 'excluded', reason: 'Only the person approves a change, on its card.' },
-		decline: { kind: 'excluded', reason: 'Only the person declines a change, on its card.' }
+		submit: { kind: 'excluded', reason: 'Basil does not talk to itself.' },
+		decide: { kind: 'excluded', reason: 'Only the person says yes or not now, on the card.' },
+		cancel: { kind: 'excluded', reason: 'Only the person stops Basil, with Stop.' },
+		startOver: { kind: 'excluded', reason: 'Only the person starts a new conversation.' },
+		openRun: { kind: 'excluded', reason: 'The sheet’s event stream, not a household action.' },
+		listEvents: { kind: 'excluded', reason: 'The sheet’s event stream, not a household action.' },
+		isStreamComplete: {
+			kind: 'excluded',
+			reason: 'The sheet’s event stream, not a household action.'
+		},
+		watch: { kind: 'excluded', reason: 'The sheet’s event stream, not a household action.' },
+		recoverInterruptedRuns: {
+			kind: 'excluded',
+			reason: 'Runs once when the server starts; nobody asks for it.'
+		}
 	},
 	frontDoor: {
 		decide: {

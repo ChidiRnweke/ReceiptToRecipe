@@ -1,3 +1,5 @@
+import { dev } from '$app/environment';
+import type { ModelProvider } from '@openai/agents';
 import { ConfigService } from '$services/ConfigService';
 import { getDb } from '$db/client';
 import {
@@ -24,9 +26,13 @@ import {
 	HouseholdEventService,
 	NeedsYouService,
 	AgentService,
-	OpenRouterAgentModel,
+	AgentRunService,
+	ActiveRuns,
+	InProcessRunEventBus,
+	DevScriptedModelProvider,
+	openRouterModelProvider,
 	type IAgentService,
-	type IAgentModel,
+	type IAgentRunService,
 	type IHouseholdEventService,
 	type INeedsYouService,
 	type IStorageService,
@@ -91,7 +97,9 @@ import {
 	NeedsYouAnswerRepository,
 	AgentConversationRepository,
 	AgentMessageRepository,
+	AgentSessionRepository,
 	AgentActionRepository,
+	AgentRunRepository,
 	type IHouseholdEventRepository,
 	type INeedsYouAnswerRepository,
 	type IUserRepository,
@@ -159,7 +167,8 @@ let planService: IPlanService | null = null;
 let shopService: IShopService | null = null;
 let recipeBookService: IRecipeBookService | null = null;
 let agentService: IAgentService | null = null;
-let agentModel: IAgentModel | null = null;
+let agentModels: { provider: ModelProvider; model: string } | null = null;
+let agentRunService: IAgentRunService | null = null;
 
 // Repositories
 let userRepository: IUserRepository | null = null;
@@ -635,31 +644,53 @@ export class AppFactory {
 		return shopController;
 	}
 
-	/** Basil's model: `BASIL_MODEL`, else the app's `OPENROUTER_MODEL`. */
-	static getAgentModel(): IAgentModel {
-		if (!agentModel) {
+	/**
+	 * Basil's models and the model it asks for: `BASIL_MODEL`, else the app's `OPENROUTER_MODEL`,
+	 * on OpenRouter. In development only, `BASIL_MODEL=scripted` uses a scripted stand-in that
+	 * needs no provider key.
+	 */
+	static getAgentModels(): { provider: ModelProvider; model: string } {
+		if (!agentModels) {
+			const named = ConfigService.get('BASIL_MODEL');
+			if (named === 'scripted' && dev) {
+				agentModels = { provider: new DevScriptedModelProvider(), model: 'scripted' };
+				return agentModels;
+			}
 			const apiKey = ConfigService.get('OPENROUTER_API_KEY');
 			if (!apiKey) {
 				throw new Error('OPENROUTER_API_KEY environment variable is required');
 			}
-			agentModel = new OpenRouterAgentModel(
-				apiKey,
-				ConfigService.get('BASIL_MODEL') ||
-					ConfigService.get('OPENROUTER_MODEL') ||
-					'google/gemini-3-flash-preview'
+			agentModels = {
+				provider: openRouterModelProvider(apiKey, { appURL: ConfigService.get('ORIGIN') }),
+				model: named || ConfigService.get('OPENROUTER_MODEL') || 'google/gemini-3-flash-preview'
+			};
+		}
+		return agentModels;
+	}
+
+	/** One per process: the bus and the running runs live in this process (adapter-node). */
+	static getAgentRunService(): IAgentRunService {
+		if (!agentRunService) {
+			agentRunService = new AgentRunService(
+				new AgentRunRepository(getDb()),
+				new InProcessRunEventBus(),
+				new ActiveRuns()
 			);
 		}
-		return agentModel;
+		return agentRunService;
 	}
 
 	static getAgentService(): IAgentService {
 		if (!agentService) {
 			const db = getDb();
+			const { provider, model } = AppFactory.getAgentModels();
 			agentService = new AgentService(
 				new AgentConversationRepository(db),
 				new AgentMessageRepository(db),
+				new AgentSessionRepository(db),
 				new AgentActionRepository(db),
-				AppFactory.getAgentModel()
+				provider,
+				model
 			);
 		}
 		return agentService;
@@ -667,20 +698,23 @@ export class AppFactory {
 
 	static getBasilController(): BasilController {
 		if (!basilController) {
-			basilController = new BasilController(AppFactory.getAgentService(), (actor, now, timeZone) =>
-				agentToolbox(
-					{
-						kitchen: () => AppFactory.getKitchenController(),
-						needsYou: () => AppFactory.getNeedsYouController(),
-						plan: () => AppFactory.getPlanController(),
-						recipe: () => AppFactory.getRecipeController(),
-						recipesDoor: () => AppFactory.getRecipesDoorController(),
-						shop: () => AppFactory.getShopController(),
-						tonight: () => AppFactory.getTonightController(),
-						useItUp: () => AppFactory.getUseItUpController()
-					},
-					{ actor, now, timeZone }
-				)
+			basilController = new BasilController(
+				AppFactory.getAgentService(),
+				AppFactory.getAgentRunService(),
+				(actor, now, timeZone) =>
+					agentToolbox(
+						{
+							kitchen: () => AppFactory.getKitchenController(),
+							needsYou: () => AppFactory.getNeedsYouController(),
+							plan: () => AppFactory.getPlanController(),
+							recipe: () => AppFactory.getRecipeController(),
+							recipesDoor: () => AppFactory.getRecipesDoorController(),
+							shop: () => AppFactory.getShopController(),
+							tonight: () => AppFactory.getTonightController(),
+							useItUp: () => AppFactory.getUseItUpController()
+						},
+						{ actor, now, timeZone }
+					)
 			);
 		}
 		return basilController;
@@ -901,7 +935,7 @@ export class AppFactory {
 		shopService = null;
 		recipeBookService = null;
 		agentService = null;
-		agentModel = null;
+		agentModels = null;
 
 		// Controllers
 		recipeController = null;

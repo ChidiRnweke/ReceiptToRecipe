@@ -4,7 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { DayStrip, DoorHeader, SlimState, type StripDay } from '$lib/components/doors';
 	import RecipePhoto from '$lib/components/tonight/RecipePhoto.svelte';
-	import type { PlanIdea, PlanRange, PlanSlot, PrepMeal } from '$lib/models/plan';
+	import type { PlanIdea, PlanSlot, PrepMeal } from '$lib/models/plan';
 	import { nextRange, type DayRange } from '$lib/services/doors';
 	import { pickingLine } from '$lib/services/plan';
 	import { weekdayName } from '$lib/services/tonight';
@@ -21,14 +21,17 @@
 		suggestRest
 	} from '$lib/remote/plan/plan.remote';
 	import { notice } from '$lib/state/notice.svelte';
+	import { planRange } from '$lib/state/planRange.svelte';
 	import MealSheet from './MealSheet.svelte';
 	import PickSheet, { type PickTarget } from './PickSheet.svelte';
 	import PrepSection from './PrepSection.svelte';
 	import SectionLabel from './SectionLabel.svelte';
 	import SlotRow from './SlotRow.svelte';
 
-	/** The range the member picked; the default stretch until then. */
-	let picked = $state<PlanRange | undefined>(undefined);
+	// The range the member picked; the default stretch until then. Kept in a shared store so
+	// Basil can refresh the same range, and reset each time the door opens.
+	planRange.picked = undefined;
+	const picked = $derived(planRange.picked);
 	/** The first day while the member picks the last one. */
 	let pickStart = $state<number | null>(null);
 	let busy = $state(false);
@@ -87,7 +90,7 @@
 		const range = { start: next.range.start, end: next.range.end + 1 };
 		busy = true;
 		pickRange(range)
-			.then((stretch) => (picked = { start: stretch.start, end: stretch.end }))
+			.then((stretch) => (planRange.picked = { start: stretch.start, end: stretch.end }))
 			.catch(() => notice.show('That didn’t go through. Try again in a moment.'))
 			.finally(() => (busy = false));
 	}

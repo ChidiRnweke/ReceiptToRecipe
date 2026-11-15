@@ -7,13 +7,19 @@
  */
 
 import { z } from 'zod';
+import type { AgentInputItem } from '@openai/agents';
 import type { ToolName } from './toolCatalog';
-import { BASIL_DOORS, type BasilDoor } from './doors';
+import type { BasilActiveRun } from './runs';
+import type { BasilDoor } from './doors';
+import { pageContextInput } from './pageContext';
 
 export * from './toolCatalog';
 export * from './toolInputs';
 export * from './doors';
 export * from './keys';
+export * from './pageContext';
+export * from './runs';
+export * from './toolLabels';
 
 /**
  * What a tool does to the household's data.
@@ -35,33 +41,23 @@ export type AgentToolContractMap<Controllers> = {
 	};
 };
 
-/** What the person is looking at when they ask. */
-export const pageContextInput = z
-	.object({
-		door: z.enum(BASIL_DOORS).nullable(),
-		route: z.string().trim().max(200),
-		/** `data-basil-key` values on the page, so Basil can point at them. */
-		visibleIds: z.array(z.string().trim().min(1).max(120)).max(60).optional(),
-		/** Text the person selected, if any. */
-		selection: z.string().trim().max(500).optional()
-	})
-	.strict();
-export type PageContext = z.infer<typeof pageContextInput>;
-
 export const BASIL_MESSAGE_MAX = 1000;
 
 export const sendMessageInput = z
 	.object({
 		text: z.string().trim().min(1, 'Say something first').max(BASIL_MESSAGE_MAX),
-		pageContext: pageContextInput
+		pageContext: pageContextInput,
+		/** Chosen by the browser, so sending the same message twice starts one run. */
+		requestId: z.uuid()
 	})
 	.strict();
 export type SendMessageInput = z.infer<typeof sendMessageInput>;
 
-export const actionInput = z
-	.object({ actionId: z.uuid(), pageContext: pageContextInput.optional() })
-	.strict();
+export const actionInput = z.object({ actionId: z.uuid() }).strict();
 export type ActionInput = z.infer<typeof actionInput>;
+
+export const runInput = z.object({ runId: z.uuid() }).strict();
+export type RunInput = z.infer<typeof runInput>;
 
 /** What kind of thing a change touched; each kind has a door it shows on. */
 export type TouchedKind = 'tonight' | 'planned-meal' | 'list-item' | 'kitchen-item' | 'recipe';
@@ -86,11 +82,6 @@ export interface ToolFailure {
 
 export type AgentActionStatus = 'pending' | 'approved' | 'declined' | 'executed' | 'failed';
 
-/** A step the browser carries out for Basil. */
-export type ClientAction =
-	| { tool: 'navigate_to'; door: BasilDoor | null; recipeId: string | null }
-	| { tool: 'highlight'; key: string };
-
 /** One line of the conversation as the sheet shows it. */
 export type BasilEntry =
 	| { kind: 'user'; id: string; text: string }
@@ -108,15 +99,8 @@ export interface BasilConversationView {
 	entries: BasilEntry[];
 	/** The change waiting for a yes, if any. */
 	pendingActionId: string | null;
-}
-
-/** What one turn of Basil gives back to the page. */
-export interface BasilTurnResult {
-	conversation: BasilConversationView;
-	/** Steps for the browser: open a door, outline something. */
-	clientActions: ClientAction[];
-	/** Doors whose data changed, so the page refreshes their queries. */
-	staleDoors: BasilDoor[];
+	/** The run still answering, so a reloaded sheet can follow it again. */
+	activeRun: BasilActiveRun | null;
 }
 
 // ─── Stored conversation ─────────────────────────────────────────────────
@@ -135,10 +119,17 @@ export interface AgentToolCall {
 	arguments: string;
 }
 
+/**
+ * One line of the conversation as the sheet shows it. Basil's words carry the tool calls they
+ * came with, so a change's card shows right after the words that proposed it. What the model
+ * reads is the session, kept apart.
+ */
 export type AgentMessageBody =
 	| { role: 'user'; text: string }
-	| { role: 'assistant'; text: string | null; toolCalls: AgentToolCall[] }
-	| { role: 'tool'; callId: string; name: string; result: unknown };
+	| { role: 'assistant'; text: string | null; toolCalls: AgentToolCall[] };
+
+/** One item of the conversation as the agent SDK reads it back: a message, a call, a result. */
+export type AgentSessionItem = AgentInputItem;
 
 export type AgentMessage = AgentMessageBody & {
 	id: string;

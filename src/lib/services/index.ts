@@ -94,13 +94,12 @@ export type {
 	IHouseholdEventService,
 	EventAuthor,
 	INeedsYouService,
-	IAgentModel,
-	AgentModelMessage,
-	AgentModelTool,
-	AgentModelRequest,
-	AgentModelReply,
 	IAgentService,
+	IAgentRunService,
+	BasilTurnRunner,
+	SubmitRun,
 	BasilTurnInput,
+	BasilTurnOutcome,
 	// OAuth interfaces
 	IOAuthService,
 	Auth0Tokens,
@@ -151,5 +150,9 @@ export {
 	type INotificationService
 } from './NotificationService';
 export { AgentService } from './agent/AgentService';
-export { OpenRouterAgentModel } from './agent/OpenRouterAgentModel';
+export { openRouterModelProvider } from './agent/openRouter';
 export type { AgentTool, AgentToolbox, ToolOutcome, ToolRun } from './agent/toolbox';
+export { AgentRunService } from './agent/runs/AgentRunService';
+export { InProcessRunEventBus, type IRunEventBus } from './agent/runs/RunEventBus';
+export { ActiveRuns } from './agent/runs/ActiveRuns';
+export { DevScriptedAgentModel, DevScriptedModelProvider } from './agent/DevScriptedAgentModel';

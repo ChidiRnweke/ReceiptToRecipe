@@ -26,13 +26,21 @@ export interface ToolRun {
 	clientAction?: ClientAction;
 }
 
+/** A tool's input as the model is shown it: a JSON schema object that takes no other fields. */
+export type ToolParameters = {
+	type: 'object';
+	properties: Record<string, Record<string, unknown>>;
+	required: string[];
+	additionalProperties: false;
+};
+
 export interface AgentTool<N extends ToolName = ToolName> {
 	readonly name: N;
 	readonly classification: ToolClassification;
 	readonly surface?: 'client';
 	readonly description: string;
 	/** The JSON schema of the tool's input, for the model. */
-	readonly parameters: Record<string, unknown>;
+	readonly parameters: ToolParameters;
 	/** Doors whose data a change makes stale. Empty for reads. */
 	readonly doors: readonly BasilDoor[];
 	/**
