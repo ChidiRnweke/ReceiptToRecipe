@@ -206,7 +206,9 @@ export class NeedsYouController {
 			viewer: {
 				userId: actor.userId,
 				memberId: actor.memberId,
-				shops: viewer?.roles.shops ?? actor.roles.shops
+				shops: viewer?.roles.shops ?? actor.roles.shops,
+				// A member missing from the list has just moved household: nothing is news yet.
+				joinedAt: viewer?.joinedAt ?? now
 			},
 			members: members.map((member) => ({
 				userId: member.userId,

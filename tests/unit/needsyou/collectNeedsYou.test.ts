@@ -55,7 +55,7 @@ function context(overrides: Partial<NeedsYouContext> = {}): NeedsYouContext {
 		timeZone: TZ,
 		today: dayNumber(now, TZ),
 		hour: localHour(now, TZ),
-		viewer: { userId: 'user-1', memberId: 'member-1', shops: true },
+		viewer: { userId: 'user-1', memberId: 'member-1', shops: true, joinedAt: at(-30) },
 		members: [{ userId: 'user-1', firstName: 'Noor' }],
 		tracks: true,
 		stock: [],
@@ -258,6 +258,15 @@ describe('collectNeedsYou', () => {
 			expect(texts(collectNeedsYou(context({ members, events: [planned] })))).toEqual([
 				'Sam planned Thu–Sun'
 			]);
+		});
+
+		it('hides an event from before the viewer joined the household', () => {
+			const ctx = context({
+				members,
+				viewer: { userId: 'user-1', memberId: 'member-1', shops: true, joinedAt: NOON },
+				events: [event({ createdAt: new Date(NOON.getTime() - 60 * 1000) })]
+			});
+			expect(collectNeedsYou(ctx)).toEqual([]);
 		});
 
 		it('forgets an event older than ten hours', () => {

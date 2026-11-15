@@ -62,7 +62,8 @@ export interface NeedsYouContext {
 	today: number;
 	/** Local hour of `now`, e.g. 18.5. */
 	hour: number;
-	viewer: { userId: string; memberId: string; shops: boolean };
+	/** The member asking; `joinedAt` is when they joined this household. */
+	viewer: { userId: string; memberId: string; shops: boolean; joinedAt: Date };
 	members: NeedsYouMember[];
 	/** The household records what it buys. */
 	tracks: boolean;
@@ -75,7 +76,7 @@ export interface NeedsYouContext {
 	dinnerDays: number[];
 	habits: Habits;
 	lastShopDoneAt: Date | null;
-	/** Household events of the last hours, newest first. */
+	/** The current household's events of the last hours, newest first. */
 	events: HouseholdEvent[];
 	/** Keys of the questions this member already answered. */
 	answered: Set<string>;
@@ -302,9 +303,15 @@ export function eventText(event: HouseholdEvent, today: number): string | null {
 	}
 }
 
-/** The latest thing another member did in the last ten hours: "Sam got the shopping". */
+/**
+ * The latest thing another member did in the last ten hours: "Sam got the shopping". Only
+ * events since the viewer joined the household count, so a newcomer is not told old news.
+ */
 export function householdEvent(ctx: NeedsYouContext): HouseholdEventItem[] {
-	const since = ctx.now.getTime() - HOUSEHOLD_EVENT_HOURS * HOUR_MS;
+	const since = Math.max(
+		ctx.now.getTime() - HOUSEHOLD_EVENT_HOURS * HOUR_MS,
+		ctx.viewer.joinedAt.getTime()
+	);
 	for (const event of ctx.events) {
 		const at = event.createdAt.getTime();
 		if (at > ctx.now.getTime() || at < since) continue;

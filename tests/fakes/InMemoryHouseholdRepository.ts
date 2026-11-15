@@ -60,7 +60,8 @@ export class InMemoryHouseholdRepository implements IHouseholdRepository {
 		return this.createMember({ ...member, householdId: household.id });
 	}
 
-	async createMember(member: NewHouseholdMember): Promise<HouseholdMember> {
+	/** `joinedAt` lets a test seat a member who joined at a known time; it defaults to now. */
+	async createMember(member: NewHouseholdMember & { joinedAt?: Date }): Promise<HouseholdMember> {
 		if (await this.findMemberByUserId(member.userId)) {
 			throw new Error('duplicate key value violates unique constraint');
 		}
@@ -75,7 +76,7 @@ export class InMemoryHouseholdRepository implements IHouseholdRepository {
 				shops: member.roles?.shops ?? true,
 				cooks: member.roles?.cooks ?? true
 			},
-			joinedAt: new Date()
+			joinedAt: member.joinedAt ?? new Date()
 		};
 		this.members.set(created.id, created);
 		return created;
@@ -127,11 +128,12 @@ export class InMemoryHouseholdRepository implements IHouseholdRepository {
 	async moveMemberWithData(
 		userId: string,
 		fromHouseholdId: string,
-		toHouseholdId: string
+		toHouseholdId: string,
+		joinedAt: Date
 	): Promise<void> {
 		const member = await this.findMemberByUserId(userId);
 		if (!member) throw new Error('Member not found');
-		this.members.set(member.id, { ...member, householdId: toHouseholdId, joinedAt: new Date() });
+		this.members.set(member.id, { ...member, householdId: toHouseholdId, joinedAt });
 
 		if ((await this.listMembers(fromHouseholdId)).length > 0) return;
 

@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { Actor } from '../../../src/lib/models/household';
 import { at, DAY0 } from '../../helpers/kitchenEvents';
+import { HouseholdController } from '../../../src/lib/controllers/HouseholdController';
+import { HouseholdService } from '../../../src/lib/services/HouseholdService';
 import { createNeedsYou } from '../../fakes/needsyou';
 import { shopper } from '../../fakes/shop';
 
@@ -145,7 +147,8 @@ describe('NeedsYouController', () => {
 			await t.households.createMember({
 				householdId: shopper.householdId,
 				userId: sam.userId,
-				displayName: 'Sam Haddad'
+				displayName: 'Sam Haddad',
+				joinedAt: at(-30)
 			});
 			await t.kitchen.recordBought(sam, [{ name: 'Rice', quantity: 1 }], at(0, 10), 'receipt');
 			await t.shopService.addManual(sam, { name: 'Oat milk' });
@@ -163,6 +166,61 @@ describe('NeedsYouController', () => {
 		it('forgets the news when the shop is undone', async () => {
 			await t.controller.undoGotEverything(sam, undoId!, NOW);
 			expect((await items()).map((item) => item.kind)).not.toContain('HouseholdEvent');
+		});
+	});
+
+	describe('after Grace joins the household', () => {
+		/** Grace accepts Noor's invite on Wednesday at noon. */
+		const JOIN = at(2, 12);
+		const graceUser = { id: 'user-3', name: 'Grace Hopper' };
+		const linusUser = { id: 'user-4', name: 'Linus Flat' };
+		let grace: Actor;
+		let linus: Actor;
+
+		beforeEach(async () => {
+			await t.households.createMember({
+				householdId: shopper.householdId,
+				userId: sam.userId,
+				displayName: 'Sam Haddad',
+				joinedAt: at(-30)
+			});
+			const households = new HouseholdService(t.households, () => JOIN);
+			const householdController = new HouseholdController(households, t.householdEventService);
+
+			grace = await households.resolveActor(graceUser);
+			await t.households.createMember({
+				householdId: grace.householdId,
+				userId: linusUser.id,
+				displayName: 'Linus',
+				joinedAt: at(-30)
+			});
+			linus = await households.resolveActor(linusUser);
+			await t.householdEventService.recordShopDone(grace, at(2, 9), {});
+			await t.householdEventService.recordShopDone(linus, at(2, 10), {});
+			await t.householdEventService.recordShopDone(sam, at(2, 11), {});
+
+			const invite = await householdController.createInvite(shopper);
+			await householdController.acceptInvite(graceUser, invite.token, JOIN);
+			grace = await households.resolveActor(graceUser);
+		});
+
+		const textsFor = async (actor: Actor) => (await items(actor)).map((item) => item.text);
+
+		it('does not tell Grace what the household did before she joined', async () => {
+			expect(await textsFor(grace)).not.toContain('Sam got the shopping');
+		});
+
+		it('does not tell Grace what her old household did', async () => {
+			expect(await textsFor(grace)).not.toContain('Linus got the shopping');
+		});
+
+		it('tells Grace what the household did after she joined', async () => {
+			await t.householdEventService.recordShopDone(sam, at(2, 15), {});
+			expect(await textsFor(grace)).toContain('Sam got the shopping');
+		});
+
+		it('does not tell the old household what Grace did there before she left', async () => {
+			expect(await textsFor(linus)).not.toContain('Grace got the shopping');
 		});
 	});
 });

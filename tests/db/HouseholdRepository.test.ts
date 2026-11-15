@@ -4,11 +4,17 @@ import { UserRepository } from '../../src/lib/repositories/UserRepositories';
 import { HouseholdRepository } from '../../src/lib/repositories/HouseholdRepository';
 import { CupboardItemRepository } from '../../src/lib/repositories/CupboardItemRepository';
 import { ShoppingListRepository } from '../../src/lib/repositories/ShoppingListRepositories';
+import { HouseholdEventRepository } from '../../src/lib/repositories/HouseholdEventRepository';
+
+/** When the joiner joins the inviter's household. */
+const JOINED_AT = new Date('2026-11-14T12:00:00Z');
 
 describe('HouseholdRepository (DB)', () => {
 	let householdRepo: HouseholdRepository;
 	let cupboardRepo: CupboardItemRepository;
 	let shoppingListRepo: ShoppingListRepository;
+	let eventRepo: HouseholdEventRepository;
+	let userRepo: UserRepository;
 	let joinerId: string;
 	let inviterHouseholdId: string;
 	let joinerHouseholdId: string;
@@ -16,8 +22,9 @@ describe('HouseholdRepository (DB)', () => {
 	beforeEach(async () => {
 		const db = await setupTestDb();
 		await cleanTables();
-		const userRepo = new UserRepository(db);
+		userRepo = new UserRepository(db);
 		householdRepo = new HouseholdRepository(db);
+		eventRepo = new HouseholdEventRepository(db);
 		cupboardRepo = new CupboardItemRepository(db);
 		shoppingListRepo = new ShoppingListRepository(db);
 
@@ -88,7 +95,12 @@ describe('HouseholdRepository (DB)', () => {
 				itemName: 'flour'
 			});
 
-			await householdRepo.moveMemberWithData(joinerId, joinerHouseholdId, inviterHouseholdId);
+			await householdRepo.moveMemberWithData(
+				joinerId,
+				joinerHouseholdId,
+				inviterHouseholdId,
+				JOINED_AT
+			);
 
 			expect((await cupboardRepo.findById(item.id))?.householdId).toBe(inviterHouseholdId);
 		});
@@ -100,21 +112,100 @@ describe('HouseholdRepository (DB)', () => {
 				name: 'Weekly shop'
 			});
 
-			await householdRepo.moveMemberWithData(joinerId, joinerHouseholdId, inviterHouseholdId);
+			await householdRepo.moveMemberWithData(
+				joinerId,
+				joinerHouseholdId,
+				inviterHouseholdId,
+				JOINED_AT
+			);
 
 			expect((await shoppingListRepo.findById(list.id))?.householdId).toBe(inviterHouseholdId);
 		});
 
 		it('re-points the membership to the new household', async () => {
-			await householdRepo.moveMemberWithData(joinerId, joinerHouseholdId, inviterHouseholdId);
+			await householdRepo.moveMemberWithData(
+				joinerId,
+				joinerHouseholdId,
+				inviterHouseholdId,
+				JOINED_AT
+			);
 
 			expect((await householdRepo.findMemberByUserId(joinerId))?.householdId).toBe(
 				inviterHouseholdId
 			);
 		});
 
+		it('sets the join time to when the member joined', async () => {
+			await householdRepo.moveMemberWithData(
+				joinerId,
+				joinerHouseholdId,
+				inviterHouseholdId,
+				JOINED_AT
+			);
+
+			expect((await householdRepo.findMemberByUserId(joinerId))?.joinedAt).toEqual(JOINED_AT);
+		});
+
+		describe('household events', () => {
+			const before = new Date('2026-11-14T10:00:00Z');
+			const since = new Date('2026-11-01T00:00:00Z');
+
+			async function joinerShops() {
+				return eventRepo.append({
+					householdId: joinerHouseholdId,
+					actorUserId: joinerId,
+					kind: 'SHOP_DONE',
+					payload: {},
+					createdAt: before
+				});
+			}
+
+			it('keeps an event in the old household that still has members', async () => {
+				const flatmate = await userRepo.create({
+					email: 'flatmate@example.com',
+					name: 'Linus Flatmate',
+					authProviderId: 'oauth-flatmate'
+				});
+				await householdRepo.createMember({
+					householdId: joinerHouseholdId,
+					userId: flatmate.id,
+					displayName: 'Linus'
+				});
+				const event = await joinerShops();
+
+				await householdRepo.moveMemberWithData(
+					joinerId,
+					joinerHouseholdId,
+					inviterHouseholdId,
+					JOINED_AT
+				);
+
+				expect((await eventRepo.listSince(joinerHouseholdId, since)).map((e) => e.id)).toEqual([
+					event.id
+				]);
+			});
+
+			it('does not move an event into the new household', async () => {
+				await joinerShops();
+
+				await householdRepo.moveMemberWithData(
+					joinerId,
+					joinerHouseholdId,
+					inviterHouseholdId,
+					JOINED_AT
+				);
+
+				expect(await eventRepo.listSince(inviterHouseholdId, since)).toEqual([]);
+			});
+		});
+
 		it('deletes the emptied household', async () => {
-			await householdRepo.moveMemberWithData(joinerId, joinerHouseholdId, inviterHouseholdId);
+			await householdRepo.moveMemberWithData(
+				joinerId,
+				joinerHouseholdId,
+				inviterHouseholdId,
+				JOINED_AT
+			);
 
 			expect(await householdRepo.findHouseholdById(joinerHouseholdId)).toBeNull();
 		});

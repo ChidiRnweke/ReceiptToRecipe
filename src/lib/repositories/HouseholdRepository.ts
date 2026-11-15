@@ -12,7 +12,11 @@ import type {
 	NewHouseholdMember
 } from '$lib/models/household';
 
-/** Tables whose rows belong to a household and move with a joining member. */
+/**
+ * Tables whose rows belong to a household and move with a joining member. `household_events`
+ * is left out on purpose: what happened in a household stays with it, and the events of an
+ * emptied household are deleted with it.
+ */
 const HOUSEHOLD_SCOPED_TABLES = [
 	schema.receipts,
 	schema.recipes,
@@ -162,12 +166,13 @@ export class HouseholdRepository implements IHouseholdRepository {
 	async moveMemberWithData(
 		userId: string,
 		fromHouseholdId: string,
-		toHouseholdId: string
+		toHouseholdId: string,
+		joinedAt: Date
 	): Promise<void> {
 		await this.db.transaction(async (tx) => {
 			await tx
 				.update(schema.householdMembers)
-				.set({ householdId: toHouseholdId, joinedAt: new Date() })
+				.set({ householdId: toHouseholdId, joinedAt })
 				.where(eq(schema.householdMembers.userId, userId));
 
 			const [{ remaining }] = await tx

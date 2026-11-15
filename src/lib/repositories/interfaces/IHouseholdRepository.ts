@@ -28,7 +28,14 @@ export interface IHouseholdRepository {
 	/**
 	 * Re-points the user's membership to `toHouseholdId` in one transaction. When that leaves
 	 * `fromHouseholdId` without members, its shared rows move to `toHouseholdId` and the empty
-	 * household is deleted; otherwise the shared rows stay with the remaining members.
+	 * household is deleted; otherwise the shared rows stay with the remaining members. Household
+	 * events never move: they stay with the household they happened in. `joinedAt` becomes the
+	 * membership's join time.
 	 */
-	moveMemberWithData(userId: string, fromHouseholdId: string, toHouseholdId: string): Promise<void>;
+	moveMemberWithData(
+		userId: string,
+		fromHouseholdId: string,
+		toHouseholdId: string,
+		joinedAt: Date
+	): Promise<void>;
 }
