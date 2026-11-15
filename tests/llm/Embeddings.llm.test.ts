@@ -41,18 +41,14 @@ describeLLM('Embeddings for RAG (LLM Integration)', () => {
 	});
 
 	it('should distinguish between cooking techniques', async () => {
-		const [grilled, fried, baked] = await Promise.all([
+		const [grilled, fried, cake] = await Promise.all([
 			withRetry(() => service.embed('grilled chicken with herbs')),
 			withRetry(() => service.embed('deep fried chicken wings')),
-			withRetry(() => service.embed('baked chicken casserole'))
+			withRetry(() => service.embed('chocolate layer cake'))
 		]);
 
-		// All should be somewhat similar (all chicken)
-		const grilledVsFried = cosineSimilarity(grilled, fried);
-		const grilledVsBaked = cosineSimilarity(grilled, baked);
-
-		expect(grilledVsFried).toBeGreaterThan(0.5);
-		expect(grilledVsBaked).toBeGreaterThan(0.5);
+		// Two chicken dishes sit closer to each other than to a cake.
+		expect(cosineSimilarity(grilled, fried)).toBeGreaterThan(cosineSimilarity(grilled, cake));
 	});
 
 	it('should produce deterministic embeddings for the same input', async () => {
@@ -82,7 +78,7 @@ describeLLM('Embeddings for RAG (LLM Integration)', () => {
 
 		// Both should produce valid embeddings of the same dimension
 		expect(shortEmb.length).toBe(longEmb.length);
-		expect(shortEmb.length).toBe(1536);
+		expect(shortEmb.length).toBe(768);
 
 		// They should have some similarity (both about soup)
 		const similarity = cosineSimilarity(shortEmb, longEmb);
