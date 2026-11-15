@@ -32,8 +32,8 @@ describe('the door bar', () => {
 		expect(activeDoor('/recipes/abc-123')).toBe('recipes');
 	});
 
-	it('lights Use it up on the cupboard', () => {
-		expect(activeDoor('/cupboard')).toBe('use');
+	it('lights Use it up on its door', () => {
+		expect(activeDoor('/use-it-up')).toBe('use');
 	});
 
 	it('lights Shop on the shopping list', () => {

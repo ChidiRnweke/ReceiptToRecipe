@@ -6,6 +6,7 @@
 	import { availabilityLine, usesChip } from '$lib/services/tonight';
 	import {
 		cookTonight,
+		eatIn,
 		eatOut,
 		getTonight,
 		pickAlternative
@@ -23,11 +24,9 @@
 	let cookOpen = $state(false);
 	let altsOpen = $state(false);
 	let busy = $state(false);
-	/** Set after "We're eating out" moved the dinner, so the card says so until the page reloads. */
-	let outTonight = $state(false);
 
 	const showCalories = $derived(view.calorieLeft !== null);
-	const cardState = $derived(outTonight && view.state === 'ideas' ? 'out' : view.state);
+	const cardState = $derived(view.state);
 	const canEatOut = $derived(view.slot === 'dinner' && !view.tomorrow);
 
 	function openCook(recipe: TonightIdea | TonightMeal) {
@@ -75,10 +74,14 @@
 	function goingOut() {
 		run(
 			() => eatOut(),
-			(result) => {
-				outTonight = true;
-				notice.show(result.message);
-			}
+			(result) => notice.show(result.message)
+		);
+	}
+
+	function eatingIn() {
+		run(
+			() => eatIn(),
+			(result) => notice.show(result.message)
 		);
 	}
 </script>
@@ -96,6 +99,14 @@
 		<section class="grid gap-1 rounded-2xl border border-border bg-bg-card p-4" aria-live="polite">
 			<h2 class="font-display text-2xl text-ink">Eating out tonight</h2>
 			<p class="text-sm text-text-muted">Enjoy. Nothing at home is lost.</p>
+			<button
+				type="button"
+				class="justify-self-start pt-1 text-sm font-semibold text-sage-700 underline underline-offset-2 disabled:opacity-60"
+				disabled={busy}
+				onclick={eatingIn}
+			>
+				Plans changed? We’re eating in
+			</button>
 		</section>
 	{:else if view.meal && cardState === 'eaten'}
 		<PolaroidCard>
