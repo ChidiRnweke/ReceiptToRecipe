@@ -29,17 +29,17 @@ export type RecipeTag = (typeof RECIPE_TAGS)[number];
 export const JUDGED_TAGS = [...PLANNING_TAGS, ...COURSE_TAGS] as const;
 export type JudgedTag = (typeof JUDGED_TAGS)[number];
 
-/** The tags the Recipes door offers as filters. */
+/** The tags the Recipes door offers as filters, in the order it offers them. */
 export const FILTER_TAGS = [
+	'quick',
+	'keeps-well',
+	'lunchbox',
+	'freezes',
 	'vegetarian',
 	'vegan',
 	'pescatarian',
 	'gluten-free',
-	'dairy-free',
-	'quick',
-	'keeps-well',
-	'lunchbox',
-	'freezes'
+	'dairy-free'
 ] as const satisfies readonly RecipeTag[];
 
 /** A recipe is quick when it takes this many minutes or fewer. */

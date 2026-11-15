@@ -171,9 +171,10 @@ export class RecipesDoorController {
 		};
 
 		const matching = (rows: MyRecipeRow[]) => rows.filter((row) => hasTags(row.tags, applied));
-		const offered = FILTER_TAGS.filter(
-			(tag) => applied.includes(tag) || lists[tab].some((row) => row.tags.includes(tag))
+		const carried = FILTER_TAGS.filter(
+			(tag) => !applied.includes(tag) && lists[tab].some((row) => row.tags.includes(tag))
 		);
+		const offered = [...FILTER_TAGS.filter((tag) => applied.includes(tag)), ...carried];
 		return {
 			tab,
 			rows: matching(lists[tab]),

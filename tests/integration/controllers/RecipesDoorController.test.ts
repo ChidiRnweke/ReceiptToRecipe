@@ -206,6 +206,11 @@ describe('RecipesDoorController', () => {
 			expect(mine.rows).toHaveLength(2);
 		});
 
+		it('offers the applied tags first', async () => {
+			const mine = await controller.listMine(actor, 'all', ['vegan']);
+			expect(mine.offered).toEqual(['vegan', 'quick', 'keeps-well']);
+		});
+
 		it('counts the tabs with the same tags', async () => {
 			const mine = await controller.listMine(actor, 'all', ['quick']);
 			expect(mine.counts.all).toBe(1);
@@ -213,7 +218,7 @@ describe('RecipesDoorController', () => {
 
 		it('offers only the filter tags some recipe has', async () => {
 			const mine = await controller.listMine(actor, 'all', []);
-			expect(mine.offered).toEqual(['vegan', 'quick', 'keeps-well']);
+			expect(mine.offered).toEqual(['quick', 'keeps-well', 'vegan']);
 		});
 	});
 

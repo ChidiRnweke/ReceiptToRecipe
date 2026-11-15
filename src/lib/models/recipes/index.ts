@@ -57,7 +57,7 @@ export interface MyRecipes {
 	tags: RecipeTag[];
 	/** The diets of the household's members, applied when no tags were chosen. */
 	householdDiets: DietTag[];
-	/** The filter tags worth offering: those a recipe in the tab carries, plus those applied. */
+	/** The filter tags worth offering: those applied first, then those a recipe in the tab carries. */
 	offered: RecipeTag[];
 }
 

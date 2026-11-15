@@ -289,6 +289,8 @@ export const actions: Actions = {
 			imageStatus: parsed.imageStatus ?? 'QUEUED',
 			isPublic: parsed.isPublic ?? false
 		});
+		// The model judges the restored recipe again at the next start; rules tag it now.
+		await AppFactory.getRecipeBookService().retag(restored.id);
 
 		return { success: true, restoredRecipeId: restored.id, idempotent: false };
 	},
