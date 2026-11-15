@@ -98,9 +98,14 @@ export type {
 	AgentModelMessage,
 	AgentModelTool,
 	AgentModelRequest,
-	AgentModelReply,
+	AgentModelDelta,
 	IAgentService,
+	IAgentRunService,
+	BasilTurnRunner,
+	SubmitRun,
 	BasilTurnInput,
+	BasilTurnOutcome,
+	BasilDecision,
 	// OAuth interfaces
 	IOAuthService,
 	Auth0Tokens,
@@ -153,3 +158,7 @@ export {
 export { AgentService } from './agent/AgentService';
 export { OpenRouterAgentModel } from './agent/OpenRouterAgentModel';
 export type { AgentTool, AgentToolbox, ToolOutcome, ToolRun } from './agent/toolbox';
+export { AgentRunService } from './agent/runs/AgentRunService';
+export { InProcessRunEventBus, type IRunEventBus } from './agent/runs/RunEventBus';
+export { ActiveRuns } from './agent/runs/ActiveRuns';
+export { DevScriptedAgentModel } from './agent/DevScriptedAgentModel';

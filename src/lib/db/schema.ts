@@ -575,6 +575,56 @@ export const agentActions = pgTable(
 	(t) => [index('agent_actions_conversation_idx').on(t.conversationId, t.createdAt)]
 );
 
+// One run of Basil's loop: a message from the person, or their decision on a change. The run's
+// events are the stream the sheet reads; a reload replays them from a cursor.
+export const agentRuns = pgTable(
+	'agent_runs',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		conversationId: uuid('conversation_id')
+			.notNull()
+			.references(() => agentConversations.id, { onDelete: 'cascade' }),
+		householdId: uuid('household_id')
+			.notNull()
+			.references(() => households.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		/** Chosen by the browser, so a retried submit finds the run it already started. */
+		requestId: uuid('request_id').notNull(),
+		kind: text('kind').notNull(), // message, decision
+		/** What the run answers and who asked: the text and page, or the decision. */
+		input: jsonb('input').notNull(),
+		// queued, running, awaiting_approval, cancelling, completed, failed, cancelled
+		status: text('status').notNull().default('queued'),
+		failure: text('failure'),
+		cancelRequestedAt: timestamp('cancel_requested_at'),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+		finishedAt: timestamp('finished_at')
+	},
+	(t) => [
+		uniqueIndex('agent_runs_user_request_idx').on(t.userId, t.requestId),
+		// One run at a time per conversation, while it is queued, running or stopping.
+		uniqueIndex('agent_runs_one_active_idx')
+			.on(t.conversationId)
+			.where(sql`${t.status} in ('queued', 'running', 'cancelling')`),
+		index('agent_runs_status_idx').on(t.status)
+	]
+);
+
+export const agentRunEvents = pgTable(
+	'agent_run_events',
+	{
+		cursor: bigserial('cursor', { mode: 'number' }).primaryKey(),
+		runId: uuid('run_id')
+			.notNull()
+			.references(() => agentRuns.id, { onDelete: 'cascade' }),
+		event: jsonb('event').notNull(),
+		createdAt: timestamp('created_at').notNull().defaultNow()
+	},
+	(t) => [index('agent_run_events_run_cursor_idx').on(t.runId, t.cursor)]
+);
+
 // Category Shelf Life (for stock estimation)
 export const categoryShelfLife = pgTable('category_shelf_life', {
 	id: uuid('id').primaryKey().defaultRandom(),
@@ -971,6 +1021,8 @@ export type NeedsYouAnswerRow = typeof needsYouAnswers.$inferSelect;
 export type AgentConversationRow = typeof agentConversations.$inferSelect;
 export type AgentMessageRow = typeof agentMessages.$inferSelect;
 export type AgentActionRow = typeof agentActions.$inferSelect;
+export type AgentRunRow = typeof agentRuns.$inferSelect;
+export type AgentRunEventRow = typeof agentRunEvents.$inferSelect;
 export type CategoryShelfLife = typeof categoryShelfLife.$inferSelect;
 export type NewCategoryShelfLife = typeof categoryShelfLife.$inferInsert;
 export type CookbookEmbedding = typeof cookbookEmbeddings.$inferSelect;

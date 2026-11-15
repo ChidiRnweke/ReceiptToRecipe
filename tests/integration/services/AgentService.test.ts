@@ -14,8 +14,9 @@ import {
 	MODEL_DOWN_REPLY,
 	STEP_LIMIT_REPLY
 } from '../../../src/lib/services/agent/AgentService';
-import type { BasilTurnResult, PageContext } from '../../../src/lib/models/agent';
+import type { BasilConversationView, PageContext } from '../../../src/lib/models/agent';
 import type { Actor } from '../../../src/lib/models/household';
+import { v4 as uuid } from 'uuid';
 
 // Day 0 of the test calendar is Monday 2 November 2026, in UTC. "Now" is Sunday 10:00.
 const NOW = at(6, 10);
@@ -24,7 +25,7 @@ const ON_PLAN: PageContext = { door: 'plan', route: '/plan' };
 
 const sam: Actor = { ...actor, userId: 'user-2', memberId: 'member-2', displayName: 'Sam Haddad' };
 
-describe('AgentService', () => {
+describe('Basil’s loop', () => {
 	let model: ScriptedAgentModel;
 	let b: ReturnType<typeof createBasil>;
 	let curry: { id: string; title: string };
@@ -37,29 +38,35 @@ describe('AgentService', () => {
 		dinnerId = (await b.planOn(curry, TODAY)).id;
 	});
 
-	const send = (text: string, who: Actor = actor) =>
-		b.service.sendMessage(who, b.toolboxFor(who, NOW), { text, pageContext: ON_PLAN, now: NOW });
-	const approve = (actionId: string, who: Actor = actor) =>
-		b.service.approveAction(who, b.toolboxFor(who, NOW), {
-			actionId,
-			pageContext: ON_PLAN,
-			now: NOW
-		});
-	const decline = (actionId: string) =>
-		b.service.declineAction(actor, b.toolboxFor(actor, NOW), {
-			actionId,
-			pageContext: ON_PLAN,
-			now: NOW
-		});
+	/** The person sends a message and Basil's run finishes. */
+	async function send(text: string, who: Actor = actor): Promise<BasilConversationView> {
+		await b.basil.submit(who, { text, pageContext: ON_PLAN, requestId: uuid() }, NOW, 'UTC');
+		await b.runService.idle();
+		return b.basil.getConversation(who);
+	}
+	async function decideOn(actionId: string, yes: boolean, who: Actor = actor) {
+		const receipt = await b.basil.decide(
+			who,
+			{ actionId, requestId: uuid(), pageContext: ON_PLAN },
+			yes,
+			NOW,
+			'UTC'
+		);
+		await b.runService.idle();
+		return receipt;
+	}
+	const approve = (actionId: string, who: Actor = actor) => decideOn(actionId, true, who);
+	const decline = (actionId: string) => decideOn(actionId, false);
+	const eventsOf = (runId: string | null) => (runId ? b.runs.eventsOf(runId) : []);
 
 	/** The person asks to take tonight's curry off; Basil proposes it. */
 	async function proposeRemoval(): Promise<string> {
 		model.then(calls(call('remove_plan_slot', { plannedMealId: dinnerId })));
-		const turn = await send('Take the curry off tonight');
-		return turn.conversation.pendingActionId as string;
+		const view = await send('Take the curry off tonight');
+		return view.pendingActionId as string;
 	}
 
-	const lastEntry = (turn: BasilTurnResult) => turn.conversation.entries.at(-1);
+	const lastEntry = (view: BasilConversationView) => view.entries.at(-1);
 
 	describe('a read tool', () => {
 		it('runs at once and its result goes back to the model', async () => {
@@ -70,14 +77,14 @@ describe('AgentService', () => {
 
 		it('needs no approval', async () => {
 			model.then(calls(call('get_plan')), says('Chickpea curry tonight.'));
-			const turn = await send('What are we eating?');
-			expect(turn.conversation.pendingActionId).toBeNull();
+			const view = await send('What are we eating?');
+			expect(view.pendingActionId).toBeNull();
 		});
 
 		it('shows the model’s answer as Basil’s words', async () => {
 			model.then(calls(call('get_plan')), says('Chickpea curry tonight.'));
-			const turn = await send('What are we eating?');
-			expect(lastEntry(turn)).toMatchObject({ kind: 'basil', text: 'Chickpea curry tonight.' });
+			const view = await send('What are we eating?');
+			expect(lastEntry(view)).toMatchObject({ kind: 'basil', text: 'Chickpea curry tonight.' });
 		});
 
 		it('tells the model the page the person is on', async () => {
@@ -134,8 +141,11 @@ describe('AgentService', () => {
 		it('lets the model reply', async () => {
 			const actionId = await proposeRemoval();
 			model.then(says('No problem.'));
-			const turn = await decline(actionId);
-			expect(lastEntry(turn)).toMatchObject({ kind: 'basil', text: 'No problem.' });
+			await decline(actionId);
+			expect(lastEntry(await b.basil.getConversation(actor))).toMatchObject({
+				kind: 'basil',
+				text: 'No problem.'
+			});
 		});
 	});
 
@@ -172,8 +182,9 @@ describe('AgentService', () => {
 		it('names the doors whose data changed', async () => {
 			const actionId = await proposeRemoval();
 			model.then(says('Done, it’s off.'));
-			const turn = await approve(actionId);
-			expect(turn.staleDoors).toContain('plan');
+			const receipt = await approve(actionId);
+			const stale = eventsOf(receipt.runId).find((event) => event.type === 'resources_stale');
+			expect(stale).toMatchObject({ doors: expect.arrayContaining(['plan']) });
 		});
 
 		it('runs the change only once when approved twice', async () => {
@@ -181,14 +192,14 @@ describe('AgentService', () => {
 			model.then(says('Done.'));
 			await approve(actionId);
 			const second = await approve(actionId);
-			expect(second.staleDoors).toEqual([]);
+			expect(second.runId).toBeNull();
 		});
 
 		it('sets the servings of a meal for guests', async () => {
 			model.then(calls(call('guests_for_meal', { plannedMealId: dinnerId, servings: 4 })));
-			const turn = await send('Friends over tonight, we are four');
+			const view = await send('Friends over tonight, we are four');
 			model.then(says('It’s for four now.'));
-			await approve(turn.conversation.pendingActionId as string);
+			await approve(view.pendingActionId as string);
 			expect((await b.plannedMeals.findById(dinnerId))?.servings).toBe(4);
 		});
 
@@ -206,8 +217,8 @@ describe('AgentService', () => {
 		it('stops a model that keeps calling tools', async () => {
 			const looping = new ScriptedAgentModel([], () => calls(call('get_plan')));
 			b = createBasil(looping);
-			const turn = await send('Plan forever');
-			expect(lastEntry(turn)).toMatchObject({ kind: 'basil', text: STEP_LIMIT_REPLY });
+			const view = await send('Plan forever');
+			expect(lastEntry(view)).toMatchObject({ kind: 'basil', text: STEP_LIMIT_REPLY });
 		});
 
 		it('calls the model at most eight times in a turn', async () => {
@@ -236,8 +247,8 @@ describe('AgentService', () => {
 				calls(call('set_plan_slot', { daysFromToday: 2, meal: 'DINNER', recipeId: 'curry' })),
 				says('Let me look that up.')
 			);
-			const turn = await send('Curry on Tuesday');
-			expect(turn.conversation.pendingActionId).toBeNull();
+			const view = await send('Curry on Tuesday');
+			expect(view.pendingActionId).toBeNull();
 		});
 
 		it('answers an unknown tool with a failure', async () => {
@@ -250,8 +261,8 @@ describe('AgentService', () => {
 
 		it('apologises in words when the model cannot be reached', async () => {
 			b = createBasil(new FailingAgentModel());
-			const turn = await send('Hello');
-			expect(lastEntry(turn)).toMatchObject({ kind: 'basil', text: MODEL_DOWN_REPLY });
+			const view = await send('Hello');
+			expect(lastEntry(view)).toMatchObject({ kind: 'basil', text: MODEL_DOWN_REPLY });
 		});
 	});
 
@@ -277,8 +288,8 @@ describe('AgentService', () => {
 				calls(call('remove_plan_slot', { plannedMealId: theirsId })),
 				says('I can’t find it.')
 			);
-			const turn = await send('Remove their dinner');
-			expect(turn.conversation.pendingActionId).toBeNull();
+			const view = await send('Remove their dinner');
+			expect(view.pendingActionId).toBeNull();
 		});
 
 		it('leaves another household’s meal on its plan', async () => {
@@ -308,8 +319,11 @@ describe('AgentService', () => {
 	describe('client tools', () => {
 		it('hands a navigation to the browser', async () => {
 			model.then(calls(call('navigate_to', { door: 'shop' })), says('Here’s the list.'));
-			const turn = await send('Show me the list');
-			expect(turn.clientActions).toEqual([{ tool: 'navigate_to', door: 'shop', recipeId: null }]);
+			await send('Show me the list');
+			expect(b.runs.events.map((record) => record.event)).toContainEqual({
+				type: 'client_action',
+				action: { tool: 'navigate_to', door: 'shop', recipeId: null }
+			});
 		});
 	});
 
@@ -317,12 +331,12 @@ describe('AgentService', () => {
 		it('is kept per member', async () => {
 			model.then(says('Hi Noor.'));
 			await send('Hello');
-			expect((await b.service.getConversation(sam)).entries).toEqual([]);
+			expect((await b.basil.getConversation(sam)).entries).toEqual([]);
 		});
 
 		it('shows the card after the words that proposed it', async () => {
 			await proposeRemoval();
-			const view = await b.service.getConversation(actor);
+			const view = await b.basil.getConversation(actor);
 			expect(view.entries.map((entry) => entry.kind)).toEqual(['user', 'action']);
 		});
 	});

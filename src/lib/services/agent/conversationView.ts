@@ -12,7 +12,7 @@ import type {
 export function buildConversationView(
 	messages: readonly AgentMessage[],
 	actions: readonly AgentAction[]
-): BasilConversationView {
+): Omit<BasilConversationView, 'activeRun'> {
 	const byCall = new Map(actions.map((action) => [action.callId, action]));
 	const entries: BasilEntry[] = [];
 	for (const message of messages) {

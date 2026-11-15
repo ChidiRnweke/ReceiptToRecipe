@@ -19,13 +19,17 @@ export interface AgentModelRequest {
 	tools: AgentModelTool[];
 }
 
-/** What the model answered: words for the person, tool calls, or both. */
-export interface AgentModelReply {
-	text?: string;
-	toolCalls: AgentToolCall[];
-}
+/** A piece of the model's answer as it streams: words for the person, or its tool calls. */
+export type AgentModelDelta =
+	| { type: 'text'; text: string }
+	/** Every tool call of the answer, stitched together, once the stream has ended. */
+	| { type: 'tool_calls'; calls: AgentToolCall[] };
 
 /** The language model behind Basil. */
 export interface IAgentModel {
-	complete(request: AgentModelRequest): Promise<AgentModelReply>;
+	/**
+	 * Streams one answer. Stops when `signal` aborts; a provider error, or an error inside the
+	 * stream, is thrown.
+	 */
+	stream(request: AgentModelRequest, signal: AbortSignal): AsyncIterable<AgentModelDelta>;
 }

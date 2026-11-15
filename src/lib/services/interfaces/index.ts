@@ -95,6 +95,12 @@ export type {
 	AgentModelMessage,
 	AgentModelTool,
 	AgentModelRequest,
-	AgentModelReply
+	AgentModelDelta
 } from './IAgentModel';
-export type { IAgentService, BasilTurnInput } from './IAgentService';
+export type {
+	IAgentService,
+	BasilTurnInput,
+	BasilTurnOutcome,
+	BasilDecision
+} from './IAgentService';
+export type { IAgentRunService, BasilTurnRunner, SubmitRun } from './IAgentRunService';

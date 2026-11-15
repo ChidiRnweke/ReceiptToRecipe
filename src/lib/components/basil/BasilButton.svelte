@@ -1,12 +1,25 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import { page } from '$app/state';
 	import * as Sheet from '$lib/components/ui/sheet';
-	import type { BasilConversationView, BasilTurnResult, Touched } from '$lib/models/agent';
-	import { approve, decline, getConversation, sendMessage } from '$lib/remote/basil/basil.remote';
+	import type {
+		BasilConversationView,
+		BasilRunEventRecord,
+		ClientAction,
+		Touched
+	} from '$lib/models/agent';
+	import {
+		approve,
+		cancel,
+		decline,
+		getConversation,
+		sendMessage,
+		startOver
+	} from '$lib/remote/basil/basil.remote';
 	import { notice } from '$lib/state/notice.svelte';
 	import ActionCard from './ActionCard.svelte';
 	import { BASIL_HELLO, SUGGESTIONS } from './suggestions';
+	import { RunStream, sessionRunMemory } from './runStream';
 	import {
 		basilDoorOf,
 		highlightWhenShown,
@@ -19,13 +32,29 @@
 	const conversation = getConversation();
 	let open = $state(false);
 	let draft = $state('');
-	let thinking = $state(false);
-	/** What the person just sent, shown until Basil's answer comes back. */
+	/** Waiting for the server to take a message or a decision. */
+	let sending = $state(false);
+	/** What the person just sent, shown until the conversation has it. */
 	let sent = $state<string | null>(null);
-	let latest = $state<BasilConversationView | null>(null);
 	let list = $state<HTMLElement | null>(null);
 
-	const view = $derived(latest ?? conversation.current ?? { entries: [], pendingActionId: null });
+	/** The run Basil is answering in, while it answers. */
+	let runId = $state<string | null>(null);
+	/** Basil's words of the current step, as they stream in. */
+	let streaming = $state('');
+	/** What the last tool did, until Basil says more: "Looking at your plan…". */
+	let toolLabel = $state<string | null>(null);
+	let stopping = $state(false);
+	let stream: RunStream | null = null;
+	/** Steps for the browser, carried out once Basil has finished. */
+	let pendingClientActions: ClientAction[] = [];
+	/** The run that just ended; the conversation may name it active for a moment longer. */
+	let finishedRunId: string | null = null;
+
+	const view = $derived<BasilConversationView>(
+		conversation.current ?? { entries: [], pendingActionId: null, activeRun: null }
+	);
+	const busy = $derived(sending || runId !== null);
 	const door = $derived(basilDoorOf(page.url.pathname));
 	const suggestions = $derived(door ? SUGGESTIONS[door] : []);
 
@@ -34,45 +63,141 @@
 		list?.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
 	}
 
-	async function settle(result: BasilTurnResult) {
-		latest = result.conversation;
-		refreshDoors(result.staleDoors);
-		await scrollDown();
-		if (result.clientActions.length) {
-			// Let the answer show for a moment, then step aside so the page can be seen.
-			await new Promise((done) => setTimeout(done, 700));
-			open = false;
-			await runClientActions(result.clientActions);
+	/** Follows a run. After a reload, events up to `appliedUpTo` rebuild the words only. */
+	function follow(id: string, after: number, appliedUpTo = after) {
+		stream?.close();
+		runId = id;
+		streaming = '';
+		toolLabel = null;
+		stopping = false;
+		pendingClientActions = [];
+		stream = new RunStream(
+			{ runId: id, after, appliedUpTo, onEvent: handle },
+			undefined,
+			sessionRunMemory
+		);
+	}
+
+	async function handle(record: BasilRunEventRecord, replayed: boolean) {
+		const event = record.event;
+		switch (event.type) {
+			case 'text_delta':
+				toolLabel = null;
+				streaming += event.text;
+				await scrollDown();
+				return;
+			case 'tool_started':
+				// The words before a tool are stored with its call; show them from the conversation.
+				toolLabel = event.label;
+				await conversation.refresh();
+				streaming = '';
+				await scrollDown();
+				return;
+			case 'client_action':
+				if (!replayed) pendingClientActions.push(event.action);
+				return;
+			case 'resources_stale':
+				if (!replayed) refreshDoors(event.doors);
+				return;
+			case 'approval_required':
+			case 'completed':
+			case 'failed':
+			case 'cancelled':
+				await finish();
+				return;
+			default:
+				return;
 		}
 	}
 
-	async function turn(run: () => Promise<BasilTurnResult>) {
-		thinking = true;
+	/** The run ended: show the stored conversation, then carry out Basil's browser steps. */
+	async function finish() {
+		await conversation.refresh();
+		streaming = '';
+		toolLabel = null;
+		finishedRunId = runId;
+		runId = null;
+		stopping = false;
+		stream = null;
+		await scrollDown();
+		const actions = pendingClientActions;
+		pendingClientActions = [];
+		if (actions.length) {
+			// Let the answer show for a moment, then step aside so the page can be seen.
+			await new Promise((done) => setTimeout(done, 700));
+			open = false;
+			await runClientActions(actions);
+		}
+	}
+
+	// Follow the run still answering after a reload, or one started in another tab.
+	$effect(() => {
+		const active = conversation.current?.activeRun;
+		if (!active || sending || runId === active.id || finishedRunId === active.id) return;
+		const remembered = sessionRunMemory.load();
+		const appliedUpTo = remembered?.runId === active.id ? remembered.cursor : active.cursor;
+		follow(active.id, 0, appliedUpTo);
+	});
+
+	onDestroy(() => stream?.close());
+
+	async function start(submit: () => Promise<{ runId: string | null; cursor: number }>) {
+		sending = true;
 		await scrollDown();
 		try {
-			await settle(await run());
+			const receipt = await submit();
+			if (receipt.runId) follow(receipt.runId, receipt.cursor);
 		} catch {
 			notice.show('Basil couldn’t answer just now. Try again in a moment.');
 		} finally {
-			thinking = false;
+			sending = false;
 			sent = null;
+			await scrollDown();
 		}
 	}
 
 	async function send(text: string) {
 		const message = text.trim();
-		if (!message || thinking) return;
+		if (!message || busy) return;
 		draft = '';
 		sent = message;
-		await turn(() =>
-			sendMessage({ text: message, pageContext: readPageContext(page.url.pathname) })
+		await start(() =>
+			sendMessage({
+				text: message,
+				pageContext: readPageContext(page.url.pathname),
+				requestId: crypto.randomUUID()
+			})
 		);
 	}
 
 	const decide = (actionId: string, yes: boolean) =>
-		turn(() =>
-			(yes ? approve : decline)({ actionId, pageContext: readPageContext(page.url.pathname) })
+		start(() =>
+			(yes ? approve : decline)({
+				actionId,
+				requestId: crypto.randomUUID(),
+				pageContext: readPageContext(page.url.pathname)
+			})
 		);
+
+	async function stop() {
+		if (!runId || stopping) return;
+		stopping = true;
+		try {
+			await cancel({ runId });
+		} catch {
+			stopping = false;
+			notice.show('Basil couldn’t stop just now. Try again in a moment.');
+		}
+	}
+
+	async function freshStart() {
+		if (busy) return;
+		try {
+			await startOver();
+		} catch {
+			notice.show('Couldn’t start over just now. Try again in a moment.');
+		}
+	}
 
 	async function openTouched(item: Touched) {
 		open = false;
@@ -113,6 +238,14 @@
 					Asks before it changes anything.
 				</Sheet.Description>
 			</div>
+			{#if view.entries.length}
+				<button
+					type="button"
+					class="ml-auto rounded-full border border-border px-2.5 py-1 text-[12.5px] text-ink-light hover:border-sage-300 disabled:opacity-60"
+					disabled={busy}
+					onclick={freshStart}>Start over</button
+				>
+			{/if}
 		</Sheet.Header>
 
 		<div
@@ -146,7 +279,7 @@
 						summary={entry.summary}
 						status={entry.status}
 						touched={entry.touched}
-						busy={thinking}
+						{busy}
 						onapprove={() => decide(entry.id, true)}
 						ondecline={() => decide(entry.id, false)}
 						onopen={openTouched}
@@ -160,11 +293,30 @@
 					{sent}
 				</p>
 			{/if}
-			{#if thinking}
+			{#if streaming}
+				<p
+					class="max-w-[88%] rounded-2xl border border-border bg-bg-card px-3 py-2 text-sm leading-snug whitespace-pre-line text-ink"
+					data-basil-streaming
+				>
+					{streaming}<span
+						class="ml-0.5 inline-block animate-pulse text-sage-600"
+						aria-hidden="true">▍</span
+					>
+				</p>
+			{/if}
+			{#if toolLabel}
+				<p
+					class="flex max-w-[88%] items-center gap-1.5 justify-self-start rounded-full border border-sage-200 bg-sage-50 px-2.5 py-1 text-[12.5px] text-sage-800"
+					data-basil-tool
+				>
+					<span class="size-1.5 animate-pulse rounded-full bg-sage-600" aria-hidden="true"></span>
+					{toolLabel}
+				</p>
+			{:else if busy && !streaming}
 				<p
 					class="font-hand max-w-[88%] animate-pulse rounded-2xl border border-border bg-bg-card px-3 py-2 text-base text-ink-light"
 				>
-					Basil is thinking…
+					{stopping ? 'Stopping…' : 'Basil is thinking…'}
 				</p>
 			{/if}
 		</div>
@@ -175,7 +327,7 @@
 					<button
 						type="button"
 						class="rounded-full border border-border bg-bg-card px-2.5 py-1 text-[12.5px] text-ink hover:border-sage-300 disabled:opacity-60"
-						disabled={thinking}
+						disabled={busy}
 						onclick={() => send(suggestion)}>{suggestion}</button
 					>
 				{/each}
@@ -195,13 +347,22 @@
 				placeholder="Ask Basil…"
 				aria-label="Message Basil"
 				maxlength={1000}
-				disabled={thinking}
+				disabled={busy}
 			/>
-			<button
-				type="submit"
-				class="h-10 rounded-lg bg-sage-600 px-4 text-sm font-semibold text-white hover:bg-sage-700 disabled:opacity-60"
-				disabled={thinking || !draft.trim()}>Send</button
-			>
+			{#if runId}
+				<button
+					type="button"
+					class="h-10 rounded-lg border border-sienna-300 bg-white px-4 text-sm font-semibold text-sienna-700 hover:bg-sienna-50 disabled:opacity-60"
+					disabled={stopping}
+					onclick={stop}>Stop</button
+				>
+			{:else}
+				<button
+					type="submit"
+					class="h-10 rounded-lg bg-sage-600 px-4 text-sm font-semibold text-white hover:bg-sage-700 disabled:opacity-60"
+					disabled={busy || !draft.trim()}>Send</button
+				>
+			{/if}
 		</form>
 	</Sheet.Content>
 </Sheet.Root>

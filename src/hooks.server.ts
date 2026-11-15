@@ -35,6 +35,14 @@ export const init: ServerInit = async () => {
 			if (ids.length) console.info(`Queued OCR again for ${ids.length} receipt(s) after start.`);
 		})
 		.catch((error) => console.error('Could not queue pending receipts again after start:', error));
+	// Basil's runs execute in this process: the ones a restart interrupted are settled, and the
+	// queued ones start again.
+	void Promise.resolve()
+		.then(() => AppFactory.getBasilController().recoverInterruptedRuns(new Date()))
+		.then((count) => {
+			if (count) console.info(`Recovered ${count} Basil run(s) after start.`);
+		})
+		.catch((error) => console.error('Could not recover Basil runs after start:', error));
 };
 
 export const handle: Handle = async ({ event, resolve }) => {

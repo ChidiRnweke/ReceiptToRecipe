@@ -1,3 +1,4 @@
+import { dev } from '$app/environment';
 import { ConfigService } from '$services/ConfigService';
 import { getDb } from '$db/client';
 import {
@@ -24,8 +25,13 @@ import {
 	HouseholdEventService,
 	NeedsYouService,
 	AgentService,
+	AgentRunService,
+	ActiveRuns,
+	InProcessRunEventBus,
+	DevScriptedAgentModel,
 	OpenRouterAgentModel,
 	type IAgentService,
+	type IAgentRunService,
 	type IAgentModel,
 	type IHouseholdEventService,
 	type INeedsYouService,
@@ -92,6 +98,7 @@ import {
 	AgentConversationRepository,
 	AgentMessageRepository,
 	AgentActionRepository,
+	AgentRunRepository,
 	type IHouseholdEventRepository,
 	type INeedsYouAnswerRepository,
 	type IUserRepository,
@@ -160,6 +167,7 @@ let shopService: IShopService | null = null;
 let recipeBookService: IRecipeBookService | null = null;
 let agentService: IAgentService | null = null;
 let agentModel: IAgentModel | null = null;
+let agentRunService: IAgentRunService | null = null;
 
 // Repositories
 let userRepository: IUserRepository | null = null;
@@ -635,21 +643,39 @@ export class AppFactory {
 		return shopController;
 	}
 
-	/** Basil's model: `BASIL_MODEL`, else the app's `OPENROUTER_MODEL`. */
+	/**
+	 * Basil's model: `BASIL_MODEL`, else the app's `OPENROUTER_MODEL`. In development only,
+	 * `BASIL_MODEL=scripted` uses a scripted stand-in that needs no provider key.
+	 */
 	static getAgentModel(): IAgentModel {
 		if (!agentModel) {
+			const named = ConfigService.get('BASIL_MODEL');
+			if (named === 'scripted' && dev) {
+				agentModel = new DevScriptedAgentModel();
+				return agentModel;
+			}
 			const apiKey = ConfigService.get('OPENROUTER_API_KEY');
 			if (!apiKey) {
 				throw new Error('OPENROUTER_API_KEY environment variable is required');
 			}
 			agentModel = new OpenRouterAgentModel(
 				apiKey,
-				ConfigService.get('BASIL_MODEL') ||
-					ConfigService.get('OPENROUTER_MODEL') ||
-					'google/gemini-3-flash-preview'
+				named || ConfigService.get('OPENROUTER_MODEL') || 'google/gemini-3-flash-preview'
 			);
 		}
 		return agentModel;
+	}
+
+	/** One per process: the bus and the running runs live in this process (adapter-node). */
+	static getAgentRunService(): IAgentRunService {
+		if (!agentRunService) {
+			agentRunService = new AgentRunService(
+				new AgentRunRepository(getDb()),
+				new InProcessRunEventBus(),
+				new ActiveRuns()
+			);
+		}
+		return agentRunService;
 	}
 
 	static getAgentService(): IAgentService {
@@ -667,20 +693,23 @@ export class AppFactory {
 
 	static getBasilController(): BasilController {
 		if (!basilController) {
-			basilController = new BasilController(AppFactory.getAgentService(), (actor, now, timeZone) =>
-				agentToolbox(
-					{
-						kitchen: () => AppFactory.getKitchenController(),
-						needsYou: () => AppFactory.getNeedsYouController(),
-						plan: () => AppFactory.getPlanController(),
-						recipe: () => AppFactory.getRecipeController(),
-						recipesDoor: () => AppFactory.getRecipesDoorController(),
-						shop: () => AppFactory.getShopController(),
-						tonight: () => AppFactory.getTonightController(),
-						useItUp: () => AppFactory.getUseItUpController()
-					},
-					{ actor, now, timeZone }
-				)
+			basilController = new BasilController(
+				AppFactory.getAgentService(),
+				AppFactory.getAgentRunService(),
+				(actor, now, timeZone) =>
+					agentToolbox(
+						{
+							kitchen: () => AppFactory.getKitchenController(),
+							needsYou: () => AppFactory.getNeedsYouController(),
+							plan: () => AppFactory.getPlanController(),
+							recipe: () => AppFactory.getRecipeController(),
+							recipesDoor: () => AppFactory.getRecipesDoorController(),
+							shop: () => AppFactory.getShopController(),
+							tonight: () => AppFactory.getTonightController(),
+							useItUp: () => AppFactory.getUseItUpController()
+						},
+						{ actor, now, timeZone }
+					)
 			);
 		}
 		return basilController;

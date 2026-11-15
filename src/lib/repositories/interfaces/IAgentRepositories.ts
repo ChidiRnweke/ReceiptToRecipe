@@ -4,7 +4,13 @@ import type {
 	AgentConversation,
 	AgentMessage,
 	AgentMessageBody,
-	NewAgentAction
+	AgentRun,
+	AgentRunStatus,
+	AgentRunTransition,
+	BasilEvent,
+	BasilRunEventRecord,
+	NewAgentAction,
+	NewAgentRun
 } from '$lib/models/agent';
 
 /** Basil's conversations, one per member. */
@@ -36,4 +42,39 @@ export interface IAgentActionRepository {
 		from: AgentAction['status'],
 		decision: AgentActionDecision
 	): Promise<AgentAction | null>;
+}
+
+/** Basil's runs and the events each one streams. */
+export interface IAgentRunRepository {
+	/**
+	 * In one transaction: the run, the person's message when there is one, and `run_queued`.
+	 * A request id the member used before returns that run with `created: false`. Throws
+	 * `BasilBusyError` when the conversation already has an active run.
+	 */
+	submit(
+		run: NewAgentRun,
+		userMessage: AgentMessageBody | null,
+		at: Date
+	): Promise<{ run: AgentRun; created: boolean; cursor: number }>;
+	findById(id: string): Promise<AgentRun | null>;
+	findByRequest(userId: string, requestId: string): Promise<AgentRun | null>;
+	/** The conversation's queued, running or stopping run, if any. */
+	findActive(conversationId: string): Promise<AgentRun | null>;
+	listByStatus(statuses: readonly AgentRunStatus[]): Promise<AgentRun[]>;
+	/**
+	 * Moves the run on only while it is in one of `from`, and appends `event` in the same
+	 * transaction. Returns null when the run was elsewhere, so two writers cannot both settle it.
+	 */
+	transition(
+		id: string,
+		from: readonly AgentRunStatus[],
+		to: AgentRunTransition,
+		event: BasilEvent | null,
+		at: Date
+	): Promise<AgentRun | null>;
+	appendEvent(runId: string, event: BasilEvent, at: Date): Promise<BasilRunEventRecord>;
+	/** The run's events after a cursor, oldest first. */
+	listEvents(runId: string, after: number): Promise<BasilRunEventRecord[]>;
+	/** The run's last cursor; 0 when it has none. */
+	latestCursor(runId: string): Promise<number>;
 }

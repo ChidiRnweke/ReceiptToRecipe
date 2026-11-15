@@ -10,13 +10,17 @@ import type {
 	AgentMessage,
 	AgentToolCall,
 	BasilConversationView,
-	BasilDoor,
-	BasilTurnResult,
-	ClientAction,
+	BasilTurnEvent,
 	PageContext
 } from '$lib/models/agent';
+import { toolLabel } from '$lib/models/agent';
 import type { AgentModelMessage, AgentModelTool, IAgentModel } from '../interfaces/IAgentModel';
-import type { IAgentService } from '../interfaces/IAgentService';
+import type {
+	BasilDecision,
+	BasilTurnInput,
+	BasilTurnOutcome,
+	IAgentService
+} from '../interfaces/IAgentService';
 import { basilSystemPrompt, pageContextBlock } from './prompt';
 import { buildConversationView } from './conversationView';
 import { toolFailure, type AgentTool, type AgentToolbox } from './toolbox';
@@ -43,22 +47,28 @@ const ONE_CHANGE = toolFailure(
 	'Propose this change again after the person has answered the first one.'
 );
 
+/** Said when something unexpected stopped a turn. */
+export const BROKE_REPLY = 'Something went wrong on my side. Try asking again.';
+const LOST_REPLY = 'Sorry, I lost my train of thought.';
+
 /** One turn's running state. */
 interface Turn {
 	actor: Actor;
-	conversation: AgentConversation;
+	conversationId: string;
 	toolbox: AgentToolbox;
 	now: Date;
 	pageContext: PageContext | null;
-	clientActions: ClientAction[];
-	staleDoors: Set<BasilDoor>;
+	signal: AbortSignal;
 }
 
 /**
- * Basil's loop. A turn sends the conversation to the model; reads and proposals run at once and
- * their results go back to the model; a change is stored as a pending action and the turn ends
- * with an approval card. Approving runs the change and lets the model go on; declining runs
- * nothing.
+ * Basil's loop. A turn sends the conversation to the model and streams its words; reads and
+ * proposals run at once and their results go back to the model; a change is stored as a pending
+ * action and the turn ends with an approval card. Approving runs the change, and the next turn
+ * lets the model go on; declining runs nothing.
+ *
+ * Nothing about a turn lives outside the conversation's messages and actions, so any turn can
+ * be rebuilt from them.
  */
 export class AgentService implements IAgentService {
 	constructor(
@@ -68,63 +78,65 @@ export class AgentService implements IAgentService {
 		private model: IAgentModel
 	) {}
 
-	async getConversation(actor: Actor): Promise<BasilConversationView> {
-		const conversation = await this.conversations.findLatest(actor.householdId, actor.userId);
-		if (!conversation) return { entries: [], pendingActionId: null };
-		return this.view(conversation.id);
+	latestConversation(actor: Actor): Promise<AgentConversation | null> {
+		return this.conversations.findLatest(actor.householdId, actor.userId);
 	}
 
-	async sendMessage(
+	async conversationFor(actor: Actor, now: Date): Promise<AgentConversation> {
+		return (
+			(await this.latestConversation(actor)) ??
+			(await this.conversations.create(actor.householdId, actor.userId, now))
+		);
+	}
+
+	async startOver(actor: Actor, now: Date): Promise<AgentConversation> {
+		const current = await this.latestConversation(actor);
+		if (current) await this.dropPending(current.id, now);
+		return this.conversations.create(actor.householdId, actor.userId, now);
+	}
+
+	async view(conversationId: string): Promise<Omit<BasilConversationView, 'activeRun'>> {
+		const [messages, actions] = await Promise.all([
+			this.messages.list(conversationId),
+			this.actions.list(conversationId)
+		]);
+		return buildConversationView(messages, actions);
+	}
+
+	async dropPending(conversationId: string, now: Date): Promise<void> {
+		for (const action of await this.actions.list(conversationId)) {
+			if (action.status !== 'pending') continue;
+			const declined = await this.actions.decide(action.id, 'pending', {
+				status: 'declined',
+				decidedAt: now
+			});
+			if (declined) await this.appendToolResult(conversationId, action, MOVED_ON_RESULT, now);
+		}
+	}
+
+	async decide(
 		actor: Actor,
 		toolbox: AgentToolbox,
-		input: { text: string; pageContext: PageContext | null; now: Date }
-	): Promise<BasilTurnResult> {
-		const conversation =
-			(await this.conversations.findLatest(actor.householdId, actor.userId)) ??
-			(await this.conversations.create(actor.householdId, actor.userId, input.now));
-		// A change still waiting for a yes is dropped: the person moved on.
-		for (const action of await this.actions.list(conversation.id)) {
-			if (action.status !== 'pending') continue;
+		input: { actionId: string; approve: boolean; now: Date }
+	): Promise<BasilDecision> {
+		const { conversation, action } = await this.ownAction(actor, input.actionId);
+		const undecided = { conversationId: conversation.id, decided: false, staleDoors: [] };
+		if (!input.approve) {
 			const declined = await this.actions.decide(action.id, 'pending', {
 				status: 'declined',
 				decidedAt: input.now
 			});
-			if (declined)
-				await this.appendToolResult(conversation.id, action, MOVED_ON_RESULT, input.now);
+			if (!declined) return undecided;
+			await this.appendToolResult(conversation.id, action, DECLINED_RESULT, input.now);
+			return { ...undecided, decided: true };
 		}
-		await this.messages.append(conversation.id, { role: 'user', text: input.text }, input.now);
-		return this.run({
-			actor,
-			conversation,
-			toolbox,
-			now: input.now,
-			pageContext: input.pageContext,
-			clientActions: [],
-			staleDoors: new Set()
-		});
-	}
 
-	async approveAction(
-		actor: Actor,
-		toolbox: AgentToolbox,
-		input: { actionId: string; pageContext: PageContext | null; now: Date }
-	): Promise<BasilTurnResult> {
-		const { conversation, action } = await this.ownAction(actor, input.actionId);
-		const turn: Turn = {
-			actor,
-			conversation,
-			toolbox,
-			now: input.now,
-			pageContext: input.pageContext,
-			clientActions: [],
-			staleDoors: new Set()
-		};
 		const approved = await this.actions.decide(action.id, 'pending', {
 			status: 'approved',
 			decidedAt: input.now
 		});
-		// Decided already, by another tap or another tab: show the conversation as it is.
-		if (!approved) return this.result(turn);
+		// Decided already, by another tap or another tab.
+		if (!approved) return undecided;
 
 		const tool = toolbox.find((candidate) => candidate.name === action.tool);
 		const outcome = tool
@@ -133,90 +145,119 @@ export class AgentService implements IAgentService {
 					ok: false as const,
 					failure: toolFailure(`Unknown tool ${action.tool}.`, 'Use one of the tools you have.')
 				};
-		if (outcome.ok) {
-			await this.actions.decide(action.id, 'approved', {
-				status: 'executed',
-				result: outcome.value.result,
-				touched: outcome.value.touched,
-				decidedAt: input.now
-			});
-			for (const door of tool?.doors ?? []) turn.staleDoors.add(door);
-			await this.appendToolResult(conversation.id, action, outcome.value.result, input.now);
-		} else {
+		if (!outcome.ok) {
 			await this.actions.decide(action.id, 'approved', {
 				status: 'failed',
 				result: outcome.failure,
 				decidedAt: input.now
 			});
 			await this.appendToolResult(conversation.id, action, outcome.failure, input.now);
+			return { ...undecided, decided: true };
 		}
-		return this.run(turn);
-	}
-
-	async declineAction(
-		actor: Actor,
-		toolbox: AgentToolbox,
-		input: { actionId: string; pageContext: PageContext | null; now: Date }
-	): Promise<BasilTurnResult> {
-		const { conversation, action } = await this.ownAction(actor, input.actionId);
-		const turn: Turn = {
-			actor,
-			conversation,
-			toolbox,
-			now: input.now,
-			pageContext: input.pageContext,
-			clientActions: [],
-			staleDoors: new Set()
-		};
-		const declined = await this.actions.decide(action.id, 'pending', {
-			status: 'declined',
+		await this.actions.decide(action.id, 'approved', {
+			status: 'executed',
+			result: outcome.value.result,
+			touched: outcome.value.touched,
 			decidedAt: input.now
 		});
-		if (!declined) return this.result(turn);
-		await this.appendToolResult(conversation.id, action, DECLINED_RESULT, input.now);
-		return this.run(turn);
+		await this.appendToolResult(conversation.id, action, outcome.value.result, input.now);
+		return { conversationId: conversation.id, decided: true, staleDoors: [...(tool?.doors ?? [])] };
+	}
+
+	async say(conversationId: string, text: string, now: Date): Promise<void> {
+		await this.messages.append(conversationId, { role: 'assistant', text, toolCalls: [] }, now);
+	}
+
+	async *turn(input: BasilTurnInput): AsyncGenerator<BasilTurnEvent, BasilTurnOutcome> {
+		const turn: Turn = {
+			actor: input.actor,
+			conversationId: input.conversationId,
+			toolbox: input.toolbox,
+			now: input.now,
+			pageContext: input.request.pageContext,
+			signal: input.signal
+		};
+		try {
+			if (input.request.kind === 'decision' && input.request.staleDoors.length) {
+				yield { type: 'resources_stale', doors: input.request.staleDoors };
+			}
+			return yield* this.loop(turn);
+		} catch (error) {
+			console.error('[basil] a turn failed', error);
+			await this.say(turn.conversationId, BROKE_REPLY, turn.now);
+			return { status: 'failed', message: BROKE_REPLY, retryable: false };
+		}
 	}
 
 	/** Calls the model until it answers in words, asks for a yes, or runs out of steps. */
-	private async run(turn: Turn): Promise<BasilTurnResult> {
+	private async *loop(turn: Turn): AsyncGenerator<BasilTurnEvent, BasilTurnOutcome> {
 		const offered: AgentModelTool[] = turn.toolbox.map((tool) => ({
 			name: tool.name,
 			description: tool.description,
 			parameters: tool.parameters
 		}));
 		for (let step = 0; step < MAX_STEPS; step++) {
-			const history = await this.messages.list(turn.conversation.id);
-			let reply;
+			if (turn.signal.aborted) return { status: 'cancelled' };
+			const history = await this.messages.list(turn.conversationId);
+			let text = '';
+			let toolCalls: AgentToolCall[] = [];
 			try {
-				reply = await this.model.complete({ messages: this.prompt(turn, history), tools: offered });
+				const stream = this.model.stream(
+					{ messages: this.prompt(turn, history), tools: offered },
+					turn.signal
+				);
+				for await (const delta of stream) {
+					if (turn.signal.aborted) break;
+					if (delta.type === 'text') {
+						text += delta.text;
+						yield { type: 'text_delta', text: delta.text };
+					} else {
+						toolCalls = delta.calls;
+					}
+				}
 			} catch (error) {
-				console.error('[basil] the model call failed', error);
-				await this.say(turn, MODEL_DOWN_REPLY);
-				return this.result(turn);
+				if (!turn.signal.aborted) {
+					console.error('[basil] the model call failed', error);
+					await this.keepPartial(turn, text);
+					await this.say(turn.conversationId, MODEL_DOWN_REPLY, turn.now);
+					return { status: 'failed', message: MODEL_DOWN_REPLY, retryable: true };
+				}
+			}
+			if (turn.signal.aborted) {
+				// What Basil had said when the person tapped Stop stays as its reply.
+				await this.keepPartial(turn, text);
+				return { status: 'cancelled' };
 			}
 
-			if (reply.toolCalls.length === 0) {
-				await this.say(turn, reply.text?.trim() || 'Sorry, I lost my train of thought.');
-				return this.result(turn);
+			if (toolCalls.length === 0) {
+				await this.say(turn.conversationId, text.trim() || LOST_REPLY, turn.now);
+				return { status: 'completed' };
 			}
 			await this.messages.append(
-				turn.conversation.id,
-				{ role: 'assistant', text: reply.text?.trim() || null, toolCalls: reply.toolCalls },
+				turn.conversationId,
+				{ role: 'assistant', text: text.trim() || null, toolCalls },
 				turn.now
 			);
-			const waiting = await this.callTools(turn, reply.toolCalls);
-			if (waiting) return this.result(turn);
+			const waiting = yield* this.callTools(turn, toolCalls);
+			if (waiting) return { status: 'awaiting_approval' };
 		}
-		await this.say(turn, STEP_LIMIT_REPLY);
-		return this.result(turn);
+		await this.say(turn.conversationId, STEP_LIMIT_REPLY, turn.now);
+		return { status: 'completed' };
+	}
+
+	private async keepPartial(turn: Turn, text: string): Promise<void> {
+		if (text.trim()) await this.say(turn.conversationId, text.trim(), turn.now);
 	}
 
 	/**
 	 * Runs one reply's tool calls in order. Returns true when a change now waits for a yes, which
 	 * ends the turn.
 	 */
-	private async callTools(turn: Turn, calls: AgentToolCall[]): Promise<boolean> {
-		let waiting = false;
+	private async *callTools(
+		turn: Turn,
+		calls: AgentToolCall[]
+	): AsyncGenerator<BasilTurnEvent, boolean> {
+		let proposed: { id: string; summary: string } | null = null;
 		for (const call of calls) {
 			const tool = turn.toolbox.find((candidate) => candidate.name === call.name);
 			const args = parseArguments(call.arguments);
@@ -239,23 +280,30 @@ export class AgentService implements IAgentService {
 				);
 				continue;
 			}
+			if (tool.classification === 'mutation' && proposed) {
+				await this.toolResult(turn, call, ONE_CHANGE);
+				continue;
+			}
+			yield { type: 'tool_started', callId: call.id, name: call.name, label: toolLabel(call.name) };
 			if (tool.classification === 'mutation') {
-				if (waiting) {
-					await this.toolResult(turn, call, ONE_CHANGE);
-					continue;
-				}
-				waiting = await this.propose(turn, tool, call, args);
+				proposed = await this.propose(turn, tool, call, args);
+				yield { type: 'tool_finished', callId: call.id, name: call.name, ok: proposed !== null };
 				continue;
 			}
 			const outcome = await tool.execute(args);
+			yield { type: 'tool_finished', callId: call.id, name: call.name, ok: outcome.ok };
 			if (outcome.ok) {
-				if (outcome.value.clientAction) turn.clientActions.push(outcome.value.clientAction);
+				if (outcome.value.clientAction) {
+					yield { type: 'client_action', action: outcome.value.clientAction };
+				}
 				await this.toolResult(turn, call, outcome.value.result);
 			} else {
 				await this.toolResult(turn, call, outcome.failure);
 			}
 		}
-		return waiting;
+		// Last, so the card is the final thing the run says.
+		if (proposed) yield { type: 'approval_required', action: proposed };
+		return proposed !== null;
 	}
 
 	/** Stores a change as pending, after its preview checked it can happen. */
@@ -264,15 +312,15 @@ export class AgentService implements IAgentService {
 		tool: AgentTool,
 		call: AgentToolCall,
 		args: unknown
-	): Promise<boolean> {
+	): Promise<{ id: string; summary: string } | null> {
 		const preview = await tool.preview(args);
 		if (!preview.ok) {
 			await this.toolResult(turn, call, preview.failure);
-			return false;
+			return null;
 		}
-		await this.actions.create(
+		const action = await this.actions.create(
 			{
-				conversationId: turn.conversation.id,
+				conversationId: turn.conversationId,
 				callId: call.id,
 				tool: tool.name,
 				args,
@@ -280,7 +328,7 @@ export class AgentService implements IAgentService {
 			},
 			turn.now
 		);
-		return true;
+		return { id: action.id, summary: action.summary };
 	}
 
 	private prompt(turn: Turn, history: AgentMessage[]): AgentModelMessage[] {
@@ -298,17 +346,9 @@ export class AgentService implements IAgentService {
 		];
 	}
 
-	private async say(turn: Turn, text: string): Promise<void> {
-		await this.messages.append(
-			turn.conversation.id,
-			{ role: 'assistant', text, toolCalls: [] },
-			turn.now
-		);
-	}
-
 	private async toolResult(turn: Turn, call: AgentToolCall, result: unknown): Promise<void> {
 		await this.messages.append(
-			turn.conversation.id,
+			turn.conversationId,
 			{ role: 'tool', callId: call.id, name: call.name, result },
 			turn.now
 		);
@@ -343,22 +383,6 @@ export class AgentService implements IAgentService {
 			throw new Error('Action not found');
 		}
 		return { conversation, action };
-	}
-
-	private async view(conversationId: string): Promise<BasilConversationView> {
-		const [messages, actions] = await Promise.all([
-			this.messages.list(conversationId),
-			this.actions.list(conversationId)
-		]);
-		return buildConversationView(messages, actions);
-	}
-
-	private async result(turn: Turn): Promise<BasilTurnResult> {
-		return {
-			conversation: await this.view(turn.conversation.id),
-			clientActions: turn.clientActions,
-			staleDoors: [...turn.staleDoors]
-		};
 	}
 }
 
