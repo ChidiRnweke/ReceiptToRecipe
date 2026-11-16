@@ -20,7 +20,15 @@ export {
 	tagsOf
 } from './tags';
 export { imageSize, type ImageSize } from './imageSize';
-export { HOUSE_PICTURE_STYLE, recipePicturePrompt, photoJudgePrompt } from './pictureStyle';
+export {
+	HOUSE_PICTURE_STYLE,
+	HOUSE_PICTURE_STYLE_VERSION,
+	PICTURE_CAPTION_INSTRUCTIONS,
+	pictureCaptionInput,
+	lastStepsOf,
+	recipePicturePrompt,
+	photoJudgePrompt
+} from './pictureStyle';
 export {
 	pickSeedPicture,
 	seedPictureCredit,
@@ -38,4 +46,15 @@ export {
 } from './cookbookRules';
 export { itemKeysOf, cookbookTags, embeddingText } from './cookbookText';
 export { unitTypeOf } from './unitType';
-export { PICTURE_COST_ESTIMATES, spendEstimate, type PictureCostEstimate } from './pictureCosts';
+export {
+	PICTURE_COST_ESTIMATES,
+	spendEstimate,
+	pictureRunNotice,
+	type PictureCostEstimate
+} from './pictureCosts';
+export {
+	chooseImageGenerator,
+	DEFAULT_IMAGE_MODEL,
+	OPENROUTER_BASE_URL,
+	type ImageGeneratorKind
+} from './imageGeneratorChoice';

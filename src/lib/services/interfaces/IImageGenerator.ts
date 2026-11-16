@@ -6,13 +6,16 @@ export interface GeneratedImage {
 	revisedPrompt?: string;
 	/** Set when the "generated" image is someone else's photo, as the seed pictures are. */
 	credit?: ImageCredit;
+	/** What the provider charged for the picture, in USD, when it reports it. */
+	cost?: number;
 }
 
 export interface IImageGenerator {
 	/**
 	 * Generate an image from a text prompt
 	 * @param prompt - Text description of the image to generate
+	 * @param options - `seed` asks for a given seed, so a retry draws a different picture
 	 * @returns The generated image
 	 */
-	generateImage(prompt: string): Promise<GeneratedImage>;
+	generateImage(prompt: string, options?: { seed?: number }): Promise<GeneratedImage>;
 }

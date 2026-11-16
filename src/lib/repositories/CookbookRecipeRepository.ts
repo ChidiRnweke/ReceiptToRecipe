@@ -1,8 +1,9 @@
-import { and, asc, eq, inArray, isNotNull, isNull, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNotNull, isNull, or, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '$db/client';
 import * as schema from '$db/schema';
 import { isRecipeTag, type CookbookStructurer } from '$lib/models/recipes';
 import type {
+	CookbookBundleRowDao,
 	CookbookFilter,
 	CookbookPictureDao,
 	CookbookRecipeDao,
@@ -57,7 +58,8 @@ export class CookbookRecipeRepository implements ICookbookRecipeRepository {
 			cuisine: recipe.cuisine,
 			itemKeys: recipe.itemKeys,
 			structuredBy: recipe.structuredBy,
-			embedding: recipe.embedding
+			// Left out, an update keeps the stored embedding.
+			...(recipe.embedding === undefined ? {} : { embedding: recipe.embedding })
 		};
 		const [row] = await this.db
 			.insert(t)
@@ -68,10 +70,47 @@ export class CookbookRecipeRepository implements ICookbookRecipeRepository {
 	}
 
 	async updatePicture(id: string, picture: CookbookPictureDao): Promise<void> {
+		const { pictureStyle, ...columns } = picture;
 		await this.db
 			.update(t)
-			.set({ ...picture, updatedAt: new Date() })
+			.set({
+				...columns,
+				...(pictureStyle === undefined
+					? {}
+					: {
+							recipe: sql`${t.recipe} || jsonb_build_object('pictureStyle', ${pictureStyle}::int)`
+						}),
+				updatedAt: new Date()
+			})
 			.where(eq(t.id, id));
+	}
+
+	async updatePictureCaption(id: string, caption: string): Promise<void> {
+		await this.db
+			.update(t)
+			.set({
+				recipe: sql`${t.recipe} || jsonb_build_object('pictureCaption', ${caption}::text)`,
+				updatedAt: new Date()
+			})
+			.where(eq(t.id, id));
+	}
+
+	async findWithOlderPicture(limit: number, style: number): Promise<CookbookRecipeDao[]> {
+		const rows = await this.db
+			.select()
+			.from(t)
+			.where(this.olderPicture(style))
+			.orderBy(asc(t.importedAt), asc(t.id))
+			.limit(limit);
+		return rows.map((row) => this.toDao(row));
+	}
+
+	async countWithOlderPicture(style: number): Promise<number> {
+		const [row] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(t)
+			.where(this.olderPicture(style));
+		return row?.count ?? 0;
 	}
 
 	async findWithoutPicture(limit: number, standIns: boolean): Promise<CookbookRecipeDao[]> {
@@ -143,9 +182,30 @@ export class CookbookRecipeRepository implements ICookbookRecipeRepository {
 		return rows.map((row) => this.toDao(row));
 	}
 
+	async listForBundle(afterPageId: number, limit: number): Promise<CookbookBundleRowDao[]> {
+		const rows = await this.db
+			.select()
+			.from(t)
+			.where(gt(t.pageId, afterPageId))
+			.orderBy(asc(t.pageId))
+			.limit(limit);
+		return rows.map((row) => ({
+			...this.toDao(row),
+			itemKeys: row.itemKeys,
+			embedding: row.embedding
+		}));
+	}
+
 	async count(): Promise<number> {
 		const [row] = await this.db.select({ count: sql<number>`count(*)::int` }).from(t);
 		return row?.count ?? 0;
+	}
+
+	private olderPicture(style: number): SQL {
+		return or(
+			isNull(t.imageUrl),
+			sql`coalesce((${t.recipe}->>'pictureStyle')::int, 0) < ${style}`
+		) as SQL;
 	}
 
 	private withoutPicture(standIns: boolean): SQL {
@@ -189,6 +249,7 @@ export class CookbookRecipeRepository implements ICookbookRecipeRepository {
 			imageStatus: row.imageStatus,
 			imageSource: row.imageSource,
 			imageCredit: row.imageCredit,
+			embedded: row.embedding !== null,
 			importedAt: row.importedAt,
 			updatedAt: row.updatedAt
 		};

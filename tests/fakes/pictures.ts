@@ -1,5 +1,6 @@
 import type { PhotoBytes, PictureSubject } from '../../src/lib/models/recipes';
 import type { IPhotoJudge, PhotoScore } from '../../src/lib/services/interfaces/IPhotoJudge';
+import type { IPictureCaptioner } from '../../src/lib/services/interfaces/IPictureCaptioner';
 import type {
 	IRecipeIngredientRepository,
 	IRecipeRepository
@@ -22,6 +23,21 @@ export class FakePhotoJudge implements IPhotoJudge {
 	): Promise<PhotoScore> {
 		this.asked.push({ photo, dish });
 		return this.answer;
+	}
+}
+
+type CaptionedDish = Parameters<IPictureCaptioner['caption']>[0];
+
+/** Captions every dish from its title, and records what it was shown. */
+export class FakePictureCaptioner implements IPictureCaptioner {
+	readonly asked: CaptionedDish[] = [];
+	/** Set to make the next calls fail, as an unreachable text model does. */
+	failWith: Error | null = null;
+
+	async caption(dish: CaptionedDish): Promise<string> {
+		this.asked.push(dish);
+		if (this.failWith) throw this.failWith;
+		return `A served plate of ${dish.title}, browned at the edges.`;
 	}
 }
 
@@ -48,6 +64,7 @@ export function createPictures(
 	const storage = new MockStorageService();
 	const jobs = new MockJobQueue(options.runJobs ?? true);
 	const cookbook = options.cookbook ?? new InMemoryCookbookRecipeRepository();
+	const captioner = new FakePictureCaptioner();
 	const service = new RecipePictureService(
 		recipes,
 		ingredients,
@@ -55,7 +72,8 @@ export function createPictures(
 		judge,
 		storage,
 		jobs,
-		cookbook
+		cookbook,
+		captioner
 	);
-	return { service, generator, judge, storage, jobs, cookbook };
+	return { service, generator, judge, storage, jobs, cookbook, captioner };
 }

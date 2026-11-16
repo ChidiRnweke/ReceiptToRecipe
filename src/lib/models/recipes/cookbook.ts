@@ -87,7 +87,13 @@ export const cookbookStructureSchema = z.object({
 	cuisine: z.string().trim().max(60).nullable(),
 	ingredients: z.array(cookbookIngredientSchema).min(1).max(80),
 	steps: z.array(cookbookStepSchema).min(1).max(80),
-	tags: z.array(recipeTagSchema).max(15)
+	tags: z.array(recipeTagSchema).max(15),
+	/** The scene caption the recipe's picture is generated from, once one is written. */
+	pictureCaption: z.string().trim().min(1).max(1000).optional(),
+	/** The house-style version of the stored picture; absent for older pictures. */
+	pictureStyle: z.number().int().nonnegative().optional(),
+	/** How often the picture was made again after a judge turned it down; absent means never. */
+	pictureAttempt: z.number().int().nonnegative().optional()
 });
 export type CookbookStructure = z.infer<typeof cookbookStructureSchema>;
 export type CookbookIngredient = z.infer<typeof cookbookIngredientSchema>;
@@ -224,4 +230,51 @@ export interface CookbookStepView {
 	verb: TechniqueVerb | null;
 	text: string;
 	minutes: number | null;
+}
+
+/** The format version of a cookbook bundle; a loader refuses other versions. */
+export const COOKBOOK_BUNDLE_FORMAT = 1;
+
+/** The licence of FLUX 3 Image Klein's pictures, which a bundle's pictures carry. */
+export const FLUX_PICTURE_LICENCE = 'FLUX Kommunity License';
+
+/** One catalog recipe in a bundle's `catalog.jsonl`. */
+export interface CookbookBundleLine {
+	pageId: number;
+	revisionId: number;
+	title: string;
+	pageTitle: string;
+	sourceUrl: string;
+	licence: string;
+	recipe: CookbookStructure;
+	tags: RecipeTag[];
+	cuisine: string | null;
+	itemKeys: string[];
+	structuredBy: CookbookStructurer;
+	embedding: number[] | null;
+	/** The picture under `pictures/`, or null when the recipe had none. */
+	picture: { file: string; source: RecipeImageSource; credit: ImageCredit | null } | null;
+}
+
+/** A bundle's `manifest.json`. */
+export interface CookbookBundleManifest {
+	format: typeof COOKBOOK_BUNDLE_FORMAT;
+	createdAt: string;
+	recipes: number;
+	pictures: number;
+	embedded: number;
+	/** The models the catalog was made with, e.g. `{ text: "...", embedding: "...", pictures: "..." }`. */
+	models: Record<string, string>;
+	licences: { text: string; pictures: string };
+	/** SHA-256 of `catalog.jsonl`, hex. */
+	catalogSha256: string;
+}
+
+/** What loading a bundle did. */
+export interface CookbookBundleLoadSummary {
+	recipes: number;
+	inserted: number;
+	updated: number;
+	unchanged: number;
+	pictures: number;
 }

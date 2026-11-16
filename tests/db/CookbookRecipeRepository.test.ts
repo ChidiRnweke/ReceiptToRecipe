@@ -183,5 +183,43 @@ describe('CookbookRecipeRepository (DB)', () => {
 			await catalog.updatePicture(dal.id, { imageUrl: '/seed/x.webp', imageSource: 'COMMONS' });
 			expect(await catalog.countWithoutPicture(false)).toBe(0);
 		});
+
+		it('keeps the picture style in the recipe', async () => {
+			const dal = await add('Dal', ['red lentil']);
+			await catalog.updatePicture(dal.id, { imageUrl: '/r/dal.png', pictureStyle: 2 });
+			expect((await catalog.findById(dal.id))?.recipe.pictureStyle).toBe(2);
+		});
+
+		it('keeps the rest of the recipe when it stores the style', async () => {
+			const dal = await add('Dal', ['red lentil']);
+			await catalog.updatePicture(dal.id, { imageUrl: '/r/dal.png', pictureStyle: 2 });
+			expect((await catalog.findById(dal.id))?.recipe.ingredients[0].name).toBe('red lentil');
+		});
+
+		it('keeps the picture caption in the recipe', async () => {
+			const dal = await add('Dal', ['red lentil']);
+			await catalog.updatePictureCaption(dal.id, "A bowl of dal, cook's choice.");
+			expect((await catalog.findById(dal.id))?.recipe.pictureCaption).toBe(
+				"A bowl of dal, cook's choice."
+			);
+		});
+
+		it('lists pictures of an older style, and those without one, for a regenerate run', async () => {
+			const old = await add('Dal', ['red lentil']);
+			await catalog.updatePicture(old.id, { imageUrl: '/r/old.png' });
+			const current = await add('Chili', ['bean']);
+			await catalog.updatePicture(current.id, { imageUrl: '/r/new.png', pictureStyle: 2 });
+			const none = await add('Soup', ['leek']);
+			expect((await catalog.findWithOlderPicture(10, 2)).map((recipe) => recipe.id)).toEqual([
+				old.id,
+				none.id
+			]);
+		});
+
+		it('counts pictures of an older style', async () => {
+			const old = await add('Dal', ['red lentil']);
+			await catalog.updatePicture(old.id, { imageUrl: '/r/old.png', pictureStyle: 1 });
+			expect(await catalog.countWithOlderPicture(2)).toBe(1);
+		});
 	});
 });

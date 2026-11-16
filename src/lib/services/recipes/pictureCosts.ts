@@ -1,7 +1,8 @@
 /**
- * What one recipe picture costs with each image model of the picture bake-off, in USD, as
- * estimated from OpenRouter's prices before the bake-off ran. The bake-off records what OpenRouter
- * actually charged (`usage.cost`); update these once it has run with a working key.
+ * What one recipe picture costs with each image model of the picture bake-off, in USD. The FLUX
+ * row is what OpenRouter charged (`usage.cost`) for a 1024×768 picture; the others were estimated
+ * from OpenRouter's prices before the bake-off ran. The bake-off records what OpenRouter actually
+ * charged; update a row when a run measures it.
  * Kept free of app imports, so the scripts can read it with plain Node.
  */
 export interface PictureCostEstimate {
@@ -13,6 +14,12 @@ export interface PictureCostEstimate {
 }
 
 export const PICTURE_COST_ESTIMATES: readonly PictureCostEstimate[] = [
+	{
+		variant: 'flux-3-image-klein',
+		model: 'black-forest-labs/flux-3-image-klein',
+		low: 0.009,
+		high: 0.009
+	},
 	{ variant: 'gpt-5-image-mini-low', model: 'openai/gpt-5-image-mini', low: 0.002, high: 0.002 },
 	{ variant: 'gpt-5-image-mini-medium', model: 'openai/gpt-5-image-mini', low: 0.009, high: 0.009 },
 	{
@@ -39,4 +46,36 @@ export function spendEstimate(
 	const low = Math.min(...rows.map((row) => row.low));
 	const high = Math.max(...rows.map((row) => row.high));
 	return { low: low * count, high: high * count, perPicture: { low, high } };
+}
+
+/**
+ * What a picture run prints before it starts: the cost of `count` pictures with `model` (`seed`
+ * for the stand-in photos) through OpenRouter, or, for another server (`baseUrl`), that its price
+ * is not known here. `costsMoney` says whether the run may spend money, so the script gives a
+ * moment to stop it.
+ */
+export function pictureRunNotice(
+	model: string,
+	count: number,
+	baseUrl: string | null = null
+): { message: string; costsMoney: boolean } {
+	if (model === 'seed') {
+		return {
+			message: `${count} picture(s) from the committed seed photos (stand-ins): $0.`,
+			costsMoney: false
+		};
+	}
+	if (baseUrl) {
+		return {
+			message: `${count} picture(s) with ${model} at ${baseUrl}: its price is not known here.`,
+			costsMoney: true
+		};
+	}
+	const estimate = spendEstimate(model, count);
+	return {
+		message: estimate
+			? `${count} picture(s) with ${model}: about $${estimate.low.toFixed(2)}–$${estimate.high.toFixed(2)} ($${estimate.perPicture.low}–$${estimate.perPicture.high} each, bake-off estimate).`
+			: `${count} picture(s) with ${model}: no estimate for this model; see scripts/picture-bakeoff.ts.`,
+		costsMoney: true
+	};
 }

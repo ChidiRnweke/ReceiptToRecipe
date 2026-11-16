@@ -4,7 +4,10 @@ import {
 	pickSeedPicture,
 	type SeedPictureCatalog
 } from '../../../src/lib/services/recipes/seedPictures';
-import { recipePicturePrompt } from '../../../src/lib/services/recipes/pictureStyle';
+import {
+	HOUSE_PICTURE_STYLE,
+	recipePicturePrompt
+} from '../../../src/lib/services/recipes/pictureStyle';
 import { pngOfSize } from '../../fakes/pictures';
 
 /** A baseline JPEG header: SOI, an APP0 segment, then SOF0 with height and width. */
@@ -112,8 +115,22 @@ describe('pickSeedPicture', () => {
 
 describe('recipePicturePrompt', () => {
 	it('leaves out hands and text', () => {
-		expect(recipePicturePrompt({ title: 'Dal', description: null, ingredients: [] })).toMatch(
-			/no hands/i
+		expect(recipePicturePrompt({ title: 'Dal' })).toMatch(/no hands/i);
+	});
+
+	it('starts with the caption of the served dish', () => {
+		expect(
+			recipePicturePrompt({ title: 'Banana Cake', caption: 'A sliced loaf with a cracked top.' })
+		).toBe(`A sliced loaf with a cracked top. ${HOUSE_PICTURE_STYLE}`);
+	});
+
+	it('asks for a served plate of the title without a caption', () => {
+		expect(recipePicturePrompt({ title: 'Banana Cake', caption: null })).toBe(
+			`A finished, served plate of Banana Cake. ${HOUSE_PICTURE_STYLE}`
 		);
+	});
+
+	it('asks for a real photograph', () => {
+		expect(recipePicturePrompt({ title: 'Dal' })).toContain('A real photograph');
 	});
 });

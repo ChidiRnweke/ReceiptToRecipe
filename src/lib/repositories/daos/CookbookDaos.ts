@@ -7,7 +7,16 @@ import type {
 	RecipeTag
 } from '$lib/models/recipes';
 
-export type CookbookRecipeDao = CookbookRecipe;
+export interface CookbookRecipeDao extends CookbookRecipe {
+	/** Whether the row has an embedding for similarity search. */
+	embedded: boolean;
+}
+
+/** A catalog row with everything a cookbook bundle carries for it. */
+export interface CookbookBundleRowDao extends CookbookRecipeDao {
+	itemKeys: string[];
+	embedding: number[] | null;
+}
 
 /** A page's recipe as the importer writes it. */
 export interface NewCookbookRecipeDao {
@@ -22,8 +31,11 @@ export interface NewCookbookRecipeDao {
 	cuisine: string | null;
 	itemKeys: string[];
 	structuredBy: CookbookStructurer;
-	/** Null when the embedding call failed; search then falls back to words. */
-	embedding: number[] | null;
+	/**
+	 * Null when the embedding call failed; search then falls back to words. Left out, an update
+	 * keeps the embedding already stored (a new row has none).
+	 */
+	embedding?: number[] | null;
 }
 
 export interface CookbookPictureDao {
@@ -31,6 +43,8 @@ export interface CookbookPictureDao {
 	imageStatus?: 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED';
 	imageSource?: RecipeImageSource | null;
 	imageCredit?: ImageCredit | null;
+	/** The house-style version of a generated picture, kept in the recipe as `pictureStyle`. */
+	pictureStyle?: number;
 }
 
 /** Which catalog recipes a household may be offered. */

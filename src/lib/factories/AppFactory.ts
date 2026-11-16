@@ -13,10 +13,12 @@ import {
 	SmartImageGenerator,
 	SeedPictureGenerator,
 	OpenRouterPhotoJudge,
+	ChatPictureCaptioner,
 	RecipePictureService,
 	CookbookService,
 	type ICookbookService,
 	type IPhotoJudge,
+	type IPictureCaptioner,
 	type IRecipePictureService,
 	SmartProductNormalizer,
 	PgVectorService,
@@ -137,7 +139,15 @@ import {
 } from '$repositories';
 import { agentToolbox } from './agent/agentTools';
 import seedPictures from '../../../static/seed/recipes/credits.json';
-import type { SeedPictureCatalog } from '$services/recipes';
+import {
+	chooseImageGenerator,
+	DEFAULT_IMAGE_MODEL,
+	OPENROUTER_BASE_URL,
+	type SeedPictureCatalog
+} from '$services/recipes';
+
+/** The model that writes picture captions when OPENROUTER_CAPTION_MODEL is unset. */
+const DEFAULT_CAPTION_MODEL = 'google/gemini-3.1-flash-lite';
 
 // Infrastructure Services
 let storageService: IStorageService | null = null;
@@ -147,6 +157,7 @@ let receiptExtractor: IReceiptExtractor | null = null;
 let culinaryIntelligence: ICulinaryIntelligence | null = null;
 let imageGenerator: IImageGenerator | null = null;
 let photoJudge: IPhotoJudge | null = null;
+let pictureCaptioner: IPictureCaptioner | null | undefined;
 let recipePictureService: IRecipePictureService | null = null;
 let vectorService: IVectorService | null = null;
 let jobQueue: JobQueue | null = null;
@@ -297,19 +308,21 @@ export class AppFactory {
 	}
 
 	/**
-	 * The image model through OpenRouter. With `IMAGE_GENERATOR=seed`, or without an OpenRouter
-	 * key, the committed seed photos stand in for generated pictures.
+	 * The image model through OpenRouter (FLUX 3 Image Klein unless OPENROUTER_IMAGE_MODEL says
+	 * otherwise). With `IMAGE_GENERATOR=seed`, or without an OpenRouter key, the committed seed
+	 * photos stand in.
 	 */
 	static getImageGenerator(): IImageGenerator {
 		if (!imageGenerator) {
 			const apiKey = ConfigService.get('OPENROUTER_API_KEY');
+			const kind = chooseImageGenerator({ setting: ConfigService.get('IMAGE_GENERATOR'), apiKey });
 			imageGenerator =
-				ConfigService.get('IMAGE_GENERATOR') === 'seed' || !apiKey
-					? new SeedPictureGenerator(seedPictures as SeedPictureCatalog)
-					: new SmartImageGenerator(
+				kind === 'openrouter' && apiKey
+					? new SmartImageGenerator(
 							apiKey,
-							ConfigService.get('OPENROUTER_IMAGE_MODEL') || 'google/gemini-2.5-flash-image'
-						);
+							ConfigService.get('OPENROUTER_IMAGE_MODEL') || DEFAULT_IMAGE_MODEL
+						)
+					: new SeedPictureGenerator(seedPictures as SeedPictureCatalog);
 		}
 		return imageGenerator;
 	}
@@ -330,19 +343,52 @@ export class AppFactory {
 		return photoJudge;
 	}
 
+	/**
+	 * The model that writes a picture's scene caption, through OpenRouter
+	 * (OPENROUTER_CAPTION_MODEL, Gemini 3.1 Flash Lite by default). Null without a key: pictures
+	 * are then made from the recipe title.
+	 */
+	static getPictureCaptioner(): IPictureCaptioner | null {
+		if (pictureCaptioner === undefined) {
+			const apiKey = ConfigService.get('OPENROUTER_API_KEY');
+			pictureCaptioner = apiKey
+				? new ChatPictureCaptioner({
+						baseUrl: OPENROUTER_BASE_URL,
+						apiKey,
+						model: ConfigService.get('OPENROUTER_CAPTION_MODEL') || DEFAULT_CAPTION_MODEL
+					})
+				: null;
+		}
+		return pictureCaptioner;
+	}
+
 	static getRecipePictureService(): IRecipePictureService {
 		if (!recipePictureService) {
-			recipePictureService = new RecipePictureService(
-				AppFactory.getRecipeRepository(),
-				AppFactory.getRecipeIngredientRepository(),
-				AppFactory.getImageGenerator(),
-				AppFactory.getPhotoJudge(),
-				AppFactory.getStorageService(),
-				AppFactory.getJobQueue(),
-				AppFactory.getCookbookRecipeRepository()
-			);
+			recipePictureService = AppFactory.recipePictureServiceWith(AppFactory.getImageGenerator());
 		}
 		return recipePictureService;
+	}
+
+	/**
+	 * A picture service over another image generator and captioner, e.g. a preprocessing
+	 * script's servers. The captioner defaults to the app's.
+	 */
+	static recipePictureServiceWith(
+		generator: IImageGenerator,
+		captioner: IPictureCaptioner | null = AppFactory.getPictureCaptioner()
+	): IRecipePictureService {
+		return new RecipePictureService(
+			AppFactory.getRecipeRepository(),
+			AppFactory.getRecipeIngredientRepository(),
+			generator,
+			// The judge needs an OpenRouter key; build it when a photo is judged, so picture runs
+			// without a key (seed photos, a preprocessing image server) can start.
+			{ score: (photo, dish) => AppFactory.getPhotoJudge().score(photo, dish) },
+			AppFactory.getStorageService(),
+			AppFactory.getJobQueue(),
+			AppFactory.getCookbookRecipeRepository(),
+			captioner
+		);
 	}
 
 	// Deprecated alias

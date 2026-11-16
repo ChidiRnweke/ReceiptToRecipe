@@ -26,9 +26,13 @@ export type {
 	GeneratedImage,
 	IPhotoJudge,
 	PhotoScore,
+	IPictureCaptioner,
 	IRecipePictureService,
 	ICookbookService,
 	ICookbookImportService,
+	ICookbookBundleService,
+	CookbookBundleFiles,
+	CookbookBundleExportOptions,
 	ICookbookStructurer,
 	IWikibooksClient,
 	CookbookEmbedder,
@@ -147,11 +151,17 @@ export { SmartProductNormalizer } from './SmartProductNormalizer';
 export { SmartImageGenerator } from './SmartImageGenerator';
 export { SeedPictureGenerator } from './SeedPictureGenerator';
 export { OpenRouterPhotoJudge } from './OpenRouterPhotoJudge';
+export { ChatPictureCaptioner, type ChatPictureCaptionerOptions } from './ChatPictureCaptioner';
 export { RecipePictureService } from './RecipePictureService';
 export { CookbookService } from './CookbookService';
 export { CookbookImportService } from './CookbookImportService';
 export { WikibooksClient, WIKIBOOKS_USER_AGENT } from './WikibooksClient';
-export { RulesCookbookStructurer, OpenRouterCookbookStructurer } from './CookbookStructurers';
+export {
+	RulesCookbookStructurer,
+	ChatCookbookStructurer,
+	type ChatCookbookStructurerOptions
+} from './CookbookStructurers';
+export { CookbookBundleService, directoryBundleFiles } from './CookbookBundleService';
 export * from './PgVectorService';
 export * from './JobQueue';
 export { TasteProfileService } from './TasteProfileService';

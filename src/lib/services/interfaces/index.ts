@@ -19,6 +19,7 @@ export type {
 export { NoRecipeInImageError } from './ICulinaryIntelligence';
 export * from './IImageGenerator';
 export * from './IPhotoJudge';
+export * from './IPictureCaptioner';
 export * from './IRecipePictureService';
 export * from './IVectorService';
 export * from './INormalizationService';

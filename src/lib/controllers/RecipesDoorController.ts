@@ -17,7 +17,7 @@ import type {
 	LlmGeneratedRecipe,
 	TaggingSummary
 } from '$services';
-import { hasTags, matchKitchen, stepsFromGenerated } from '$services/recipes';
+import { hasTags, lastStepsOf, matchKitchen, stepsFromGenerated } from '$services/recipes';
 import type { Actor } from '$lib/models/household';
 import {
 	FILTER_TAGS,
@@ -49,7 +49,8 @@ function pictureSubject(recipe: RecipeDao, generated: LlmGeneratedRecipe): Pictu
 		id: recipe.id,
 		title: recipe.title,
 		description: recipe.description,
-		ingredients: generated.ingredients.map((ingredient) => ingredient.name)
+		ingredients: generated.ingredients.map((ingredient) => ingredient.name),
+		lastSteps: lastStepsOf(generated.instructions)
 	};
 }
 

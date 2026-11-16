@@ -17,10 +17,11 @@ import type {
 import type { IImageGenerator } from './interfaces/IImageGenerator';
 import type { IJobQueue } from './interfaces/IJobQueue';
 import type { IPhotoJudge } from './interfaces/IPhotoJudge';
+import type { IPictureCaptioner } from './interfaces/IPictureCaptioner';
 import type { IRecipePictureService } from './interfaces/IRecipePictureService';
 import type { IStorageService } from './interfaces/IStorageService';
 import { imageSize } from './recipes/imageSize';
-import { recipePicturePrompt } from './recipes/pictureStyle';
+import { HOUSE_PICTURE_STYLE_VERSION, recipePicturePrompt } from './recipes/pictureStyle';
 
 /** The folder recipe pictures are stored in. */
 const PICTURE_FOLDER = 'recipes';
@@ -45,6 +46,14 @@ function fromDataUrl(url: string): PhotoBytes | null {
 	return { contentType: match[1], data: Buffer.from(match[2], 'base64') };
 }
 
+/**
+ * The seed for a catalog picture: none on the first try, so the generator picks; on a retry
+ * (`pictureAttempt` 1, 2, …), one from the page id and the try, so each retry draws anew.
+ */
+function retry(pageId: number, attempt: number): Pick<PictureSubject, 'seed'> {
+	return attempt > 0 ? { seed: pageId * 10 + attempt } : {};
+}
+
 export class RecipePictureService implements IRecipePictureService {
 	constructor(
 		private recipeRepository: IRecipeRepository,
@@ -53,7 +62,9 @@ export class RecipePictureService implements IRecipePictureService {
 		private photoJudge: IPhotoJudge,
 		private storageService: IStorageService,
 		private jobQueue: IJobQueue,
-		private cookbookRepository: ICookbookRecipeRepository
+		private cookbookRepository: ICookbookRecipeRepository,
+		/** Writes the scene caption when a recipe has none; without one, the title stands alone. */
+		private captioner: IPictureCaptioner | null = null
 	) {}
 
 	async judgePhoto(
@@ -91,8 +102,12 @@ export class RecipePictureService implements IRecipePictureService {
 			// A cookbook page's photo is never a candidate: catalog recipes always get a generated one.
 			const keep = subject.target === 'cookbook' ? null : candidate;
 			const picture =
-				(keep && (await this.keptPhoto(subject, keep))) ?? (await this.generated(subject));
-			await this.save(subject, { ...picture, imageStatus: 'DONE' });
+				(keep && (await this.keptPhoto(subject, keep))) ??
+				(await this.generated(await this.captioned(subject)));
+			// A generated picture records the house style it was made in, so a newer style redoes it.
+			const style =
+				picture.imageSource === 'GENERATED' ? { pictureStyle: HOUSE_PICTURE_STYLE_VERSION } : {};
+			await this.save(subject, { ...picture, ...style, imageStatus: 'DONE' });
 			return picture;
 		} catch (error) {
 			await this.save(subject, { imageStatus: 'FAILED' });
@@ -137,12 +152,15 @@ export class RecipePictureService implements IRecipePictureService {
 	async fillCookbook(options: {
 		limit: number;
 		standIns: boolean;
+		regenerate?: boolean;
 		onPicture?: (title: string, outcome: string) => void;
 	}): Promise<CookbookPicturesSummary> {
-		const recipes = await this.cookbookRepository.findWithoutPicture(
-			options.limit,
-			options.standIns
-		);
+		const recipes = options.regenerate
+			? await this.cookbookRepository.findWithOlderPicture(
+					options.limit,
+					HOUSE_PICTURE_STYLE_VERSION
+				)
+			: await this.cookbookRepository.findWithoutPicture(options.limit, options.standIns);
 		const summary: CookbookPicturesSummary = { filled: 0, failed: 0, stopped: false };
 		let failedInARow = 0;
 		for (const recipe of recipes) {
@@ -152,6 +170,11 @@ export class RecipePictureService implements IRecipePictureService {
 					title: recipe.recipe.title,
 					description: recipe.recipe.description || null,
 					ingredients: recipe.recipe.ingredients.map((ingredient) => ingredient.name),
+					lastSteps: recipe.recipe.steps
+						.slice(-2)
+						.map((step) => (step.verb ? `${step.verb} ${step.text}` : step.text)),
+					caption: recipe.recipe.pictureCaption ?? null,
+					...retry(recipe.pageId, recipe.recipe.pictureAttempt ?? 0),
 					target: 'cookbook'
 				});
 				summary.filled += 1;
@@ -175,7 +198,28 @@ export class RecipePictureService implements IRecipePictureService {
 		if (subject.target === 'cookbook') {
 			await this.cookbookRepository.updatePicture(subject.id, picture);
 		} else {
-			await this.recipeRepository.update(subject.id, picture);
+			// Household recipes keep no style version: they are never regenerated in bulk.
+			const columns = { ...picture };
+			delete columns.pictureStyle;
+			await this.recipeRepository.update(subject.id, columns);
+		}
+	}
+
+	/**
+	 * The subject with its scene caption: the stored one, else one the captioner writes, kept on a
+	 * catalog recipe. When no caption can be written the picture is made from the title alone.
+	 */
+	private async captioned(subject: PictureSubject): Promise<PictureSubject> {
+		if (subject.caption?.trim() || !this.captioner) return subject;
+		try {
+			const caption = await this.captioner.caption(subject);
+			if (subject.target === 'cookbook') {
+				await this.cookbookRepository.updatePictureCaption(subject.id, caption);
+			}
+			return { ...subject, caption };
+		} catch (error) {
+			console.warn(`No caption for recipe ${subject.id}; using its title:`, error);
+			return subject;
 		}
 	}
 
@@ -191,7 +235,11 @@ export class RecipePictureService implements IRecipePictureService {
 	}
 
 	private async generated(subject: PictureSubject): Promise<RecipePictureResult> {
-		const image = await this.imageGenerator.generateImage(recipePicturePrompt(subject));
+		const prompt = recipePicturePrompt(subject);
+		const image =
+			subject.seed === undefined
+				? await this.imageGenerator.generateImage(prompt)
+				: await this.imageGenerator.generateImage(prompt, { seed: subject.seed });
 		const bytes = fromDataUrl(image.url);
 		const name = subject.target === 'cookbook' ? `cookbook-${subject.id}` : subject.id;
 		const imageUrl = bytes ? await this.store(name, bytes) : image.url;

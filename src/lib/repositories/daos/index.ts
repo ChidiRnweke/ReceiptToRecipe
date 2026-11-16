@@ -95,6 +95,7 @@ export type {
 
 export type {
 	CookbookRecipeDao,
+	CookbookBundleRowDao,
 	NewCookbookRecipeDao,
 	CookbookPictureDao,
 	CookbookFilter,

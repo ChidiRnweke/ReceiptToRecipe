@@ -43,8 +43,14 @@ export interface PictureSubject {
 	id: string;
 	title: string;
 	description: string | null;
-	/** The main ingredients, most important first. */
+	/** The main ingredients, most important first. They inform the caption, never the prompt. */
 	ingredients: string[];
+	/** The last steps of the method, which say how the dish is finished and served. */
+	lastSteps?: string[];
+	/** A scene caption of the served dish, when one is stored; otherwise one is written. */
+	caption?: string | null;
+	/** The seed to draw with, so a retry of a picture a judge turned down draws a new one. */
+	seed?: number;
 	/** A household recipe (the default) or a recipe of the shared cookbook. */
 	target?: 'recipe' | 'cookbook';
 }

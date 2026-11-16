@@ -19,7 +19,7 @@ import type {
 	IRecipePictureService,
 	ICookbookService
 } from '$services';
-import { stepsFromGenerated } from '$services/recipes';
+import { lastStepsOf, stepsFromGenerated } from '$services/recipes';
 import type { Actor } from '$lib/models/household';
 import { cookbookIdOf, type CookbookAttribution, type RecipeStep } from '$lib/models/recipes';
 
@@ -119,7 +119,8 @@ export class RecipeController {
 			id: recipe.id,
 			title: recipe.title,
 			description: recipe.description,
-			ingredients: generatedRecipe.ingredients.map((ingredient) => ingredient.name)
+			ingredients: generatedRecipe.ingredients.map((ingredient) => ingredient.name),
+			lastSteps: lastStepsOf(generatedRecipe.instructions)
 		});
 		return recipe;
 	}
