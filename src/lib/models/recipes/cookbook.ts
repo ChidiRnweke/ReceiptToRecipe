@@ -87,7 +87,13 @@ export const cookbookStructureSchema = z.object({
 	cuisine: z.string().trim().max(60).nullable(),
 	ingredients: z.array(cookbookIngredientSchema).min(1).max(80),
 	steps: z.array(cookbookStepSchema).min(1).max(80),
-	tags: z.array(recipeTagSchema).max(15)
+	tags: z.array(recipeTagSchema).max(15),
+	/** The scene caption the recipe's picture is generated from, once one is written. */
+	pictureCaption: z.string().trim().min(1).max(1000).optional(),
+	/** The house-style version of the stored picture; absent for older pictures. */
+	pictureStyle: z.number().int().nonnegative().optional(),
+	/** How often the picture was made again after a judge turned it down; absent means never. */
+	pictureAttempt: z.number().int().nonnegative().optional()
 });
 export type CookbookStructure = z.infer<typeof cookbookStructureSchema>;
 export type CookbookIngredient = z.infer<typeof cookbookIngredientSchema>;

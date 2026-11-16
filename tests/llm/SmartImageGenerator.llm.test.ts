@@ -42,8 +42,8 @@ describeLLM('SmartImageGenerator (LLM Integration)', () => {
 					service.generateImage(
 						recipePicturePrompt({
 							title: 'Spinach & feta frittata',
-							description: 'Eggs, potato and spinach, finished under the grill',
-							ingredients: ['eggs', 'potato', 'spinach', 'feta']
+							caption:
+								'A thick wedge of frittata on a plate, its top puffed and browned, green spinach and white feta showing at the cut edge.'
 						})
 					),
 				2,

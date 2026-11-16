@@ -9,6 +9,7 @@
 import { ConfigService } from '$services/ConfigService';
 import {
 	ChatCookbookStructurer,
+	ChatPictureCaptioner,
 	CookbookBundleService,
 	CookbookImportService,
 	RulesCookbookStructurer,
@@ -17,6 +18,7 @@ import {
 	type ICookbookBundleService,
 	type ICookbookImportService,
 	type ICookbookStructurer,
+	type IPictureCaptioner,
 	type IRecipePictureService
 } from '$services';
 import { chooseImageGenerator, DEFAULT_IMAGE_MODEL, OPENROUTER_BASE_URL } from '$services/recipes';
@@ -35,9 +37,36 @@ export interface CookbookImportSetup {
 	embeds: boolean;
 }
 
+/** The caption model when PREPROCESS_LLM_MODEL and OPENROUTER_CAPTION_MODEL are unset. */
+const DEFAULT_CAPTION_MODEL = 'google/gemini-3.1-flash-lite';
+
 /** A preprocessing setting, or null when it is unset or blank. */
 function setting(name: string): string | null {
 	return ConfigService.get(name)?.trim() || null;
+}
+
+/**
+ * The captioner for the picture run, on the importer's text server: PREPROCESS_LLM_BASE_URL
+ * (OpenRouter by default), PREPROCESS_LLM_MODEL (else OPENROUTER_CAPTION_MODEL, else Gemini 3.1
+ * Flash Lite), PREPROCESS_LLM_API_KEY and PREPROCESS_LLM_REASONING_EFFORT. Null when OpenRouter
+ * is the server and there is no key; recipes without a stored caption then use their title.
+ */
+function pictureCaptioner(): { captioner: IPictureCaptioner; model: string } | null {
+	const baseUrl = setting('PREPROCESS_LLM_BASE_URL');
+	const apiKey =
+		setting('PREPROCESS_LLM_API_KEY') ?? (baseUrl ? '' : setting('OPENROUTER_API_KEY'));
+	if (!baseUrl && !apiKey) return null;
+	const model =
+		setting('PREPROCESS_LLM_MODEL') ?? setting('OPENROUTER_CAPTION_MODEL') ?? DEFAULT_CAPTION_MODEL;
+	return {
+		captioner: new ChatPictureCaptioner({
+			baseUrl: baseUrl ?? OPENROUTER_BASE_URL,
+			model,
+			apiKey: apiKey ?? '',
+			reasoningEffort: setting('PREPROCESS_LLM_REASONING_EFFORT')
+		}),
+		model
+	};
 }
 
 /**
@@ -92,6 +121,8 @@ export interface CookbookPicturesSetup {
 	model: string;
 	/** The server, when it is not OpenRouter. */
 	baseUrl: string | null;
+	/** The model that captions recipes without a stored caption, or null when none can. */
+	captionModel: string | null;
 }
 
 /**
@@ -99,8 +130,12 @@ export interface CookbookPicturesSetup {
  * that OpenAI-compatible images endpoint (PREPROCESS_IMAGE_MODEL, optional
  * PREPROCESS_IMAGE_API_KEY). Otherwise from OpenRouter with PREPROCESS_IMAGE_MODEL, else the
  * app's image model; with `IMAGE_GENERATOR=seed` or no OpenRouter key, the seed photos stand in.
+ * Recipes without a stored caption are captioned first (see `pictureCaptioner`).
  */
 export function cookbookPictures(): CookbookPicturesSetup {
+	const captions = pictureCaptioner();
+	const captioner = captions?.captioner ?? null;
+	const captionModel = captions?.model ?? null;
 	const baseUrl = setting('PREPROCESS_IMAGE_BASE_URL');
 	const model =
 		setting('PREPROCESS_IMAGE_MODEL') ?? setting('OPENROUTER_IMAGE_MODEL') ?? DEFAULT_IMAGE_MODEL;
@@ -108,7 +143,12 @@ export function cookbookPictures(): CookbookPicturesSetup {
 		const generator = new SmartImageGenerator(setting('PREPROCESS_IMAGE_API_KEY') ?? '', model, {
 			baseUrl
 		});
-		return { pictures: AppFactory.recipePictureServiceWith(generator), model, baseUrl };
+		return {
+			pictures: AppFactory.recipePictureServiceWith(generator, captioner),
+			model,
+			baseUrl,
+			captionModel
+		};
 	}
 	const apiKey = setting('OPENROUTER_API_KEY');
 	const kind = chooseImageGenerator({
@@ -116,12 +156,21 @@ export function cookbookPictures(): CookbookPicturesSetup {
 		apiKey: apiKey ?? undefined
 	});
 	if (kind === 'seed' || !apiKey) {
-		return { pictures: AppFactory.getRecipePictureService(), model: 'seed', baseUrl: null };
+		return {
+			pictures: AppFactory.recipePictureServiceWith(AppFactory.getImageGenerator(), captioner),
+			model: 'seed',
+			baseUrl: null,
+			captionModel
+		};
 	}
 	return {
-		pictures: AppFactory.recipePictureServiceWith(new SmartImageGenerator(apiKey, model)),
+		pictures: AppFactory.recipePictureServiceWith(
+			new SmartImageGenerator(apiKey, model),
+			captioner
+		),
 		model,
-		baseUrl: null
+		baseUrl: null,
+		captionModel
 	};
 }
 

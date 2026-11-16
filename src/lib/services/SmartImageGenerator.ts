@@ -47,7 +47,7 @@ export class SmartImageGenerator implements IImageGenerator {
 		this.fetch = options.fetch ?? ((url, init) => fetch(url, init));
 	}
 
-	async generateImage(prompt: string): Promise<GeneratedImage> {
+	async generateImage(prompt: string, options: { seed?: number } = {}): Promise<GeneratedImage> {
 		const response = await this.fetch(`${this.baseUrl}/images/generations`, {
 			method: 'POST',
 			headers: {
@@ -60,7 +60,8 @@ export class SmartImageGenerator implements IImageGenerator {
 				prompt,
 				n: 1,
 				size: this.size,
-				aspect_ratio: this.aspectRatio
+				aspect_ratio: this.aspectRatio,
+				...(options.seed === undefined ? {} : { seed: options.seed })
 			})
 		});
 		const body = (await response.json().catch(() => ({}))) as ImagesResponse;

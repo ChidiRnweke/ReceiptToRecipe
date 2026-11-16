@@ -19,7 +19,8 @@ export interface IRecipePictureService {
 	): Promise<PhotoVerdict>;
 	/**
 	 * Gives the recipe its picture and stores it: the candidate photo when the judge keeps it,
-	 * otherwise a picture generated in the house style. A failure marks the picture FAILED and
+	 * otherwise a picture generated in the house style from a scene caption of the served dish
+	 * (the stored one, or one the captioner writes). A failure marks the picture FAILED and
 	 * is rethrown.
 	 */
 	ensure(
@@ -35,11 +36,14 @@ export interface IRecipePictureService {
 	fillMissing(limit?: number): Promise<{ filled: number; failed: number }>;
 	/**
 	 * Generates pictures for shared-cookbook recipes without one, oldest first, one at a time;
-	 * with `standIns`, seed stand-in photos are replaced too. Stops after 3 failures in a row.
+	 * with `standIns`, seed stand-in photos are replaced too. With `regenerate`, every picture of
+	 * an older house style is made again; each records its style, so a stopped run continues.
+	 * Stops after 3 failures in a row.
 	 */
 	fillCookbook(options: {
 		limit: number;
 		standIns: boolean;
+		regenerate?: boolean;
 		onPicture?: (title: string, outcome: string) => void;
 	}): Promise<CookbookPicturesSummary>;
 }

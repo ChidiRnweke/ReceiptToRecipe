@@ -13,10 +13,12 @@ import {
 	SmartImageGenerator,
 	SeedPictureGenerator,
 	OpenRouterPhotoJudge,
+	ChatPictureCaptioner,
 	RecipePictureService,
 	CookbookService,
 	type ICookbookService,
 	type IPhotoJudge,
+	type IPictureCaptioner,
 	type IRecipePictureService,
 	SmartProductNormalizer,
 	PgVectorService,
@@ -140,8 +142,12 @@ import seedPictures from '../../../static/seed/recipes/credits.json';
 import {
 	chooseImageGenerator,
 	DEFAULT_IMAGE_MODEL,
+	OPENROUTER_BASE_URL,
 	type SeedPictureCatalog
 } from '$services/recipes';
+
+/** The model that writes picture captions when OPENROUTER_CAPTION_MODEL is unset. */
+const DEFAULT_CAPTION_MODEL = 'google/gemini-3.1-flash-lite';
 
 // Infrastructure Services
 let storageService: IStorageService | null = null;
@@ -151,6 +157,7 @@ let receiptExtractor: IReceiptExtractor | null = null;
 let culinaryIntelligence: ICulinaryIntelligence | null = null;
 let imageGenerator: IImageGenerator | null = null;
 let photoJudge: IPhotoJudge | null = null;
+let pictureCaptioner: IPictureCaptioner | null | undefined;
 let recipePictureService: IRecipePictureService | null = null;
 let vectorService: IVectorService | null = null;
 let jobQueue: JobQueue | null = null;
@@ -336,6 +343,25 @@ export class AppFactory {
 		return photoJudge;
 	}
 
+	/**
+	 * The model that writes a picture's scene caption, through OpenRouter
+	 * (OPENROUTER_CAPTION_MODEL, Gemini 3.1 Flash Lite by default). Null without a key: pictures
+	 * are then made from the recipe title.
+	 */
+	static getPictureCaptioner(): IPictureCaptioner | null {
+		if (pictureCaptioner === undefined) {
+			const apiKey = ConfigService.get('OPENROUTER_API_KEY');
+			pictureCaptioner = apiKey
+				? new ChatPictureCaptioner({
+						baseUrl: OPENROUTER_BASE_URL,
+						apiKey,
+						model: ConfigService.get('OPENROUTER_CAPTION_MODEL') || DEFAULT_CAPTION_MODEL
+					})
+				: null;
+		}
+		return pictureCaptioner;
+	}
+
 	static getRecipePictureService(): IRecipePictureService {
 		if (!recipePictureService) {
 			recipePictureService = AppFactory.recipePictureServiceWith(AppFactory.getImageGenerator());
@@ -343,8 +369,14 @@ export class AppFactory {
 		return recipePictureService;
 	}
 
-	/** A picture service over another image generator, e.g. a preprocessing script's server. */
-	static recipePictureServiceWith(generator: IImageGenerator): IRecipePictureService {
+	/**
+	 * A picture service over another image generator and captioner, e.g. a preprocessing
+	 * script's servers. The captioner defaults to the app's.
+	 */
+	static recipePictureServiceWith(
+		generator: IImageGenerator,
+		captioner: IPictureCaptioner | null = AppFactory.getPictureCaptioner()
+	): IRecipePictureService {
 		return new RecipePictureService(
 			AppFactory.getRecipeRepository(),
 			AppFactory.getRecipeIngredientRepository(),
@@ -354,7 +386,8 @@ export class AppFactory {
 			{ score: (photo, dish) => AppFactory.getPhotoJudge().score(photo, dish) },
 			AppFactory.getStorageService(),
 			AppFactory.getJobQueue(),
-			AppFactory.getCookbookRecipeRepository()
+			AppFactory.getCookbookRecipeRepository(),
+			captioner
 		);
 	}
 

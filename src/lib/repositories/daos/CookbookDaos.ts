@@ -43,6 +43,8 @@ export interface CookbookPictureDao {
 	imageStatus?: 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED';
 	imageSource?: RecipeImageSource | null;
 	imageCredit?: ImageCredit | null;
+	/** The house-style version of a generated picture, kept in the recipe as `pictureStyle`. */
+	pictureStyle?: number;
 }
 
 /** Which catalog recipes a household may be offered. */

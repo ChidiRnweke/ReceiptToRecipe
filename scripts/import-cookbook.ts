@@ -19,6 +19,7 @@ import { appModules, integerArgument } from './lib/appModules.ts';
 import { runCookbookPictures } from './cookbook-pictures.ts';
 import type * as Jobs from '../src/lib/factories/cookbookJobs.ts';
 import type * as Costs from '../src/lib/services/recipes/pictureCosts.ts';
+import type * as Styles from '../src/lib/services/recipes/pictureStyle.ts';
 
 const CACHE_DIR = join(process.cwd(), 'artifacts', 'cache', 'wikibooks');
 
@@ -53,9 +54,11 @@ async function main() {
 
 		if (!args.includes('--no-pictures')) {
 			const costs = await modules.load<typeof Costs>('/src/lib/services/recipes/pictureCosts.ts');
-			await runCookbookPictures(jobs, costs, {
+			const styles = await modules.load<typeof Styles>('/src/lib/services/recipes/pictureStyle.ts');
+			await runCookbookPictures(jobs, costs, styles, {
 				limit: Math.max(summary.imported + summary.updated, 1),
 				standIns: false,
+				regenerate: false,
 				wait: !args.includes('--yes')
 			});
 		}

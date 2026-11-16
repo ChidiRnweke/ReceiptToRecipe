@@ -72,6 +72,12 @@ describe('SmartImageGenerator', () => {
 			expect(sent[0].body.size).toBe('2K');
 		});
 
+		it('sends the seed it is asked for', async () => {
+			const { fetch, sent } = fakeFetch(200, PICTURE);
+			await new SmartImageGenerator('key', 'm', { fetch }).generateImage('soup', { seed: 42 });
+			expect(sent[0].body.seed).toBe(42);
+		});
+
 		it('authenticates with the API key', async () => {
 			const { fetch, sent } = fakeFetch(200, PICTURE);
 			await new SmartImageGenerator('sk-test', 'm', { fetch }).generateImage('soup');

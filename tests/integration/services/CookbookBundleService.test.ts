@@ -57,8 +57,10 @@ describe('CookbookBundleService', () => {
 			imageUrl: upload.url,
 			imageStatus: 'DONE',
 			imageSource: 'GENERATED',
-			imageCredit: null
+			imageCredit: null,
+			pictureStyle: 2
 		});
+		await source.updatePictureCaption(soup.id, 'A bowl of red soup with a swirl of cream.');
 		await source.upsert(cookbookRow(cookbookStructure('Plain Rice', ['rice']), 102));
 	});
 
@@ -99,6 +101,20 @@ describe('CookbookBundleService', () => {
 			expect((await target.findByPageId(101))?.recipe).toEqual(
 				(await source.findByPageId(101))?.recipe
 			);
+		});
+
+		it('keeps the picture caption', async () => {
+			await exportBundle();
+			await load();
+			expect((await target.findByPageId(101))?.recipe.pictureCaption).toBe(
+				'A bowl of red soup with a swirl of cream.'
+			);
+		});
+
+		it('keeps the picture style', async () => {
+			await exportBundle();
+			await load();
+			expect((await target.findByPageId(101))?.recipe.pictureStyle).toBe(2);
 		});
 
 		it('keeps the embedding', async () => {
@@ -142,6 +158,22 @@ describe('CookbookBundleService', () => {
 			const first = (await target.findByPageId(101))?.imageUrl;
 			await load();
 			expect((await target.findByPageId(101))?.imageUrl).toBe(first);
+		});
+	});
+
+	describe('a bundle with regenerated pictures', () => {
+		async function loadThenRegenerate() {
+			const soup = (await source.findByPageId(101))!;
+			await source.updatePicture(soup.id, { pictureStyle: 1 });
+			await exportBundle();
+			await load();
+			await source.updatePicture(soup.id, { pictureStyle: 2 });
+			await exportBundle();
+		}
+
+		it('stores the new picture again', async () => {
+			await loadThenRegenerate();
+			expect((await load()).pictures).toBe(1);
 		});
 	});
 

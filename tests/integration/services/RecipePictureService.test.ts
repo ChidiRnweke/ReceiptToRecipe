@@ -11,6 +11,7 @@ import type { PictureCandidate, PictureSubject } from '../../../src/lib/models/r
 import { SeedPictureGenerator } from '../../../src/lib/services/SeedPictureGenerator';
 import { RecipePictureService } from '../../../src/lib/services/RecipePictureService';
 import { cookbookRow, cookbookStructure } from '../../fakes/cookbook';
+import { HOUSE_PICTURE_STYLE_VERSION } from '../../../src/lib/services/recipes/pictureStyle';
 
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -143,6 +144,48 @@ describe('RecipePictureService', () => {
 			expect(pictures.generator.prompts[0]).toContain('Spinach & feta frittata');
 		});
 
+		it('draws the picture from the stored caption', async () => {
+			await pictures.service.ensure({ ...subject, caption: 'A puffed golden frittata.' });
+
+			expect(pictures.generator.prompts[0]).toMatch(/^A puffed golden frittata\. /);
+		});
+
+		it('does not ask for a caption when one is stored', async () => {
+			await pictures.service.ensure({ ...subject, caption: 'A puffed golden frittata.' });
+
+			expect(pictures.captioner.asked).toHaveLength(0);
+		});
+
+		it('asks the captioner for a caption when none is stored', async () => {
+			await pictures.service.ensure(subject);
+
+			expect(pictures.captioner.asked.map((dish) => dish.title)).toEqual([
+				'Spinach & feta frittata'
+			]);
+		});
+
+		it('draws the picture from the written caption', async () => {
+			await pictures.service.ensure(subject);
+
+			expect(pictures.generator.prompts[0]).toContain(
+				'A served plate of Spinach & feta frittata, browned at the edges.'
+			);
+		});
+
+		it('does not list the ingredients in the prompt', async () => {
+			await pictures.service.ensure(subject);
+
+			expect(pictures.generator.prompts[0]).not.toContain('potato');
+		});
+
+		it('still makes a picture when the captioner fails', async () => {
+			pictures.captioner.failWith = new Error('402 No credit');
+
+			const picture = await pictures.service.ensure(subject);
+
+			expect(picture.imageSource).toBe('GENERATED');
+		});
+
 		it('stores a generated picture instead of keeping its data URL', async () => {
 			const picture = await pictures.service.ensure(subject);
 
@@ -242,7 +285,7 @@ describe('RecipePictureService', () => {
 			expect(pictures.generator.prompts).toHaveLength(2);
 		});
 
-		it('names the ingredients of each recipe in its prompt', async () => {
+		it('shows the captioner the ingredients of each recipe', async () => {
 			await ingredients.createMany([
 				{
 					recipeId: subject.id,
@@ -256,7 +299,7 @@ describe('RecipePictureService', () => {
 
 			await pictures.service.fillMissing();
 
-			expect(pictures.generator.prompts[0]).toContain('eggs');
+			expect(pictures.captioner.asked[0].ingredients).toEqual(['eggs']);
 		});
 
 		it('stops after three failures in a row', async () => {
@@ -322,6 +365,88 @@ describe('RecipePictureService', () => {
 			for (const title of ['A', 'B', 'C', 'D']) await addCatalogRecipe(title);
 			pictures.generator.failWith = new Error('401');
 			expect((await pictures.service.fillCookbook({ limit: 10, standIns: false })).failed).toBe(3);
+		});
+
+		it('keeps the written caption on the catalog recipe', async () => {
+			const dal = await addCatalogRecipe('Red lentil dal');
+			await pictures.service.fillCookbook({ limit: 10, standIns: false });
+			expect((await pictures.cookbook.findById(dal.id))?.recipe.pictureCaption).toBe(
+				'A served plate of Red lentil dal, browned at the edges.'
+			);
+		});
+
+		it('draws a catalog picture from its stored caption', async () => {
+			const dal = await addCatalogRecipe('Red lentil dal');
+			await pictures.cookbook.updatePictureCaption(dal.id, 'A bowl of golden dal.');
+			await pictures.service.fillCookbook({ limit: 10, standIns: false });
+			expect(pictures.generator.prompts[0]).toMatch(/^A bowl of golden dal\. /);
+		});
+
+		it('records the house style of a generated picture', async () => {
+			const dal = await addCatalogRecipe('Red lentil dal');
+			await pictures.service.fillCookbook({ limit: 10, standIns: false });
+			expect((await pictures.cookbook.findById(dal.id))?.recipe.pictureStyle).toBe(
+				HOUSE_PICTURE_STYLE_VERSION
+			);
+		});
+	});
+
+	describe('regenerating the shared cookbook pictures', () => {
+		async function addPictured(title: string, pictureStyle?: number) {
+			const row = await pictures.cookbook.upsert(
+				cookbookRow(cookbookStructure(title, ['red lentil']))
+			);
+			await pictures.cookbook.updatePicture(row.id, {
+				imageUrl: `mock://recipes/${row.id}-old.png`,
+				imageSource: 'GENERATED',
+				...(pictureStyle === undefined ? {} : { pictureStyle })
+			});
+			return row;
+		}
+
+		const regenerate = () =>
+			pictures.service.fillCookbook({ limit: 10, standIns: false, regenerate: true });
+
+		it('makes again a picture of an older style', async () => {
+			const dal = await addPictured('Red lentil dal');
+			await regenerate();
+			expect((await pictures.cookbook.findById(dal.id))?.imageUrl).not.toBe(
+				`mock://recipes/${dal.id}-old.png`
+			);
+		});
+
+		it('leaves a picture of the current style alone', async () => {
+			await addPictured('Red lentil dal', HOUSE_PICTURE_STYLE_VERSION);
+			expect((await regenerate()).filled).toBe(0);
+		});
+
+		it('only redoes the older pictures', async () => {
+			await addPictured('Red lentil dal', HOUSE_PICTURE_STYLE_VERSION);
+			await addPictured('Bean chili');
+			await addPictured('Minestrone', 1);
+			expect((await regenerate()).filled).toBe(2);
+		});
+
+		it('continues where a stopped run ended', async () => {
+			await addPictured('Red lentil dal');
+			await addPictured('Bean chili');
+			await pictures.service.fillCookbook({ limit: 1, standIns: false, regenerate: true });
+			expect((await regenerate()).filled).toBe(1);
+		});
+
+		it('draws a first try without a seed', async () => {
+			await addPictured('Red lentil dal');
+			await regenerate();
+			expect(pictures.generator.seeds).toEqual([undefined]);
+		});
+
+		it('draws a retry with a seed from the page and the try', async () => {
+			const dal = await addPictured('Red lentil dal');
+			await pictures.cookbook.upsert({
+				...cookbookRow({ ...dal.recipe, pictureAttempt: 2 }, dal.pageId)
+			});
+			await regenerate();
+			expect(pictures.generator.seeds).toEqual([dal.pageId * 10 + 2]);
 		});
 	});
 });

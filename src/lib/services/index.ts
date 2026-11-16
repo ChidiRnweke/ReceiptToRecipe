@@ -26,6 +26,7 @@ export type {
 	GeneratedImage,
 	IPhotoJudge,
 	PhotoScore,
+	IPictureCaptioner,
 	IRecipePictureService,
 	ICookbookService,
 	ICookbookImportService,
@@ -150,6 +151,7 @@ export { SmartProductNormalizer } from './SmartProductNormalizer';
 export { SmartImageGenerator } from './SmartImageGenerator';
 export { SeedPictureGenerator } from './SeedPictureGenerator';
 export { OpenRouterPhotoJudge } from './OpenRouterPhotoJudge';
+export { ChatPictureCaptioner, type ChatPictureCaptionerOptions } from './ChatPictureCaptioner';
 export { RecipePictureService } from './RecipePictureService';
 export { CookbookService } from './CookbookService';
 export { CookbookImportService } from './CookbookImportService';

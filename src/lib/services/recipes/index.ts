@@ -20,7 +20,15 @@ export {
 	tagsOf
 } from './tags';
 export { imageSize, type ImageSize } from './imageSize';
-export { HOUSE_PICTURE_STYLE, recipePicturePrompt, photoJudgePrompt } from './pictureStyle';
+export {
+	HOUSE_PICTURE_STYLE,
+	HOUSE_PICTURE_STYLE_VERSION,
+	PICTURE_CAPTION_INSTRUCTIONS,
+	pictureCaptionInput,
+	lastStepsOf,
+	recipePicturePrompt,
+	photoJudgePrompt
+} from './pictureStyle';
 export {
 	pickSeedPicture,
 	seedPictureCredit,

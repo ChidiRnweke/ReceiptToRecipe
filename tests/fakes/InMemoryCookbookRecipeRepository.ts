@@ -74,7 +74,26 @@ export class InMemoryCookbookRecipeRepository implements ICookbookRecipeReposito
 
 	async updatePicture(id: string, picture: CookbookPictureDao): Promise<void> {
 		const row = this.rows.get(id);
-		if (row) this.rows.set(id, { ...row, ...picture });
+		if (!row) return;
+		const { pictureStyle, ...columns } = picture;
+		const recipe = pictureStyle === undefined ? row.recipe : { ...row.recipe, pictureStyle };
+		this.rows.set(id, { ...row, ...columns, recipe });
+	}
+
+	async updatePictureCaption(id: string, caption: string): Promise<void> {
+		const row = this.rows.get(id);
+		if (row) this.rows.set(id, { ...row, recipe: { ...row.recipe, pictureCaption: caption } });
+	}
+
+	async findWithOlderPicture(limit: number, style: number): Promise<CookbookRecipeDao[]> {
+		return [...this.rows.values()]
+			.filter((row) => !row.imageUrl || (row.recipe.pictureStyle ?? 0) < style)
+			.sort((a, b) => a.importedAt.getTime() - b.importedAt.getTime())
+			.slice(0, limit);
+	}
+
+	async countWithOlderPicture(style: number): Promise<number> {
+		return (await this.findWithOlderPicture(Number.MAX_SAFE_INTEGER, style)).length;
 	}
 
 	async listForBundle(afterPageId: number, limit: number): Promise<CookbookBundleRowDao[]> {

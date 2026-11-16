@@ -128,7 +128,11 @@ export class CookbookBundleService implements ICookbookBundleService {
 			summary.recipes += 1;
 			const existing = await this.repository.findByPageId(line.pageId);
 			const sameRevision = existing?.revisionId === line.revisionId;
-			if (existing && sameRevision && (!line.picture || existing.imageUrl)) {
+			// A picture of another house style (a regenerated bundle) replaces the stored one.
+			const style = line.recipe.pictureStyle ?? 0;
+			const samePicture =
+				sameRevision && !!existing?.imageUrl && (existing.recipe.pictureStyle ?? 0) === style;
+			if (existing && sameRevision && (!line.picture || samePicture)) {
 				summary.unchanged += 1;
 				options.onRecipe?.(line.title, 'unchanged');
 				continue;
@@ -148,7 +152,7 @@ export class CookbookBundleService implements ICookbookBundleService {
 				structuredBy: line.structuredBy,
 				embedding: line.embedding
 			});
-			if (line.picture && !(sameRevision && existing?.imageUrl)) {
+			if (line.picture && !samePicture) {
 				const upload = await this.storage.upload(
 					await files.read(line.picture.file),
 					`cookbook-${stored.id}.webp`,

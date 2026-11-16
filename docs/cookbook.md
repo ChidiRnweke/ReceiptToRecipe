@@ -42,15 +42,15 @@ The preprocessing scripts are the only code that reads the `PREPROCESS_*` settin
 may run on any OpenAI-compatible server, on this machine or hosted. Unset, the scripts use
 OpenRouter with the app's models.
 
-| Setting                           | Used by             | Default                                        |
-| --------------------------------- | ------------------- | ---------------------------------------------- |
-| `PREPROCESS_LLM_BASE_URL`         | `cookbook:import`   | `https://openrouter.ai/api/v1`                 |
-| `PREPROCESS_LLM_MODEL`            | `cookbook:import`   | `OPENROUTER_MODEL`                             |
-| `PREPROCESS_LLM_API_KEY`          | `cookbook:import`   | `OPENROUTER_API_KEY` for OpenRouter, else none |
-| `PREPROCESS_LLM_REASONING_EFFORT` | `cookbook:import`   | not sent (`none` stops a thinking model)       |
-| `PREPROCESS_IMAGE_BASE_URL`       | `cookbook:pictures` | OpenRouter                                     |
-| `PREPROCESS_IMAGE_MODEL`          | `cookbook:pictures` | `OPENROUTER_IMAGE_MODEL`, else FLUX 3 Klein    |
-| `PREPROCESS_IMAGE_API_KEY`        | `cookbook:pictures` | none for another server                        |
+| Setting                           | Used by                     | Default                                        |
+| --------------------------------- | --------------------------- | ---------------------------------------------- |
+| `PREPROCESS_LLM_BASE_URL`         | `cookbook:import`, captions | `https://openrouter.ai/api/v1`                 |
+| `PREPROCESS_LLM_MODEL`            | `cookbook:import`           | `OPENROUTER_MODEL`                             |
+| `PREPROCESS_LLM_API_KEY`          | `cookbook:import`           | `OPENROUTER_API_KEY` for OpenRouter, else none |
+| `PREPROCESS_LLM_REASONING_EFFORT` | `cookbook:import`           | not sent (`none` stops a thinking model)       |
+| `PREPROCESS_IMAGE_BASE_URL`       | `cookbook:pictures`         | OpenRouter                                     |
+| `PREPROCESS_IMAGE_MODEL`          | `cookbook:pictures`         | `OPENROUTER_IMAGE_MODEL`, else FLUX 3 Klein    |
+| `PREPROCESS_IMAGE_API_KEY`        | `cookbook:pictures`         | none for another server                        |
 
 The text server must serve `POST /chat/completions`. The structurer asks for a JSON object and
 asks again without that setting if the server refuses it. The image server must serve
@@ -70,8 +70,15 @@ The run happens in three steps, and each one can be stopped and started again:
    searchable even if the OpenRouter key stops working midway. Interrupted, the run continues
    where it stopped, because pages the model already structured are skipped.
 3. **Make pictures.** Run `npm run cookbook:pictures -- --yes` with the `PREPROCESS_IMAGE_*`
-   settings. Only recipes without a picture are picked up, so the run is resumable. To make a
-   picture again, clear its `image_url` and run the step again.
+   settings. Each picture is drawn from a scene caption of the served dish (what the camera sees
+   on the plate, never a list of ingredients) plus the house style. The caption is kept in the
+   recipe as `pictureCaption`; a recipe without one is captioned first on the `PREPROCESS_LLM_*`
+   text server (`OPENROUTER_CAPTION_MODEL`, else `google/gemini-3.1-flash-lite`, when the model
+   is unset). Only recipes without a picture are picked up, so the run is resumable. To make a
+   picture again, clear its `image_url` and run the step again. After the house style changes
+   (`HOUSE_PICTURE_STYLE_VERSION`), `npm run cookbook:pictures -- --regenerate --yes` makes every
+   older picture again; each new picture records its style as `pictureStyle`, so a stopped run
+   continues where it ended. A recipe with `pictureAttempt` set is drawn again with a new seed.
 
 Then write the bundle:
 

@@ -14,7 +14,8 @@ export interface IImageGenerator {
 	/**
 	 * Generate an image from a text prompt
 	 * @param prompt - Text description of the image to generate
+	 * @param options - `seed` asks for a given seed, so a retry draws a different picture
 	 * @returns The generated image
 	 */
-	generateImage(prompt: string): Promise<GeneratedImage>;
+	generateImage(prompt: string, options?: { seed?: number }): Promise<GeneratedImage>;
 }
